@@ -1,0 +1,69 @@
+The Flight — Arcade Game 7 Design Document
+Flocks
+Warriors are commanded in flocks of 2-12 with a leader (the Founder or a Flockmaster). A
+flock has a formation (see War), a target, an altitude order, and a stance (raid, hold,
+escort, retreat-when-half). Birds outside a flock fight as individuals and lose.
+Upkeep
+Every bird is a mouth. Warriors eat a fisher. A colony of 15 fishers can feed about 8
+warriors at rest and 5 on campaign (flying burns feed). A standing army starves a colony;
+armies are raised for a war and demobilized to fishing after it, which is the rhythm the
+game teaches.
+Islands
+Every island is a different economy and a different defense. Starting islands are safe and
+fair; the dangerous ones are the map's center and its best ground, if a player can hold
+them.
+Starting islands (one per player, chosen in the lobby or random)
+Island
+The Sea
+Stack
+The
+Tropical
+Island
+Shape
+A vertical rock
+120 m tall with
+ledges
+A green island
+with a lagoon
+and a hill
+Nest sites
+20, all on
+cliffs
+40, in trees
+and on the
+beach
+Economy
+Shells and guano;
+fish in the deep
+water around it; few
+twigs (driftwood
+only)
+Twigs everywhere;
+lagoon fish (safe,
+small); thermals in
+the afternoon
+Defense
+The best in the
+game: attackers
+must climb,
+Watchers on
+ledges see
+everything,
+Strikers dive from
+the summit
+Trees hide nests; a
+hedge research
+makes the forest a
+maze
+Weakness
+No trees; feed
+lines are
+vulnerable; a
+volcano's ash or a
+storm empties the
+ledges
+Open beaches to
+land on; rats; the
+lagoon's yield runs
+out by mid-game
+Page 13 of 51

@@ -1,0 +1,70 @@
+The Flight — Arcade Game 7 Design Document
+Faction
+The
+Frigate
+Pirates
+The
+Fishing
+Fleet
+The Grey
+Wings
+Who
+A roving flock of wild
+frigatebirds with a
+captain
+Human boats from the
+towns
+A clan of wild birds of
+prey (eagles, hawks) on
+the map's highest crag
+What they do
+Steal carried fish and
+cache fish; sell what they
+steal at a floating market
+(the Nest of Thieves)
+that moves each day; can
+be hired (fish) to raid a
+named player
+Fish the grounds
+(competition), drop
+chum (free feed, sharks),
+cast nets (a flying bird
+can be netted at low
+altitude), and hire birds:
+a contract pays fish for a
+flock that drives schools
+toward the boats
+Hunt chicks and lone
+fishers; can be paid
+tribute (fish) for a day's
+peace; a shrine on their
+crag (Pilgrimage) makes
+them yours
+How to deal with them
+Pay them, hire them, or
+kill the captain (the
+flock scatters for a
+season); a Frigatebird
+founder is their cousin
+and pays half
+Reputation at the
+towns; the Sigma gets
+contracts first; a
+Frigatebird colony that
+robs the fleet is
+hunted by its gulls
+Tribute, Watchers, or
+war: killing the Grey
+Wings' eagle is a relic
+and a headline
+Great events
+Beyond the seasons' events, the map rolls one great event per match from this list,
+announced a day ahead by the Augur (or not at all without one):
+• The Red Tide: a bloom kills a ground's fish and poisons feed for a day; caches with
+Keepers are safe.
+• The Kraken's Walk: the kraken leaves its cove and crosses the map, eating islands'
+nests below 20 m; the cove is free for a day.
+• The Great Storm: two days of gales; every drifting island moves; ships wreck (new
+wrecks to salvage); the lighthouse goes out.
+• The Eclipse: a day of night in Summer; owls and Shadows own it.
+Page 46 of 51

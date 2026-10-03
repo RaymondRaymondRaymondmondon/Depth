@@ -1,0 +1,111 @@
+The Flight — Arcade Game 7 Design Document
+Dangerous islands (neutral; beneficial if held)
+Island
+Kraken
+Cove
+Skull
+Island
+Volcano
+Island
+What lives there
+A kraken in a sea
+cave; its arms
+surface in the
+cove; squid, big
+fish, and the
+pearls it hoards
+Giant beasts: a
+great ape that
+throws rocks at
+anything flying
+low, a tribe of giant
+lizards, a swarm of
+giant insects,
+carnivorous plants
+that eat chicks
+Nothing much: hot
+rock, SUIfur vents,
+a crater lake of
+strange fish
+The danger
+The kraken grabs
+any bird under
+20 m over the
+cove; it surfaces
+fully when blood
+is in the water; it
+attacks nests on
+the cliffs above
+when the colony
+is loud (noise)
+Low flight
+anywhere is a
+thrown rock; the
+lizards climb to
+nests; the plants
+grow onto nest
+sites
+Eruptions every
+6 game days
+(tremors warn):
+ash kills chicks
+and grounds
+birds for a day;
+lava takes nests
+on the slopes
+The prize
+The richest
+fishing on the
+map (3x yield);
+pearls on the
+cove floor; the
+kraken ignores a
+colony that
+offers it a fish a
+day (a priest's
+job)
+The island's
+trees are the
+best twigs on the
+map; the beasts/
+kills leave
+carcasses (feed);
+a shrine at the
+summit gives
+fervour +20% to
+whoever holds it
+Thermals all day
+(free altitude for
+Bombers and
+Scouts); the
+crater lake's fish
+are size 4 and
+nothing eats
+birds there;
+SUIfUr is the
+chemistry tree's
+rare material
+How to hold it
+Nest on the
+cliffs above 20
+m; fish the cove
+at dawn and
+dusk only; keep
+a priest offering;
+never bleed in
+its water
+Nest high in the
+tallest trees; fly
+in high; feed the
+ape (it sleeps for
+a day after a
+tuna); burn the
+plants (a bomb)
+Nest on the far
+side from the
+crater; move
+eggs during
+tremors; harvest
+sulfur between
+eruptions
+Page 15 of 51

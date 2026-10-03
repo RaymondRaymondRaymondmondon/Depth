@@ -1,0 +1,33 @@
+{
+    "zone_y":  {
+                   "The Lagoon":  [
+                                      -3,
+                                      0
+                                  ],
+                   "Reef Shallows":  [
+                                         -6,
+                                         0
+                                     ],
+                   "West Shelf":  [
+                                      -14,
+                                      0
+                                  ],
+                   "East Shelf":  [
+                                      -14,
+                                      0
+                                  ],
+                   "North Shelf":  [
+                                       -14,
+                                       0
+                                   ],
+                   "The Drop-off":  [
+                                        -35,
+                                        0
+                                    ],
+                   "The Blue":  [
+                                    -60,
+                                    0
+                                ]
+               },
+    "field_max_cells":  400000
+}

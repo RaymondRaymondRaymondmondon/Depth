@@ -1,0 +1,39 @@
+The Flight — Arcade Game 7 Design Document
+The Tycoon's boom and bust
+The Tycoon's Boom is a button: 2 game days of +60% to feed, build speed, and research,
+then 1 day of -40% to all three. It's on a 3-day cooldown, so a Tycoon can boom every
+other day of a long match. Everyone on the map sees the Tycoon's banner change color
+when the boom starts (and when the bust does), so the bust day is when neighbors
+attack. The Tycoon's play is to boom into a war or an expansion and have the fish cached
+before the bust; the counter-play is to scout the banner.
+Match structure and victory
+Lobby
+2-6 players; founder species; starting island (or random); map arrangement; teams or
+free-for-all; match length (20, 30, 45 minutes); dangerous islands on or off; the kraken's
+mood (sleepy, normal, hungry); starting season.
+Victory
+The match ends at the time limit or when one player (or team) holds two-thirds of all nest
+sites in use on the map. At the limit, the highest colony score wins:
+Score
+Living birds
+Nests
+Islands held
+Fish in caches
+Pearls
+Research tiers
+Enemy birds killed
+Fervour at 100 at the end
+The kraken killed
+The Founder never died
+Points
+2 each (chicks 1)
+5 each
+30 each; dangerous islands 80
+1 per 5
+3 each
+10 each; tier 4s 40
+1 each; enemy nests destroyed 5; eggs stolen 5
+50
+150 (and the cove's yield halves for everyone)
+60
+Page 27 of 51

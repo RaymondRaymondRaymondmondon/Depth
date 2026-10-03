@@ -1,0 +1,33 @@
+The Flight — Arcade Game 7 Design Document
+• The Wreck of the Treasure Ship: a ship sinks near a random player with a hold of
+pearls; everyone comes.
+• The Plague: a sickness spreads through crowded colonies (over 60 birds); the cure is
+the chemistry tree's tier 1 or a Nurse per 20 birds.
+• The Calm: no wind for a day; thermals die; Bombers are grounded; everyone's fishers
+reach everything.
+• The Visitor: a legendary bird (below) lands on the map and can be recruited by
+whoever reaches it first with the right gift.
+Relics and legendary birds
+Relics are single items found on the Maelstrom's rocks, the Ghost Ship, the Whale's back,
+Iron Island's magazine, and the Grey Wings' crag: a colony holds at most three, at the
+shrine. Each is one rule: the Ship's Bell (morale +10 everywhere), the Lamp Lens (scouting
+range the Kraken's Beak (your flocks ignore the kraken), the Golden Egg (one mate's
+clutch doubles), the Fort's Flag (every town's rates +20%), the Eagle's Feather (Strikers
++20%), the Siren's Shell (mates arrive on call), the Keeper's Logbook (every ground's yield
+known). Relics can be stolen by raids (the shrine is a target) and traded.
+Legendary birds are neutral heroes: one per map, found by the Visitor event or at the end
+of a quest line (a town's old pelican sets it). Recruit one and it joins your colony as a
+named unit with a rule: the Albatross of the South (your flocks never tire over water), the
+Fisher King (a kingfisher; every ground it fishes doubles for a day), the Old Owl (every
+Watcher sees everything), the Phoenix Chick (a chick that fledges into your founder
+species' best warrior), the Dodo (does nothing, worth 200 score if alive at the end, and
+everyone wants to eat it).
+Diplomacy, lightly
+Six players need a way to talk that isn't a treaty screen. Diplomacy is four things, each one
+click, each public:
+• Truce (a day, renewable): neither side's warriors attack the other's birds or nests;
+fishing the other's grounds is allowed; breaking it costs the breaker 20 fervour and a
+town reputation hit, and everyone sees the broken flag.
+• Feed pact: a feed line between two colonies; both panels show it; cutting it is an act of
+war against both.
+Page 47 of 51

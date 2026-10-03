@@ -1,0 +1,42 @@
+The Flight — Arcade Game 7 Design Document
+Days
+8-11
+12-16
+Season
+Autumn
+Winter
+What's happening
+Storms; the Migration; sieges; relics found;
+veterans named; the second perk; the great event
+The Long Night; the deciding war; the last perk;
+monuments; the score, with Winter's holdings
+doubled
+Additions to the score
+Score
+Veterans alive
+Relics held
+A legendary bird alive
+Monuments
+Decrees used (variety)
+Truces kept to the end
+Winter holdings
+The mastery map
+Points
+10 each
+60 each
+100 (the Dodo 200)
+30 each
+5 per distinct decree, max 60
+20 each
+Islands and nests count double
+What a player learns over repeated runs, in the order they tend to learn it; it's also the
+order the game's hints appear:
+1. Feed before you grow (days of food).
+2. Where the fish are by season, and which technique each ground wants.
+3. Which founder fits which island and which friends.
+4. Altitude, wind, and stamina in a fight; get above them.
+5. Decrees as a daily plan, not a daily gift.
+6. Raids are theft: eggs, fish, chicks; defend caches and nests before warriors.
+7. The dangerous islands' rules (the kraken's offering, the ape's tuna, the fort's flocks).
+8. The pirates, the fleet, and the Grey Wings as tools.
+Page 50 of 51

@@ -1,0 +1,133 @@
+The Flight
+Arcade Game 7 Design Document
+Warrior
+Tank (a shell-
+armored
+gannet)
+Striker (a
+hawk)
+Watcher (an
+owl)
+Bomber (a
+pelican with a
+pouch)
+Screamer (a
+gull)
+Flockmaster (a
+crow)
+Fisher-of-Birds
+(a frigatebird,
+research)
+180
+90
+80
+120
+60
+90
+100
+Speed
+10
+14
+9
+9
+15
+13
+17
+Attack
+10
+30,
+slow
+8
+(bomb
+60
+area)
+5
+15
+20
+Role
+Takes hits; a
+wall in the air;
+escorts
+Bombers and
+Traders
+Strong
+attacks: the
+killer; drops on
+Tanks from
+above
+Island
+defense: sees
+stealth, guards
+nests, throws
+nets (holds a
+bird 3 s)
+Carries one
+bomb from the
+Works to a
+target; drops
+from high
+Morale: a
+screamer in a
+flock raises its
+morale and
+lowers the
+enemy's; three
+together panic
+Fishers off a
+ground
+Leads a flock
+without the
+Founder: holds
+formation,
+gives the flock
++5% speed
+Steals fish
+from enemy
+fishers in the
+air; a pirate
+Strong against
+Skirmishers,
+Strikers' first
+hit
+Tanks, Priests,
+nests
+Skirmishers,
+Cuckoos,
+night raids
+Structures,
+Tanks,
+grouped birds
+Morale,
+Fishers
+Fishers,
+Traders
+Weak against
+Bombers'
+blasts,
+chemistry-
+stunned
+Skirmishers
+(too fast),
+Watchers' nets
+Strikers,
+bombs
+Skirmishers,
+Watchers' nets
+Everything
+with teeth
+Being killed
+first
+Tanks
+Altitude
+Mid, holds
+position
+High; dives
+Perched;
+never
+leaves the
+island
+High only
+Mid
+Mid
+Any
+Page 12 of 51

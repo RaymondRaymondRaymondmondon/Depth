@@ -1,0 +1,107 @@
+The Flight
+Arcade Game 7 Design Document
+Warrior
+Mimic (a
+mockingbird)
+Nurse (a gull
+with a pouch)
+Ferrier (a stork)
+Lancer (a heron)
+Harrier (a hawk)
+Drummer (a
+grouse)
+60
+70
+90
+80
+85
+60
+Speed
+15
+12
+12
+16
+10
+Attack
+10
+5
+2 chicks or
+eggs
+25, reach 3
+m
+20
+5
+Role
+Wears the
+enemy's livery:
+flies with their
+flocks, reports
+their orders, and
+turns the
+Watchers' nets
+on them
+Feeds a flock in
+the field (carries
+4 fish) and heals
+IO HP a minute to
+birds within 5m
+Moves eggs and
+chicks between
+islands; founds
+colonies with a
+Pathfinder faster
+Stabs from a
+perch or
+hovering; holds a
+corridor on a
+stack or a hedge
+line
+The counter-
+raider: hunts
+Skirmishers and
+Fisher-of-Birds
+over your
+grounds; patrols
+on its own
+Morale for the
+island: perched
+Drummers raise
+defenders'
+morale +15 and
+make Screamers
+useless
+Strong against
+Scouts,
+Watchers, the
+enemy's trust
+A siege's hunger;
+attrition
+Starvation (it
+moves mouths to
+food)
+Skirmishers in
+corridors,
+Swallows
+Skirmishers,
+Frigatebirds,
+Mimics
+Screamers, routs
+Weak against
+Owls (they see
+livery through
+feathers); a
+Mimic revealed is
+killed by both
+sides
+Anything that
+targets it first
+Skirmishers (it
+can't fight back)
+Being out-ranged
+by Bombers;
+Plungers
+Tanks, Strikers
+from above
+Bombs; it never
+flies
+Page 41 of 51

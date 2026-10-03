@@ -1,0 +1,61 @@
+The Flight — Arcade Game 7 Design Document
+Island
+The
+Fishing
+Town
+The Atoll
+Shape
+A human village
+with docks,
+boats, a church
+tower, and nets
+A ring of sand
+around a lagoon
+Nest sites
+25, on roofs,
+in the
+tower, on
+the boats
+15 on the
+ring
+Economy
+Trade at the dock
+(fish for anything),
+twigs from the
+woodpile, the
+fleet's catch to
+steal
+The reef's fish
+(medium, varied);
+shells and pearls in
+the lagoon
+Humans shoo
+attackers (a
+Watcher that
+never sleeps); the
+tower is a fortress
+Nothing to hold; a
+raid can land
+anywhere
+Weakness
+Humans shoo you
+too (a tax: 10% of
+caches); rats take
+eggs; a Shadow
+founder's colony is
+tolerated, a
+Beaked one is
+chased
+Everything
+Arrangements (the lobby's map option)
+• Archipelago: starting islands 300-500 m apart with small neutral islets between;
+dangerous islands in the middle. Fast games, early contact.
+• Safe Distance: starting islands 900-1,200 m apart with open sea between; the
+dangerous islands in the center are the only reason to cross. Slow games, big colonies,
+long wars.
+• Ring: starting islands around a central kraken cove; every expansion is toward the
+same water.
+• Chain: islands in a line; your neighbors are your only neighbors.
+Maps are generated with rotational fairness (Fathoms' rules): equal distance to the
+nearest dangerous island, the nearest town, and the nearest neighbor.
+Page 14 of 51

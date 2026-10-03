@@ -1,0 +1,51 @@
+The Flight — Arcade Game 7 Design Document
+Nest styles and structures
+Nests come in styles, chosen per nest, each a small bet:
+Style
+cup
+(default)
+Platform
+Burrow
+Hanging
+Mud
+Cliff ledge
+Floating
+Cost
+10 twigs
+20 twigs
+5 twigs, sand or soil
+15 twigs, a branch or
+overhang
+10 twigs, water nearby
+8 twigs, 10 shells
+25 twigs
+Effect
+Holds 6 eggs; visible from far
+Hidden from SCOUtS; floods in storms
+Immune to rock-throws and ground raids;
+sways: Watchers can't perch
+Fireproof; dissolves in two days of rain
+The stack's nest; nothing climbs to it
+On water; immune to everything on land;
+sharks
+Structures beyond nests: caches, the Roost, the shrine, the Works, towers, hedges,
+perches (a Watcher's post; +sight), smokehouses, the Lookout (a tall perch that doubles a
+SCOUt'S report range), the Rookery (a nursery: chicks there are warmed by any adult and
+fledge together), the Beacon (a signal fire: calls every flock home at once), and the
+Monument (a late, expensive pile of shells that is score and nothing else, which is the kind
+of thing people build at the end of a long match).
+The long match: pacing and scoring
+Pacing of a 60-minute match (16 game days, four seasons)
+Days
+1-3
+4-7
+Season
+Spring
+Summer
+What's happening
+Nests, mates, the Spawning; decrees begin; the
+first Founder perk
+Expansion to second islands; the Tuna Run; trade
+and the pirates; the first raids; dangerous islands
+probed
+Page 49 of 51

@@ -1,0 +1,62 @@
+The Flight — Arcade Game 7 Design Document
+3. Stamina. Flapping fights last 20-30 s before a flock is exhausted (half speed, no climb).
+Diving and gliding cost nothing. The flock that makes the other one flap loses nothing
+and wins the second engagement.
+4. Morale. Every flock has morale (0-100): leadership (the Founder +20, a Flockmaster
++10), fervour, Screamers, recent wins, and feed set it. At 30 a flock retreats home on its
+own; at O it scatters and is eaten. Killing the leader is -30 at once.
+5. Blood. Birds that fall into the sea call sharks; a fight over water for more than a minute
+is a fight over a shark pit, and fishers on both sides will die for days after. Fight over
+land to keep your sea clean; fight over the enemy's grounds to poison theirs.
+Formations (War tier 1)
+Formation
+Wall
+Spiral
+Scatter
+Hammer
+Cover
+Raids
+Shape
+A chevron behind the
+leader
+Tanks in a line, others
+behind
+The flock circles and
+climbs on a thermal
+Every bird for itself
+Strikers high,
+Skirmishers low, Tanks
+between
+Tanks over a target (a
+cache, a Trader, a
+Bomber)
+Good for
+Travel (+speed with
+Flight 4), arriving
+together
+Holding an altitude band
+over an island; escorting
+Bombers
+Gaining altitude before a
+fight; defending a sea
+stack
+Skirmisher raids; running
+The set-piece attack:
+Skirmishers bait the
+enemy down, Strikers fall
+on them
+Escort
+Small, fast, and about feed, not kills:
+Weak to
+Being hit from the side;
+the leader is in front
+Strikers diving onto the
+line's center
+Being caught at the
+bottom of the spiral
+Any organized flock
+Watchers' nets on the
+Skirmishers; a Scream
+Bombs; being
+outlasted (Tanks tire)
+Page 23 of 51

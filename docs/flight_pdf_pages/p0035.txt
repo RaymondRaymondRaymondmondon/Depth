@@ -1,0 +1,57 @@
+The Flight — Arcade Game 7 Design Document
+• A siege starves a colony with one day of food in 2 game days; with three days of food,
+never within a 30-minute match.
+• The kraken is killed in about one match in ten.
+Open questions for the designer
+Should the Founder be able to die permanently in standard mode (as in Nest Egg), or
+always respawn as written?
+Is the kraken killable in every match, or only in Kraken Season?
+Should colonies share feed automatically across islands, or only by feed lines as
+o
+written (the siege target)?
+How many wild-bird mates should the map hold: unlimited, or a pool that the players
+compete for?
+Expansion: the long match
+Everything below extends the design above for a 30-60 minute match with more to
+choose and more to master, while keeping each system small enough to explain in a
+sentence. The rule for every addition: it is one choice with a clear trade-off, it is visible to
+other players, and it can be ignored by a new player without losing on day one.
+The seasons
+A long match runs 12-16 game days through four seasons of 3-4 days each. Seasons
+change the sea, the wind, and what pays, so the match has acts without a tech ladder.
+Season
+Spring
+1-3
+Summer 4-7
+The sea
+Fish rise to the
+shallows; lagoons
+are full; mates are
+plentiful
+Grounds thin near
+islands; the blue is
+rich; thermals all
+day
+The wind
+Light, shifting
+Steady trades
+(predictable)
+What it rewards
+Growth: nests,
+clutches, the first
+fishers
+Expansion, trade, the
+first wars; Bombers
+fly cheap on thermals
+The event
+The Spawning:
+every ground
+doubles for a day;
+the sharks sleep
+The Tuna Run: a
+school of size-4 fish
+crosses the map in a
+day; whoever
+follows it eats for a
+week
+Page 35 of 51

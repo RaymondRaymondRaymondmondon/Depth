@@ -1,0 +1,35 @@
+The Flight — Arcade Game 7 Design Document
+• Layers: islands and sites, fishing grounds (yield and shark icon), wind arrows, enemy
+sightings (nests, caches, flocks, Watchers), the kraken's last known mood, trade
+routes, your feed lines, and your flocks' positions and orders.
+Orders can be given on the map (a flock to a target, a fisher group to a ground, a scout
+to a route) and in the world.
+• A report log on the side lists every SCOUt report of the match, newest first, clickable to
+center.
+Scouts and reports
+A Scout flies a route or to a target at the altitude you set, looks, and comes back (or stays
+on station until relieved). When it returns within range of a nest or the Founder, it reports:
+a short line and a map update.
+Report
+Ground
+Island
+Flock
+Danger
+What it tells you
+Species mix, yield (abundant / fair / thin / fished
+out), predator pressure, and which enemy is
+fishing it
+Nest count, cache count, Watcher positions,
+structures, the island's held-by banner, the state of
+its hedges and towers
+An enemy flock's size, composition, altitude, and
+heading
+A kraken awake, an eruption's tremors, a storm
+front, skull island's ape on the move, a shark pack
+near your fishers
+Opportunity An unguarded cache, a nest with eggs and no
+Watcher, a wreck surfacing, a town paying double
+A SCOUt at high altitude sees far but counts badly (nests ±30%); at mid it counts well but
+Watchers see it; at low it sees inside hedges and is a target. A scout that dies doesn't
+report. Two scouts on the same target cross-check (counts become exact).
+Page 19 of 51

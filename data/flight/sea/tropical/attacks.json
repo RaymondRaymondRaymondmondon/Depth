@@ -1,0 +1,52 @@
+[
+    {
+        "beast":  "Reef Shark",
+        "attack":  "Breach",
+        "damage":  100,
+        "windup_s":  0.6,
+        "cooldown_s":  6,
+        "range_m":  2.5,
+        "tell (what the player sees)":  "A dark shape rising under you",
+        "effect":  ""
+    },
+    {
+        "beast":  "Blacktip",
+        "attack":  "Snatch",
+        "damage":  100,
+        "windup_s":  0.5,
+        "cooldown_s":  5,
+        "range_m":  2,
+        "tell (what the player sees)":  "A fin cutting toward you",
+        "effect":  ""
+    },
+    {
+        "beast":  "Barracuda",
+        "attack":  "Snap",
+        "damage":  30,
+        "windup_s":  0.3,
+        "cooldown_s":  2,
+        "range_m":  1.5,
+        "tell (what the player sees)":  "A silver flash",
+        "effect":  ""
+    },
+    {
+        "beast":  "Tuna",
+        "attack":  "Thrash",
+        "damage":  5,
+        "windup_s":  0.2,
+        "cooldown_s":  1,
+        "range_m":  1,
+        "tell (what the player sees)":  "It fights",
+        "effect":  ""
+    },
+    {
+        "beast":  "Mahi",
+        "attack":  "Thrash",
+        "damage":  5,
+        "windup_s":  0.2,
+        "cooldown_s":  1,
+        "range_m":  1,
+        "tell (what the player sees)":  "It fights",
+        "effect":  ""
+    }
+]

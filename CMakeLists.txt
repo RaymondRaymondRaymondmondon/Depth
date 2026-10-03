@@ -23,6 +23,7 @@ add_executable(depth
 src/voice.cpp
 src/voice_test.cpp
 src/trawl_voice.cpp
+src/flight.cpp
     src/data.cpp
     src/ui.cpp
     src/render.cpp

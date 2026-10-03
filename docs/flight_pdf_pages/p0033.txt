@@ -1,0 +1,46 @@
+The Flight — Arcade Game 7 Design Document
+Build order, data, tests, and open questions
+Data files
+File
+flight _ founders . json
+flight _ roles . json
+flight _ islands . json
+flight_sea.json
+flight _ research . json
+flight_war .json
+flight _ economy . j son
+flight_scoring.json
+flight _ costumes . j son
+Build order
+Stage Work
+Holds
+The twelve species: Founder stats, colony boost,
+unique, weakness
+Working and warrior roles: stats, upkeep, counters,
+altitude
+Island types with generation rules, sites, resources,
+monsters; arrangements and fairness rules
+The species list and diet matrix (Red Tide's format),
+grounds, predator rules, the kraken's script
+The nine trees, costs, effects
+Formations, altitude and wind modifiers, morale,
+stimulants, bombs
+Hunger rates, feed values, cache sizes, spoilage,
+town prices, the Tycoon's boom
+Victory, score, modes
+Shop, liveries, crate odds
+Gate
+1
+2
+Flight: the Founder's body, wind,
+stamina, altitude, the dive and strike,
+carrying; one tropical island and a lagoon
+of fish on Red Tide's engine
+The colony loop: hunger, nests, mates,
+eggs, chicks, roles (fisher, feeder,
+builder), caches, the colony panel,
+starvation
+Fishing feels good alone for ten minutes
+A bot colony grows to 40 and starves if
+it outfishes its lagoon
+Page 33 of 51

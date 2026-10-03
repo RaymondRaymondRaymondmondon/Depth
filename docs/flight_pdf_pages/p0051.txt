@@ -1,0 +1,8 @@
+The Flight — Arcade Game 7 Design Document
+9. Breeding mates for traits; naming veterans; keeping them alive.
+10. Sieges: hunger as a weapon, and three days of food as the answer.
+11. Relics and legendary birds: where they are, who's going for them.
+12. Winter: holding COUntS double, and everyone knows it.
+Nothing on this list is required to enjoy a first match; everything on it is required to win a
+tenth.
+Page 51 of 51

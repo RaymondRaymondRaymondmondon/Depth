@@ -1,0 +1,119 @@
+The Flight
+Arcade Game 7 Design Document
+Founder
+The Shadow (a
+night heron)
+The Sigma (a
+magpie)
+The Ibis
+The CUCkOO
+The Tycoon (a
+crested
+cockatoo with a
+notable crest)
+Boost
+Predators spot
+birds at half
+range; fishing
+at night is safe
+Trade rates
++40% at towns
+and in barter;
+Traders carry
+double
+Fervour +50%;
+priests convert
+at twice the
+rate; birds rest
+half as much
+under fervour
+Egg theft from
+the start
+(others need
+research);
+stolen chicks
+fledge as yours
+Boom: once
+per 3 game
+days, 2 days of
++60% feed,
+build speed,
+and research,
+followed by 1
+day of -40%
+Unique
+Dusk Raid:
+warriors are
+invisible to
+Watchers at
+night
+Market
+Cornering: once
+per match, buys
+a town's whole
+fish stock at the
+morning price
+and sells at the
+evening
+Pilgrimage: a
+shrine built on
+any island claims
+it without a nest
+Brood Parasite:
+lay an egg in an
+enemy nest; the
+enemy feeds it; it
+fledges as your
+Scout inside
+their colony
+Golden Nest: the
+first nest
+produces pearls
+(1 per day)
+Weakness
+Fervour cannot
+exceed 80
+Fishing hit
+chance -10%;
+no faith tree
+Trade rates
+-20%
+Your own
+clutches are 1
+egg smaller
+No sustained
+bonus; the bust
+day is
+dangerous if
+timed by an
+enemy
+Playstyle
+Fishes the
+kraken's cove;
+raids unseen; a
+thief's colony
+Wins the
+economy
+through towns;
+a merchant
+flock that buys
+its wars
+A tireless
+colony that
+works nights; a
+conversion
+army; the
+strongest siege
+defender
+Grows on
+everyone else's
+eggs; the
+game's most
+hated and most
+fun founder
+Timing: boom to
+expand, survive
+the bust, boom
+again; enemies
+learn the cycle
+Page g of 51

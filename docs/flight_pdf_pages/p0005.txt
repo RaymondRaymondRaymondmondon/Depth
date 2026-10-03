@@ -1,0 +1,49 @@
+The Flight — Arcade Game 7 Design Document
+3. Mates are colony birds that don't take orders but lay eggs: one clutch of 2-4 eggs per
+two game days while fed, three clutches per mate. Mates can be lost to predators and
+raids.
+4. Each new pair needs its own nest. The colony is capped by nests, and nests are capped
+by sites (islands have 6-40 sites by size) and twigs.
+Eggs and chicks
+• An egg hatches after one game day if warmed (a mate or any adult sitting on it) and not
+stolen or eaten. Unwarmed eggs chill and fail after two days.
+• A chick eats for two game days, then fledges into an adult of a role the player assigns
+at fledging (fisher, builder, feeder, SCOUt, warrior type, priest, trader). Changing a role
+later costs a day of retraining.
+Chicks in a nest are a target: CUCkOOS, raiders, rats on fishing towns, and skull island's
+beasts all take them. A nest can be guarded by a Watcher.
+Growth, and what growth costs
+Colony size
+1 (the
+Founder)
+5
+15
+40
+100
+Fish per day
+2
+8
+24
+70
+180
+Nests
+1
+2
+5
+12
+30
+What it can do
+Fish, SCOUt, build
+Two fishers, a feeder, a SCOUt; the first clutch
+is the whole plan
+A war party of 4, a trader, a priest; a second
+island is possible
+A real colony: bombers, chemists, two flocks;
+the first island's fishing grounds are
+exhausted without range
+The cap per island; expansion is mandatory;
+a siege can starve it
+Fishing grounds have a yield (fish per day) that falls when overfished and recovers when
+left; a colony that outgrows its grounds has to fish farther (slower, more predators) or
+take another island. This is the game's forced expansion.
+Page 5 of 51

@@ -1,0 +1,31 @@
+The Flight — Arcade Game 7 Design Document
+What the Founder does that the colony can't
+Fly the camera, scout in person, pick the mate (by delivering the courtship fish), start a
+new colony (by landing on another island and building the first nest), lead a flock (a flock
+led by the Founder gets +10% speed and morale), carry a bomb, make a trade in person at
+a fishing town, and pray at the shrine for a fervour burst. The best players are flying
+between these jobs all match.
+The colony loop
+A colony is birds, and birds come from eggs, and eggs come from a mate, and all of it
+comes from fish. The loop is: fish -5 feed yourself -Y feed a courtship -Y a mate -Y eggs -Y
+chicks (fed) -Y adults (fed) more fish, more nests, more mates.
+A game day
+The match runs on a day cycle of about 4 real minutes: dawn (fish rise, the best fishing),
+day (building, war), dusk (fish rise again), night (predators hunt, scouting is hard, birds
+sleep unless fervour keeps them up). Chicks age by days.
+Hunger and feeding
+• Every bird has a hunger bar that empties over one game day. A bird at O for half a day
+starves (dies). Chicks empty twice as fast.
+• Feed comes from caches. Feeders (a role) carry fish from caches to nests; adults fetch
+their own if no Feeder is assigned. The colony panel shows feed per day against
+mouths per day; the gap is the whole economy.
+• A fish's feed value is its size (1-6, from the food web): a sardine feeds one chick for a
+day; a tuna feeds a nest.
+• Overfeeding does nothing except make chicks grow faster (+25% at full), so surplus is
+for growth, trade, or courtship.
+Courtship and mates
+1. Build a nest (twigs and a site). A nest holds one pair and up to four eggs.
+2. Attract a mate: fill the nest's courtship bowl with fish (3 fish of feed value 2+ for the
+first mate; more for each after). A mate arrives from the sea's wild-bird population
+within a game day, faster with a Lyrebird founder, with a shrine, or on a tropical island.
+Page 4 of 51

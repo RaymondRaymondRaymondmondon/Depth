@@ -1,0 +1,28 @@
+The Flight — Arcade Game 7 Design Document
+Simulation and networking
+• The host runs the ecosystem (Red Tide's engine), the bird Al (schedules, hunger, roles,
+flocks), and the economy. About 600 birds and 2,000 fish at full rate near players;
+population counters elsewhere.
+• Host-authoritative through the shared arcade layer: the Founder's flight is predicted
+locally; orders are commands; everything else is state at 20 Hz with interest
+management by distance and fog. Six players is the design limit for the bird count.
+• Disconnects: the colony runs on its last orders for 2 minutes, then an Al takes it (a
+catJtiOUS one: it fishes and defends).
+Sound
+• The sea and the wind are the bed: surf by island type, wind rising with altitude, rigging
+on the town's boats, the cove's slow breathing when the kraken sleeps.
+• Birds have voices per species (a cry, a call, a chick's peep) and the colony has a chorus
+that swells with its size: a colony of 100 is loud, which is how a SCOUt hears one before
+seeing it.
+• Fishing: the dive's whistle, the strike's splash, the struggle, the fish slapping the nest.
+Feed shortages are heard as hungry peeps before the panel flashes.
+• War: wingbeats in formation, the Striker's dive shriek, the net's whip, the bomb's thud
+and the hedge burning, the Screamer's scream, a flock routing (a scatter of cries), the
+kraken's roar when it surfaces.
+• Reports arrive as a call and a chalk scribble; the map is a paper rustle.
+• Music: a windy brass-and-strings theme that layers with colony size and a war motif
+that enters when flocks engage; a dawn chorus and a dusk hush each game day; the
+kraken has a theme nobody wants to hear.
+• Founders have a signature call each (the Lyrebird mimics the last sound it heard; the
+Screamer-bird's is the Screamer's).
+Page 32 of 51

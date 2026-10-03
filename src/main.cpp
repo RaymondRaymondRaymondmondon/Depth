@@ -21,6 +21,7 @@
 // ============================================================================
 #include "game.h"
 #include "voice.h"
+#include "flight.h"
 #include "study.h"
 #include "course.h"
 #include "expr.h"
@@ -723,6 +724,7 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--trawl-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSim(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--redtide-voice-test") == 0) { SetTraceLogLevel(LOG_WARNING); return rt::RunRedTideVoiceTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-voice-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlVoiceTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--flight-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightTest(); }
     if (argc >= 2 && strcmp(argv[1], "--bet-test") == 0) { SetTraceLogLevel(LOG_WARNING); return RunBetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--voice-test") == 0) { SetTraceLogLevel(LOG_WARNING); return voice::RunVoiceTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-gear-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlGearTest(); }

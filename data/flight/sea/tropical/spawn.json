@@ -1,0 +1,142 @@
+[
+    {
+        "zone":  "The Lagoon",
+        "species":  "Anchovy",
+        "count_tide1":  36,
+        "respawn_s":  60,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "The Lagoon",
+        "species":  "Mullet",
+        "count_tide1":  10,
+        "respawn_s":  90,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "The Lagoon",
+        "species":  "Crab",
+        "count_tide1":  8,
+        "respawn_s":  120,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "Reef Shallows",
+        "species":  "Snapper",
+        "count_tide1":  10,
+        "respawn_s":  120,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "Reef Shallows",
+        "species":  "Cleaner Wrasse",
+        "count_tide1":  4,
+        "respawn_s":  240,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "Reef Shallows",
+        "species":  "Green Turtle",
+        "count_tide1":  1,
+        "respawn_s":  600,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "Reef Shallows",
+        "species":  "Blacktip",
+        "count_tide1":  2,
+        "respawn_s":  300,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "Reef Shallows",
+        "species":  "Reef Shark",
+        "count_tide1":  1,
+        "respawn_s":  400,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "West Shelf",
+        "species":  "Mackerel",
+        "count_tide1":  18,
+        "respawn_s":  90,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "East Shelf",
+        "species":  "Mackerel",
+        "count_tide1":  18,
+        "respawn_s":  90,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "North Shelf",
+        "species":  "Sardine",
+        "count_tide1":  30,
+        "respawn_s":  60,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "North Shelf",
+        "species":  "Snapper",
+        "count_tide1":  6,
+        "respawn_s":  120,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "The Drop-off",
+        "species":  "Squid",
+        "count_tide1":  10,
+        "respawn_s":  120,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "The Drop-off",
+        "species":  "Barracuda",
+        "count_tide1":  4,
+        "respawn_s":  240,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "The Drop-off",
+        "species":  "Sardine",
+        "count_tide1":  30,
+        "respawn_s":  60,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "The Drop-off",
+        "species":  "Reef Shark",
+        "count_tide1":  1,
+        "respawn_s":  400,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "The Blue",
+        "species":  "Sardine",
+        "count_tide1":  60,
+        "respawn_s":  60,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "The Blue",
+        "species":  "Flying Fish",
+        "count_tide1":  20,
+        "respawn_s":  90,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "The Blue",
+        "species":  "Tuna",
+        "count_tide1":  6,
+        "respawn_s":  240,
+        "capacity_mult_per_tide":  1
+    },
+    {
+        "zone":  "The Blue",
+        "species":  "Mahi",
+        "count_tide1":  3,
+        "respawn_s":  240,
+        "capacity_mult_per_tide":  1
+    }
+]

@@ -1,0 +1,49 @@
+The Flight — Arcade Game 7 Design Document
+Stage Work
+3
+4
+5
+6
+7
+8
+Tests
+Islands: all four starting types, the
+generator, the arrangements; scouts, fog,
+the map, reports
+War: formations, altitude and wind rules,
+morale, the warrior roles, raids,
+Watchers, hedges, towers
+Multiplayer through the shared layer; six
+founders in a match on LAN
+Research trees, faith, trade, towns,
+barter; all twelve founders
+Dangerous islands: the kraken, skull
+island, the volcano, the wreck, the reef;
+sieges and assaults; bombing and
+chemistry
+Costumes, crate, liveries; sound; internet
+play; the balance pass
+A SCOUt report updates the map
+correctly from each altitude
+Two bot colonies fight and the higher,
+downwind flock wins
+Six players finish a 30-minute match
+Every founder's window shows in
+flight-sim
+A bot takes the cove and holds it
+through a siege
+All targets met or logged
+--flight-sim <island> <days> runs a bot colony and reports birds, feed
+per day, days of food, deaths by cause, research reached.
+--flight-war <scenari0> runs scripted fights (altitude, wind, formation, stimulants)
+and asserts the five rules.
+--flight-fair <seed> asserts the map's fairness rules.
+--eco-sim flight <minutes> (Red Tide's tool) for the sea.
+Balance targets
+• A careful solo colony reaches 40 birds by day 6 and 100 by day IO on a tropical island;
+30 and 70 on a sea stack.
+A fisher dies to predators once per 15 fishing-days on a safe ground, once per 4 on the
+cove.
+• The twelve founders within ±3% overall with distinct windows (the Fathoms phase
+model).
+Page 34 of 51

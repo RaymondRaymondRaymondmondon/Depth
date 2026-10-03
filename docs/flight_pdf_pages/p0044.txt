@@ -1,0 +1,107 @@
+The Flight
+Arcade Game 7 Design Document
+Island
+The Cliff
+Town
+Shape
+A human town
+on a cliff face
+with a harbor
+below
+Sites
+30, on
+balconies and
+the cliff
+Economy
+Two markets (the
+harbor's and the
+town's), the best
+trade on the map
+The cliff is a
+stack and the
+town is a town
+Six more dangerous islands (eleven in all)
+Island
+Iron Island
+The Whale
+Siren
+Rocks
+What's there
+A naval fort
+with cannons
+and a garrison
+A living island: a
+sleeping great
+whale with a
+colony's worth
+of barnacles
+Rocks where
+the Sirens from
+the Weeds sing
+The danger
+Cannons fire at
+any flock over 6
+birds; marines
+shoot nests; the
+fort's dogs
+It dives once a
+season
+(everything on it
+is in the water); it
+surfaces
+somewhere else
+Birds within the
+song fly to the
+rocks and sit
+(lost for a day)
+unless deaf
+(Owls,
+Drummers'
+sound)
+The prize
+Powder and
+shot: the
+bombing tree at
+half cost; the
+fort's stores of
+salt fish; its flag
+(a trade item
+every town pays
+for)
+Krill in its wake
+(endless size-I
+feed); the whale
+fights the
+kraken if they
+meet
+The Sirens trade:
+a mate of any
+trait for a pearl;
+fervour +30 to a
+shrine built
+there
+Weakness
+Two sets of
+humans to keep
+happy; the cliff's
+gulls are a wild
+colony that
+competes
+How to hold it
+Nest inside the
+walls (the
+garrison tolerates
+small colonies);
+never fly in flocks
+over it; feed the
+dogs
+Nest on the back;
+move eggs before
+the dive (an
+Augur knows
+when)
+Nest upwind of
+the song; keep
+Drummers on the
+rocks
+Page 44 of 51

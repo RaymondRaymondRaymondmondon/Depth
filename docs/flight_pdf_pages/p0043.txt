@@ -1,0 +1,123 @@
+The Flight — Arcade Game 7 Design Document
+Mates with traits
+Every mate that arrives has one visible trait that its chicks inherit as a small bonus: Big
+Eggs (+10 HP to chicks' adult form), Quick (+5% speed), Hardy (+10% HP), Keen
+(+scouting), Fierce (+5% attack), Fertile (clutch +1). Courtship can be picky: a nest's bowl
+filled with a specific fish (the mate's favorite is shown) attracts a mate with the trait you
+want. Breeding a colony for traits over a long match is the Lyrebird's game and anyone's
+hobby.
+More islands
+Six more starting islands (ten in all)
+Island
+The Iceberg
+(Winter
+maps)
+The
+Lighthouse
+Rock
+The
+Shipwreck
+Island
+The
+Mangrove
+The Kelp Raft
+Shape
+A floating berg
+with ledges and
+a cave
+A rock with a
+working
+lighthouse and
+a keeper
+A galleon
+broken on a reef
+A tangle of
+roots over
+shallow water
+A floating mat
+of kelp the size
+of an island
+Sites
+15
+18, on the
+lamp gallery
+and the rocks
+22, in rigging,
+the hold, the
+stern cabin
+35, in the
+roots
+20, on the
+mat
+Economy
+Deep fish and krill
+under it; no twigs
+(ice nests need
+shells)
+The keeper trades
+fish for lamp oil (a
+pearl substitute);
+the beam reveals
+the sea at night
+Twigs from the
+rigging; a hold of
+salted fish; the
+ship's bell
+(morale)
+Crabs and
+shellfish under
+the roots
+(crustacean feed
+for Divers);
+endless twigs
+Fish shelter under
+it (a lagoon that
+moves); kelp is
+twig-grade
+Attackers can't
+land on sheer
+ice; the cave is a
+fortress
+The beam blinds
+night raiders;
+the keeper
+shoos pirates
+Three decks of
+corridors;
+cannon ports as
+Watcher nests
+Nothing can
+land in the roots
+but birds that
+nest there;
+crocodiles
+under the water
+keep sharks out
+It drifts: raiders
+have to find it; it
+hides under fog
+Weakness
+It melts in
+Summer (sites
+lost by the day)
+and drifts with
+the wind: your
+island moves
+Everyone can
+see your island
+from anywhere
+at night
+The wreck
+settles: the hold
+floods by
+Autumn; rats
+Crocodiles under
+the water; no
+thermals;
+Bombers burn
+mangroves fast
+It drifts into
+things: the cove,
+a storm, another
+player's grounds
+Page 43 of 51

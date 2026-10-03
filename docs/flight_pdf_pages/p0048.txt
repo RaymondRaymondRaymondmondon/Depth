@@ -1,0 +1,67 @@
+The Flight — Arcade Game 7 Design Document
+• Bounty: post fish on another player's Founder; anyone who kills it collects; the posted
+player sees the bounty and who posted it.
+• Flock loan: lend a flock to another player for a day for fish; the flock fights under their
+orders and comes home.
+Heralds carry the offers; a Herald in flight can't be attacked without a reputation hit. In
+team modes the four are automatic between teammates.
+Fishing mastery
+Fishing has techniques, each a different dive and a different risk, learned by using them;
+they're what a player gets better at over runs.
+Technique
+Plunge
+Skim
+Hover-
+strike
+Drive
+Deep dive
+Night
+fishing
+How
+A straight dive from
+above 30 m; the strike
+window is short and
+strong
+Fly along the surface
+and snatch
+Hold position over a
+spot and drop
+Several fishers push a
+school against a shore
+or a reef, then strike
+together
+Swim down (Divers,
+Penguins, Deep Dive
+research)
+Fish the dusk and dawn
+rises
+Best for
+Big fish; the Gannet's
+everything
+Schools of small fish;
+the Swift
+Precision on one fish;
+crabs and shallows
+Yield with
+Cooperative Fishing
+Pearls, deep fish, the
+kraken's floor
+Twice the fish per trip
+Risk
+Sharks see the splash; a
+miss is a 2 s recovery
+underwater
+Low altitude over a long
+line: breaches
+Stamina; frigatebirds
+steal from a hovering bird
+Triple splash; the whole
+shark population comes
+A fight instead of a flight
+if something's there
+The owls and the
+Shadows are the only
+ones it's safe for
+A fisher assigned a ground also takes a technique; the panel shows the catch rate and the
+loss rate per technique per ground, which is the information a returning player reads first.
+Page 48 of 51

@@ -1,0 +1,70 @@
+The Flight — Arcade Game 7 Design Document
+Watchers and counter-scouting
+Watchers see SCOUtS at mid and low altitude and mark them; a marked SCOUt'S report is
+known to the enemy (they know you looked). Owls (Watchers) at night see everything but
+the Shadow founder's birds. Fog and storms blind both sides.
+Wild information
+Towns sell gossip (what the fleet saw) for fish. The fortune-teller-equivalent is the old
+pelican at every town who, for a pearl, tells you one true thing about the enemy's island.
+Frigatebirds you drive off drop the fish they stole and a feather that shows who they
+robbed.
+Research: the nine trees
+Research happens at the Roost (the colony's first structure after the nest) and costs
+pearls, shells, and days. One research at a time per Roost; a second Roost on a second
+island runs a second line. Each tree has four tiers; tier 4 is the match-changer. The
+Alchemist founder runs two of the trees at
+Tree
+Nesting
+Fishing
+Flight
+Tier 1
+Shell lining (eggs
+hatch 25%
+faster)
+Schooling eye
+(fishers see
+schools from
+farther)
+Thermal riding
+(free altitude on
+tropical and
+volcanic islands)
+Tier 2
+Big nests (6
+eggs)
+Deep dive
+(oyster beds,
+pearls)
+Long wings
+(stamina
++50%)
+Tier 3
+Cliff nests
+(sites on
+vertical rock
+anywhere)
+Night fishing
+(fishers work
+dusk and dawn
+safely)
+Wind reading
+(wind penalties
+halved; the map
+shows wind a
+day ahead)
+Tier 4
+Hanging colony
+(nests under
+overhangs,
+immune to rock-
+throws and ash)
+Cooperative
+fishing (fishers
+herd a school
+together: double
+yield, triple
+splash)
+Formation flight
+(flocks fly 30%
+faster in a V)
+Page 20 of 51

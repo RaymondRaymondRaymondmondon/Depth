@@ -1,0 +1,44 @@
+The Flight — Arcade Game 7 Design Document
+Tier
+Common (15)
+Rare (11)
+Super Rare (10)
+Special (6)
+Costumes
+The Rubber Duck, the Chicken, the Penguin (you
+waddle on land), the Puffin Beak, the Flamingo
+(pink, one leg when perched), the Parrot (repeats
+your last order aloud), the Pigeon (a city pigeon,
+unbothered), the Turkey, the Owl Glasses, the
+Swan Neck, the Pelican Pouch (purely cosmetic;
+you can't carry more), the Toucan Beak, the
+Peacock Tail (drag when landing), the Seagull with a
+Chip, the Crow with a Shiny Thing
+The Dodo (extinct, undaunted), the Albatross
+Cape, the Phoenix (ember particles), the Kiwi (a
+tiny flightless suit that flies anyway), the Stork
+with a Bundle, the Hummingbird (a blur), the
+Vulture's Ruff, the Heron Hat, the Cuckoo Clock (a
+clock on your chest that strikes the game hour),
+the Carrier Pigeon (a tiny scroll; your reports arrive
+with a stamp), German Goose (A goose with a
+black armband)
+The Roc (a giant shadow; your silhouette is three
+times its size, which everyone sees), the
+Thunderbird (lightning on dive), the Griffin (a lion's
+rear), the Kraken Costume (eight dangling arms),
+the Sand Worm Puppet (from A Night Off's crate,
+for the ambitious), the Diving Bell Helmet, the Fish
+Costume (you look like your own lunch; sharks are
+not fooled), the Nautilus (the submarine with
+wings), the Goat with Wings (the goat), the Depth
+Diver (the brass helmet from Red Tide)
+The Golden Egg (you are an egg with wings; chicks
+follow you), the Great Ape's Hat (skull island's ape
+waves), the Sun God's Mask (from the Island; glows
+at dusk), the Matriarch (an orca costume; sharks
+give you room), the Founder's Crown (a crown that
+shows your best match score to everyone, forever),
+donald the quack (styled after donald trump,
+particularly the swoop hair)
+Page 30 of 51

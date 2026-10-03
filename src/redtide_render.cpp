@@ -154,7 +154,7 @@ struct ArtRow {
 static ArtRow ReadArt(const std::string& mapKey, const std::string& name) {
     static std::map<std::string, Json> sheets;
     auto it = sheets.find(mapKey);
-    if (it == sheets.end()) it = sheets.emplace(mapKey, LoadJsonFile(DataDir() + "/art/species_" + mapKey + ".json")).first;
+    if (it == sheets.end()) it = sheets.emplace(mapKey, LoadJsonFile(mapKey.rfind("flight_", 0) == 0 ? DataDir() + "/../flight/art/species_" + mapKey + ".json" : DataDir() + "/art/species_" + mapKey + ".json")).first;   // (The Flight's art rows live under data/flight/art)
     ArtRow a;
     a.beast = name;
     static Json patch = LoadJsonFile(DataDir() + "/art/art_patch.json");

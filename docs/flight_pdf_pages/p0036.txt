@@ -1,0 +1,77 @@
+The Flight — Arcade Game 7 Design Document
+Season
+Autumn
+Winter
+The sea
+8-11
+Storms; grounds
+shift; the kraken
+12-16
+wakes more
+Fish go deep (Deep
+Dive research
+pays); the lagoons
+freeze on northern
+maps; ice floes
+appear
+The wind
+Gales from one
+quarter for a day at
+a time
+Cold winds;
+stamina costs rise
+What it rewards
+Caches (the
+smokehouse
+matters), sieges, raids
+under fog
+Holding what you
+have; the deciding
+war; the score
+The event
+The Migration:
+every wild bird on
+the map flies
+through; mates are
+free for a day, and so
+is conversion
+The Long Night: one
+game day of
+darkness; Watchers
+and Shadow
+colonies own it
+The lobby picks match length by seasons: Spring and Summer only (30 min), three
+seasons (45), all four (60). Scores at the end of a four-season match weigh Winter's
+holdings double, so late colonies matter.
+Decrees
+At dawn every game day the player picks one decree from three offered (drawn from a
+deck of 24, no repeats in a match). A decree lasts the day. It's one click, it shapes the day,
+and the deck is where a match's variety lives.
+Full Nets
+Quiet Wings
+Feast Day
+Hatching
+Moon
+Call to Arms
+Builders' Day
+Deep Dive
+Effect for the day
+Fishers +30% catch
+No splash, no noise; raids are silent
+Chicks grow a full day in half
+Eggs hatch today regardless of
+warmth
+Every adult becomes a warrior for
+the day (Skirmisher stats)
+Build speed twigs cost half
+Pearls from oyster beds
+Trade-off
+Twice the splash: predators +50%
+Fishers -20%
+Caches empty faster
+No new clutches tomorrow
+Nobody fishes; tomorrow they're
+tired (-20%)
+Fervour -IO
+Divers can't fish
+Page 36 of 51

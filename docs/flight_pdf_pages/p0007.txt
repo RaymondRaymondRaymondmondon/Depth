@@ -1,0 +1,37 @@
+The Flight — Arcade Game 7 Design Document
+Resource
+Guano
+Caches
+Where
+Any colony makes it;
+more with more birds
+Who gathers
+Nobody; it accumulates
+on the island
+What it's for
+Fertilizes the island's
+trees (+twigs), feeds
+the reef below (+fish
+near the island), and is
+the chemistry tree's
+base material
+A cache is a pile with a capacity (20 fish at first, upgraded by research). Fish in a cache
+spoil after two game days; a smokehouse (research) keeps them for six. Caches are
+targets: raiders take from them, and a cache near the shore is a gull's buffet.
+Feed per day and the colony panel
+The panel shows: birds (by role), mouths per day, feed per day (from fishers' average
+catch), fish in caches (days of food), twigs, shells, pearls, fervour, and the research in
+progress. The one number to watch is days of food: under 1 is an emergency, over 3 is
+growth.
+Fishing grounds
+Each ground is a region of sea with a species mix and a yield. Yield = the food web's
+standing population there. Overfishing a ground drops its yield (and the predators it
+supports leave for a while, which is sometimes the point); resting it recovers. Grounds
+near islands are shallow and safe-ish; open-sea grounds are rich and full of things that eat
+birds; the kraken's cove is the richest water on the map.
+Trade
+Fish, twigs, shells, and pearls can be traded at fishing towns (an NPC market) and
+between players (a barter screen: offer, counter, accept). Prices move with supply; a town
+with a storm coming pays double for fish. Traders carry goods and make the trip; the
+Sigma bird's colony gets better rates everywhere.
+Page 7 of 51

@@ -1,0 +1,49 @@
+The Flight — Arcade Game 7 Design Document
+Tokens
+IO per match, 1 per 50 score, 5 for each first (first kraken kill, first dangerous island held,
+first tier 4), 20 for a win.
+The token shop (10 Founder costumes)
+Costume
+Sea Legs
+The Lighthouse Keeper
+The Admiral
+The Pearl Diver
+The Fisherman
+The Scarecrow
+The Pirate
+The Monk
+The Kraken's Friend
+The Captain Nemo
+Cost
+50
+80
+100
+100
+120
+120
+150
+150
+200
+250
+Look
+A sailor's cap and a neckerchief
+A lantern on a chain; glows at night (and is seen at
+night)
+A bicorne and epaulettes
+Goggles and a shell necklace
+A hat of hooks; wild gulls follow you
+Straw and a burlap head; crows won't steal from
+you (a joke; they will)
+An eyepatch, a bandana, a wooden leg
+A cowl; your shrine's bells ring when you land
+A tentacle scarf; the kraken makes a sound when
+you fly over the cove
+The coat, the beard, a tiny periscope hat
+Colony liveries (token shop)
+Six color sets (storm grey, sunset, lagoon, ash, gold, red tide) at 60 each and six hats for
+the whole colony (caps, helmets, crowns, bandanas, tiny top hats, shells) at 80 each.
+The loot crate (42 Founder costumes)
+One token, one crate, from a nest of eggs in the lobby: tap an egg, it hatches a costume.
+Duplicates hatch a feather and nothing else. Odds: Common 60% (15 costumes, 4% each),
+Rare (10, 2.5%), super Rare (10, 1.2%), Special 3% (5, 0.6%).
+Page 29 of 51

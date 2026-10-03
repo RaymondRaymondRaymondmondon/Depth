@@ -1,0 +1,55 @@
+The Flight — Arcade Game 7 Design Document
+Island
+The
+Wreck
+The Reef
+Garden
+Colonizing
+What lives there
+A drifting hulk
+that moves slowly
+across the map
+A coral maze of
+small fish and eels
+The danger
+Rats, a ghost
+crew at night,
+the hull sinks a
+little each day
+Eels take chicks;
+sharks at the
+drop-off
+The prize
+Rigging for twigs,
+a hold of salted
+fish (a cache
+that spoils
+slowly), the
+ship's bell (a
+morale item)
+Shells in heaps; a
+cleaning station
+calms the sharks
+(Red Tide's rule)
+How to hold it
+It isn't held; it's
+raided; it sinks
+by the late game
+Nest on the one
+sand cay; keep
+the cleaners
+alive
+Any island with a nest site can be colonized: the Founder (or a Pathfinder) builds a nest, a
+mate is called, two chicks are moved, and the island gets its own caches. An island is held
+by whoever has the most nests on it; two players can share one until they don't.
+Dangerous islands give their prize to whoever holds them and their danger to everyone.
+Weather on islands
+Storms ground birds for a game hour, raise the sea (the atoll floods; the stack doesn't),
+and empty the sky of SCOUtS; fog hides raids; the dry season halves tropical twigs; the
+kraken surfaces in storms.
+The living sea
+The ocean is Red Tide's ecosystem engine running under an RTS: species with diets, blood
+and scent, sound, territory, and population, simulated by the host. Birds are members of
+the web: they eat fish, and some things eat them. The sea is why fishing is never free and
+why a war's blood matters.
+Page 16 of 51

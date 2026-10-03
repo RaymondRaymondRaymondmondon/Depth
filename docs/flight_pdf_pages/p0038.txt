@@ -1,0 +1,41 @@
+The Flight — Arcade Game 7 Design Document
+Trade-off
+Day of Rest
+Effect for the day
+No decree; fervour +5 and birds
+heal
+The Tycoon's Boom replaces the decree on boom days.
+Founder perks
+The Founder levels three times a match, at days 3, 7, and 11, and picks one perk from three
+offered. Perks are the player's own build and stack with the species.
+Perk
+Broad Wings
+Hooked Beak
+Sharp Eyes
+Iron Talons
+Loud Voice
+Mother's Instinct
+Pearl Diver
+Weather Sense
+Nine Lives
+Thief's Eye
+Diplomat
+Old Salt
+Effect
+Founder stamina +50%
+Founder attack +30%; the flock the Founder leads
++10%
+Founder SCOUtS like a SCOUt at any altitude
+Founder carry +1 size class
+Flocks the Founder leads never rout
+Chicks within sight of the Founder grow 25%
+faster
+The Founder dives oyster beds without research
+Wind shown a day ahead; storms warned a day
+ahead
+One free respawn without the chick-leader penalty
+The Founder sees enemy caches through walls
+Barter offers from the Founder in person are +20%
+The Founder's reports include the next day's fish
+movement
+Page 38 of 51

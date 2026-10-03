@@ -1,0 +1,31 @@
+The Flight — Arcade Game 7 Design Document
+Bombing (Bombing tree)
+Bombers carry one bomb from the Works at high altitude and drop it: a 60-damage blast in
+8 m that breaks hedges, towers, and nests and scatters flocks. They are slow, loud, and
+visible from far; they need a Cover escort. Incendiaries burn hedges and the plants on
+skull island; a Blockbuster destroys a Roost, which stops research and is a declaration of
+total war. Bombs on the kraken's cove wake the kraken for everyone. The Alchemist
+founder's colony has bombers by day 4; everyone else by day 8.
+Chemistry (Chemistry tree)
+Chemists brew stimulants at the Works and dose a flock before it flies: Haste for a raid,
+Fury and Clot for an assault, the Draught for the match's deciding battle. Every stimulant
+has a crash; a Draughted flock that wins the battle sleeps a full day in enemy territory,
+which is the sort of thing a scout should notice. Stimulants also work on fishers (Haste for
+a fishing race) and the Founder (dangerous: the crash fells the leader).
+Defense
+Watchers on perches, nets, hedges around nest sites, towers at the landing points, a
+shrine, a cleaner station on the reef to keep your own sharks calm, and the habit of
+keeping fish in caches: an island with three days of food is unsiegeable in a 30-minute
+match.
+The war the game expects
+Days 1-3: no war (nobody has warriors; raids are theft). Days 3-6: raids and counter-raids,
+egg theft, fisher harassment, the first fights over the center's grounds. Days 6-10: sieges
+of a weak neighbor, assaults on dangerous islands, bombers. Day 10+: the deciding
+assault, usually on whoever holds the kraken's cove. The match ends before anyone can
+hold everything, which is why it's scored.
+Faith, trade, and the boom
+Faith and fervour
+Fervour is a colony stat from O to 100, raised by a shrine, priests, offerings, and the
+Founder's prayers, lowered by starvation, defeats, the Founder's death, and Shadow
+founders' cap. What it does:
+Page 25 of 51

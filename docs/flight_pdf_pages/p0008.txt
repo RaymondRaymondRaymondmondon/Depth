@@ -1,0 +1,102 @@
+The Flight — Arcade Game 7 Design Document
+The twelve founder birds
+The player picks a founder species in the lobby. It sets the Founder's own stats and gives
+the whole colony one bend: a bonus, a unique ability or research, and a weakness, so
+every species plays the match differently.
+Founder
+The Taloned (an
+osprey)
+The Strongbird
+(a sea eagle)
+The Swift (a
+tern)
+The Beaked (a
+shrike-gull)
+The Lyrebird
+Boost
+Fishing hit
+chance +30%
+for every bird;
+the Founder's
+strike window
+is twice as long
+Carry +2 size
+classes for
+every bird; can
+lift size-4 fish
+from the start
+Flight speed
++25%, dive
+speed +40%
+for every bird
+Attack +30%,
+every warrior
+type's damage
+up
+Mates arrive in
+half the time;
+clutches +1
+egg; fervour
+Unique
+Talon Lock: a
+held fish can't be
+dropped by a hit
+Haul: carry a
+chick or an egg
+and a fish at
+once
+Skim: fish
+without a full
+dive (small fish
+only, no
+vulnerability
+window)
+Tear: hits bleed,
+which the sea
+notices
+(predators come
+to the fight)
+Serenade: the
+Founder sings at
+a nest to call a
+mate instantly,
+once per day
+Weakness
+-10% flight
+speed
+Stamina -20%
+Carry -1 size
+class; chicks
+fledge a day
+later
+Fishing hit
+chance -15%
+Warriors
+-10%
+Playstyle
+The safest
+economy; feed-
+rich and slow
+Big fish early; a
+tuna feeds a
+nest and a
+colony grows
+fast on few
+fishers
+Raids, scouting,
+and fishing far
+grounds before
+anyone else;
+weak in a
+straight fight
+War early; wins
+skirmishes;
+must take an
+island to feed
+itself
+The biggest
+colony; a
+numbers game;
+expansion is its
+weapon
+Page 8 of 51

@@ -21,3 +21,5 @@ build_dev/
 __pycache__/
 
 docs/redtide_vis_pages/*.png
+
+docs/flight_pdf_pages/*.png

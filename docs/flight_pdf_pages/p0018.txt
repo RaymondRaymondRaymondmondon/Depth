@@ -1,0 +1,30 @@
+The Flight — Arcade Game 7 Design Document
+• Breaches. A shark can take a bird below IO m; a crocodile below 5 m near shore; the
+kraken below 20 m over its cove; frigatebirds steal from any carrying bird they catch in
+the air (Tanks and Watchers drive them off).
+Night. Predators hunt harder; fishers rest; the Shadow founder's colony fishes anyway.
+The map's monsters
+• The kraken is a persistent agent: it sleeps unless blood or noise wakes it, grabs low
+birds with arms, and surfaces fully in storms or when offered nothing for three days. It
+can be fought (a Bomber campaign and a lot of blood) for the cove's hoard; killing it is a
+match-defining event and the cove's yield halves without it (nothing keeps the sharks
+out).
+• The great ape on skull island throws rocks at low flyers and sleeps when fed. It can't be
+killed; it can be lured to another player's nests with a trail of fish.
+• The giant grouper under the sea stack eats anything that falls; it is the stack's moat.
+Birds in the web
+Wild birds (gulls, frigatebirds, terns, boobies) live on every map, fish the same grounds,
+steal from caches, and are the pool mates come from. A colony that kills the wild birds
+near it gets fewer mates. Priests convert wild birds into colony birds (one per game day
+per priest), which is the Ibis founder's growth engine.
+Scouting, the map, and reports
+YOU know what your birds have seen. The map (the M key, or the chart button) shows the
+world as your colony has observed it: islands YOU've landed on in full, islands you've flown
+over as silhouettes, grounds your fishers have worked with their yields and predator
+pressure, and everything else as fog. Enemy colonies appear as what your SCOUtS last
+reported, with a timestamp.
+The map screen
+• A hand-drawn chart in the ink style, revealed in patches by every bird's sight. Fog is
+cloud; old information fades to sepia (a nest count from two days ago is drawn faded,
+with "seen 2 days ago").
+Page 18 of 51

@@ -1,0 +1,55 @@
+The Flight — Arcade Game 7 Design Document
+What's in the water (about 30 species per map)
+Tier
+Bait (size 1)
+Table fish (size
+2-3)
+Big fish (size 4)
+Things that eat
+birds
+Grazers and
+cleaners
+Scavengers
+Examples
+Sardines, anchovies, krill
+Mackerel, snapper, mullet, squid,
+flying fish
+Tuna, mahi, barracuda, kingfish
+Sharks (size 4-5), the great white,
+barracuda packs, a giant grouper
+under the stack, crocodiles at the
+tropical island's river mouth, the
+kraken, skull island's lizards and
+ape, frigatebirds (wild, steal fish)
+Turtles, dugongs, cleaner wrasse
+Crabs, gulls, hagfish
+What they mean to a bird
+The lagoon economy: safe, small,
+endless until overfished
+The main economy; schools move
+with the day; a Strongbird's first
+targets
+A nest's dinner in one trip; need
+carry 4; they fight the talons (a 2 s
+struggle; the shark's window)
+Attracted by blood from struggles
+and fights, by splashes (sound),
+and by a bird on the water; they
+breach to 10 m
+Not food (too big or protected);
+the cleaners calm the sharks near
+reefs
+Clean up the blood a fight leaves
+The rules birds live by
+• Blood. A fish that fights on the talons bleeds; a bird that falls bleeds more; a war over
+water is a feast for sharks, who then hunt the fishers of both sides. Chemists'
+stimulants make birds bleed less; the Beaked founder's Tear makes enemies bleed
+more. The sea is a weapon if you can aim it.
+Splash and noise. Every dive is a splash the web hears; a ground fished by ten fishers
+at once draws predators in minutes; spreading fishers across grounds is safer and
+slower.
+• Yield. A ground's yield is its standing population; it recovers over days if rested; a
+kraken's cove recovers overnight because the kraken keeps everything else out.
+• Predator pressure per ground is shown on the map as a shark icon that darkens with
+risk; Scouts' reports update it.
+Page 17 of 51

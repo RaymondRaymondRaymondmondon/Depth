@@ -1,0 +1,470 @@
+[
+    {
+        "key":  "taloned",
+        "name":  "The Taloned",
+        "bird":  "an osprey",
+        "boost":  "Fishing hit chance +30% for every bird; the Founder\u0027s strike window is twice as long",
+        "unique":  "Talon Lock: a held fish can\u0027t be dropped by a hit",
+        "weakness":  "-10% flight speed",
+        "playstyle":  "The safest economy; feed-rich and slow",
+        "stats":  {
+                      "cruise":  10.8,
+                      "sprint":  18,
+                      "stamina_s":  8,
+                      "carry":  3,
+                      "talon":  1.3,
+                      "attack":  20,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  1.7,
+                     "beak":  0.1,
+                     "tail":  0.45,
+                     "crest":  0,
+                     "back":  [
+                                  92,
+                                  70,
+                                  52
+                              ],
+                     "belly":  [
+                                   236,
+                                   232,
+                                   222
+                               ],
+                     "accent":  [
+                                    40,
+                                    36,
+                                    34
+                                ]
+                 }
+    },
+    {
+        "key":  "strongbird",
+        "name":  "The Strongbird",
+        "bird":  "a sea eagle",
+        "boost":  "Carry +2 size classes for every bird; can lift size-4 fish from the start",
+        "unique":  "Haul: carry a chick or an egg and a fish at once",
+        "weakness":  "Stamina -20%",
+        "playstyle":  "Big fish early; a tuna feeds a nest",
+        "stats":  {
+                      "cruise":  12,
+                      "sprint":  20,
+                      "stamina_s":  6.4,
+                      "carry":  5,
+                      "talon":  1,
+                      "attack":  24,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  2.2,
+                     "beak":  0.14,
+                     "tail":  0.5,
+                     "crest":  0,
+                     "back":  [
+                                  86,
+                                  62,
+                                  40
+                              ],
+                     "belly":  [
+                                   110,
+                                   84,
+                                   58
+                               ],
+                     "accent":  [
+                                    236,
+                                    230,
+                                    210
+                                ]
+                 }
+    },
+    {
+        "key":  "swift",
+        "name":  "The Swift",
+        "bird":  "a tern",
+        "boost":  "Flight speed +25%, dive speed +40% for every bird",
+        "unique":  "Skim: fish without a full dive (small fish only, no vulnerability window)",
+        "weakness":  "Carry -1 size class; chicks fledge a day later",
+        "playstyle":  "Raids, scouting and far grounds first; weak in a straight fight",
+        "stats":  {
+                      "cruise":  15,
+                      "sprint":  25,
+                      "stamina_s":  8,
+                      "carry":  2,
+                      "talon":  1,
+                      "attack":  18,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  1.4,
+                     "beak":  0.09,
+                     "tail":  0.7,
+                     "crest":  0,
+                     "back":  [
+                                  200,
+                                  204,
+                                  210
+                              ],
+                     "belly":  [
+                                   248,
+                                   248,
+                                   246
+                               ],
+                     "accent":  [
+                                    30,
+                                    30,
+                                    32
+                                ]
+                 }
+    },
+    {
+        "key":  "beaked",
+        "name":  "The Beaked",
+        "bird":  "a shrike-gull",
+        "boost":  "Attack +30%: every warrior type\u0027s damage up",
+        "unique":  "Tear: hits bleed, which the sea notices",
+        "weakness":  "Fishing hit chance -15%",
+        "playstyle":  "War early; must take an island to feed itself",
+        "stats":  {
+                      "cruise":  12,
+                      "sprint":  20,
+                      "stamina_s":  8,
+                      "carry":  3,
+                      "talon":  0.85,
+                      "attack":  26,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  1.5,
+                     "beak":  0.13,
+                     "tail":  0.45,
+                     "crest":  0,
+                     "back":  [
+                                  150,
+                                  152,
+                                  156
+                              ],
+                     "belly":  [
+                                   240,
+                                   240,
+                                   238
+                               ],
+                     "accent":  [
+                                    220,
+                                    180,
+                                    40
+                                ]
+                 }
+    },
+    {
+        "key":  "lyrebird",
+        "name":  "The Lyrebird",
+        "bird":  "a lyrebird",
+        "boost":  "Mates arrive in half the time; clutches +1 egg",
+        "unique":  "Serenade: call a mate instantly at a nest, once a day",
+        "weakness":  "Warriors -10%",
+        "playstyle":  "The biggest colony; expansion is its weapon",
+        "stats":  {
+                      "cruise":  12,
+                      "sprint":  20,
+                      "stamina_s":  8,
+                      "carry":  3,
+                      "talon":  1,
+                      "attack":  18,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  1.2,
+                     "beak":  0.08,
+                     "tail":  0.95,
+                     "crest":  0,
+                     "back":  [
+                                  120,
+                                  86,
+                                  58
+                              ],
+                     "belly":  [
+                                   180,
+                                   150,
+                                   120
+                               ],
+                     "accent":  [
+                                    210,
+                                    120,
+                                    60
+                                ]
+                 }
+    },
+    {
+        "key":  "shadow",
+        "name":  "The Shadow",
+        "bird":  "a night heron",
+        "boost":  "Predators spot birds at half range; fishing at night is safe",
+        "unique":  "Dusk Raid: warriors are invisible to Watchers at night",
+        "weakness":  "Fervour cannot exceed 80",
+        "playstyle":  "Fishes the kraken\u0027s cove; raids unseen",
+        "stats":  {
+                      "cruise":  12,
+                      "sprint":  20,
+                      "stamina_s":  8,
+                      "carry":  3,
+                      "talon":  1,
+                      "attack":  20,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  1.4,
+                     "beak":  0.12,
+                     "tail":  0.4,
+                     "crest":  0.4,
+                     "back":  [
+                                  48,
+                                  56,
+                                  72
+                              ],
+                     "belly":  [
+                                   170,
+                                   176,
+                                   184
+                               ],
+                     "accent":  [
+                                    200,
+                                    40,
+                                    40
+                                ]
+                 }
+    },
+    {
+        "key":  "sigma",
+        "name":  "The Sigma",
+        "bird":  "a magpie",
+        "boost":  "Trade rates +40% at towns and in barter; Traders carry double",
+        "unique":  "Market Cornering: once a match, buy a town\u0027s whole fish stock",
+        "weakness":  "Fishing hit -10%; no faith tree",
+        "playstyle":  "Wins the economy through towns",
+        "stats":  {
+                      "cruise":  12,
+                      "sprint":  20,
+                      "stamina_s":  8,
+                      "carry":  3,
+                      "talon":  0.9,
+                      "attack":  20,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  1.2,
+                     "beak":  0.08,
+                     "tail":  0.9,
+                     "crest":  0,
+                     "back":  [
+                                  20,
+                                  22,
+                                  30
+                              ],
+                     "belly":  [
+                                   240,
+                                   240,
+                                   240
+                               ],
+                     "accent":  [
+                                    40,
+                                    80,
+                                    140
+                                ]
+                 }
+    },
+    {
+        "key":  "ibis",
+        "name":  "The Ibis",
+        "bird":  "an ibis",
+        "boost":  "Fervour +50%; priests convert at twice the rate",
+        "unique":  "Pilgrimage: a shrine built on any island claims it",
+        "weakness":  "Trade rates -20%",
+        "playstyle":  "A tireless colony that works nights",
+        "stats":  {
+                      "cruise":  12,
+                      "sprint":  20,
+                      "stamina_s":  8,
+                      "carry":  3,
+                      "talon":  1,
+                      "attack":  18,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  1.4,
+                     "beak":  0.2,
+                     "tail":  0.45,
+                     "crest":  0,
+                     "back":  [
+                                  220,
+                                  224,
+                                  226
+                              ],
+                     "belly":  [
+                                   244,
+                                   244,
+                                   242
+                               ],
+                     "accent":  [
+                                    30,
+                                    30,
+                                    30
+                                ]
+                 }
+    },
+    {
+        "key":  "cuckoo",
+        "name":  "The Cuckoo",
+        "bird":  "a cuckoo",
+        "boost":  "Egg theft from the start; stolen chicks fledge as yours",
+        "unique":  "Brood Parasite: lay an egg in an enemy nest",
+        "weakness":  "Your own clutches are 1 egg smaller",
+        "playstyle":  "Grows on everyone else\u0027s eggs",
+        "stats":  {
+                      "cruise":  13,
+                      "sprint":  21,
+                      "stamina_s":  8,
+                      "carry":  3,
+                      "talon":  1,
+                      "attack":  18,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  1.1,
+                     "beak":  0.08,
+                     "tail":  0.75,
+                     "crest":  0,
+                     "back":  [
+                                  112,
+                                  116,
+                                  124
+                              ],
+                     "belly":  [
+                                   214,
+                                   210,
+                                   196
+                               ],
+                     "accent":  [
+                                    220,
+                                    180,
+                                    60
+                                ]
+                 }
+    },
+    {
+        "key":  "tycoon",
+        "name":  "The Tycoon",
+        "bird":  "a crested cockatoo",
+        "boost":  "Boom: every 3 days, 2 days of +60% feed, build and research, then a day of -40%",
+        "unique":  "Golden Nest: the first nest makes a pearl a day",
+        "weakness":  "No sustained bonus; the bust day is dangerous",
+        "playstyle":  "Boom to expand, survive the bust",
+        "stats":  {
+                      "cruise":  12,
+                      "sprint":  20,
+                      "stamina_s":  8,
+                      "carry":  3,
+                      "talon":  1,
+                      "attack":  18,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  1.3,
+                     "beak":  0.1,
+                     "tail":  0.55,
+                     "crest":  1,
+                     "back":  [
+                                  244,
+                                  244,
+                                  236
+                              ],
+                     "belly":  [
+                                   236,
+                                   234,
+                                   224
+                               ],
+                     "accent":  [
+                                    250,
+                                    210,
+                                    60
+                                ]
+                 }
+    },
+    {
+        "key":  "alchemist",
+        "name":  "The Alchemist",
+        "bird":  "a hooded crow",
+        "boost":  "The bombing and chemistry trees research fast and a day early",
+        "unique":  "Guano Works: guano twice as fast",
+        "weakness":  "Fishing +0; fervour -20%",
+        "playstyle":  "The late game: bombers and stimulants",
+        "stats":  {
+                      "cruise":  12,
+                      "sprint":  20,
+                      "stamina_s":  8,
+                      "carry":  3,
+                      "talon":  1,
+                      "attack":  20,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  1.3,
+                     "beak":  0.11,
+                     "tail":  0.55,
+                     "crest":  0,
+                     "back":  [
+                                  120,
+                                  124,
+                                  130
+                              ],
+                     "belly":  [
+                                   150,
+                                   154,
+                                   160
+                               ],
+                     "accent":  [
+                                    24,
+                                    24,
+                                    28
+                                ]
+                 }
+    },
+    {
+        "key":  "albatross",
+        "name":  "The Albatross",
+        "bird":  "an albatross",
+        "boost":  "Stamina +100%; wind penalties halved; scouting +50%",
+        "unique":  "Long Reach: fish grounds two regions away without a rest stop",
+        "weakness":  "Nests cost double twigs",
+        "playstyle":  "The explorer: first to every dangerous island",
+        "stats":  {
+                      "cruise":  12,
+                      "sprint":  20,
+                      "stamina_s":  16,
+                      "carry":  3,
+                      "talon":  1,
+                      "attack":  18,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  2.6,
+                     "beak":  0.14,
+                     "tail":  0.4,
+                     "crest":  0,
+                     "back":  [
+                                  232,
+                                  232,
+                                  228
+                              ],
+                     "belly":  [
+                                   246,
+                                   246,
+                                   244
+                               ],
+                     "accent":  [
+                                    60,
+                                    60,
+                                    64
+                                ]
+                 }
+    }
+]

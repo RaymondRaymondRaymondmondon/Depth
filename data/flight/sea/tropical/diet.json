@@ -1,0 +1,91 @@
+{
+    "foods":  [
+                  "Sardine",
+                  "Anchovy",
+                  "Mullet",
+                  "Mackerel",
+                  "Snapper",
+                  "Squid",
+                  "Flying Fish",
+                  "Tuna",
+                  "Mahi",
+                  "Barracuda",
+                  "Divers",
+                  "Corpse",
+                  "Plankton",
+                  "Seagrass",
+                  "Parasites"
+              ],
+    "rows":  {
+                 "Sardine":  {
+                                 "Plankton":  1
+                             },
+                 "Anchovy":  {
+                                 "Plankton":  1
+                             },
+                 "Mullet":  {
+                                "Plankton":  0.5,
+                                "Detritus":  0.5
+                            },
+                 "Mackerel":  {
+                                  "Sardine":  0.5,
+                                  "Anchovy":  0.3,
+                                  "Plankton":  0.2
+                              },
+                 "Snapper":  {
+                                 "Crab":  0.3,
+                                 "Anchovy":  0.3,
+                                 "Squid":  0.2,
+                                 "Plankton":  0.2
+                             },
+                 "Squid":  {
+                               "Sardine":  0.5,
+                               "Anchovy":  0.5
+                           },
+                 "Flying Fish":  {
+                                     "Plankton":  1
+                                 },
+                 "Tuna":  {
+                              "Sardine":  0.3,
+                              "Flying Fish":  0.3,
+                              "Squid":  0.2,
+                              "Mackerel":  0.2
+                          },
+                 "Mahi":  {
+                              "Flying Fish":  0.6,
+                              "Squid":  0.2,
+                              "Sardine":  0.2
+                          },
+                 "Barracuda":  {
+                                   "Mullet":  0.3,
+                                   "Mackerel":  0.3,
+                                   "Sardine":  0.2,
+                                   "Snapper":  0.2
+                               },
+                 "Reef Shark":  {
+                                    "Snapper":  0.25,
+                                    "Mackerel":  0.2,
+                                    "Tuna":  0.15,
+                                    "Barracuda":  0.1,
+                                    "Divers":  0.2,
+                                    "Corpse":  0.1
+                                },
+                 "Blacktip":  {
+                                  "Mullet":  0.3,
+                                  "Sardine":  0.3,
+                                  "Anchovy":  0.2,
+                                  "Divers":  0.1,
+                                  "Corpse":  0.1
+                              },
+                 "Green Turtle":  {
+                                      "Seagrass":  1
+                                  },
+                 "Cleaner Wrasse":  {
+                                        "Parasites":  1
+                                    },
+                 "Crab":  {
+                              "Corpse":  0.6,
+                              "Detritus":  0.4
+                          }
+             }
+}

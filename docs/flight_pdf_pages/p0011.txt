@@ -1,0 +1,105 @@
+The Flight
+Arcade Game 7 Design Document
+Working roles
+Role
+Fee e r
+Builder
+Scout
+Trader
+Priest
+Chemist
+Pathfinder
+60
+60
+70
+50
+65
+55
+55
+70
+Speed
+12
+14
+11
+18
+13
+11
+11
+15
+Carry
+2
+2
+3
+4
+(goods)
+2
+What it does
+Fishes an assigned ground and
+returns fish to the nearest
+cache; the economy
+Carries fish from caches to
+nests and to birds on duty; runs
+feed lines between islands
+Gathers twigs and shells; builds
+and repairs structures
+Flies a patrol route or a target
+and reports (see Scouting);
+sees far, fights never
+Carries goods to towns and
+other players; haggles
+Tends the shrine; raises fervour;
+converts wild birds (and, with
+research, enemy birds)
+Brews stimulants from guano
+and pearls at the Works; applies
+them to flocks
+Founds new colonies without
+the Founder: lands, builds, and
+calls a mate
+Notes
+A fisher catches 3-6 fish a day
+by ground; dies to sharks if the
+ground is bloody
+Without feeders, every bird
+fetches its own and loses a third
+of its day
+Three builders raise a nest in a
+game hour
+A SCOUt over an enemy island at
+high altitude is the first move of
+every war
+Traders are unarmed and known;
+killing one is an insult the towns
+remember
+Needs a shrine and offerings
+Alchemist founder only early;
+everyone late
+Late research; the empire's
+expansion unit
+Warrior roles
+Warriors are the elaborate part. Each has a job in a flock, a counter, and an altitude it likes.
+Warrior
+Skirmisher (a
+tern-like strike
+bird)
+Speed Attack
+50
+Role
+Quick attacks:
+hit, climb, hit
+again; raids
+caches and
+nests;
+harasses
+fishers
+Strong against Weak against Altitude
+20
+12, fast
+Fishers,
+SCOUtS,
+Bombers
+Tanks,
+Watchers
+Any; dives
+from high
+Page 11 of 51

@@ -1,0 +1,32 @@
+The Flight — Arcade Game 7 Design Document
+• Landing anywhere on land, on the nest, on a ship's rigging, on the sea (floating: safe
+from most things, not from what's below).
+Fishing
+1. Spot fish from altitude (shadows and ripples; schools are dark patches; a Scout's
+report marks them on the map).
+2. Dive. A dive aimed at the water enters a strike: a slow-motion 0.5 s in which you steer
+the talons onto a fish. Hit chance depends on the fish's size, your talon stat, the dive
+speed, and the water's clarity.
+3. Grab. A fish up to your carry stat comes up with you; a heavier one pulls you under for
+2 s (vulnerable) and escapes. A Strongbird carries more; a Taloned bird grabs easier.
+4. Fly it home. A carried fish is weight (speed down) and scent (sharks and frigatebirds
+follow). Drop it in the nest or at a cache (a storage pile) and it becomes feed.
+5. Eat. Your own hunger is a bar that drains over a game day; eating a fish from a cache
+refills it. A starving Founder loses stats, then faints at O and is a shark's dinner if it
+faints over water.
+Carrying and building
+The Founder carries one thing: a fish, a twig, a shell, a chick (to move it), an egg (yours or
+someone else's), or, late, a bomb. Nests and structures are built by dropping materials on a
+site; the Founder can build alone at first and directs Builders later.
+Dying
+The Founder can be eaten by a predator, killed in a fight, drowned by a load, or caught in a
+volcano's ash. On death:
+• The colony keeps running on its last orders for 60 s, then goes leaderless: no new
+orders, fishers keep fishing, warriors go home, fervour drops.
+• The player respawns at the nest as a chick-leader after 30 s: half speed, half carry, no
+fighting, and hungry. Feeding yourself three fish restores the adult Founder. Ten more
+seconds at full stats and the colony takes orders again.
+• With no nest (the island was taken), the player respawns as a chick on a drifting log
+and must be found by their own colony or land on neutral ground. Three Founder
+deaths in a match is -10% to everything for the rest of it (the colony's confidence).
+Page 3 of 51

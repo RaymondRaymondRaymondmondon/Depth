@@ -1,0 +1,52 @@
+The Flight — Arcade Game 7 Design Document
+New working roles
+Role
+Diver (a
+cormorant)
+Gardener (a
+parrot)
+Keeper (a jay)
+Teacher (an old
+crow)
+Herald (a tern)
+Augur (a raven)
+What it does
+Fishes underwater: pearls and deep
+fish without research; sharks are a
+fight
+Plants twig trees on bare islands
+(sea stacks grow their own twigs
+after three days) and seeds reef in
+lagoons (+fish)
+Runs caches: spoilage halved, counts
+exact, and stolen fish are tracked
+(the thief's livery is reported)
+Chicks within its sight fledge a day
+early and may be assigned any role,
+including warrior types usually gated
+by research
+Carries barter offers and truce flags
+to other players in person; a Herald
+in flight can't be attacked without a
+reputation hit at every town
+Reads the sea: reports where the
+next day's fish will be and when the
+next storm comes
+Why you'd want it
+The pearl economy without the
+Fishing tree
+Turns a poor island rich over a
+season
+Long matches; sieges
+A faster army without the War
+tree
+Diplomacy (below)
+The Weather Sense perk for a
+colony
+Veterans and names
+A warrior that survives three fights becomes a veteran: it gets a name (from a list, or
+typed), +15% to its stats, a feather marker, and a trait (Fearless: never routs; Lucky:
+survives one killing blow; Keen: sees stealth; Greedy: steals a fish from every kill; Loyal:
+follows the Founder anywhere). Veterans are what a player cares about by Autumn, and
+losing one is the game's grief.
+Page 42 of 51

@@ -1,0 +1,100 @@
+The Flight
+Arcade Game 7 Design Document
+Founder
+The Owl
+The Phoenix
+(a crested
+firebird)
+Boost
+Night is day: the
+colony works
+and fights at
+night without
+fervour;
+Watchers for
+everyone are
+free
+Chicks that
+would starve
+instead fledge at
+half size (a
+colony that
+never fully dies)
+Unique
+Silent Wings:
+the Founder
+and the flocks
+it leads make
+no noise
+Rebirth: the
+Founder's
+death
+respawns
+instantly at full
+stats, once per
+season
+Weakness
+Daylight: -20%
+to everything
+from dawn to
+dusk
+Fervour decays
+the colony
+needs a shrine
+to hold any at all
+More warriors and workers
+New warrior roles
+Warrior
+Plunger (a
+gannet)
+Swallow (a
+swarm unit;
+trained in fives)
+70
+20
+each
+Speed
+13
+22
+Attack
+40 from a
+dive, 8
+otherwise
+3 each
+Role
+The dive-bomber:
+climbs, then falls
+on one target;
+useless at level
+flight
+Cheap, fast, and
+many: screens,
+harassment, bait
+for Hammers; a
+swarm counts as
+one bird for feed
+Strong against
+Tanks, Watchers,
+nests, ships
+Bombers (they
+can't aim
+through them),
+Scouts
+Playstyle
+The night colony:
+raids, scouting,
+and sieges after
+dark; sleeps
+through noon
+The comeback
+colony: hard to
+finish, easy to
+bully, dangerous
+in Winter
+Weak against
+Being caught
+climbing;
+Screamers
+Everything with
+a beak; one Tank
+Page 40 of 51

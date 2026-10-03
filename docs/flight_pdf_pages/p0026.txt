@@ -1,0 +1,37 @@
+The Flight — Arcade Game 7 Design Document
+FervOlJr
+0-19
+20-49
+50-79
+80-99
+100 (zeal)
+Effect
+Birds rest a full night; warriors rout at morale 40
+Normal
+Birds rest half a night (the colony works late);
+morale +10
+Birds rest two hours; fishers fish dusk and dawn
+without research; morale +20
+No rest; warriors never rout; priests convert enemy
+birds in sight of the shrine; a colony at Zeal eats
+20% more (tired birds are hungry birds)
+The Founder prays at the shrine for a fervour burst (+15 for an hour, once a day). The Ibis
+founder lives here; the Sigma has no faith tree at all.
+Trade and barter
+• Towns. Each fishing town has a dock market with prices for fish, twigs, shells, and
+pearls that move with supply and events (a storm doubles fish prices; a festival
+doubles twigs). Traders carry goods there and back. Towns also sell gossip, the old
+pelican's truth, and, if the colony is liked (a reputation from trade volume and no stolen
+fish), a fleet contract: the town's boats fish a ground for you for a day.
+• Players. The barter screen: offer any goods, a research (sharing it costs a pearl), a
+truce for N days, a feed line's passage, or a mate (a bird transferred); the other side
+counters or accepts. Traders carry the goods; a trade with a player you're at war with is
+possible and is a story.
+• Reputation. Each town tracks each player: trade raises it, stealing from the fleet or
+killing a Trader lowers it; at -50 the town's humans shoo your birds off its roofs; at +50
+the town defends your Traders with its own gulls.
+The Sigma's cornering
+Once per match the Sigma buys a town's whole fish stock at the morning price and sells it
+back at evening (prices rise through the day); the profit is pearls, which is research, which
+is why the Sigma wins late.
+Page 26 of 51

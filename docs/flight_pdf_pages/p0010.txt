@@ -1,0 +1,65 @@
+The Flight — Arcade Game 7 Design Document
+Founder
+The Alchemist
+(a hooded
+crow)
+The Albatross
+Boost
+The bombing
+tree and the
+chemistry tree
+research at
+speed and
+unlock a day
+earlier
+Stamina
++100%; wind
+penalties
+halved;
+scouting range
++50%
+Unique
+Guano Works:
+guano
+accumulates
+twice as fast
+Long Reach:
+fishes grounds
+two map regions
+away without a
+rest stop
+Weakness
+Fishing +0,
+fervour -20%
+Nests cost
+double twigs
+(big birds)
+Playstyle
+The late game:
+bombers over
+enemy islands
+and stimulant-
+fed warriors;
+weak until the
+trees come
+online
+The explorer:
+first to every
+dangerous
+island, claims
+the far ones,
+holds a wide
+empire thinly
+Founder stats (the player's own bird) follow the species: the Taloned has the best strike,
+the Strongbird the best carry, the Swift the best speed, the Beaked the best attack, the
+Albatross the best stamina, and so on. The colony inherits the boost, not the Founder's
+body: a Swift's fishers are faster, not smaller.
+Balance intent. Each founder has a window: the Taloned, Strongbird, and Lyrebird are
+strongest early; the Beaked, Swift, Shadow, and Cuckoo in the mid-game; the Sigma, Ibis,
+Tycoon, Alchemist, and Albatross late. The phase model from Fathoms is reused to hold
+them within ±3% overall.
+Colony birds
+Every colony bird is one of the player's species, assigned a role at fledging. Roles are the
+unit types. Stats are for a size-3 adult at base; founder boosts and research modify them.
+All birds have hunger, can be eaten, and sleep at night unless fervour keeps them working.
+Page 10 of 51

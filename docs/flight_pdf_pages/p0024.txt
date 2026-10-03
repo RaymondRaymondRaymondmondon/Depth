@@ -1,0 +1,33 @@
+The Flight — Arcade Game 7 Design Document
+• Cache raid: Skirmishers take fish from an enemy cache and fly home; a Watcher on the
+cache nets one; the rest escape. Every fish stolen is a fish you didn't catch and they
+did.
+Egg raid: with Trade and parasitism tier 3 (Cuckoos from the start), a Skirmisher carries
+an egg home; it hatches yours. The most hated raid in the game and the one that starts
+most wars.
+• Fisher harassment: a Skirmisher pair over an enemy ground makes fishers drop their
+catch and flee; the dropped fish bleed and the sharks come, and the ground is spoiled
+for a day.
+• Chick snatch: Strikers take chicks from unguarded nests (skull island's lizards do this
+to everyone); a chick taken is a mouth you don't feed and a mate they wasted.
+Sieges
+A siege starves an island:
+1. Blockade (War tier 4): a flock holds the enemy's fishing grounds; their fishers can't
+work them without a fight.
+2. Cut the feed lines: Feeders between islands are unarmed; a Skirmisher pair kills the
+line, and the second island starves.
+3. Spoil the water: fight over their grounds; the blood brings sharks that fish for you.
+4. Hold altitude over the island with a Wall; their Scouts can't leave and their Traders
+can't come.
+5. Wait. Chicks die first, then adults, then the warriors desert to fish. A siege takes 2-3
+game days and costs the besieger feed too (a flying army eats so a siege is a race
+between two hungers, and the colony with more fish in caches wins it.
+Assaults
+Taking an island means landing on it and destroying nests until you hold the most.
+Defenders have hedges (walls Skirmishers can't pass; Strikers go over; Bombers burn),
+towers (Watchers with nets and double sight), a shrine's fervour (defenders don't rout),
+the island's shape (a stack is a fortress; a beach is a landing), and the island's own
+monsters (skull island's ape throws rocks at the attackers too). A good assault: Scouts
+first, a Hammer to break the Watchers, Bombers on the hedges, Tanks to hold the beach,
+Strikers on the nests, Skirmishers on the caches, and a Priest to claim the shrine.
+Page 24 of 51

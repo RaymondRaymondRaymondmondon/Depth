@@ -1,0 +1,31 @@
+The Flight — Arcade Game 7 Design Document
+The Flight — Arcade Game 7 Design
+Document
+Oct 2, 2026 • @PhillipArgall
+Overview
+The Flight is a 2-6 player 3D real-time strategy game in which each player is a bird. You
+start alone on an island with wings, a hunger, and an empty nest. You fish to feed yourself,
+fish to attract a mate, fish to feed the chicks, and the chicks grow into the colony that
+fishes, builds, scouts, trades, prays, and fights for you. The sea you fish is Depth's living
+food web, and the things in it eat birds. Other players' colonies grow on other islands;
+whoever feeds, grows, and fights best is the flock that owns the sky when the match
+ends.
+What makes it different from Fathoms (Depth's other RTS): you are in the game as a unit.
+The camera is on your back. You fish with your own talons, carry with your own wings, lead
+attacks with your own beak, and if a shark takes you, your colony loses its leader for a
+while and you respawn from your nest as a chick-leader with half your stats until you feed
+yourself back up. The colony is commanded with RTS orders; the leader is flown.
+Design pillars
+1. Feed or die. Every bird eats. A colony that grows faster than its fishing starves back
+down. The core tension is birds versus fish, all match, and the best players feel it every
+minute.
+2. The sea is alive and it is not yours. Fish move, breed, flee, and are eaten; sharks follow
+the blood your fishers make; the kraken cove and skull island are ecosystems, not
+spawn points. The food-web engine from Red Tide runs the ocean.
+3. Your bird matters. Twelve founder species with boosts that bend the whole strategy,
+plus the fact that the leader is a flyer with a body: altitude, wind, stamina, and a shark's
+open mouth are things that happen to you.
+4. War is elaborate and learnable. Scouts report, flocks form, altitude and wind decide
+fights, raids steal eggs, sieges starve islands, bombers and chemists change the rules
+late. A new player can win a skirmish; a good player can win a siege.
+Page 1 of 51

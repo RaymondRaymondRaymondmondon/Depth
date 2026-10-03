@@ -1,0 +1,54 @@
+The Flight — Arcade Game 7 Design Document
+Starvation
+When feed runs out, chicks die first, then the oldest adults, one per hour each, while the
+colony panel flashes. A starving colony's warriors desert (they go fishing for themselves)
+and its fervour collapses. A siege works by making this happen.
+Second colonies
+The Founder (or a Pathfinder bird, late) lands on another island and builds a nest; one
+mate and two chicks moved there become a colony with its own caches and panel.
+Colonies share research and the player's orders; they do not share feed unless a feed line
+(Feeders assigned between islands) carries it, which is a supply line and a target.
+Resources and the feed economy
+Five resources, all carried by birds, all stored in caches on the island. Fish is the one that
+matters; the others are what a colony is built from and what it trades with.
+Resource Where
+Fish
+(feed)
+Twigs
+Shells
+Pearls
+The sea's fishing
+grounds; fishing town
+docks (by trade)
+Trees on tropical islands
+and towns; driftwood on
+every shore; rigging on
+wrecks
+Beaches, reef shallows,
+crab middens
+Oyster beds (dive deep,
+slow, predators), the
+kraken's cove, skull
+island's shrine
+Who gathers
+Fishers, the Founder
+Builders
+Builders, chicks (a
+chick's first job)
+Fishers with Deep Dive
+research, the Founder
+What it's for
+Eating, courtship, chick
+growth, trade, bribes,
+and fervour (offerings)
+Nests, caches, perches,
+hedges, towers, shrines
+Nest lining (eggs hatch
+faster), armor for Tanks,
+currency at fishing
+towns
+Research, the shrine's
+offerings, the costliest
+trades, the Tycoon's
+boom
+Page 6 of 51

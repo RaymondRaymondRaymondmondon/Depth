@@ -1,0 +1,31 @@
+The Flight — Arcade Game 7 Design Document
+The crate, the shop, and the odds are data ( flight _ costumes . j son ), as in A Night Off,
+and the two games' crates share the arcade token. Costumes earned in one arcade game
+stay in that game; the Sand Worm Puppet is the exception and the joke.
+Presentation, technology, and sound
+Look
+• Depth's inked low-poly in daylight: a bright sea, white cliffs, green islands, brass-and-
+sail fishing towns, a sky that goes gold at dusk and ink at night. The ink outline is
+thinner than Red Tide's (birds are small and far); silhouettes do the work.
+• Birds are rigged from one body plan with species parameters (wingspan, beak, tail,
+crest, leg length, a three-tone palette per founder species, a livery color per player).
+Wings are two-bone rigs with feather quads that spread and fold; Chains for tail
+feathers, crests, and carried fish. Twelve founder species plus the wild birds and the
+warrior silhouettes (Tanks are rounder, Strikers are hawks, Watchers are owls, Bombers
+are pelicans).
+Flight animation is physical: flaps on climb, glides on level flight, tucked wings on a
+dive, a flare on landing, buffeting in wind. A tired bird's flaps are visibly heavier.
+• Fish, sharks, the kraken, and skull island's beasts reuse Red Tide's CreatureBui1der
+body plans and species records.
+• Islands are generated from a type's rules (the sea stack is a lathed column with ledges;
+the tropical island is a noise heightmap with trees; the town is a kit of docks, roofs, a
+tower; the volcano a cone with a lake) and decorated by habitat rules. The map is 2-3
+km across.
+• Weather is a wind field (shown by clouds, flags, and spray), thermals (visible as
+shimmer), storms (a front that crosses the map), and fog.
+Camera and control
+Third person behind the Founder for flight; a free RTS camera (the C key) for orders; the
+map (M) for the chart. Orders: box-select birds, right-click a ground, nest, cache, or target;
+flock commands on a bar (formation, altitude, stance); role assignment at fledging on the
+nest panel. Controller supported (the Founder flies well on sticks).
+Page 31 of 51

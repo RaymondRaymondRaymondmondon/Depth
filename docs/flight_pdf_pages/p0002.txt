@@ -1,0 +1,34 @@
+The Flight — Arcade Game 7 Design Document
+5. Islands are characters. A vertical rock, a tropical island, a fishing town, a volcano, a
+cove with a kraken, an island with giant beasts: each is a different economy, a different
+defense, and a different risk.
+Session. 25-45 minutes, 2-6 players, free-for-all or teams, hosted through the Deep
+Arcade's shared layer. Score pays arcade tokens; tokens buy bird costumes or spin the
+loot crate.
+Tone. Depth's inked low-poly style, bright and windy: a tropical sea under a brass sky,
+birds with character, a kraken that is a joke until it isn't. Bird deaths are a feather burst
+and a splash; chicks starve with a sad peep and a tombstone of shells. Silly names, real
+strategy.
+A note on the founder birds. The twelve are built from the boosts you listed; four are
+renamed so the game owns its characters: the charisma bird is the Lyrebird, the divinity
+bird is the Ibis, the egg-thief is the Cuckoo (which is what real cuckoos do), the boom-
+and-bust bird is the Tycoon, and the bombing-and-chemistry bird is the Alchemist. The
+mechanics are exactly as described.
+You are a bird
+The player's bird is the Founder: the first bird on the island, the colony's leader, and a unit
+the player flies directly in third person. Everything the colony can do, the Founder can do
+better, and the Founder is the only unit the player steers with their hands rather than with
+orders.
+Flight
+Speed and stamina. Cruise at 12 m/s; sprint at 20 for as long as stamina lasts (8 s base);
+stamina refills while gliding. Flapping costs stamina; gliding on an updraft or a tailwind
+refills it. Carrying a load slows you by its weight.
+• Altitude. Three bands matter: low (under 10 m: fishing, landing, and the band sharks
+can reach when they breach), mid (10-60 m: travel, fights), high (60-200 m: scouting
+range, bombing runs, and the band where wind is strongest). Climbing costs stamina;
+diving converts altitude into speed (a dive from high reaches 35 m/s and is the fastest
+thing in the game).
+• Wind. The map has a wind field that shifts every few minutes and is shown by cloud
+drift and flag directions on islands. Flying with it is +30% speed; against it, -30%.
+Thermals rise off tropical islands and volcanoes in the afternoon: free altitude.
+Page 2 of 51

@@ -1,0 +1,21 @@
+{
+    "tunables":  {
+                     "calm_seconds":  20
+                 },
+    "tides":  [
+                  {
+                      "tide":  1,
+                      "kill_quota_4p":  1,
+                      "hp_mult":  1,
+                      "bounty_mult":  1,
+                      "beast_dmg_mult":  1,
+                      "alarm_threshold":  999,
+                      "enemy_spawn_chance":  0,
+                      "blood_decay_per_s":  0.02,
+                      "hunt":  "none",
+                      "apex_wander":  "no",
+                      "boss_may_appear":  "no",
+                      "tide_bonus_scrip":  0
+                  }
+              ]
+}

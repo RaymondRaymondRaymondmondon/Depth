@@ -1,0 +1,50 @@
+The Flight — Arcade Game 7 Design Document
+Tree
+Trade and
+parasitism
+Costs
+Tier 1
+Trader role and
+the market
+screen
+Tier 2
+Barter with
+players (the
+offer screen)
+Tier 3
+Egg theft (any
+Skirmisher can
+carry an enemy
+egg home;
+Cuckoos have it
+from the start)
+Tier 4
+Brood parasitism
+(lay an egg in an
+enemy nest;
+Cuckoos from
+the start) and
+the Pathfinder
+role
+Tier 1: 2 pearls, 10 shells, half a day. Tier 2: 5 pearls, 20 shells, a day. Tier 3: 10 pearls, 40
+shells, 2 days. Tier 4: 20 pearls, 80 shells, 3 days, and the colony must be 25 birds or more.
+Pearls are the research bottleneck by design: the oyster beds, the cove, and the trade
+screen are where research comes from, so a colony with no deep divers and no traders is
+a colony with no late game.
+Order of work the game expects
+Nesting 1 and Fishing 1 by day 2; War 1 and 2 by day 4 (or you'll be raided); Faith or Trade by
+day 5 by temperament; Bombing and Chemistry from day 7; tier 4s from day 10. A 30-
+minute match is about 8 game days, so most matches see one or two tier 4s, which is the
+point of them.
+War
+War in The Flight is fought in three dimensions by birds that get tired, get hungry, and get
+eaten. The rules below are the strategy system; a player who learns them beats a player
+with more birds.
+The five things that decide an air fight
+1. Altitude. Height is energy. A flock above its enemy dives for +50% damage on the first
+strike and can disengage upward; a flock below can only climb (slowly) or run. Strikers
+win from above and lose from below. The first order in any fight is "get above them".
+2. Wind. A flock flying downwind is faster and arrives first; a fight against the wind costs
+stamina every second. Wind shifts every few minutes and is on the map; a flock that
+attacks into a headwind turning to a tailwind halfway is the classic mistake.
+Page 22 of 51

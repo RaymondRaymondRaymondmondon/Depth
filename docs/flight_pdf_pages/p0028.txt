@@ -1,0 +1,38 @@
+The Flight — Arcade Game 7 Design Document
+Eliminated players (no nests, no Founder respawn point) watch and can rejoin as a wild
+bird (an observer who can fish and heckle).
+Modes
+Mode
+The Flight (standard)
+Flock Together
+Still Waters
+Kraken Season
+Nest Egg
+Migration
+Solo Season
+Rule
+As designed
+Teams of 2-3 share research and feed lines; a
+team's score is summed
+No dangerous islands; a longer limit; the pure
+economy race
+The kraken is awake from the start and roams;
+whoever kills it wins outright
+Every player starts with 10 birds and no Founder
+respawn: one life for the leader
+The map's wind is a constant gale that rotates each
+day; everyone's islands are on the move (the atolls
+drift)
+One player, bots at three difficulties, and the sea
+Pacing of a 30-minute match (about 8 game days)
+Day 1: fish, nest, mate. Day 2: eggs, Roost, the first SCOUt. Day 3: fledglings, first fishers,
+War 1. Day 4: raids begin; the center's grounds are contested. Day 5: second islands; sieges
+start. Day 6-7: bombers, stimulants, the dangerous islands change hands. Day 8: the
+deciding assault or the score.
+Costumes
+Arcade tokens buy costumes for the Founder (the player's own bird) and, separately,
+colony liveries (a color and a hat for every bird in the colony, so an army is recognizable
+from across the map). There are 50 Founder costumes: 10 in the token shop and 40 in the
+loot crate. Costumes change nothing but the silhouette, and the silhouette is visible to
+everyone, which in a game about scouting is a choice.
+Page 28 of 51

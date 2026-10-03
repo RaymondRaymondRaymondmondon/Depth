@@ -1,0 +1,103 @@
+The Flight — Arcade Game 7 Design Document
+Tree
+Caches and
+craft
+War
+Bombing
+(Alchemist
+Chemistry
+(Alchemist
+Faith
+Tier 1
+Smokehouse
+(fish keep six
+days)
+Flock orders
+(formations)
+The Works
+(makes bombs
+from guano and
+sulfur: 1 per day)
+The Works
+(shared with
+Bombing) and
+the Chemist role
+The shrine and
+the Priest role
+(fervour)
+Tier 2
+Big caches (50)
+Skirmisher and
+Striker roles
+Bomber role
+Stimulant l:
+Haste (a flock
++30% speed
+for a day;
+afterward, a
+day of half
+stamina)
+Offerings (fish
+for fervour; +10
+per big fish)
+Tier 3
+Shell armor
+(Tanks +60 HP)
+Watchers'
+towers (sight
++50%, nets) and
+hedges (walls of
+thorn around
+nest sites)
+Incendiary
+(burns hedges
+and nests; skull
+island's plants)
+Stimulant II:
+Fury (attack
++40%, fear O:
+the flock won't
+retreat; bleeds
+more) and Clot
+(bleeding
+halved)
+Conversion
+(priests turn
+wild birds, then,
+at tier 4, enemy
+birds within
+sight of the
+shrine)
+Tier 4
+Nets (Watchers'
+nets hold 5 s;
+Fishers can net
+small schools)
+Flockmaster and
+the siege order
+(a flock
+blockades a
+ground)
+Blockbuster (one
+bomb per two
+days; destroys a
+Roost or a tower
+outright)
+Stimulant Ill: the
+Draught (one
+flock, one day: all
+stats +50%,
+immune to
+morale; then
+every bird in it
+sleeps a full day,
+wherever it is)
+Zeal (at fervour
+100, the colony
+works through
+nights and
+warriors never
+rout; fervour
+drops 30 if the
+Founder dies)
+Page 21 of 51

@@ -1,0 +1,110 @@
+The Flight — Arcade Game 7 Design Document
+Six more founders (eighteen in all)
+Founder
+The Gannet
+The Pelican
+The
+Frigatebird
+The Penguin
+Boost
+Plunge: every
+bird's dive from
+high altitude is a
+50% stronger
+strike, on fish or
+on enemies
+Carry +3 size
+classes for
+Feeders; caches
+hold double
+Every warrior
+can steal a
+carried fish in
+the air (Fisher-
+of-Birds for all)
+Birds swim:
+fishers dive and
+hunt underwater
+(no predator
+breaches; sharks
+are a fight, not a
+death); walking
+is 2x
+Unique
+Plunge Strike:
+the Founder's
+dive from
+above 60 m
+hits a bird or a
+nest for triple
+damage
+Pouch: the
+Founder
+carries three
+fish at once
+Piracy: the
+Founder's
+colony eats
+what other
+colonies catch;
+your fishers
+may fish
+enemy grounds
+unseen
+No flight: the
+colony's birds
+don't fly; they
+swim and walk;
+islands are
+reached by
+sea; the
+Founder flies
+(it's the one
+that can)
+Weakness
+Can't fish from
+low altitude at
+all (must climb
+first)
+Speed -15% for
+the whole
+colony
+Can't land on
+water (drowns);
+nests only on
+cliffs and trees
+No altitude, no
+bombers, no
+Strikers' dives;
+Watchers see
+nothing above
+them
+Playstyle
+A vertical
+colony:
+everything
+happens from
+the top; Strikers
+and fishers are
+the same bird
+The logistics
+colony: feed
+lines that can't
+be cut by
+starving them;
+sieges fail
+against it
+A pirate colony
+that lives off its
+neighbors and
+needs no
+grounds of its
+own
+The underwater
+colony: immune
+to air raids
+except from
+above, deadly
+below, slow to
+expand
+Page 39 of 51
