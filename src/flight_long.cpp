@@ -853,7 +853,7 @@ float World::TechRate(int zone, int tk, int what, int* tries) const {
 bool World::TechUsable(int tk, int zone, const Bird* b) const {
     if (seasons <= 0 || tk < 0 || tk >= TK_COUNT) return false;
     const std::string& fk = Founders()[me.def].key;
-    if (tk == TK_DEEP) return (b && b->role == Role::Diver) || fk == "penguin" || col.HasTier(Tree::Fishing, 2);
+    if (tk == TK_DEEP) return (b && b->role == Role::Diver) || fk == "penguin" || col.HasTier(Tree::Fishing, 2) || col.speciesTrait[0] == GT_DEEP || col.speciesTrait[1] == GT_DEEP;   // (a Deep species)
     if (tk == TK_NIGHT) { float ph = DayPhase(); return ph < 0.3f || ph > 0.7f; }   // (the dusk and dawn rises, and the night)
     if (tk == TK_DRIVE) {
         int n = 0;
@@ -902,7 +902,7 @@ TechMod World::TechMods(int tk, int zone, int size) const {
     if (zone >= 0 && zone < (int)zoneNear.size() && zoneNear[zone]) m.hit *= T.shoreK;
     if (!T.founder.empty() && T.founder.find(fk) != std::string::npos) m.hit *= T.founderK;   // (the Gannet's plunge, the Swift's skim)
     if (tk == TK_DRIVE && col.HasTier(Tree::Fishing, 4)) m.hit *= 1.25f;   // (yield with Cooperative Fishing)
-    m.risk = T.riskK * (!T.safeFor.empty() && T.safeFor.find(fk) != std::string::npos ? T.safeK : 1.0f);
+    m.risk = T.riskK * ((!T.safeFor.empty() && T.safeFor.find(fk) != std::string::npos) || (tk == TK_NIGHT && (col.speciesTrait[0] == GT_KEEN || col.speciesTrait[1] == GT_KEEN)) ? T.safeK : 1.0f);   // (a Keen species sees at night)
     m.splash = T.splash; m.yield = T.yield; m.fight = T.fightK; m.recover = T.recover; m.pace = T.pace; m.reach = T.reach;
     m.steal = T.steal;
     if (m.steal > 0) for (int s = 0; s <= (int)sides.size(); s++) if (s != cur && Founders()[FounderOf(s).def].key == "frigatebird") { m.steal *= 3; break; }   // (frigatebirds steal from a hovering bird)

@@ -409,7 +409,7 @@ template <class A> void VisitFounder(A& a, Founder& f) {
     a.i(f.chickFish); a.f(f.adultT); a.i(f.deaths); a.i(f.agent); a.s(f.lastCause);
 }
 template <class A> void VisitBird(A& a, Bird& b, bool own) {
-    a.b(b.elder); a.i(b.kin);   // (the Long Flight)
+    a.b(b.elder); a.i(b.kin); { int g = (int)b.genes; a.i(g); b.genes = (uint32_t)g; } { int r = b.rare; a.i(r); b.rare = (uint8_t)r; }   // (the Long Flight)
     a.i(b.id); a.e(b.stage); a.e(b.role); a.e(b.retrainTo); a.i(b.nest);
     P16(a, b.pos); a.s8(b.vel.x, 60); a.s8(b.vel.y, 60); a.s8(b.vel.z, 60);
     a.ang(b.yaw); a.ang(b.flapPh);
@@ -458,6 +458,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     { int rl = (int)c.relics; a.i(rl); c.relics = (uint32_t)rl; a.i(c.legend); a.b(c.legendAlive); }
     a.i(c.pact); a.i(c.bounty); a.i(c.bountyBy);
     a.f(c.beaconT); a.b(c.rookeryWarm);
+    a.i(c.speciesTrait[0]); a.i(c.speciesTrait[1]); a.s(c.speciesName);
     a.i(c.gen); a.i(c.heirId); a.i(c.heirTrait); a.i(c.succChoice); a.i(c.keepPerk); a.i(c.dynastyPick); a.b(c.regent); a.f(c.genStart); a.f(c.successionT); { int rk = (int)c.relicsKept; a.i(rk); c.relicsKept = (uint32_t)rk; } a.s(c.dynasty);
     if (own) a.vec(c.chronicle, [&](ChronLine& l) { a.i(l.day); a.i(l.season); a.i(l.year); a.i(l.kind); a.s(l.text); });   // (the Long Flight: a colony's own Chronicle)
     a.i(c.nestStyle); for (auto& n : c.nests) { a.i(n.style); a.f(n.rainT); }

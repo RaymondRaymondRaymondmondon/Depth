@@ -5,5 +5,23 @@
     "prime_from_day": 12, "old_from_day": 18, "life_days": 24, "prime_mul": 1.1, "old_per_day": 0.067, "old_min": 0.6, "old_carry": 3,
     "grief_fervour": 20, "elder_days": 24, "mate_other_kin": 0.3,
     "houses": ["Longbeak", "Saltwing", "Greycrest", "Stormfeather", "Tidecaller", "Ironclaw", "Brightwater", "Driftwood", "Kelpcrown", "Seastack", "Duskwing", "Pearlbeak"]
+  },
+  "evolution": {
+    "_source": "doc pp. 5-6: rank II is double the bonus, III triple with a visible change; 20 birds with one trait at III make a species (a second power at 40); 5% mutations, 1% rare births",
+    "species_at": 20, "second_at": 40, "mutate": 0.05, "rare": 0.01, "giant_hunger": 3, "giant_mul": 2, "crested_fervour": 5,
+    "traits": [
+      {"key": "big_eggs", "name": "Big Eggs", "effect": "chicks +10 HP as adults", "look": "large eggs", "hp_add": 10, "power": "every chick grows up strong", "species": "Greategg"},
+      {"key": "quick", "name": "Quick", "effect": "speed +5%", "look": "slim, swept wings", "speed": 0.05, "power": "every bird is fast (+15%)", "species": "Swiftwing"},
+      {"key": "hardy", "name": "Hardy", "effect": "+10% HP", "look": "broad", "hp_mul": 0.10, "power": "every bird is broad and hard to kill (+30% HP)", "species": "Broadback"},
+      {"key": "keen", "name": "Keen", "effect": "scout sight +10%", "look": "the owl's eyes", "scout": 0.10, "power": "night sight: night fishing is safe", "species": "Owl-eyed"},
+      {"key": "fierce", "name": "Fierce", "effect": "+5% attack", "look": "a hooked beak", "attack": 0.05, "power": "every bird strikes hard (+15%)", "species": "Hookbill"},
+      {"key": "fertile", "name": "Fertile", "effect": "clutch +1", "look": "five-egg clutches", "clutch": 1, "power": "clutches of five", "species": "Broodmother"},
+      {"key": "deep", "name": "Deep", "effect": "dives 10% deeper", "look": "dense, oiled feathers", "deep": 0.10, "power": "the Penguin's underwater fishing: every fisher can dive deep", "species": "Deepdiver"},
+      {"key": "tireless", "name": "Tireless", "effect": "stamina +10%", "look": "long wings", "stamina": 0.10, "power": "every bird fights long (+30% breath)", "species": "Longwing"},
+      {"key": "silent", "name": "Silent", "effect": "splash -20%", "look": "soft, dusky feathers", "splash": 0.20, "power": "no splash: the sharks don't hear it", "species": "Hushwing"},
+      {"key": "thick", "name": "Thick-skinned", "effect": "damage taken -5%", "look": "scaled legs", "damage_taken": 0.05, "power": "every bird shrugs off blows (-15%)", "species": "Thickhide"},
+      {"key": "clever", "name": "Clever", "effect": "research 5% faster per Clever bird", "look": "a bright eye", "clever": 0.05, "power": "research flies", "species": "Wiseling"},
+      {"key": "lucky", "name": "Lucky", "effect": "5% chance to survive a killing blow", "look": "a white mark", "lucky": 0.05, "power": "every bird a little luckier (15%)", "species": "Luckfeather"}
+    ]
   }
 }

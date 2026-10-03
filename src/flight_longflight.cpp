@@ -3,6 +3,8 @@
 // data/flight/flight_longflight.json. Headless.
 //   1. Generations and succession: the Founder ages (young, prime, old) and dies of age; a marked heir succeeds
 //      with a choice (the Old Way, the New Broom, the Pilgrimage); dynasties; elders.
+//   2. Evolution: twelve traits in ranks I-III that compound when both parents share them; mutations and rare
+//      births; a species at 20 birds with one trait at III (a second power at 40).
 // The calendar (the user's call: the doc's days stretched to fit the colony's growth): a year is the four-season
 // match's 24 days, so the Long Flight is 48 days (or 36 for the shorter one); the Founder's life is a year.
 #include "flight.h"
@@ -160,6 +162,95 @@ void World::StepGenerations(float dt) {
 }
 int World::Elders(int side, int trait) const { int n = 0; for (const auto& b : ColOf(side).birds) n += b.alive && b.elder && (trait < 0 || b.vet == trait); return n; }
 
+// ---------------------------------------------------------------- 2. evolution (doc pp. 5-6): traits that compound across generations
+namespace {
+struct EvoData { std::vector<GeneDef> genes; int speciesAt = 20, secondAt = 40; float mutate = 0.05f, rare = 0.01f, giantHunger = 3, giantMul = 2, crestedFervour = 5; std::vector<std::string> speciesWords; };
+const EvoData& ED() {
+    static EvoData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_longflight.json");
+    const Json& e = j["evolution"];
+    d.speciesAt = e["species_at"].I(d.speciesAt); d.secondAt = e["second_at"].I(d.secondAt); d.mutate = e["mutate"].F(d.mutate); d.rare = e["rare"].F(d.rare);
+    d.giantHunger = e["giant_hunger"].F(d.giantHunger); d.giantMul = e["giant_mul"].F(d.giantMul); d.crestedFervour = e["crested_fervour"].F(d.crestedFervour);
+    for (const Json& g : e["traits"].a) {
+        GeneDef x; x.key = g["key"].Str0(); x.name = g["name"].Str0(x.key); x.effect = g["effect"].Str0(); x.look = g["look"].Str0(); x.power = g["power"].Str0(); x.species = g["species"].Str0(x.name);
+        x.speed = g["speed"].F(0); x.attack = g["attack"].F(0); x.hpMul = g["hp_mul"].F(0); x.hpAdd = g["hp_add"].F(0); x.scout = g["scout"].F(0); x.stamina = g["stamina"].F(0);
+        x.splash = g["splash"].F(0); x.dmgTaken = g["damage_taken"].F(0); x.deep = g["deep"].F(0); x.lucky = g["lucky"].F(0); x.clever = g["clever"].F(0); x.clutch = g["clutch"].F(0);
+        d.genes.push_back(x);
+    }
+    while ((int)d.genes.size() < GT_COUNT) { GeneDef x; x.key = x.name = "trait"; d.genes.push_back(x); }
+    return d;
+}
+}  // namespace
+const std::vector<GeneDef>& Genes() { return ED().genes; }
+int GeneCount(uint32_t g) { int n = 0; for (int t = 0; t < GT_COUNT; t++) n += GeneRank(g, t) > 0; return n; }
+std::string GeneText(uint32_t g) {
+    static const char* R[4] = {"", " I", " II", " III"};
+    std::string s; for (int t = 0; t < GT_COUNT; t++) if (int r = GeneRank(g, t)) { if (!s.empty()) s += ", "; s += Genes()[t].name + R[r]; }
+    return s.empty() ? std::string("no traits") : s;
+}
+uint32_t Inherit(uint32_t mother, uint32_t father, bool hybrid, float u1, float u2, float u3) {
+    // where both parents share a trait the chick's rank is one higher (III at most; a hybrid line doesn't rank up for a
+    // generation); where they differ it gets one from each, up to three traits; now and then a mutation, a new trait at I
+    uint32_t c = 0;
+    for (int t = 0; t < GT_COUNT; t++) { int a = GeneRank(mother, t), b = GeneRank(father, t); if (a && b) c = SetGene(c, t, hybrid ? std::max(a, b) : std::min(3, std::max(a, b) + 1)); }
+    std::vector<int> fromM, fromF;
+    for (int t = 0; t < GT_COUNT; t++) { if (GeneRank(mother, t) && !GeneRank(father, t)) fromM.push_back(t); if (GeneRank(father, t) && !GeneRank(mother, t)) fromF.push_back(t); }
+    if (!fromM.empty() && GeneCount(c) < 3) { int t = fromM[(size_t)(u1 * fromM.size()) % fromM.size()]; c = SetGene(c, t, GeneRank(mother, t)); }
+    if (!fromF.empty() && GeneCount(c) < 3) { int t = fromF[(size_t)(u2 * fromF.size()) % fromF.size()]; c = SetGene(c, t, GeneRank(father, t)); }
+    if (u3 < ED().mutate && GeneCount(c) < 3) { int t = (int)(u3 / ED().mutate * GT_COUNT) % GT_COUNT; if (!GeneRank(c, t)) c = SetGene(c, t, 1); }
+    return c;
+}
+GeneFx GeneEffects(const Bird& b, const Colony& C) {
+    GeneFx f;
+    if (b.genes == 0 && C.speciesTrait[0] < 0) {   // (the one-hour match: the mother's trait as it was)
+        if (b.trait >= 0 && b.trait < MT_COUNT) { const MateTraitDef& T = MateTraits()[b.trait]; f.speed = T.speed; f.attack = T.attack; f.hpMul = T.hpMul; f.hpAdd = T.hpAdd; f.scout = T.scout; f.clutch = T.clutch; }
+        return f;
+    }
+    for (int t = 0; t < GT_COUNT; t++) {
+        int r = GeneRank(b.genes, t);
+        for (int k = 0; k < 2; k++) if (C.speciesTrait[k] == t) r = 3;   // (a species: every bird has its trait at III)
+        if (!r) continue;
+        const GeneDef& G = Genes()[t]; float m = (float)r;   // (rank II is double, III triple)
+        f.speed += G.speed * m; f.attack += G.attack * m; f.hpMul += G.hpMul * m; f.hpAdd += G.hpAdd * m; f.scout += G.scout * m; f.stamina += G.stamina * m;
+        f.splash = std::max(0.0f, f.splash - G.splash * m); f.dmgTaken = std::max(0.3f, f.dmgTaken - G.dmgTaken * m); f.deep += G.deep * m; f.lucky += G.lucky * m; f.clever += G.clever * m; f.clutch += (int)lroundf(G.clutch * m);
+    }
+    if (b.rare & RARE_GIANT) { f.hpMul *= ED().giantMul; f.attack *= ED().giantMul; }
+    return f;
+}
+float GiantHunger() { return ED().giantHunger; }
+void World::StepEvolution(float dt) {
+    if (!LongFlight() || fmodf(time, DAY * 0.25f) >= dt) return;
+    const EvoData& D = ED();
+    for (int s = 0; s <= (int)sides.size(); s++) {
+        Colony& C = ColOf(s);
+        if (!HumanOf(s) && C.wantTrait < 0 && GameDay() >= 7) C.wantTrait = (s * 7 + FounderOf(s).def) % MT_COUNT;   // (a bot breeds for one trait from its first week)
+        // speciation: 20 birds with the same trait at III make a species (a second at 40 birds of another)
+        int count[GT_COUNT] = {};
+        for (const auto& b : C.birds) if (b.alive && b.stage == BStage::Adult) for (int t = 0; t < GT_COUNT; t++) count[t] += GeneRank(b.genes, t) == 3;
+        int slot = C.speciesTrait[0] < 0 ? 0 : C.speciesTrait[1] < 0 ? 1 : -1;
+        if (slot < 0) continue;
+        int need = slot == 0 ? D.speciesAt : D.secondAt, best = -1;
+        for (int t = 0; t < GT_COUNT; t++) if (t != C.speciesTrait[0] && count[t] >= need && (best < 0 || count[t] > count[best])) best = t;
+        if (best < 0) continue;
+        C.speciesTrait[slot] = best;
+        const GeneDef& G = Genes()[best];
+        if (slot == 0) C.speciesName = G.species + " " + std::string(Founders()[FounderOf(s).def].name).substr(4);   // (e.g. "Swiftwing Taloned")
+        std::string what = slot == 0 ? TextFormat("%s has become a species of its own: the %s (%s III in every bird; %s).", SideName(s).c_str(), C.speciesName.c_str(), G.name.c_str(), G.power.c_str())
+                                     : TextFormat("The %s gains a second species power: %s III (%s).", C.speciesName.c_str(), G.name.c_str(), G.power.c_str());
+        for (int o = 0; o <= (int)sides.size(); o++) SayTo(o, what);
+        Chronicle(s, CK_SPECIES, what);
+    }
+}
+void World::Conceive(Bird& e, const Bird& mother, const Nest& n) {
+    uint32_t mg = mother.genes ? mother.genes : mother.trait >= 0 && mother.trait < MT_COUNT ? SetGene(0, mother.trait, 1) : 0u;   // (a wild mate: its one trait at I)
+    bool hybrid = mother.kin >= 0 && mother.kin != me.def;
+    e.genes = Inherit(mg, n.line, hybrid, Rand(), Rand(), Rand());
+    if (Rand() < ED().rare) e.rare = (uint8_t)(1u << ((int)(Rand() * 3) % 3));   // (a rare birth: albino, giant or crested)
+}
+int World::CleverAt(int side) const { const Colony& C = ColOf(side); float c = 0; for (const auto& b : C.birds) if (b.alive && b.stage == BStage::Adult) c += GeneEffects(b, C).clever; return (int)lroundf(c * 100); }
+
 // ---------------------------------------------------------------- --flight-longflight-test
 int RunFlightLongFlightTest() {
     int fails = 0;
@@ -237,7 +328,27 @@ int RunFlightLongFlightTest() {
         bool el = false; for (const auto& b : w->col.birds) if (b.id == vid) el = b.elder;
         check(el && w->Elders(0, VT_KEEN) == 1, "a veteran that survives a year becomes an elder (a Keen elder makes the scouts exact)");
     }
-    printf(fails ? "flight-longflight-test: %d check(s) failed\n" : "flight-longflight-test: all checks passed\n", fails);
+    // ---- evolution
+    {
+        uint32_t I = SetGene(0, GT_QUICK, 1), II = SetGene(0, GT_QUICK, 2), III = SetGene(0, GT_QUICK, 3);
+        bool up = GeneRank(Inherit(I, I, false, 0.5f, 0.5f, 0.9f), GT_QUICK) == 2 && GeneRank(Inherit(II, II, false, 0.5f, 0.5f, 0.9f), GT_QUICK) == 3 && GeneRank(Inherit(III, III, false, 0.5f, 0.5f, 0.9f), GT_QUICK) == 3;
+        uint32_t mix = Inherit(SetGene(I, GT_HARDY, 1), SetGene(0, GT_FIERCE, 2), false, 0.0f, 0.0f, 0.9f);
+        bool hyb = GeneRank(Inherit(I, I, true, 0.5f, 0.5f, 0.9f), GT_QUICK) == 1;
+        bool mut = GeneCount(Inherit(0, 0, false, 0, 0, 0.01f)) == 1;
+        check(up && GeneRank(mix, GT_FIERCE) == 2 && GeneCount(mix) <= 3 && hyb && mut,
+              "traits compound: two Quick parents make Quick II, two II make III; different traits pass one from each; a hybrid line doesn't rank up; a 5% mutation adds a new trait");
+        auto w = make(8);
+        Bird plain; plain.genes = 0; plain.trait = -1;
+        Bird q3; q3.genes = III;
+        check(GeneEffects(q3, w->col).speed > 1.14f && GeneEffects(plain, w->col).speed == 1, "rank III is triple the bonus (Quick III: +15% speed)");
+        for (int k = 0; k < 20; k++) { Bird& b = adult(*w, Role::Fisher, w->col.caches[0].pos); b.genes = III; }
+        w->time = 30 * World::DAY; w->StepEvolution(0.1f);
+        check(w->col.speciesTrait[0] == GT_QUICK && !w->col.speciesName.empty() && GeneEffects(plain, w->col).speed > 1.14f,
+              "twenty birds with Quick III make a species (" + w->col.speciesName + "): every bird of the colony has the trait at III");
+        // a bred colony: mothers and nest lines pass genes on through eggs
+        Bird mom; mom.genes = II; mom.kin = w->me.def; Nest n; n.line = II; Bird egg; w->Conceive(egg, mom, n);
+        check(GeneRank(egg.genes, GT_QUICK) == 3, "an egg of a Quick II mate in a Quick II nest line is Quick III");
+    }    printf(fails ? "flight-longflight-test: %d check(s) failed\n" : "flight-longflight-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }
 

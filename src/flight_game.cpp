@@ -563,6 +563,14 @@ void DrawColonyBird(const fl::World& w, const fl::Bird& b, Color side, const Sid
     float pitch = sitting ? 0 : std::clamp(asinf(std::clamp(b.vel.y / std::max(sp, 0.1f), -1.0f, 1.0f)), -1.2f, 0.6f);
     float sc; Color tint; RoleLook(b.role, &sc, &tint);
     if (b.netT > 0) tint = Tint(tint, {200, 200, 160, 255});
+    if (b.genes || b.rare) {   // (the Long Flight's evolution: rank III looks and rare births)
+        if (fl::GeneRank(b.genes, fl::GT_HARDY) == 3) sc *= 1.15f;
+        if (fl::GeneRank(b.genes, fl::GT_QUICK) == 3) sc *= 0.9f;
+        if (fl::GeneRank(b.genes, fl::GT_FIERCE) == 3) tint = Tint(tint, {200, 150, 120, 255});
+        if (fl::GeneRank(b.genes, fl::GT_SILENT) == 3) tint = Tint(tint, {150, 150, 170, 255});
+        if (b.rare & fl::RARE_GIANT) sc *= 1.6f;
+        if (b.rare & fl::RARE_ALBINO) tint = WHITE;
+    }
     Matrix W = PoseWorld(b.pos, b.yaw, pitch, b.netT > 0 ? 0.6f * sinf(S.t * 20) : 0, sc);
     float beat = sinf(b.flapPh);
     float shoulder = sitting ? 0 : diving ? 0.1f : 0.55f * beat + 0.05f;
@@ -1552,6 +1560,17 @@ void DrawLongPanel(fl::World& w) {
         } else Txt(w.DynastyOf(w.cur) + TextFormat(", generation %d%s", w.col.gen + 1, w.col.regent ? " (a regency)" : ""), x + 16, ly + 3, 13, Color{255, 220, 150, 255});
         ly += 22;
         if (int el = w.Elders(w.cur); el > 0) { Txt(TextFormat("Elders: %d (they teach: a Keen elder makes the scouts exact)", el), x + 16, ly + 2, 12, dim); ly += 18; }
+        // evolution: the colony's traits by rank, and how near it is to a species
+        int cnt[fl::GT_COUNT][4] = {}; int rare = 0;
+        for (const auto& b : w.col.birds) if (b.alive && b.stage == fl::BStage::Adult) { for (int t = 0; t < fl::GT_COUNT; t++) cnt[t][fl::GeneRank(b.genes, t)]++; rare += b.rare != 0; }
+        TxtBold("Evolution", x + 16, ly, 15, ink);
+        Txt(w.col.speciesTrait[0] >= 0 ? "a species: the " + w.col.speciesName : std::string("not yet a species (20 birds with one trait at III)"), x + 110, ly + 2, 12, w.col.speciesTrait[0] >= 0 ? Color{255, 220, 150, 255} : dim);
+        ly += 18;
+        std::string row; int shown = 0;
+        for (int t = 0; t < fl::GT_COUNT; t++) if (cnt[t][1] + cnt[t][2] + cnt[t][3] > 0) { row += TextFormat("%s %d/%d/%d   ", fl::Genes()[t].name.c_str(), cnt[t][1], cnt[t][2], cnt[t][3]); if (++shown == 4) { Txt(row, x + 16, ly, 12, ink); ly += 15; row.clear(); shown = 0; } }
+        if (!row.empty()) { Txt(row, x + 16, ly, 12, ink); ly += 15; }
+        if (rare) { Txt(TextFormat("rare births: %d", rare), x + 16, ly, 12, dim); ly += 15; }
+        ly += 4;
     }
     // structures beyond nests (doc p49): lay them out for the builders; light the Beacon
     {

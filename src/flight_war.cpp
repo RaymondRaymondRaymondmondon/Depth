@@ -274,10 +274,11 @@ void World::StepWar(float dt) {
         // cover: a Tank by the escorted bird takes the blow
         if (vf && vf->form == Formation::Cover && vr != Role::Tank && Rand() < w.coverRedirect)
             for (int id : vf->members) { Bird* t = FindBird(vic.side, id); if (t && t->role == Role::Tank && Vector3Distance(t->pos, vp) < 15) { t->hp -= dmg; if (t->hp <= 0) { Fighter tv{vic.side, t, nullptr, vf->id}; kill(tv, att.side, ar); } return; } }
-        if (att.b) { att.b->foughtT = time; if (att.b->vet >= 0) dmg *= 1 + Veterans().bonus; if (att.b->vet == VT_LOYAL && af && af->leader == -2) dmg *= Veterans().loyalAttack; if (att.b->trait >= 0) dmg *= MateTraits()[att.b->trait].attack; }   // (veterans +15%, Loyal beside the Founder, a Fierce mother)
+        if (att.b) { att.b->foughtT = time; if (att.b->vet >= 0) dmg *= 1 + Veterans().bonus; if (att.b->vet == VT_LOYAL && af && af->leader == -2) dmg *= Veterans().loyalAttack; dmg *= GeneEffects(*att.b, ColOf(att.side)).attack; }   // (veterans +15%, Loyal beside the Founder, a Fierce mother)
         if (vic.b) vic.b->foughtT = time;
         float& hp = hpOf(vic);
-        hp -= dmg;
+        hp -= dmg * (vic.b ? GeneEffects(*vic.b, ColOf(vic.side)).dmgTaken : 1.0f);   // (Thick-skinned)
+        if (hp <= 0 && vic.b && !vic.b->luckyUsed && vic.b->genes && Rand() < GeneEffects(*vic.b, ColOf(vic.side)).lucky) { hp = 1; vic.b->luckyUsed = true; }   // (a Lucky line)
         if (hp <= 0 && vic.b && vic.b->vet == VT_LUCKY && !vic.b->luckyUsed) { hp = 1; vic.b->luckyUsed = true; SayTo(vic.side, vic.b->vetName >= 0 ? Veterans().names[vic.b->vetName % Veterans().names.size()] + " shakes off a killing blow (Lucky)." : "A veteran shakes off a killing blow."); }
         if (hp <= 0 && att.b && att.b->vet == VT_GREEDY) { Colony& AC = ColOf(att.side); if (!AC.caches.empty() && (int)AC.caches[0].fish.size() < 60) AC.caches[0].fish.push_back({eco.map && !eco.map->species.empty() ? 0 : -1, 2, 0}); }   // (Greedy: a fish from every kill)
         if (BendOfSide(att.side).tear && !LandAt(vp.x, vp.z)) eco.AddBlood({vp.x, -0.5f, vp.z}, 2);   // (the Beaked's Tear: hits bleed, and the sea notices)

@@ -425,7 +425,7 @@ void World::StepSociety(float dt) {
     // research at the Roost
     if (C.resTree >= 0) {
         if (!Built(ST_ROOST)) { /* (its Roost destroyed: the line stops) */ }
-        else C.resLeft -= day * boom;
+        else C.resLeft -= day * boom * (1 + std::min(1.0f, CleverAt(cur) / 100.0f));   // (the Long Flight: Clever birds at the Roost)
         if (C.resLeft <= 0) {
             Tree t = (Tree)C.resTree;
             int n = ++C.tier[C.resTree];

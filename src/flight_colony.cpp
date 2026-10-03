@@ -248,7 +248,7 @@ void World::RegrowFish(float dt) {
 
 // ---------------------------------------------------------------- flying
 bool World::MoveTo(Bird& b, Vector3 goal, float speed, float dt, float arrive) {
-    speed *= Econ().workPace * (b.trait >= 0 ? MateTraits()[b.trait].speed : 1.0f) * BendNow().colonySpeed;   // (a Quick mother; the Pelican and the Penguin are slow)
+    speed *= Econ().workPace * GeneEffects(b, col).speed * BendNow().colonySpeed;   // (a Quick mother; the Pelican and the Penguin are slow)
     Vector3 d = Vector3Subtract(goal, b.pos);
     float flat = sqrtf(d.x * d.x + d.z * d.z);
     if (Vector3Length(d) < arrive) { b.vel = Vector3Scale(b.vel, 0.5f); return true; }
@@ -437,7 +437,7 @@ void World::FisherStep(Bird& b, float dt) {
         if (b.taskT < 1.2f && b.pos.y > 0.6f) break;
         // the strike: hit chance by size, the founder's boost, the water; a hungry shark below may take the bird
         TechLog(dz, b.tk, TL_TRY);
-        if (DecreeNow().splash > 0) eco.AddNoise({b.pos.x, 0, b.pos.z}, (coop ? 4.5f : 1.5f) * DecreeNow().splash * tm.splash);   // (the technique: a plunge's splash, a drive's triple splash, a skim's none)   // (Cooperative fishing: triple splash; Full Nets twice, Quiet Wings none)
+        if (DecreeNow().splash > 0) eco.AddNoise({b.pos.x, 0, b.pos.z}, (coop ? 4.5f : 1.5f) * DecreeNow().splash * tm.splash * GeneEffects(b, col).splash);   // (the technique: a plunge's splash, a drive's triple splash, a skim's none)   // (Cooperative fishing: triple splash; Full Nets twice, Quiet Wings none)
         {
             float ph = DayPhase();
             bool dark = ph < 0.22f || ph > 0.8f;
@@ -651,11 +651,11 @@ void World::MateStep(Bird& b, float dt) {
             int eggs = E.clutchMin + (int)(Rand() * (E.clutchMax - E.clutchMin + 1));
             { float c = BendNow().clutch; eggs += (int)floorf(c) + (Rand() < c - floorf(c) ? 1 : 0); }
             if (DecreeNow().extraEgg) eggs++;   // (Brood Day)
-            if (b.trait >= 0) eggs += MateTraits()[b.trait].clutch;
+            eggs += GeneEffects(b, col).clutch;   // (a Fertile mother)
             if (HasRelic(cur, RL_EGG) && !col.goldenEggUsed) { eggs *= 2; col.goldenEggUsed = true; Say("The Golden Egg: a clutch doubled."); }   // (a Fertile mate)   // (a fractional bend: a chance of one egg more)
             eggs = std::min(eggs, (b.nest >= 0 && b.nest < (int)col.nests.size() ? NestEggsOf(col.nests[b.nest]) : NestEggs()) - inNest);   // (a Platform holds six)
             if (eggs > 0) {
-                for (int k = 0; k < eggs; k++) { Bird e; e.id = col.nextId++; e.stage = BStage::Egg; e.nest = b.nest; e.pos = n.pos; e.hunger = 1; e.trait = b.trait; e.kin = b.kin; born.push_back(e); }   // (its chicks inherit its trait)   // (appended after the loop: b is a reference into col.birds)
+                for (int k = 0; k < eggs; k++) { Bird e; e.id = col.nextId++; e.stage = BStage::Egg; e.nest = b.nest; e.pos = n.pos; e.hunger = 1; e.trait = b.trait; e.kin = b.kin; if (LongFlight()) Conceive(e, b, n); born.push_back(e); }   // (its chicks inherit its trait)   // (appended after the loop: b is a reference into col.birds)
                 b.clutches++; b.clutchT = 0;
                 Say(TextFormat("A clutch of %d eggs.", eggs));
             }
@@ -688,7 +688,9 @@ void World::Fledge(Bird& b) {
     }
     if (!RoleUnlocked(r) && !b.taught) r = Role::Fisher;   // (a Teacher's chick may be any role)
     b.stage = BStage::Adult; b.role = r; b.retrainTo = Role::None; b.task = Task::Idle; b.age = 0; b.hp = MaxHp(r); b.fight = 25;
-    if (b.trait >= 0) b.hp = b.hp * MateTraits()[b.trait].hpMul + MateTraits()[b.trait].hpAdd;   // (Big Eggs, Hardy)
+    { GeneFx g = GeneEffects(b, col); b.hp = b.hp * g.hpMul + g.hpAdd; }   // (Big Eggs, Hardy; the Long Flight's ranks)
+    if (b.nest >= 0 && b.nest < (int)col.nests.size() && LongFlight()) col.nests[b.nest].line = b.genes;   // (the nest's family line carries on in it)
+    if (b.rare & RARE_CRESTED) col.fervour = std::min(100.0f, col.fervour + 5);   // (a Crested bird)
     b.pos.y += 0.5f;
     Say(std::string("A chick fledges: a ") + RoleName(r) + ".");
 }
@@ -707,7 +709,7 @@ void World::StepBird(Bird& b, float dt) {
     const Economy& E = Econ();
     // hunger: a day to empty (chicks twice as fast); chicks and mates eat what's laid in the nest
     if (b.stage != BStage::Egg) {
-        b.hunger -= dt / DAY * (b.stage == BStage::Chick ? E.chickDrain : 1.0f) * (FervourBand() >= 4 ? 1.2f : 1.0f);   // (a colony at Zeal eats 20% more)
+        b.hunger -= dt / DAY * (b.stage == BStage::Chick ? E.chickDrain : 1.0f) * (FervourBand() >= 4 ? 1.2f : 1.0f) * ((b.rare & RARE_GIANT) ? GiantHunger() : 1.0f);   // (a Giant eats for three)   // (a colony at Zeal eats 20% more)
         if ((b.stage == BStage::Chick || b.stage == BStage::Mate) && b.nest >= 0 && b.hunger < 0.85f) {
             Nest& n = col.nests[b.nest];
             float cap = b.stage == BStage::Chick ? E.feedChick : E.feedAdult;
@@ -779,7 +781,7 @@ void World::StepBird(Bird& b, float dt) {
                 }
             }
             if (b.hunger < 0.4f && BirdEatsAtCache(b, dt)) break;
-            b.fight = std::min(FightStamina(cur), b.fight + 0.5f * dt);
+            b.fight = std::min(FightStamina(cur) * GeneEffects(b, col).stamina, b.fight + 0.5f * dt);   // (Tireless)
             if (b.hp < MaxHp(b.role)) b.hp = std::min(MaxHp(b.role), b.hp + MaxHp(b.role) * dt / DAY * DecreeNow().heal);   // (it heals over a day at home)
             // a Watcher perches by the nests (on a tower if there is one); the rest roost round home
             Vector3 post;

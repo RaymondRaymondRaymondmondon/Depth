@@ -170,6 +170,20 @@ int YearDays();
 const std::vector<std::string>& DynastyNames();
 const char* SuccessionName(int c); const char* SuccessionWhat(int c);
 int RunFlightLongFlightTest();                  // depth.exe --flight-longflight-test
+// the Long Flight's evolution: twelve traits in ranks I-III, two bits each in Bird::genes (the first six are the mates' traits)
+enum GeneTrait { GT_BIG_EGGS = 0, GT_QUICK, GT_HARDY, GT_KEEN, GT_FIERCE, GT_FERTILE, GT_DEEP, GT_TIRELESS, GT_SILENT, GT_THICK, GT_CLEVER, GT_LUCKY, GT_COUNT };
+enum { RARE_ALBINO = 1, RARE_GIANT = 2, RARE_CRESTED = 4 };
+inline int GeneRank(uint32_t g, int t) { return (int)((g >> (t * 2)) & 3u); }
+inline uint32_t SetGene(uint32_t g, int t, int r) { return (g & ~(3u << (t * 2))) | ((uint32_t)(r < 0 ? 0 : r > 3 ? 3 : r) << (t * 2)); }
+struct GeneDef { std::string key, name, effect, look, power, species; float speed = 0, attack = 0, hpMul = 0, hpAdd = 0, scout = 0, stamina = 0, splash = 0, dmgTaken = 0, deep = 0, lucky = 0, clever = 0, clutch = 0; };
+struct GeneFx { float speed = 1, attack = 1, hpMul = 1, hpAdd = 0, scout = 1, stamina = 1, splash = 1, dmgTaken = 1, deep = 1, lucky = 0, clever = 0; int clutch = 0; };
+const std::vector<GeneDef>& Genes();
+int GeneCount(uint32_t g);
+std::string GeneText(uint32_t g);
+uint32_t Inherit(uint32_t mother, uint32_t father, bool hybrid, float u1, float u2, float u3);
+struct Bird; struct Colony;
+GeneFx GeneEffects(const Bird& b, const Colony& C);
+float GiantHunger();
 struct Rival { int isle = -1; std::vector<Vector3> nests; std::vector<Vector3> caches; int birds = 0; };   // (a colony that sits still until stage 4)
 
 // What your birds have seen (doc pp. 18-19): the fog, islands by how well they're known, grounds, sightings, reports
@@ -305,7 +319,8 @@ struct Bird {
     int trait = -1;                           // MT_*: a mate's trait, and its chicks' (inherited)
     bool taught = false;                      // (a Teacher saw it fledge)
     float songT = 0;                          // (the Siren Rocks: enthralled, sitting on the rocks)
-    bool elder = false; float vetT = -1e9f; int kin = -1;   // (the Long Flight: a veteran a year on is an elder; a mate's founder species, passed to its chicks)
+    bool elder = false; float vetT = -1e9f; int kin = -1;
+    uint32_t genes = 0; uint8_t rare = 0;     // (the Long Flight's evolution: its traits' ranks; RARE_* births)   // (the Long Flight: a veteran a year on is an elder; a mate's founder species, passed to its chicks)
     int tk = -1, bonusFish = 0; float recoverT = 0;   // (fishing mastery: the technique of this trip; a second fish (night fishing); a missed plunge's recovery)           // (a Trader's goods coming home; carrySp -2 an egg being stolen, -3 a bomb)
 };
 struct Site { Vector3 pos{}; int palm = -1; int nest = -1; int isle = -1; };
@@ -316,6 +331,7 @@ struct Nest {
     int shells = 0;                           // lining
     int isle = -1;                            // (the island it stands on: an island is held by whoever has the most nests there)
     float tear = 0;                           // (an assault's damage to it)
+    uint32_t line = 0;                        // (the Long Flight: the genes of the nest's family line, its chicks' other parent)
     int style = 0; float rainT = 0, floodT = 0;   // (the long match: NS_* style; a mud nest's rain; a burrow's flooding, a floating nest's day)
 };
 struct Cache { Vector3 pos{}; std::vector<CachedFish> fish; bool built = true; float twigs = 0; int isle = -1; };
@@ -439,6 +455,7 @@ struct Colony {
     int nestStyle = 0;                        // (the long match: the style new nests are laid in)
     // the Long Flight: generations (the heir, the succession choice, the perk it keeps), the dynasty, the Chronicle
     int gen = 0, heirId = -1, heirTrait = -1, succChoice = 0, keepPerk = -1, dynastyPick = 0, heirAnnounced = -1; bool regent = false;
+    int speciesTrait[2] = {-1, -1}; std::string speciesName;   // (the Long Flight: the colony's species, once 20 birds share a trait at III)
     float genStart = 0, successionT = -1e9f; uint32_t relicsKept = 0; std::string dynasty; std::vector<ChronLine> chronicle;
     float beaconT = -1e9f, rookeryFledgeT = -1e9f; bool rookeryWarm = false;   // (the Beacon last lit; the Rookery's chicks fledging together; enough adults about it)
     int tech = -1; float techMastery[TK_COUNT] = {}; std::vector<int> techLog;   // (fishing mastery: the colony's technique, -1 auto; per ground x technique: tries, catches, losses)
@@ -643,6 +660,9 @@ struct World {
     void Succeed(int side);
     void StepGenerations(float dt);
     int Elders(int side, int trait = -1) const;
+    void StepEvolution(float dt);
+    void Conceive(Bird& egg, const Bird& mother, const Nest& n);
+    int CleverAt(int side) const;               // (percent faster research from Clever birds)
     float eventDay2[4] = {-1, -1, -1, -1};      // (the Long Flight: year two's season events)
     void InitIsles(); void StepIsles(float dt); void SetGhostPose();
     bool IsleShields(int isle, int threat) const;   // (the island keeps raiders off its nests: sheer ice, the roots, the Maelstrom's rocks, the beam at night)

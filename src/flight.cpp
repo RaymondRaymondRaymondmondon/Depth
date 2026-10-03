@@ -505,6 +505,7 @@ void World::Step(float realDt, const FounderInput& in) {
     StepStructures(dt);
     StepIsles(dt);
     StepGenerations(dt);
+    StepEvolution(dt);
     if (seasons > 0) for (int s = 0; s <= (int)sides.size(); s++) WithSide(s, [&] { StepVeterans(dt); });
     fogT += dt; fogNow = fogT >= 0.25f;
     if (fogNow) fogT = 0;
