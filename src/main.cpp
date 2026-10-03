@@ -45,6 +45,7 @@ static void RunScene(Game& g) {
         case Scene::Arcade:     SceneArcade(g); break;
         case Scene::RedTide:    SceneRedTide(g); break;
         case Scene::Trawl:      SceneTrawl(g); break;
+        case Scene::Flight:     SceneFlight(g); break;
         case Scene::Hub:        SceneHub(g); break;
         case Scene::Helm:       SceneHelm(g); break;
         case Scene::Crew:       SceneCrew(g); break;
@@ -212,6 +213,11 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"costumes_wardrobe_trawl", [](Game& g) { DebugWardrobe(g, 2); }},
         {"costumes_wardrobe_redtide", [](Game& g) { DebugWardrobe(g, 3); }},
         {"arcade_trawl", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(1); }},
+        {"flight_dawn", [](Game& g) { DebugFlightShot(g, 0); }},
+        {"flight_strike", [](Game& g) { DebugFlightShot(g, 1); }},
+        {"flight_nest", [](Game& g) { DebugFlightShot(g, 2); }},
+        {"flight_high", [](Game& g) { DebugFlightShot(g, 3); }},
+        {"arcade_flight", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(5); }},
         {"trawl_deck", [](Game& g) { DebugTrawlShot(g, 0); }},
         {"trawl_engine", [](Game& g) { DebugTrawlShot(g, 1); }},
         {"trawl_wheelhouse", [](Game& g) { DebugTrawlShot(g, 2); }},
@@ -936,7 +942,7 @@ int main(int argc, char** argv) {
             MouseLookFrameEnd();   // a scene that stopped asking for mouse look gets its pointer back
             {   // aboard the Nautilus (the salon and its station screens) the waltz and the ship's bed play
                 bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon && g.scene != Scene::Study
-                              && !(g.scene == Scene::RedTide && RedTideAudioActive()) && g.scene != Scene::Trawl;
+                              && !(g.scene == Scene::RedTide && RedTideAudioActive()) && g.scene != Scene::Trawl && g.scene != Scene::Flight;
                 AudioHub(aboard, g.scene == Scene::Hub ? -1 : (int)g.scene, g.mourning);
                 AudioStudy(g.scene == Scene::Study);   // below the hatch: the Study's own soundscape instead
                 if (g.scene != Scene::Dungeon) AudioExpedition(ExpAudio{});   // (the Dungeon scene sets it every frame)

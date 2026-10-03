@@ -407,3 +407,18 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 
 ## Voice chat (the Deep Arcade; docs/VOICE_PROGRESS.md)
 - `voice.h/.cpp` (no raylib; miniaudio for the microphone, using raylib's own build of it): IMA ADPCM 16 kHz frames of 20 ms, the push-to-talk / open-mic gate, per-speaker jitter buffers, and `voice::Hearing` (gain, pan, muffle, radio, bubble, ghost), which a game sets per speaker every frame. The session carries `M_VOICE` (the host relays it). The glue is `ArcadeVoiceFrame`/`DrawVoiceHud` in arcade.cpp, called from the main loop. The game menu has a Voice chat page; the Talk action is push-to-talk (Caps lock / backtick). Check with `depth.exe --voice-test`.
+
+## The Flight (arcade game 7; build log in docs/FLIGHT_PROGRESS.md)
+- **Design:** `Reference_For_Future_MP_Games/The Flight — Arcade Game 7 Design Document.pdf`. OCR is in `docs/flight_pdf_pages/`. The user puts future multiplayer game ideas in that folder.
+- **The game:** a 2-6 player 3D RTS in which each player flies their bird (the Founder) in third person and fishes the living sea to grow a colony.
+- **The user's decisions:**
+  - Base game first, then the expansion.
+  - Code art first; Blender later.
+  - Not in the coming playtest.
+  - The Founder always respawns.
+- **Code:**
+  - `flight.h/.cpp`: the headless core (`fl::World`, `Founder`, `Island`, `Wind`, `RunFlightTest`).
+  - `flight_game.cpp`: `Scene::Flight`, drawn with Red Tide's renderer in daylight. The sun is `SceneLight::moonDir/moon/moonK`. Keep `filmic = 0`: the filmic curve whites out a daylit sky.
+- **The sea:** Red Tide's `rt::Ecosystem` on `data/flight/sea/<island>/` (map key `flight_<island>`; `MapLoad` and the art-sheet lookup redirect `flight_` keys). The bird is a Diver agent in the web while it is low over the water.
+- **Data files** must be saved as UTF-8 without a BOM: the JSON reader rejects a BOM.
+- **Checks:** `depth.exe --flight-test`. Shots: `flight_*`, `arcade_flight`. Stage 1 (flight and fishing) is done; stage 2 is the colony loop.

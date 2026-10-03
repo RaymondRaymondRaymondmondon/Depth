@@ -215,6 +215,7 @@ void World::ResolveStrike() {
         float chance = 0.62f * d.talon * (1.15f - 0.1f * s.size) * std::clamp(me.strikeSpeed / 20, 0.6f, 1.25f) * clarity * (1 - dist / 3.2f);
         if (d.key == "beaked") chance *= 0.85f;
         hit = forceHit || Rand() < std::clamp(chance, 0.05f, 0.95f);
+        if (getenv("DEPTH_TRACE")) printf("    strike: %s at %.1f m from the aim, depth %.1f, speed %.0f, chance %.2f -> %s\n", s.name.c_str(), dist, a.pos.y, me.strikeSpeed, chance, hit ? "hit" : "miss");
         if (hit) {
             if (s.size <= me.Carry(d)) {
                 me.carrySp = a.sp; me.carrySize = s.size;
@@ -232,6 +233,7 @@ void World::ResolveStrike() {
             return;
         }
     }
+    if (getenv("DEPTH_TRACE") && fi < 0) { int n = 0; FishNear(me.strikeAim, 8, 6, &n); printf("    strike: nothing within 3 m (reach %.1f m); %d within 8 m and 6 m deep\n", reach, n); }
     fishMissed++;
     me.st = FState::Under; me.underT = 0.6f;
     Say(fi >= 0 ? "Missed." : "Nothing there.");
@@ -260,18 +262,17 @@ void World::StepFounder(float dt, const FounderInput& in) {
         float turn = (f.sprinting ? 1.5f : 1.9f) * dt;
         f.yaw += std::clamp(dyaw, -turn, turn);
         f.bank += (std::clamp(dyaw * 1.4f, -1.0f, 1.0f) * 0.85f - f.bank) * std::min(1.0f, dt * 4);
-        float pt = std::clamp(in.pitch, -1.4f, 0.85f);
+        float pt = std::clamp(in.pitch, -1.4f, f.exhausted ? 0.05f : 0.85f);   // (exhausted: no climb)
         f.pitch += std::clamp(pt - f.pitch, -1.6f * dt, 1.6f * dt);
-        bool can = f.stamina > 0.05f && !f.exhausted;
-        f.flapping = in.flap && can;
-        f.sprinting = f.flapping && in.sprint;
+        f.flapping = in.flap;
+        f.sprinting = f.flapping && in.sprint && !f.exhausted && f.stamina > 0.05f;
         f.gliding = !f.flapping;
         float sinP = sinf(f.pitch);
         // gravity along the path: diving is speed, climbing costs it
         f.airspeed += -9.81f * sinP * dt * 0.9f;
         float glide = 9;
         if (f.flapping) {
-            float target = (f.sprinting ? f.Sprint(d) : f.Cruise(d)) * carryMul;
+            float target = (f.sprinting ? f.Sprint(d) : f.Cruise(d)) * carryMul * (f.exhausted ? 0.5f : 1.0f);   // (exhausted: half speed)
             if (f.airspeed < target) f.airspeed += (target - f.airspeed) * std::min(1.0f, dt * 1.4f);
         } else if (f.airspeed > glide && sinP > -0.35f) f.airspeed -= (f.airspeed - glide) * 0.25f * dt;
         if (!f.flapping && f.airspeed < glide && sinP > -0.2f) f.airspeed += (glide * 0.85f - f.airspeed) * 0.3f * dt;   // (a glide holds its speed by trading height)
@@ -285,9 +286,10 @@ void World::StepFounder(float dt, const FounderInput& in) {
         float along = Vector2Length(w) > 0.1f ? Vector2DotProduct(fx, Vector2Normalize(w)) : 0;
         float lift = Thermal(f.pos);
         float drain = 0;
-        if (f.flapping) drain += f.sprinting ? 1.0f : 0.28f;
-        if (f.flapping && sinP > 0) drain += 0.6f * sinP;
+        if (f.sprinting) drain += 1.0f;                                     // (sprints and climbs cost breath; a level cruise is the bird's own pace)
+        if (f.flapping && sinP > 0.05f) drain += 0.9f * sinP;
         if (drain > 0) f.stamina -= drain * dt;
+        else if (f.flapping) f.stamina += 0.15f * dt;                     // (cruising level, it slowly gets its breath back)
         else f.stamina += (0.6f + (lift > 0.5f ? 0.8f : 0.0f) + (along > 0.5f ? 0.4f : 0.0f)) * dt;
         f.stamina = std::clamp(f.stamina, 0.0f, maxStam);
         if (f.stamina <= 0.05f) { if (!f.exhausted) Say("Out of breath: glide to get it back."); f.exhausted = true; }
@@ -543,6 +545,63 @@ int RunFlightTest() {
         bool chick = s.me.st == FState::Perched && s.me.chick && s.me.Carry(s.Def()) < s.Def().carry && s.me.Cruise(s.Def()) < s.Def().cruise * 0.6f;
         for (int k = 0; k < 3; k++) { s.cache.push_back({1, 1, 0}); FounderInput e; e.eat = true; s.Step(1 / 60.0f, e); s.Step(1 / 60.0f, none); }
         check(chick && !s.me.chick, "30 s later it's back in the nest as a chick-leader (half speed and carry); three fish make it the Founder again");
+    }
+    // ---- ten minutes of fishing by an autopilot (real dives, no forced hits): the stage's gate in numbers
+    {
+        World v; v.Init("taloned", 21);
+        v.me.st = FState::Fly; v.me.pos = {0, 25, 60}; v.me.airspeed = 11; v.me.hunger = 1;
+        int dives = 0; FState was = v.me.st; bool resting = false, stoop = false;
+        for (int i = 0; i < 60 * 600; i++) {
+            Founder& f = v.me;
+            FounderInput in; in.yaw = f.yaw; in.pitch = 0; if (f.stamina < 1.5f) resting = true; if (f.stamina > 5) resting = false;
+            in.flap = !f.exhausted && (!resting || f.pos.y < 4);   // (glide to get the breath back, as a player would)
+            auto climb = [&](float p) { return !resting ? p : std::min(p, 0.0f); };
+            auto toward = [&](Vector3 p) { in.yaw = atan2f(p.z - f.pos.z, p.x - f.pos.x); };
+            if (f.st == FState::Perched || f.st == FState::Floating) {
+                if (f.carrySp >= 0 && Vector3Distance(f.pos, v.island.nest) < 3) in.interact = true;
+                else if (f.hunger < 0.6f && !v.cache.empty() && Vector3Distance(f.pos, v.island.nest) < 3) in.eat = true;
+                else if (f.stamina > 3) in.takeoff = true;
+            } else if (f.st == FState::Strike) {
+                int fi = v.FishNear(f.strikeAt, 3.5f, 3);
+                if (fi >= 0) {
+                    Vector3 d = Vector3Subtract(v.eco.agents[fi].pos, f.strikeAt);
+                    Vector3 r{-sinf(f.yaw), 0, cosf(f.yaw)}, fw{cosf(f.yaw), 0, sinf(f.yaw)};
+                    in.steer = {std::clamp(Vector3DotProduct(d, r) / 2.6f, -1.0f, 1.0f), std::clamp(Vector3DotProduct(d, fw) / 2.6f, -1.0f, 1.0f)};
+                }
+            } else if (f.st == FState::Fly) {
+                if (f.carrySp >= 0) {   // home with it, gliding down onto the nest
+                    toward(v.island.nest);
+                    float dh = Vector2Distance({f.pos.x, f.pos.z}, {v.island.nest.x, v.island.nest.z});
+                    in.pitch = std::clamp(atan2f(v.island.nest.y + 1 - f.pos.y, std::max(dh, 1.0f)), -0.5f, 0.5f);
+                    if (dh < 12) in.brake = true;
+                    in.interact = dh < 4;
+                } else {
+                    int fi = v.FishNear(f.pos, 160, 2.2f);
+                    if (fi < 0) { in.yaw = f.yaw + 0.3f; in.pitch = climb((20 - f.pos.y) * 0.03f); }
+                    else {
+                        Vector3 p = v.eco.agents[fi].pos;
+                        float dh = Vector2Distance({f.pos.x, f.pos.z}, {p.x, p.z});
+                        toward(p);
+                        if (!stoop && dh < f.pos.y * 0.9f && f.pos.y > 11) stoop = true;                          // the stoop: steep, from height
+                        if (stoop) in.pitch = -atan2f(f.pos.y, std::max(dh, 0.5f)) - 0.1f;
+                        else if (dh < 10 && f.pos.y < 11) { in.yaw = f.yaw + 1.2f; in.pitch = climb(0.3f); }     // (too close to stoop: go round, climbing)
+                        else in.pitch = climb(std::clamp((16 - f.pos.y) * 0.06f, -0.4f, 0.35f));                                       // (too close and low: go round)
+                    }
+                }
+            }
+            if (getenv("DEPTH_TRACE") && i % 300 == 0) {
+                int nShallow = 0, nAll = 0; v.FishNear(f.pos, 400, 2.2f, &nShallow); v.FishNear(f.pos, 400, 60, &nAll);
+                int fi = v.FishNear(f.pos, 160, 2.2f);
+                printf("    t=%5.0f %-9s pos %5.0f %5.0f %5.0f  air %4.1f vy %5.1f pitch %5.2f stam %4.1f  shallow %d/%d  target %s\n", i / 60.0f, FStateName(f.st), f.pos.x, f.pos.y, f.pos.z, f.airspeed, f.vel.y, f.pitch, f.stamina, nShallow, nAll,
+                       fi >= 0 ? TextFormat("%.0f m away, y %.1f", Vector2Distance({f.pos.x, f.pos.z}, {v.eco.agents[fi].pos.x, v.eco.agents[fi].pos.z}), v.eco.agents[fi].pos.y) : "none");
+            }
+            v.Step(1 / 60.0f, in);
+            if (v.me.st != FState::Fly || v.me.pos.y < 1) stoop = false;
+            if (v.me.st == FState::Strike && was != FState::Strike) dives++;
+            was = v.me.st;
+        }
+        printf("  (ten minutes: %d strikes, %d caught, %d missed, %d lost, %d eaten, %d in the nest, hunger %.2f, %s)\n", dives, v.fishCaught, v.fishMissed, v.fishLost, v.fishEaten, (int)v.cache.size(), v.me.hunger, FStateName(v.me.st));
+        check(dives >= 10 && v.fishCaught >= 4 && v.me.st != FState::Dead, TextFormat("an autopilot fishing for ten minutes strikes %d times and catches %d", dives, v.fishCaught));
     }
     printf(fails ? "flight-test: %d check(s) failed\n" : "flight-test: all checks passed\n", fails);
     return fails ? 1 : 0;

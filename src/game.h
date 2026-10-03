@@ -35,7 +35,7 @@ const Color Bad     = {225, 70, 70, 255};
 const Color Stress  = {170, 120, 230, 255};
 }  // namespace Pal
 
-enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade, RedTide, Trawl };
+enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade, RedTide, Trawl, Flight };
 
 // Workshop upgrades. Each has levels 0..UPGRADE_MAX.
 enum Upgrade { UP_REFLECTOR, UP_BUNKS, UP_SONAR, UP_INFIRMARY, UP_CARGO, UP_COUNT };
@@ -877,6 +877,14 @@ void StartTrawlNet(Game& g, arcade::Session* net, bool firstPerson = false);   /
 void LeaveTrawlMatch(Game& g);                                                 // back to the arcade (the host takes the table back to the lobby)
 void TrawlMenuTick(float dt);                                                  // (the game menu is open) a networked Trawl keeps talking   // crew 1-6 (the rest are bots), botSkill 0 Green, 1 Able, 2 Old Hand   // firstPerson: the 3D version (trawl_view3d.cpp); V switches in game
 void DebugTrawlShot(Game& g, int which);   // --shots: 0 the deck, 1 the engine room, 2 the wheelhouse, 3 a squall
+void SceneFlight(Game& g);    // The Flight, arcade game 7: the Founder flown over the tropical island (flight_game.cpp)
+void StartFlight(Game& g, const char* founder = "taloned");
+void LeaveFlight(Game& g);
+void DebugFlightShot(Game& g, int which);   // --shots: 0 dawn over the lagoon, 1 the strike, 2 the nest, 3 high over the island
+int FlightFounderCount();
+const char* FlightFounderName(int i);
+const char* FlightFounderKey(int i);
+const char* FlightFounderLine(int i);
 void SceneRedTide(Game& g);   // Red Tide, the Deep Arcade's survival shooter (redtide_game.cpp)
 void StartRedTide(Game& g, const char* map = "ship");
 void StartRedTideNet(Game& g, arcade::Session* net);   // a Deep Arcade match of Red Tide (host or guest)

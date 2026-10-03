@@ -166,13 +166,14 @@ void DrawReels(Game& g) {
     Glow(c, 360, Color{60, 220, 210, 50});
     TxtBold("THE DEEP ARCADE", c.x - MeasureTxt("THE DEEP ARCADE", 30, true) / 2.0f, c.y - 250, 30, SCREEN_INK);
     struct Reel { int game; const char* players; const char* length; const char* line; };
-    const int NREELS = 5;
+    const int NREELS = 6;
     const Reel reels[NREELS] = {
         {G_FLATS_DUEL, "2 players", "8-12 min", "Flats against a person: a best of three at the table."},
         {G_TRAWL, "1-6 co-op", "30-35 min", "Work a steam trawler by night: catch it, kill it, cook it, sell it, and meet the Owners' quota."},
         {G_SCUTTLE, "2-4 players", "5-10 min", "A fast crab-racing card game anyone can learn in one hand."},
         {G_FATHOMS, "2-6 players", "20-30 min", "The island strategy game: six factions of the deep."},
         {G_RED_TIDE, "1-4 co-op", "20-60 min", "Divers in living ecosystems: kill for scrip, and the blood in the water brings what eats everything."},
+        {G_FLIGHT, "solo for now (2-6 later)", "40-60 min", "Be the bird: fly your Founder in person, fish the living sea, and grow a colony."},
     };
     gDrum += (gSel - gDrum) * std::min(1.0f, GetFrameTime() * 8);
     float wheel = GetMouseWheelMove();
@@ -187,7 +188,7 @@ void DrawReels(Game& g) {
         DrawRectangleRounded(r, 0.25f, 8, on ? Color{30, 120, 118, 255} : Color{16, 60, 64, 255});
         DrawRectangleRoundedLinesEx(r, 0.25f, 8, 2, on ? Pal::Brass : Pal::BrassDk);
         DrawTextCenteredBold(Info(reels[i].game).name, c.x, r.y + 8 * sc, (int)(26 * sc), on ? Color{220, 255, 244, 255} : SCREEN_DIM);
-        if (on) DrawTextCentered(TextFormat("%s   -   %s%s", reels[i].players, reels[i].length, Info(reels[i].game).built || reels[i].game == G_TRAWL || reels[i].game == G_RED_TIDE ? "" : "   -   coming aboard later"), c.x, r.y + 40, 15, Color{180, 230, 220, 255});
+        if (on) DrawTextCentered(TextFormat("%s   -   %s%s", reels[i].players, reels[i].length, Info(reels[i].game).built || reels[i].game == G_TRAWL || reels[i].game == G_RED_TIDE || reels[i].game == G_FLIGHT ? "": "   -   coming aboard later"), c.x, r.y + 40, 15, Color{180, 230, 220, 255});
         if (CheckCollisionPointRec(GetMousePosition(), r) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gSel = i;
     }
     DrawWrapped(reels[gSel].line, {c.x - 200, c.y + 100, 400, 50}, 17, Color{200, 240, 232, 255});
@@ -237,6 +238,19 @@ void DrawReels(Game& g) {
         if (Button({c.x + 120, c.y + 278, 150, 30}, TextFormat("Wardrobe (%d)", skins::Get(skins::TRAWL).crates), true, 14)) { gWardrobe = skins::TRAWL; return; }
         DrawTextCentered(TextFormat("Host or Join to sail with friends (view: %s, V switches aboard)", gTrawlFp ? "first person" : "top-down"), c.x, c.y + 280, 13, SCREEN_DIM);
         if (CheckCollisionPointRec(GetMousePosition(), {c.x - 200, c.y + 274, 400, 20}) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gTrawlFp = !gTrawlFp;
+    }
+    if (selGame == G_FLIGHT) {   // stage 1: the Founder alone over the tropical island
+        static int flSel = 0;
+        int nf = std::max(1, FlightFounderCount());
+        Rectangle l{c.x - 190, c.y + 52, 30, 26}, r{c.x + 160, c.y + 52, 30, 26};
+        DrawTextCenteredBold(FlightFounderName(flSel), c.x, c.y + 54, 20, Color{230, 200, 150, 255});
+        DrawTextCenteredBold("<", l.x + 15, l.y, 22, Pal::Brass);
+        DrawTextCenteredBold(">", r.x + 15, r.y, 22, Pal::Brass);
+        if ((IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) || IsKeyPressed(KEY_LEFT)) { flSel = (flSel + nf - 1) % nf; PlayCue("ui.click"); }
+        if ((IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) || IsKeyPressed(KEY_RIGHT)) { flSel = (flSel + 1) % nf; PlayCue("ui.click"); }
+        DrawWrapped(FlightFounderLine(flSel), {c.x - 200, c.y + 140, 400, 40}, 14, SCREEN_DIM);
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Fly (solo)", true, 15)) { StartFlight(g, FlightFounderKey(flSel)); return; }
+        DrawTextCentered("Fishing and flight first; the colony, war and friends come in later stages", c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (selGame == G_RED_TIDE) {
         const char* const* RT_MAPS = RT_MAP_KEYS;
