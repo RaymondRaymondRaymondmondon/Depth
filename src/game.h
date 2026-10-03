@@ -886,6 +886,16 @@ const char* RedTideModeRules(int mode);
 const char* RedTideModeKey(int mode);                  // a host's option: "<map>:<mode key>:<season>"
 bool RedTideLongNightSaved(const char* map, int* tide = nullptr, float* time = nullptr);   // a Long Night kept on this machine (the host's)
 void RedTideClearLongNight(const char* map);
+// voice chat's glue (arcade.cpp): every frame from the main loop; the "who's talking" strip; the settings page's bits
+void ArcadeVoiceFrame(float dt);
+void DrawVoiceHud();
+bool& VoiceMicTest();
+float VoiceMicLevel();
+bool VoiceTalking();
+const std::string& VoiceMicError();
+int VoiceMySeat();
+bool VoiceSpeaking(int seat);               // (me: my own push-to-talk or gate)
+const char* VoiceSeatName(int seat);
 void SetRedTideResume(bool resume);
 void SetRedTideCustom(const std::string& rules);         // Custom mode's rules (solo dives and the lobby's option)
 std::string RedTideCustomRules();

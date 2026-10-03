@@ -7,7 +7,7 @@
 #pragma once
 #include "raylib.h"
 
-enum Act { A_LEFT, A_RIGHT, A_UP, A_DOWN, A_JUMP, A_MOD, A_SCOPE, A_MENU, ACT_COUNT };
+enum Act { A_LEFT, A_RIGHT, A_UP, A_DOWN, A_JUMP, A_MOD, A_SCOPE, A_MENU, A_TALK, ACT_COUNT };   // (A_TALK: push-to-talk, the arcade's voice chat)
 const char* ActName(int a);
 int& ActKey(int a, int slot);            // slot 0 primary, 1 alternate (KEY_NULL = none)
 bool ActDown(int a);
@@ -39,6 +39,11 @@ struct Settings {
     bool gfxAO = true;
     int gfxFog = 1;
     int gfxScale = 100;
+    // voice chat (the arcade): the microphone used at all; an open mic (behind the gate) instead of push-to-talk; how
+    // quiet a voice still opens the gate (0..1)
+    bool voiceOn = true;
+    bool voiceOpenMic = false;
+    float voiceSensitivity = 0.5f;
 };
 Settings& GameSettings();
 void LoadSettings();                     // settings.txt; call after the audio is up

@@ -10,7 +10,7 @@
 
 namespace arcade {
 
-enum Msg : uint8_t { M_HELLO = 1, M_WELCOME, M_REJECT, M_LOBBY, M_READY, M_CHAT, M_LAUNCH, M_ACTION, M_STATE, M_PING, M_PONG, M_BYE, M_STATE_PART };
+enum Msg : uint8_t { M_HELLO = 1, M_WELCOME, M_REJECT, M_LOBBY, M_READY, M_CHAT, M_LAUNCH, M_ACTION, M_STATE, M_PING, M_PONG, M_BYE, M_STATE_PART, M_VOICE };
 // a real-time snapshot bigger than this goes as parts (GameNetworkingSockets sends an unreliable message over about
 // 16 KB as a reliable one, which would queue behind loss); a guest puts them back together, and a lost part only
 // loses that one snapshot
@@ -309,6 +309,15 @@ void Session::HostMessage(int conn, Reader& r) {
             if (truth->Act(p, r) && !Info(game).realtime) SendState();
         } break;
         case M_PONG: { uint32_t sent = r.U32(); s.ping = (int)((uint32_t)(now * 1000) - sent); } break;
+        case M_VOICE: {   // a guest's voice: heard here, passed to everyone else (never back to the speaker)
+            uint16_t seq = (uint16_t)r.U16();
+            size_t n = r.n - r.i;
+            if (r.bad || n == 0 || n > 512 || s.ai) break;
+            VoiceIn v; v.seat = seat; v.seq = seq; v.data.assign(r.p + r.i, r.p + r.n); voiceIn.push_back(v);
+            if (voiceIn.size() > 256) voiceIn.erase(voiceIn.begin(), voiceIn.begin() + 128);
+            Writer w; w.U8(M_VOICE); w.U8((uint8_t)seat); w.U16(seq); w.Bytes(r.p + r.i, n);
+            for (int k = 0; k < MAX_PLAYERS; k++) if (k != seat && seats[k].used && seats[k].conn >= 0 && !seats[k].lost) { SendTo(seats[k].conn, w, net::CH_STATE); voiceRelayed++; }
+        } break;
         case M_BYE:
             tr->Close(conn, "bye");
             HostLost(seat, "left");
@@ -334,6 +343,17 @@ void Session::HostTick(float dt) {
     else if (changed) SendState();
 }
 
+void Session::SendVoice(uint16_t seq, const uint8_t* data, size_t n) {
+    if (stage != S_LOBBY && stage != S_PLAYING) return;
+    if (role == R_CLIENT) {
+        if (server < 0) return;
+        Writer w; w.U8(M_VOICE); w.U16(seq); w.Bytes(data, n);
+        SendTo(server, w, net::CH_STATE);
+    } else if (role == R_HOST) {
+        Writer w; w.U8(M_VOICE); w.U8((uint8_t)mySeat); w.U16(seq); w.Bytes(data, n);
+        for (int k = 0; k < MAX_PLAYERS; k++) if (k != mySeat && seats[k].used && seats[k].conn >= 0 && !seats[k].lost) SendTo(seats[k].conn, w, net::CH_STATE);
+    }
+}
 // ---- the client's side
 void Session::ClientMessage(Reader& r) {
     heardHost = now;
@@ -389,6 +409,12 @@ void Session::ClientMessage(Reader& r) {
             stateVersion++; snapshotsReceived++;
         } break;
         case M_PING: { uint32_t t = r.U32(); Writer w; w.U8(M_PONG); w.U32(t); SendTo(server, w); } break;
+        case M_VOICE: {   // someone's voice, by their seat
+            int seat = r.U8(); uint16_t seq = (uint16_t)r.U16();
+            if (r.bad || seat >= MAX_PLAYERS || seat == mySeat || r.i >= r.n) break;
+            VoiceIn v; v.seat = seat; v.seq = seq; v.data.assign(r.p + r.i, r.p + r.n); voiceIn.push_back(v);
+            if (voiceIn.size() > 256) voiceIn.erase(voiceIn.begin(), voiceIn.begin() + 128);
+        } break;
         case M_BYE: End(r.Str()); break;
         default: break;
     }

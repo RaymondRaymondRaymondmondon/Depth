@@ -10,7 +10,7 @@
 #include <cmath>
 
 namespace {
-enum Page { P_MAIN, P_SETTINGS, P_CONTROLS, P_GRAPHICS };
+enum Page { P_MAIN, P_SETTINGS, P_CONTROLS, P_GRAPHICS, P_VOICE };
 bool gOpen = false, gQuit = false;
 Page gPage = P_MAIN;
 int gRebind = -1, gRebindSlot = 0;   // the action (and which of its two keys) waiting for a key press
@@ -69,6 +69,7 @@ void MainPage(Game& g, Rectangle p) {
     if (item("Settings")) { gPage = P_SETTINGS; }
     if (item("Controls")) { gPage = P_CONTROLS; }
     if (g.scene == Scene::RedTide || g.scene == Scene::Trawl || g.scene == Scene::Arcade) { if (item("Graphics (3D)")) gPage = P_GRAPHICS; }
+    if (g.scene == Scene::RedTide || g.scene == Scene::Trawl || g.scene == Scene::Arcade) { if (item("Voice chat")) gPage = P_VOICE; }
     if (g.scene == Scene::RedTide || g.scene == Scene::Trawl) {
         if (item("Leave the match")) { gOpen = false; if (g.scene == Scene::Trawl) LeaveTrawlMatch(g); else LeaveRedTideMatch(g); }
     }
@@ -161,7 +162,35 @@ void GraphicsPage(Rectangle p) {
     Txt("If the deck stutters in rain and fog with a full crew, lower the lamp shadows first, then the resolution.", x, y, 13, Color{160, 150, 130, 255});
 }
 
-void ControlsPage(Rectangle p) {
+// Voice chat (the arcade): the microphone, push-to-talk or an open mic, the gate's sensitivity against a live meter,
+// the voices' volume, and a mic test that plays you back as the table will hear you
+void VoicePage(Rectangle p) {
+    Settings& S = GameSettings();
+    AudioVolumes& V = Volumes();
+    float x = p.x + 50, y = p.y + 60, w = p.width - 100;
+    TxtBold("Voice chat at the Deep Arcade's tables", x, y - 30, 18, Pal::Brass);
+    S.voiceOn = Toggle({x, y, w, 30}, "Microphone", S.voiceOn); y += 44;
+    Txt(S.voiceOpenMic ? "Open mic" : TextFormat("Push to talk (%s)", KeyLabel(ActKey(A_TALK, 0))), x, y + 4, 17, Pal::Paper);
+    if (Button({x + 200, y, 200, 30}, S.voiceOpenMic ? "Use push to talk" : "Use an open mic", true, 15)) S.voiceOpenMic = !S.voiceOpenMic;
+    y += 44;
+    S.voiceSensitivity = Slider(7, {x, y, w, 30}, "Mic sensitivity", S.voiceSensitivity, 0, 1, TextFormat("%d%%", (int)(S.voiceSensitivity * 100 + 0.5f))); y += 30;
+    {   // the live meter under it, with the gate's threshold marked: speak, and the bar should cross the mark
+        Rectangle m{x + 200, y, w - 280, 10};
+        float thr = 0.75f - 0.5f * S.voiceSensitivity, lv = VoiceMicLevel();
+        DrawRectangleRec(m, Color{10, 8, 8, 255});
+        DrawRectangleRec({m.x, m.y, m.width * lv, m.height}, lv >= thr ? Color{120, 220, 160, 255} : Pal::BrassDk);
+        DrawRectangleRec({m.x + m.width * thr - 1, m.y - 4, 2, m.height + 8}, Pal::Paper);
+        Txt(S.voiceOpenMic ? "the gate opens past the mark" : "(the mark matters for an open mic)", m.x, m.y + 14, 12, Color{170, 160, 140, 255});
+    }
+    y += 44;
+    V.voice = Slider(8, {x, y, w, 30}, "Voices", V.voice, 0, 1, TextFormat("%d%%", (int)(V.voice * 100 + 0.5f))); y += 48;
+    bool& test = VoiceMicTest();
+    if (Button({x, y, 220, 34}, test ? "Stop the mic test" : "Test the mic", S.voiceOn, 15)) test = !test;
+    Txt(test ? (S.voiceOpenMic ? "speak: you'll hear yourself as the table will" : TextFormat("hold %s and speak: you'll hear yourself", KeyLabel(ActKey(A_TALK, 0)))) : "", x + 240, y + 8, 14, Pal::Paper);
+    y += 50;
+    if (!VoiceMicError().empty()) Txt("The microphone: " + VoiceMicError() + " (check Windows' sound settings)", x, y, 14, Color{240, 140, 110, 255});
+    else Txt(S.voiceOn ? "The microphone is only open at a table, or during the test. Push to talk is in Controls." : "Voice is off: you'll still hear the others.", x, y, 14, Color{170, 160, 140, 255});
+}void ControlsPage(Rectangle p) {
     float x = p.x + 40, y = p.y + 50;
     TxtBold("Action", x, y - 26, 16, Pal::Brass);
     TxtBold("Key", x + 300, y - 26, 16, Pal::Brass);
@@ -208,13 +237,14 @@ void GameMenuFrame(Game& g) {
     float a = std::min(1.0f, gOpenT / 0.18f);
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Color{4, 6, 8, 255}, 0.62f * a));
     float slide = (1 - a) * (1 - a) * 40;
-    Rectangle p = gPage == P_MAIN ? Rectangle{SCREEN_W / 2.0f - 220, 150 + slide, 440, 360} : Rectangle{SCREEN_W / 2.0f - 380, 90 + slide, 760, 540};
-    Frame(p, gPage == P_MAIN ? "Paused" : gPage == P_SETTINGS ? "Settings" : gPage == P_GRAPHICS ? "Graphics" : "Controls");
+    Rectangle p = gPage == P_MAIN ? Rectangle{SCREEN_W / 2.0f - 220, 110 + slide, 440, 470} : Rectangle{SCREEN_W / 2.0f - 380, 90 + slide, 760, 540};
+    Frame(p, gPage == P_MAIN ? "Paused" : gPage == P_SETTINGS ? "Settings" : gPage == P_GRAPHICS ? "Graphics" : gPage == P_VOICE ? "Voice chat" : "Controls");
     switch (gPage) {
         case P_MAIN: MainPage(g, p); break;
         case P_SETTINGS: SettingsPage(p); break;
         case P_CONTROLS: ControlsPage(p); break;
         case P_GRAPHICS: GraphicsPage(p); break;
+        case P_VOICE: VoicePage(p); break;
     }
     if (gPage != P_MAIN && Button({p.x + 30, p.y + p.height - 56, 140, 36}, "< Back", true, 15)) { gPage = P_MAIN; SaveSettings(); }
     // Esc (or the menu key): back a page, or close; never while waiting for a rebinding key
@@ -222,6 +252,7 @@ void GameMenuFrame(Game& g) {
         if (gPage != P_MAIN) { gPage = P_MAIN; SaveSettings(); }
         else { gOpen = false; SaveSettings(); PlayCue("ui.confirm", 0.5f); }
     }
+    if (gPage != P_VOICE) VoiceMicTest() = false;   // (the test ends when you leave its page)
     if (!gOpen) SaveSettings();
 }
 

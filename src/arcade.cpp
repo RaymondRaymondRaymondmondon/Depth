@@ -7,6 +7,8 @@
 #include "scuttle.h"
 #include "net.h"
 #include "skins.h"
+#include "voice.h"
+#include "input.h"
 static int gWardrobe = -1;   // the skins page over the arcade (skins::TRAWL), -1 none
 #include "sound.h"
 #include <algorithm>
@@ -979,4 +981,64 @@ void DebugWardrobe(Game& g, int game) {
     int k = 0;
     for (const auto& s : skins::Catalogue(game)) { if (k % 3 == 0) w.owned.push_back(s.id); k++; }
     w.worn = w.owned.empty() ? "" : w.owned[1];
+}
+
+// ---------------------------------------------------------------- voice chat's glue (voice.h): every frame, in every scene
+// The microphone is open only while voice is on and there's a table to talk to (or the settings page's mic test);
+// push-to-talk is the Talk action, or an open mic behind the sensitivity gate. What arrives is handed to the speakers
+// by lobby seat; a scene that knows where everyone is (the Trawl, Red Tide) shapes how each is heard.
+static bool gMicTest = false, gTalking = false;
+static float gMicLevel = 0;
+static std::string gMicError;
+bool& VoiceMicTest() { return gMicTest; }
+float VoiceMicLevel() { return gMicLevel; }
+bool VoiceTalking() { return gTalking; }
+const std::string& VoiceMicError() { return gMicError; }
+int VoiceMySeat() { return gSess.mySeat; }
+bool VoiceSpeaking(int seat) { return seat == gSess.mySeat ? gTalking : voice::Speaking(seat); }
+const char* VoiceSeatName(int seat) { return seat >= 0 && seat < MAX_PLAYERS && gSess.seats[seat].used ? gSess.seats[seat].name.c_str() : ""; }
+void ArcadeVoiceFrame(float dt) {
+    static uint16_t seq = 0;
+    static voice::Gate gate;
+    static bool wasIn = false;
+    Settings& S = GameSettings();
+    bool inSession = gSess.stage == S_LOBBY || gSess.stage == S_PLAYING;
+    bool want = S.voiceOn && (inSession || gMicTest);
+    if (want && !voice::MicIsOpen() && gMicError.empty()) { if (!voice::MicOpen(&gMicError)) gMicTest = false; }
+    if (!want) { if (voice::MicIsOpen()) voice::MicClose(); gMicError.clear(); }
+    for (auto& v : gSess.voiceIn) voice::Receive(v.seat, v.seq, v.data.data(), v.data.size());
+    gSess.voiceIn.clear();
+    if (!inSession && wasIn) voice::Reset();
+    wasIn = inSession;
+    std::vector<int16_t> pcm;
+    int n = voice::MicFrames(pcm);
+    bool ptt = ActDown(A_TALK);
+    for (int k = 0; k < n; k++) {
+        const int16_t* f = &pcm[(size_t)k * voice::FRAME];
+        gMicLevel = gMicLevel * 0.5f + voice::FrameLevel(f) * 0.5f;
+        gTalking = gate.Step(f, ptt, S.voiceOpenMic, S.voiceSensitivity);
+        if (!gTalking) continue;
+        uint8_t enc[voice::ENC_BYTES];
+        voice::Encode(f, enc);
+        if (gMicTest) voice::Receive(voice::SELF, seq, enc, sizeof enc);     // (the mic test: hear yourself as others will)
+        if (inSession) { gSess.SendVoice(seq, enc, sizeof enc); voice::GetStats().framesSent++; }
+        seq++;
+    }
+    if (!voice::MicIsOpen()) { gTalking = false; gMicLevel *= 0.8f; }
+    voice::Tick(dt);
+}
+// who's talking: a strip at the top of the screen in any scene while at a table (the game's own HUD may show more)
+void DrawVoiceHud() {
+    if (gSess.stage != S_LOBBY && gSess.stage != S_PLAYING) return;
+    float x = SCREEN_W / 2.0f - 200, y = 8;
+    for (int s = 0; s < MAX_PLAYERS; s++) {
+        if (!gSess.seats[s].used || gSess.seats[s].ai || !VoiceSpeaking(s)) continue;
+        std::string name = gSess.seats[s].name;
+        float w = (float)MeasureTxt(name, 15, true) + 34;
+        DrawRectangleRounded({x, y, w, 24}, 0.5f, 6, Fade(Color{12, 20, 22, 255}, 0.75f));
+        float lv = s == gSess.mySeat ? gMicLevel : voice::Level(s);
+        for (int b = 0; b < 3; b++) DrawRectangle((int)x + 8 + b * 5, (int)(y + 17 - (4 + b * 3) * (0.4f + lv)), 3, (int)((4 + b * 3) * (0.4f + lv)), Color{120, 240, 200, 230});
+        TxtBold(name, x + 26, y + 4, 15, Color{220, 236, 226, 255});
+        x += w + 8;
+    }
 }

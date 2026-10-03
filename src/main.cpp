@@ -20,6 +20,7 @@
 //    depth.exe --sprites <file.png>  draw every sprite in the game onto one sheet
 // ============================================================================
 #include "game.h"
+#include "voice.h"
 #include "study.h"
 #include "course.h"
 #include "expr.h"
@@ -407,6 +408,7 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"menu_main", [](Game& g) { g.scene = Scene::Hub; }},
         {"menu_settings", [](Game& g) { g.scene = Scene::Hub; }},
         {"menu_controls", [](Game& g) { g.scene = Scene::Hub; }},
+        {"menu_voice", [](Game& g) { g.scene = Scene::Arcade; }},
         {"menu_graphics", [](Game& g) { DebugTrawlShot(g, 140); }},
         {"combat_walk", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::Walking; g.dungeon.walkT = 0.4f; }},
         {"combat_deep", [](Game& g) { g.tierCleared[(int)Location::Cave] = 4; g.tierSel[(int)Location::Cave] = 3; DebugEnterCombat(g); }},
@@ -579,7 +581,7 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         for (int f = 0; f < nFrames; f++) {
             if (f == nFrames / 2) tFrames = GetTime();
             g.time += 1 / 60.0f;
-            if (f == 60 && strncmp(s.name, "menu_", 5) == 0) { SnapshotFrame(); DebugMenuPage(strstr(s.name, "settings") ? 1 : strstr(s.name, "controls") ? 2 : strstr(s.name, "graphics") ? 3 : 0); } // between frames, as in play
+            if (f == 60 && strncmp(s.name, "menu_", 5) == 0) { SnapshotFrame(); DebugMenuPage(strstr(s.name, "settings") ? 1 : strstr(s.name, "controls") ? 2 : strstr(s.name, "graphics") ? 3 : strstr(s.name, "voice") ? 4 : 0); } // between frames, as in play
             BeginFrame();
             if (GameMenuActive()) GameMenuFrame(g); else RunScene(g);
             EndFrame(g.time);
@@ -716,6 +718,7 @@ int main(int argc, char** argv) {
     }
     if (argc >= 2 && strcmp(argv[1], "--trawl-eco") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEco(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSim(argc, argv); }
+    if (argc >= 2 && strcmp(argv[1], "--voice-test") == 0) { SetTraceLogLevel(LOG_WARNING); return voice::RunVoiceTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-gear-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlGearTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-skiff-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSkiffTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-quest-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlQuestTest(); }
@@ -913,6 +916,8 @@ int main(int argc, char** argv) {
                 if (g.scene == Scene::Trawl) TrawlMenuTick(GetFrameTime());   // (a crew at sea doesn't stop for one hand's menu)
                 if (g.scene == Scene::RedTide) RedTideMenuTick(GetFrameTime());   // (nor does the tide)
                 MouseLookFrameEnd();                                          // (the menu needs the pointer)
+                ArcadeVoiceFrame(GetFrameTime());                             // (voices carry on while the menu's open)
+                DrawVoiceHud();
                 AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);
                 EndFrame(g.time);
                 continue;
@@ -930,8 +935,10 @@ int main(int argc, char** argv) {
                 if (g.scene != Scene::RedTide) AudioRedTide(RtAudio{});      // (and the Red Tide scene)
                 if (g.scene != Scene::Trawl) AudioTrawl(TwAudio{});          // (and the Trawl)
             }
+            ArcadeVoiceFrame(GetFrameTime());   // the arcade's voice chat: the mic out, the table's voices in
             AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);
             DrawToast(g);
+            DrawVoiceHud();
             EndFrame(g.time);
             if (g.scene != last && g.scene == Scene::Hub) SaveGame(g); // autosave whenever you're back aboard
             last = g.scene;

@@ -62,6 +62,13 @@ public:
     int SeatOfPlayer(int player) const;
     const std::vector<uint8_t>& Snapshot() const { return snapshot; }   // what I may see of the game (the game decodes it)
 
+    // voice chat (voice.h): my encoded frame goes to the host, which passes it to everyone else (and hears it itself);
+    // what arrives waits in voiceIn for the voice system, by the speaker's lobby seat
+    void SendVoice(uint16_t seq, const uint8_t* data, size_t n);
+    struct VoiceIn { int seat = -1; uint16_t seq = 0; std::vector<uint8_t> data; };
+    std::vector<VoiceIn> voiceIn;
+    int voiceRelayed = 0;                 // host: frames passed on (tests)
+
     // what the screen shows
     Role role = R_NONE;
     Stage stage = S_IDLE;

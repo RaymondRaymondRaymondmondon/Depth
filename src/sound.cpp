@@ -15,6 +15,7 @@
 #include "sound.h"
 #include "study_audio.h"
 #include "study_data.h"
+#include "voice.h"
 #include "game.h"
 #include <algorithm>
 #include <cmath>
@@ -964,6 +965,7 @@ void HubEvents(float dt) {
 }
 // the Study bus: the soundscape mixer, faded in over the Master Reference's 1.5 s as the salon fades out
 bool gStudyOn = false; float gStudyS = 0; float gStudyBuf[CTRL * 2];
+float gVoiceBuf[CTRL * 2];
 void Render(float* out, int frames) {
     EnsureRev();
     if (gConv.room != gRoomWant) gConv.Build(gRoomWant);
@@ -974,6 +976,8 @@ void Render(float* out, int frames) {
         float blockT = n * dtS;
         gStudyS = std::clamp(gStudyS + (gStudyOn ? 1.0f : -1.0f) * blockT / study::Numbers().crossfadeSeconds, 0.0f, 1.0f);
         if (gStudyS > 0.0005f) study::Render(gStudyBuf, n, SR);
+        voice::Render(gVoiceBuf, n, SR);   // (the arcade's voice chat: the speakers, shaped as the game hears them)
+        bool voices = voice::AnyActive();
         // ---- control rate: scene fade, the score's clock, ambient events, loops
         gClock += blockT;
         gScene += (gSceneTarget - gScene) * std::min(1.0f, blockT * 0.8f);
@@ -996,7 +1000,7 @@ void Render(float* out, int frames) {
             if (gHubAmbT >= 0.05f) { HubEvents(gHubAmbT); gHubAmbT = 0; }
         }
         gDuck = std::max(0.0f, gDuck - blockT * 2.0f);
-        { bool speaking = false; for (auto& v : gV) if (v.on && v.bus == B_VOICE) { speaking = true; break; } gVoiceS += ((speaking ? 1.0f : 0.0f) - gVoiceS) * std::min(1.0f, blockT * 8); }
+        { bool speaking = voices; for (auto& v : gV) if (v.on && v.bus == B_VOICE) { speaking = true; break; } gVoiceS += ((speaking ? 1.0f : 0.0f) - gVoiceS) * std::min(1.0f, blockT * 8); }
         bool deck = gHub.on && (Scene)gHub.station == Scene::Study;
         gDeckL.Set(0, deck ? 500.0f : 18000.0f, 0.707f); gDeckR.Set(0, deck ? 500.0f : 18000.0f, 0.707f);
         gHubWater.flt.Set(0, 260 + 80 * sinf(gClock * 0.21f), 0.8f);
@@ -1108,6 +1112,7 @@ void Render(float* out, int frames) {
             rL = rL * (1 - cw) + cL * 2.2f; rR = rR * (1 - cw) + cR * 2.2f;
             float L = (sL + mL + uL + rL * gRevWet) * gVol.master, R = (sR + mR + uR + rR * gRevWet) * gVol.master;
             if (gStudyS > 0.0005f) { float sg = gStudyS * gVol.master; L += gStudyBuf[i * 2] * sg; R += gStudyBuf[i * 2 + 1] * sg; }
+            if (voices) { float vg = gVol.voice * gVol.master; L += gVoiceBuf[i * 2] * vg; R += gVoiceBuf[i * 2 + 1] * vg; }
             out[(base + i) * 2] = tanhf(L);
             out[(base + i) * 2 + 1] = tanhf(R);
         }
@@ -1465,7 +1470,8 @@ bool AudioSelfTest(const char* wavPath) {
     int silentCues = 0;
     gFlow = gFlowS = 0; gSlide = gSlideS = 0; gTestBusOpen = 1;   // (the music and ambience cues play on buses that only a scene opens)
     for (int i = 0; i < nc; i++) {
-        float pk = solo([&] { BuildCue(i, 1, 0); });
+        float pk = 0;   // (a cue rolls one of its variants: the loudest of three firings, so a faint variant isn't "silent")
+        for (int r = 0; r < 3; r++) pk = std::max(pk, solo([&] { BuildCue(i, 1, 0); }));
         if (pk < 0.01f || pk > 0.97f) { printf("  cue %s is %s (peak %.3f)\n", cues[i].name, pk < 0.01f ? "silent" : "clipping", pk); silentCues++; }
     }
     gTestBusOpen = 0;

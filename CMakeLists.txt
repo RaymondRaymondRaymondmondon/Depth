@@ -20,6 +20,8 @@ target_compile_definitions(raylib PRIVATE SUPPORT_FILEFORMAT_JPG=1)
 
 add_executable(depth
     src/main.cpp
+src/voice.cpp
+src/voice_test.cpp
     src/data.cpp
     src/ui.cpp
     src/render.cpp

@@ -12,7 +12,7 @@
 namespace {
 const int DEFAULTS[ACT_COUNT][2] = {
     {KEY_A, KEY_LEFT}, {KEY_D, KEY_RIGHT}, {KEY_W, KEY_UP}, {KEY_S, KEY_DOWN},
-    {KEY_SPACE, KEY_NULL}, {KEY_LEFT_SHIFT, KEY_RIGHT_SHIFT}, {KEY_TAB, KEY_NULL}, {KEY_ESCAPE, KEY_P},
+    {KEY_SPACE, KEY_NULL}, {KEY_LEFT_SHIFT, KEY_RIGHT_SHIFT}, {KEY_TAB, KEY_NULL}, {KEY_ESCAPE, KEY_P}, {KEY_CAPS_LOCK, KEY_GRAVE},
 };
 int gKeys[ACT_COUNT][2];
 bool gInit = false;
@@ -22,7 +22,7 @@ const char* PATH = "settings.txt";
 }  // namespace
 
 const char* ActName(int a) {
-    static const char* n[ACT_COUNT] = {"Move left", "Move right", "Up / climb", "Down / slide", "Jump", "Modifier (backflip, glide)", "Sonar scope", "Game menu"};
+    static const char* n[ACT_COUNT] = {"Move left", "Move right", "Up / climb", "Down / slide", "Jump", "Modifier (backflip, glide)", "Sonar scope", "Game menu", "Push to talk"};
     return a >= 0 && a < ACT_COUNT ? n[a] : "?";
 }
 void ResetBindings() { for (int a = 0; a < ACT_COUNT; a++) for (int s = 0; s < 2; s++) gKeys[a][s] = DEFAULTS[a][s]; gInit = true; }
@@ -61,7 +61,7 @@ const char* KeyLabel(int k) {
         case KEY_SPACE: return "Space"; case KEY_ESCAPE: return "Esc"; case KEY_ENTER: return "Enter"; case KEY_TAB: return "Tab";
         case KEY_BACKSPACE: return "Backspace"; case KEY_LEFT: return "Left"; case KEY_RIGHT: return "Right"; case KEY_UP: return "Up"; case KEY_DOWN: return "Down";
         case KEY_LEFT_SHIFT: return "Left shift"; case KEY_RIGHT_SHIFT: return "Right shift"; case KEY_LEFT_CONTROL: return "Left ctrl"; case KEY_RIGHT_CONTROL: return "Right ctrl";
-        case KEY_LEFT_ALT: return "Left alt"; case KEY_RIGHT_ALT: return "Right alt"; case KEY_CAPS_LOCK: return "Caps lock";
+        case KEY_LEFT_ALT: return "Left alt"; case KEY_RIGHT_ALT: return "Right alt"; case KEY_CAPS_LOCK: return "Caps lock"; case KEY_GRAVE: return "`";
         case KEY_COMMA: return ","; case KEY_PERIOD: return "."; case KEY_SLASH: return "/"; case KEY_SEMICOLON: return ";"; case KEY_APOSTROPHE: return "'";
         case KEY_LEFT_BRACKET: return "["; case KEY_RIGHT_BRACKET: return "]"; case KEY_MINUS: return "-"; case KEY_EQUAL: return "=";
         default: snprintf(buf, sizeof buf, "Key %d", k); return buf;
@@ -75,7 +75,8 @@ void SaveSettings() {
     std::ofstream f(PATH);
     if (!f) return;
     AudioVolumes& V = Volumes();
-    f << "audio " << V.master << " " << V.music << " " << V.sfx << " " << V.ambience << "\n";
+    f << "audio " << V.master << " " << V.music << " " << V.sfx << " " << V.ambience << " " << V.voice << "\n";
+    f << "voice " << (gSettings.voiceOn ? 1 : 0) << " " << (gSettings.voiceOpenMic ? 1 : 0) << " " << gSettings.voiceSensitivity << "\n";
     f << "brightness " << gSettings.brightness << "\n";
     f << "fullscreen " << (gSettings.fullscreen ? 1 : 0) << "\n";
     f << "hints " << (gSettings.showHints ? 1 : 0) << "\n";
@@ -94,7 +95,8 @@ void LoadSettings() {
         std::istringstream in(line);
         std::string key;
         in >> key;
-        if (key == "audio") { AudioVolumes& V = Volumes(); in >> V.master >> V.music >> V.sfx >> V.ambience; }
+        if (key == "audio") { AudioVolumes& V = Volumes(); in >> V.master >> V.music >> V.sfx >> V.ambience; float vv = 0; if (in >> vv) V.voice = std::clamp(vv, 0.0f, 1.0f); }
+        else if (key == "voice") { int on = 1, om = 0; float sn = 0.5f; in >> on >> om >> sn; gSettings.voiceOn = on != 0; gSettings.voiceOpenMic = om != 0; gSettings.voiceSensitivity = std::clamp(sn, 0.0f, 1.0f); }
         else if (key == "brightness") in >> gSettings.brightness;
         else if (key == "fullscreen") { int v = 0; in >> v; gSettings.fullscreen = v != 0; }
         else if (key == "hints") { int v = 1; in >> v; gSettings.showHints = v != 0; }
