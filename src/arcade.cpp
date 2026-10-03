@@ -35,11 +35,11 @@ static bool gRtCustomOpen = false;   // Custom mode's rules panel, over the arca
 // the Flight's choices: your founder, your island, the arrangement, the starting islands (solo), the match's length
 int gFlSel = 0, gFlIsle = 0, gFlArr = 0, gFlPlayers = 4, gFlMinutes = 1, gFlSoloSeasons = 0;
 // the match's length: the standard lengths, then the expansion's long matches by seasons (2, 3 or 4)
-int FlLengthCount() { return std::max(1, (int)fl::MatchLengths().size()) + 3; }
-int FlSeasonsOf(int i) { int n = std::max(1, (int)fl::MatchLengths().size()); return i >= n ? 2 + (i - n) : 0; }
+int FlLengthCount() { return std::max(1, (int)fl::MatchLengths().size()) + 5; }
+int FlSeasonsOf(int i) { static const int S[5] = {2, 3, 4, 6, 8}; int n = std::max(1, (int)fl::MatchLengths().size()); return i >= n ? S[std::min(4, i - n)] : 0; }   // (6, 8: the Long Flight)
 std::string FlLengthName(int i) {
     const auto& L = fl::MatchLengths(); int s = FlSeasonsOf(i);
-    if (s) { static const char* N[5] = {"", "", "Two seasons", "Three seasons", "Four seasons"}; return TextFormat("%s (%d days)", N[s], fl::SeasonDays(s)); }
+    if (s) { static const char* N[9] = {"", "", "Two seasons", "Three seasons", "Four seasons", "", "The Long Flight, short", "", "The Long Flight"}; return TextFormat("%s (%d days)", N[s], fl::SeasonDays(s)); }
     return TextFormat("%d minutes", L.empty() ? 30 : L[std::clamp(i, 0, (int)L.size() - 1)]);
 }
 std::string FlOpts() {
@@ -280,10 +280,11 @@ void DrawReels(Game& g) {
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = (v + n - 1) % n; PlayCue("ui.click"); }
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = (v + 1) % n; PlayCue("ui.click"); }
         };
-        cyc(276, "your island", flIsle, 4, FlightIsleTypeName(flIsle));
+        cyc(276, "your island", flIsle, 10, FlightIsleTypeName(flIsle));   // (the four, then the expansion's six)
         cyc(326, "the arrangement", flArr, 4, FlightArrangementName(flArr));
         { int pv = flPlayers - 2; cyc(376, "starting islands (solo)", pv, 5, TextFormat("%d: you and %d bot colonies", flPlayers, flPlayers - 1)); flPlayers = pv + 2; }
-        { static const char* M[4] = {"Standard (no limit)", "Two seasons (11 days)", "Three seasons (17 days)", "Four seasons (24 days)"}; int mv = gFlSoloSeasons ? gFlSoloSeasons - 1 : 0; cyc(426, "the match", mv, 4, M[mv]); gFlSoloSeasons = mv ? mv + 1 : 0; }
+        { static const char* M[6] = {"Standard (no limit)", "Two seasons (11 days)", "Three seasons (17 days)", "Four seasons (24 days)", "Long Flight, short (36 days)", "The Long Flight (48 days)"}; static const int SV[6] = {0, 2, 3, 4, 6, 8};
+          int mv = 0; for (int k = 0; k < 6; k++) if (SV[k] == gFlSoloSeasons) mv = k; cyc(426, "the match", mv, 6, M[mv]); gFlSoloSeasons = SV[mv]; }
         DrawWrapped(FlightFounderLine(flSel), {40, 478, 244, 48}, 13, SCREEN_DIM);
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Fly (solo)", true, 15)) { StartFlight(g, FlightFounderKey(flSel), flIsle, flArr, flPlayers, gFlSoloSeasons); return; }
         if (Button({c.x + 120, c.y + 236, 170, 36}, "Roost wardrobe", true, 14)) { gFlWardrobe = true; return; }
@@ -501,7 +502,7 @@ void DrawLobby() {
             return ch;
         };
         const auto& L = fl::MatchLengths();
-        bool ch = pick(p.x + 195, p.y + p.height - 140, FlightIsleTypeName(gFlIsle), gFlIsle, 4);
+        bool ch = pick(p.x + 195, p.y + p.height - 140, FlightIsleTypeName(gFlIsle), gFlIsle, 10);
         ch |= pick(p.x + 195, p.y + p.height - 108, FlightArrangementName(gFlArr), gFlArr, 4);
         ch |= pick(p.x + 505, p.y + p.height - 140, FlLengthName(gFlMinutes).c_str(), gFlMinutes, FlLengthCount());
         DrawTextCentered(TextFormat("your founder: %s", FlightFounderName(gFlSel)), p.x + 505, p.y + p.height - 104, 15, Color{180, 230, 220, 255});

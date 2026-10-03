@@ -40,6 +40,7 @@ enum class IsleType : uint8_t { Tropical, Stack, Town, Atoll, Islet, KrakenCove,
 const char* IsleTypeName(IsleType t);
 inline bool IsStartType(IsleType t) { return t <= IsleType::Atoll || (t >= IsleType::Iceberg && t <= IsleType::CliffTown); }
 inline bool IsDangerous(IsleType t) { return (t >= IsleType::KrakenCove && t <= IsleType::Wreck) || t >= IsleType::IronIsland; }
+inline IsleType StartTypeOf(int i) { return i <= 0 ? IsleType::Tropical : i < 4 ? (IsleType)i : i < 10 ? (IsleType)((int)IsleType::Iceberg + i - 4) : IsleType::CliffTown; }   // (a lobby's choice 0-9: the four, then the expansion's six)
 inline bool IsDrifting(IsleType t) { return t == IsleType::Wreck || t == IsleType::GhostShip; }   // (no terrain: drawn from its props, moved by the time)
 struct Prop { Vector3 c{}, half{}; int kind = 0; float yaw = 0; };   // a box: 0 house, 1 roof, 2 tower, 3 dock, 4 boat, 5 woodpile, 6 hull, 7 mast
 struct Island {
@@ -162,6 +163,13 @@ float WinterHoldings();
 int RunFlightLongTest();                        // depth.exe --flight-long-test                         // (a four-season match: Winter's islands and nests count this many times)
 struct IsleSpec { IsleType type = IsleType::Islet; Vector3 c{}; int start = -1; std::string name; };
 std::vector<IsleSpec> LayoutMap(const MapOpts& o);   // slot 0 at the origin; rotational fairness
+// the Long Flight (the two-hour expansion: flight_longflight.cpp)
+struct ChronLine { int day = 0, season = 0, year = 1, kind = 0; std::string text; };   // a line of a colony's Chronicle
+enum { CK_DEATH = 0, CK_SUCCESSION, CK_ELDER, CK_FOUNDING, CK_CLUTCH, CK_RAID, CK_WONDER, CK_WAR, CK_MARRIAGE, CK_OATH, CK_BEAST, CK_TITLE, CK_SPECIES, CK_OTHER, CK_COUNT };
+int YearDays();
+const std::vector<std::string>& DynastyNames();
+const char* SuccessionName(int c); const char* SuccessionWhat(int c);
+int RunFlightLongFlightTest();                  // depth.exe --flight-longflight-test
 struct Rival { int isle = -1; std::vector<Vector3> nests; std::vector<Vector3> caches; int birds = 0; };   // (a colony that sits still until stage 4)
 
 // What your birds have seen (doc pp. 18-19): the fog, islands by how well they're known, grounds, sightings, reports
@@ -219,6 +227,7 @@ struct Founder {
     float Sprint(const FounderDef& d) const;
     int Carry(const FounderDef& d) const;
     // the long match: perks picked at days 3, 7 and 11 (a bit each, flight_long.json "perks"), and the three on offer
+    float ageSpeed = 1, ageAttack = 1; bool old = false; int oldCarry = 0;   // (the Long Flight: its age: prime +10%, old a day slower at a time and no size-4 fish)
     uint32_t perks = 0; int perkOffer[3] = {-1, -1, -1}; int perkLevel = 0, saltDay = 0; bool nineUsed = false; float stormWarned = -1;
     float diveTop = 0; int rebornSeason = -9; float drownT = 0;   // (the Gannet: the dive's top; the Phoenix: the season it was last reborn; the Frigatebird: time on the water)
     float StatMul() const;                      // starving -30%, three deaths -10%, a chick half
@@ -296,6 +305,7 @@ struct Bird {
     int trait = -1;                           // MT_*: a mate's trait, and its chicks' (inherited)
     bool taught = false;                      // (a Teacher saw it fledge)
     float songT = 0;                          // (the Siren Rocks: enthralled, sitting on the rocks)
+    bool elder = false; float vetT = -1e9f; int kin = -1;   // (the Long Flight: a veteran a year on is an elder; a mate's founder species, passed to its chicks)
     int tk = -1, bonusFish = 0; float recoverT = 0;   // (fishing mastery: the technique of this trip; a second fish (night fishing); a missed plunge's recovery)           // (a Trader's goods coming home; carrySp -2 an egg being stolen, -3 a bomb)
 };
 struct Site { Vector3 pos{}; int palm = -1; int nest = -1; int isle = -1; };
@@ -368,6 +378,7 @@ struct Bend {
          nightDay = false, silentWings = false, phoenixChicks = false, rebirth = false, fervourDecay = false;
 };
 const Bend& BendOf(int founderDef);
+const Bend& NoBend();                           // (a regent's colony: no founder bonus)
 // a fishing town's dock market (doc p26): prices in feed (fish), moving with supply and the hour
 enum Good : uint8_t { G_FISH, G_TWIGS, G_SHELLS, G_PEARLS, G_COUNT };
 const char* GoodName(int g);
@@ -426,6 +437,9 @@ struct Colony {
     uint32_t relics = 0; int legend = -1; bool legendAlive = false, goldenEggUsed = false;
     float greyHit = -1000;
     int nestStyle = 0;                        // (the long match: the style new nests are laid in)
+    // the Long Flight: generations (the heir, the succession choice, the perk it keeps), the dynasty, the Chronicle
+    int gen = 0, heirId = -1, heirTrait = -1, succChoice = 0, keepPerk = -1, dynastyPick = 0, heirAnnounced = -1; bool regent = false;
+    float genStart = 0, successionT = -1e9f; uint32_t relicsKept = 0; std::string dynasty; std::vector<ChronLine> chronicle;
     float beaconT = -1e9f, rookeryFledgeT = -1e9f; bool rookeryWarm = false;   // (the Beacon last lit; the Rookery's chicks fledging together; enough adults about it)
     int tech = -1; float techMastery[TK_COUNT] = {}; std::vector<int> techLog;   // (fishing mastery: the colony's technique, -1 auto; per ground x technique: tries, catches, losses)
     int pact = -1, bounty = 0, bountyBy = -1; float pactT = 0, truceBroken = -1000;   // (diplomacy: a feed-pact partner; fish posted on this colony's Founder)                      // (the last time the Grey Wings took one of its birds)   // (the long match: relics at the shrine, a legendary bird)        // (the long match) the trait the courtship bowls ask for (-1 any); the next veteran's name
@@ -527,8 +541,8 @@ struct World {
     Sighting TrueSighting(int isle);            // what's really on an island now (exact counts)
     std::vector<Barter> offers; int nextOffer = 1;
     std::vector<float> truceUntil;              // (side a * N + b) -> game time the truce lasts to
-    const Bend& BendNow() const { return BendOf(me.def); }   // the bend of the colony in the fields
-    const Bend& BendOfSide(int side) const { return BendOf(FounderOf(side).def); }
+    const Bend& BendNow() const { return col.regent ? NoBend() : BendOf(me.def); }   // the bend of the colony in the fields (a regent's colony: none)
+    const Bend& BendOfSide(int side) const { return ColOf(side).regent ? NoBend() : BendOf(FounderOf(side).def); }
     bool CanResearch(Tree t, std::string* why = nullptr) const;   // the colony in the fields
     bool StartResearch(Tree t);
     bool RoleUnlocked(Role r) const;             // (fledging and retraining into it)
@@ -618,6 +632,18 @@ struct World {
     void BotFactions();
     int LegacyScore(int side, int* part = nullptr) const;   // (the long match's additions to the score, doc p50: part[6] veterans, relics, legend, monuments, decrees, truces)
     IsleState isx;                              // (the expansion's islands, doc pp. 43-45)
+    // the Long Flight (flight_longflight.cpp)
+    bool LongFlight() const { return seasons >= 6; }
+    int Year() const;                           // 1 or 2
+    float FounderAge(int side) const;           // days into its generation
+    int AgeStage(int side) const;               // 0 young, 1 prime, 2 old
+    void Chronicle(int side, int kind, const std::string& text);
+    std::string DynastyOf(int side) const;
+    bool MarkHeir(int id); bool MarkNextHeir();
+    void Succeed(int side);
+    void StepGenerations(float dt);
+    int Elders(int side, int trait = -1) const;
+    float eventDay2[4] = {-1, -1, -1, -1};      // (the Long Flight: year two's season events)
     void InitIsles(); void StepIsles(float dt); void SetGhostPose();
     bool IsleShields(int isle, int threat) const;   // (the island keeps raiders off its nests: sheer ice, the roots, the Maelstrom's rocks, the beam at night)
     bool Calm() const;                          // (a dead-calm day: the Maelstrom's rocks can be reached)

@@ -2311,10 +2311,10 @@ void FlightAudioFrame(const fl::World& w, float dt) {
 }  // namespace
 
 void StartFlight(Game& g, const char* founder, int isleType, int arrangement, int players, int seasons) {
-    fl::MapOpts o; o.home = (fl::IsleType)std::clamp(isleType, 0, 3); o.arr = (fl::Arrangement)std::clamp(arrangement, 0, 3); o.players = std::clamp(players, 2, 6); o.seasons = seasons;
+    fl::MapOpts o; o.home = fl::StartTypeOf(isleType); o.arr = (fl::Arrangement)std::clamp(arrangement, 0, 3); o.players = std::clamp(players, 2, 6); o.seasons = seasons;
     Start(g, founder ? founder : "taloned", (uint32_t)GetRandomValue(1, 1 << 30), false, o);
 }
-const char* FlightIsleTypeName(int t) { return fl::IsleTypeName((fl::IsleType)std::clamp(t, 0, 3)); }
+const char* FlightIsleTypeName(int t) { return fl::IsleTypeName(fl::StartTypeOf(t)); }
 const char* FlightArrangementName(int a) { return fl::ArrangementName((fl::Arrangement)std::clamp(a, 0, 3)); }
 void LeaveFlight(Game& g) {
     if (S.net) { if (S.net->role == arcade::R_HOST) S.net->BackToLobby(); else S.net->Leave(); }

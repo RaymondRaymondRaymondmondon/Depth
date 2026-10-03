@@ -91,6 +91,10 @@ void OrderBreak(Writer& w, int with) { w.U8(FA_BREAK); w.I32(with); }
 void OrderTech(Writer& w, int tech) { w.U8(FA_TECH); w.I32(tech); }
 void OrderNestStyle(Writer& w, int style) { w.U8(FA_NEST_STYLE); w.I32(style); }
 void OrderBeacon(Writer& w) { w.U8(FA_BEACON); }
+void OrderHeir(Writer& w, int id) { w.U8(FA_HEIR); w.I32(id); }
+void OrderSuccession(Writer& w, int choice) { w.U8(FA_SUCC); w.I32(choice); }
+void OrderKeepPerk(Writer& w, int perk) { w.U8(FA_KEEP_PERK); w.I32(perk); }
+void OrderDynasty(Writer& w, int pick) { w.U8(FA_DYNASTY); w.I32(pick); }
 bool FormationUnlocked(const Colony& c, Formation f) { return f == Formation::Chevron || f == Formation::Scatter || c.HasTier(Tree::War, 1); }
 
 std::string TargetText(World& w, const Flock& f) {
@@ -244,6 +248,10 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
     case FA_LOAN: { int t = r.I32(), f = r.I32(), n = r.I32(); if (r.bad) return false; return w.OfferLoan(t, f, n) >= 0; }
     case FA_BOUNTY: { int t = r.I32(), n = r.I32(); if (r.bad || n < 1 || n > 100) return false; return w.PostBounty(t, n); }
     case FA_BEACON: return w.LightBeacon();
+    case FA_HEIR: { int id = r.I32(); if (r.bad || !w.LongFlight()) return false; return id < 0 ? w.MarkNextHeir() : w.MarkHeir(id); }
+    case FA_SUCC: { int c = r.I32(); if (r.bad || c < 0 || c > 2 || !w.LongFlight()) return false; w.col.succChoice = c; return true; }
+    case FA_KEEP_PERK: { int p = r.I32(); if (r.bad || p < -1 || p >= 32 || !w.LongFlight()) return false; w.col.keepPerk = p; return true; }
+    case FA_DYNASTY: { int p = r.I32(); if (r.bad || p < 0 || p >= (int)DynastyNames().size() || !w.LongFlight() || w.col.gen > 0) return false; w.col.dynastyPick = p; return true; }
     case FA_NEST_STYLE: { int t = r.I32(); if (r.bad || t < 0 || t >= NS_COUNT || w.seasons <= 0) return false; w.col.nestStyle = t; return true; }
     case FA_TECH: { int t = r.I32(); if (r.bad || t < -1 || t >= TK_COUNT || w.seasons <= 0) return false; w.col.tech = t; return true; }
     case FA_BREAK: { int t = r.I32(); if (r.bad || t < 0 || t > (int)w.sides.size()) return false; return w.BreakTruce(t); }
@@ -388,6 +396,7 @@ bool& HumanRef(World& w, int s) { return s == w.cur ? w.human : s == 0 ? w.sides
 bool& BotRef(World& w, int s) { return s == w.cur ? w.founderBot : s == 0 ? w.sides[w.cur - 1].founderBot : w.sides[s - 1].founderBot; }
 
 template <class A> void VisitFounder(A& a, Founder& f) {
+    a.f(f.ageSpeed); a.f(f.ageAttack); a.b(f.old); a.i(f.oldCarry);   // (the Long Flight: its age)
     a.i(f.def); a.e(f.st); a.v3(f.pos); a.v3(f.vel); a.f(f.yaw); a.f(f.pitch); a.f(f.bank); a.f(f.airspeed);
     a.f(f.stamina); a.f(f.hunger); a.f(f.hp);
     int fl = (f.flapping ? 1 : 0) | (f.sprinting ? 2 : 0) | (f.gliding ? 4 : 0) | (f.exhausted ? 8 : 0) | (f.chick ? 16 : 0);
@@ -400,6 +409,7 @@ template <class A> void VisitFounder(A& a, Founder& f) {
     a.i(f.chickFish); a.f(f.adultT); a.i(f.deaths); a.i(f.agent); a.s(f.lastCause);
 }
 template <class A> void VisitBird(A& a, Bird& b, bool own) {
+    a.b(b.elder); a.i(b.kin);   // (the Long Flight)
     a.i(b.id); a.e(b.stage); a.e(b.role); a.e(b.retrainTo); a.i(b.nest);
     P16(a, b.pos); a.s8(b.vel.x, 60); a.s8(b.vel.y, 60); a.s8(b.vel.z, 60);
     a.ang(b.yaw); a.ang(b.flapPh);
@@ -448,6 +458,8 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     { int rl = (int)c.relics; a.i(rl); c.relics = (uint32_t)rl; a.i(c.legend); a.b(c.legendAlive); }
     a.i(c.pact); a.i(c.bounty); a.i(c.bountyBy);
     a.f(c.beaconT); a.b(c.rookeryWarm);
+    a.i(c.gen); a.i(c.heirId); a.i(c.heirTrait); a.i(c.succChoice); a.i(c.keepPerk); a.i(c.dynastyPick); a.b(c.regent); a.f(c.genStart); a.f(c.successionT); { int rk = (int)c.relicsKept; a.i(rk); c.relicsKept = (uint32_t)rk; } a.s(c.dynasty);
+    if (own) a.vec(c.chronicle, [&](ChronLine& l) { a.i(l.day); a.i(l.season); a.i(l.year); a.i(l.kind); a.s(l.text); });   // (the Long Flight: a colony's own Chronicle)
     a.i(c.nestStyle); for (auto& n : c.nests) { a.i(n.style); a.f(n.rainT); }
     a.i(c.tech); for (float& m : c.techMastery) a.f(m); a.vec(c.techLog, [&](int& n) { a.i(n); });
     a.i(c.decree); a.i(c.yesterday); for (int& o : c.offer) a.i(o); a.i(c.dealtDay); a.i(c.lastRaider); { int u = (int)c.decreesUsed; a.i(u); c.decreesUsed = (uint32_t)u; }   // (the long match's decrees)
@@ -587,6 +599,7 @@ void WriteWorld(World& w, int viewer, Writer& out, bool full) {
     int players = w.opts.players, arr = (int)w.opts.arr, home = (int)w.opts.home; o.i(players); o.i(arr); o.i(home);
     uint32_t mask = w.opts.humanMask; o.u(mask);
     float minutes = w.opts.minutes; o.f(minutes);
+    int seasons = w.opts.seasons; o.i(seasons);   // (the long match: its map has the expansion's islands)
     o.i(viewer);
     o.b(full);
     w.WithSide(viewer, [&] { Visit(o, w, full); });
@@ -615,14 +628,14 @@ bool ReadWorld(Reader& r, World& w, bool keepOwn) {
         return ok;
     }
     if (magic != 0x31544C46) return false;
-    uint32_t seed = 0, mask = 0; int players = 0, arr = 0, home = 0, viewer = 0; float minutes = 0; bool full = true;
-    in.u(seed); in.i(players); in.i(arr); in.i(home); in.u(mask); in.f(minutes); in.i(viewer); in.b(full);
-    if (r.bad || players < 2 || players > 6 || arr < 0 || arr >= (int)Arrangement::COUNT || home < 0 || home > 3 || viewer < 0 || viewer >= players) return false;
-    if (!w.wholeMap || !w.mirror || w.opts.seed != seed || w.opts.players != players || (int)w.opts.arr != arr || (int)w.opts.home != home || w.opts.humanMask != mask || w.opts.minutes != minutes) {
+    uint32_t seed = 0, mask = 0; int players = 0, arr = 0, home = 0, viewer = 0, seasons = 0; float minutes = 0; bool full = true;
+    in.u(seed); in.i(players); in.i(arr); in.i(home); in.u(mask); in.f(minutes); in.i(seasons); in.i(viewer); in.b(full);
+    if (r.bad || players < 2 || players > 6 || arr < 0 || arr >= (int)Arrangement::COUNT || home < 0 || home >= (int)IsleType::COUNT || !IsStartType((IsleType)home) || seasons < 0 || seasons > 8 || viewer < 0 || viewer >= players) return false;
+    if (!w.wholeMap || !w.mirror || w.opts.seed != seed || w.opts.players != players || (int)w.opts.arr != arr || (int)w.opts.home != home || w.opts.humanMask != mask || w.opts.minutes != minutes || w.opts.seasons != seasons) {
         // a new match (or the first snapshot): the same map from the same seed and options
         std::string why;
         if (!rt::DataOk(&why)) return false;
-        MapOpts o; o.players = players; o.arr = (Arrangement)arr; o.home = (IsleType)home; o.humanMask = mask; o.minutes = minutes; o.multi = true;
+        MapOpts o; o.players = players; o.arr = (Arrangement)arr; o.home = (IsleType)home; o.humanMask = mask; o.minutes = minutes; o.multi = true; o.seasons = seasons;
         w.Init("taloned", seed, o);
         w.mirror = true;
         if ((int)w.sides.size() + 1 != players) return false;
@@ -665,15 +678,15 @@ public:
 
     void Configure(const std::string& opts) override {
         int a = 0, h = 0, m = 30;
-        if (sscanf(opts.c_str(), "%d:%d:%d", &a, &h, &m) >= 1) { arr = std::clamp(a, 0, (int)Arrangement::COUNT - 1); homeType = std::clamp(h, 0, 3); minutes = std::clamp(m, 1, 120); }
+        if (sscanf(opts.c_str(), "%d:%d:%d", &a, &h, &m) >= 1) { arr = std::clamp(a, 0, (int)Arrangement::COUNT - 1); homeType = std::clamp(h, 0, 9); minutes = std::clamp(m, 1, 120); }
         test = opts.find(":test") != std::string::npos;
-        size_t ss = opts.find(":seasons="); seasonsOpt = ss != std::string::npos ? std::clamp(atoi(opts.c_str() + ss + 9), 0, 4) : 0;
+        size_t ss = opts.find(":seasons="); seasonsOpt = ss != std::string::npos ? std::clamp(atoi(opts.c_str() + ss + 9), 0, 8) : 0;
         size_t sp = opts.find(":step=");
         stepDt = sp != std::string::npos ? std::clamp((float)atof(opts.c_str() + sp + 6), 1 / 60.0f, 0.1f) : 1 / 30.0f;
     }
     void Start(int n, uint32_t seed) override {
         players = std::clamp(n, 2, 6);
-        MapOpts o; o.players = players; o.arr = (Arrangement)arr; o.home = (IsleType)homeType;
+        MapOpts o; o.players = players; o.arr = (Arrangement)arr; o.home = StartTypeOf(homeType);
         o.humanMask = (1u << players) - 1; o.minutes = (float)minutes; o.multi = true; o.seasons = seasonsOpt;
         w = std::make_unique<World>();
         w->Init("taloned", seed, o);

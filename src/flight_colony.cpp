@@ -655,7 +655,7 @@ void World::MateStep(Bird& b, float dt) {
             if (HasRelic(cur, RL_EGG) && !col.goldenEggUsed) { eggs *= 2; col.goldenEggUsed = true; Say("The Golden Egg: a clutch doubled."); }   // (a Fertile mate)   // (a fractional bend: a chance of one egg more)
             eggs = std::min(eggs, (b.nest >= 0 && b.nest < (int)col.nests.size() ? NestEggsOf(col.nests[b.nest]) : NestEggs()) - inNest);   // (a Platform holds six)
             if (eggs > 0) {
-                for (int k = 0; k < eggs; k++) { Bird e; e.id = col.nextId++; e.stage = BStage::Egg; e.nest = b.nest; e.pos = n.pos; e.hunger = 1; e.trait = b.trait; born.push_back(e); }   // (its chicks inherit its trait)   // (appended after the loop: b is a reference into col.birds)
+                for (int k = 0; k < eggs; k++) { Bird e; e.id = col.nextId++; e.stage = BStage::Egg; e.nest = b.nest; e.pos = n.pos; e.hunger = 1; e.trait = b.trait; e.kin = b.kin; born.push_back(e); }   // (its chicks inherit its trait)   // (appended after the loop: b is a reference into col.birds)
                 b.clutches++; b.clutchT = 0;
                 Say(TextFormat("A clutch of %d eggs.", eggs));
             }
@@ -864,7 +864,8 @@ void World::StepColony(float dt) {
                 Bird m; m.id = col.nextId++; m.stage = BStage::Mate; m.nest = i; m.hunger = 1; m.task = Task::Fly;
                 float a = Rand() * 2 * PI; m.pos = {n.pos.x + cosf(a) * 120, 20, n.pos.z + sinf(a) * 120};
                 m.clutchT = (E.clutchDays - 0.3f) * DAY;   // (the first clutch comes soon after it settles)
-                if (seasons > 0) m.trait = col.wantTrait >= 0 && n.favFish >= n.bowlNeed ? col.wantTrait : (int)(Rand() * MT_COUNT) % MT_COUNT;   // (a picky bowl calls the trait it asked for)
+                if (LongFlight()) m.kin = Rand() < 0.3f ? (int)(Rand() * Founders().size()) % (int)Founders().size() : me.def;   // (a wild mate, now and then of another species)
+        if (seasons > 0) m.trait = col.wantTrait >= 0 && n.favFish >= n.bowlNeed ? col.wantTrait : (int)(Rand() * MT_COUNT) % MT_COUNT;   // (a picky bowl calls the trait it asked for)
                 n.favFish = 0;
                 col.birds.push_back(m);
                 n.mate = m.id; n.mateT = -1; n.bowl = 0; col.wildMates--;

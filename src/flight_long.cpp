@@ -1,6 +1,7 @@
 // The Flight's long match (the expansion, design doc pp. 35-51): the seasons, their events and their pull on the sea,
 // the wind and the work. Everything a season does is a number in data/flight/flight_long.json.
 #include "flight.h"
+#include "flight_net.h"
 #include "json.h"
 #include "raymath.h"
 #include <algorithm>
@@ -13,7 +14,7 @@ namespace fl {
 namespace {
 struct LongData {
     std::vector<SeasonFx> seasons;
-    int days[5] = {0, 0, 7, 11, 16};
+    int days[9] = {0, 0, 7, 11, 16, 0, 36, 0, 48};   // (6 and 8: the Long Flight, a year and a half or two)
     float spawningRegrow = 3, winterHoldings = 2;
     int migrationMates = 6, tunaCount = 26, tunaSize = 4;
 };
@@ -23,7 +24,7 @@ const LongData& LD() {
     loaded = true;
     Json j = LoadJsonFile(FlightDataDir() + "/flight_long.json");
     const Json& sd = j["season_days"];
-    for (int k = 2; k <= 4; k++) d.days[k] = sd[std::to_string(k)].I(d.days[k]);
+    for (int k : {2, 3, 4, 6, 8}) d.days[k] = sd[std::to_string(k)].I(d.days[k]);
     for (const Json& s : j["seasons"].a) {
         SeasonFx f;
         f.name = s["name"].Str0(); f.sea = s["sea"].Str0(); f.wind = s["wind"].Str0(); f.rewards = s["rewards"].Str0(); f.event = s["event"].Str0(); f.eventWhat = s["event_what"].Str0();
@@ -43,13 +44,14 @@ bool IsShark(const rt::Species& s) { return s.Has("apex") || s.name.find("Shark"
 }  // namespace
 
 const std::vector<SeasonFx>& Seasons() { return LD().seasons; }
-int SeasonDays(int seasons) { return seasons >= 2 && seasons <= 4 ? LD().days[seasons] : 0; }
+int SeasonDays(int seasons) { return seasons >= 2 && seasons <= 8 ? LD().days[seasons] : 0; }
 const char* SeasonEventName(int e) { static const char* N[EV_SEASON_COUNT] = {"The Spawning", "The Tuna Run", "The Migration", "The Long Night"}; return e >= 0 && e < EV_SEASON_COUNT ? N[e] : ""; }
 float WinterHoldings() { return LD().winterHoldings; }
 
 int World::Season() const {
     if (seasons <= 0) return -1;
     int d = GameDay();
+    if (seasons >= 6) d = (d - 1) % LD().days[4] + 1;   // (the Long Flight: the seasons come round again in year two)
     const auto& S = LD().seasons;
     for (int s = SEASON_COUNT - 1; s >= 0; s--) if (d >= S[s].firstDay) return s;
     return SEASON_SPRING;
@@ -84,6 +86,7 @@ void World::InitSeasons() {
         if (f.firstDay > SeasonDays(seasons)) { eventDay[e] = -1; continue; }
         int lo = std::min(last, f.firstDay + 1);
         eventDay[e] = (float)(lo + (int)(Rand() * (last - lo + 1)));
+        eventDay2[e] = seasons >= 6 && eventDay[e] + LD().days[4] <= SeasonDays(seasons) ? eventDay[e] + LD().days[4] : -1;   // (the Long Flight: again in year two)
     }
     matchLen = SeasonDays(seasons) * DAY;
 }
@@ -93,9 +96,10 @@ void World::StepSeasons(float dt) {
     const LongData& D = LD();
     int day = GameDay();
     // an event begins at the dawn of its day and lasts the day
-    for (int e = 0; e < EV_SEASON_COUNT; e++) {
-        if ((eventsDone >> e) & 1 || eventDay[e] < 0 || day < (int)eventDay[e]) continue;
-        eventsDone |= 1u << e; seasonEvent = e; eventUntil = time + DAY;
+    for (int k = 0; k < EV_SEASON_COUNT * 2; k++) {
+        int e = k % EV_SEASON_COUNT; float on = k < EV_SEASON_COUNT ? eventDay[e] : eventDay2[e];
+        if ((eventsDone >> k) & 1 || on < 0 || day < (int)on) continue;
+        eventsDone |= 1u << k; seasonEvent = e; eventUntil = time + DAY;
         std::string what = D.seasons[e].event + ": " + D.seasons[e].eventWhat + ".";
         for (int s = 0; s <= (int)sides.size(); s++) SayTo(s, what);
         if (e == EV_MIGRATION) for (int s = 0; s <= (int)sides.size(); s++) ColOf(s).wildMates += D.migrationMates;
@@ -333,7 +337,8 @@ bool World::PickPerk(int k) {
 
 void World::StepPerks(float dt) {
     if (seasons <= 0) return;
-    const auto& days = PerkDays();
+    std::vector<int> days = PerkDays();
+    if (LongFlight()) { size_t n = days.size(); for (size_t i = 0; i < n; i++) days.push_back(days[i] + YearDays()); }   // (the heir is offered perks in year two)
     int day = GameDay();
     int due = 0; for (int d : days) due += day >= d;
     for (int s = 0; s <= (int)sides.size(); s++) {
@@ -407,7 +412,7 @@ void World::StepVeterans(float dt) {
         if (b.foughtT > b.countedT && time - b.foughtT > 10) {
             b.countedT = time; b.fights++;
             if (b.vet < 0 && b.fights >= V.fights) {
-                b.vet = (int)(Rand() * VT_COUNT) % VT_COUNT; b.vetName = col.nextVetName++ % (int)V.names.size();
+                b.vet = (int)(Rand() * VT_COUNT) % VT_COUNT; b.vetName = col.nextVetName++ % (int)V.names.size(); b.vetT = time;
                 b.hp = std::min(MaxHp(b.role) * (1 + V.bonus), b.hp * (1 + V.bonus));
                 Say(TextFormat("%s the %s has survived %d fights: a veteran (%s: %s).", V.names[b.vetName].c_str(), RoleName(b.role), b.fights, V.traitNames[b.vet].c_str(), V.traitWhat[b.vet].c_str()));
             }
@@ -442,7 +447,7 @@ const std::vector<GreatDef>& GreatEvents() { return XD().events; }
 int RelicsMax() { return XD().relicsMax; }
 float RelicStealChance() { return XD().relicSteal; }
 
-bool World::HasRelic(int side, int relic) const { return seasons > 0 && side >= 0 && side <= (int)sides.size() && ((ColOf(side).relics >> relic) & 1); }
+bool World::HasRelic(int side, int relic) const { return seasons > 0 && side >= 0 && side <= (int)sides.size() && (((ColOf(side).relics | ColOf(side).relicsKept) >> relic) & 1); }   // (a Pilgrimage's relic is kept for good)
 bool World::HasLegend(int side, int legend) const { return seasons > 0 && side >= 0 && side <= (int)sides.size() && ColOf(side).legend == legend && ColOf(side).legendAlive; }
 int World::RelicCount(int side) const { int n = 0; uint32_t r = ColOf(side).relics; while (r) { n += r & 1; r >>= 1; } return n; }
 
@@ -1580,6 +1585,14 @@ int RunFlightLongTest() {
           check(v->col.nests[ni].built && v->col.shells == sh - (int)IcebergShells(), "the Iceberg: no twigs; an ice nest is cut with shells"); }
         { auto v = st(IsleType::Lighthouse); for (int q = 0; q < 20; q++) v->col.caches[0].fish.push_back({0, 2, 0}); int p0 = v->col.pearls; v->time = World::DAY; v->StepIsles(0.1f);
           check(v->col.pearls == p0 + 1, "Lighthouse Rock: the keeper trades lamp oil for fish"); }
+    }    // ---- a guest's mirror of a long match: the same map, the expansion's islands and all
+    {
+        auto h = std::make_unique<World>(); MapOpts o; o.players = 4; o.seasons = 4; o.home = IsleType::Mangrove; o.multi = true; o.humanMask = 3; h->Init("taloned", 33, o);
+        Writer wrt; WriteWorld(*h, 1, wrt, true);
+        auto m = std::make_unique<World>(); Reader rdr(wrt.b.data(), wrt.b.size());
+        bool ok = ReadWorld(rdr, *m) && m->isles.size() == h->isles.size() && m->seasons == 4;
+        for (size_t i = 0; ok && i < h->isles.size(); i++) ok = m->isles[i].type == h->isles[i].type && Vector3Distance(m->isles[i].c, h->isles[i].c) < 0.5f;
+        check(ok && m->isles[0].type == IsleType::Mangrove, "a guest's mirror of a long match has the same map (the expansion's islands, the Ghost Ship where it has drifted)");
     }    printf(fails ? "flight-long-test: %d check(s) failed\n" : "flight-long-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

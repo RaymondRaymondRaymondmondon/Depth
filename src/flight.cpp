@@ -116,10 +116,10 @@ const char* FStateName(FState s) {
                  case FState::Perched: return "perched"; case FState::Floating: return "floating"; case FState::Fainted: return "fainted"; case FState::Dead: return "dead"; }
     return "?";
 }
-float Founder::StatMul() const { return (chick ? 0.5f : 1.0f) * (hunger < 0.25f ? 0.7f : 1.0f) * (deaths >= 3 ? 0.9f : 1.0f); }
+float Founder::StatMul() const { return (chick ? 0.5f : 1.0f) * (hunger < 0.25f ? 0.7f : 1.0f) * (deaths >= 3 ? 0.9f : 1.0f) * ageSpeed; }   // (the Long Flight: its age)
 float Founder::Cruise(const FounderDef& d) const { return d.cruise * std::max(0.5f, StatMul()); }
 float Founder::Sprint(const FounderDef& d) const { return d.sprint * std::max(0.5f, StatMul()); }
-int Founder::Carry(const FounderDef& d) const { return std::max(1, (chick ? d.carry / 2 : d.carry) + PerkSum(perks).carry); }   // (Iron Talons +1)
+int Founder::Carry(const FounderDef& d) const { int c = std::max(1, (chick ? d.carry / 2 : d.carry) + PerkSum(perks).carry); return oldCarry > 0 ? std::min(c, oldCarry) : c; }   // (old: no size-4 fish)   // (Iron Talons +1)
 
 // ---------------------------------------------------------------- the world
 float World::Rand() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return (rng & 0xFFFFFF) / 16777216.0f; }
@@ -277,7 +277,7 @@ void World::ResolveStrike() {
 void World::StepFounder(float dt, const FounderInput& in) {
     const FounderDef& d = Def();
     Founder& f = me;
-    float maxStam = d.stamina * (f.chick ? 0.5f : 1.0f) * PerkSum(f.perks).stamina;   // (Broad Wings)
+    float maxStam = d.stamina * (f.chick ? 0.5f : 1.0f) * PerkSum(f.perks).stamina * f.ageSpeed;   // (Broad Wings; the Long Flight's age)
     // hunger drains over a game day (a chick-leader's twice as fast); at 0 the Founder faints
     if (f.st != FState::Dead) {
         f.hunger -= dt / std::max(30.0f, Econ().founderHungerS) * (f.chick ? 2.0f : 1.0f);
@@ -377,7 +377,7 @@ void World::StepFounder(float dt, const FounderInput& in) {
 void World::FlyMotion(float dt, const FounderInput& in) {
     const FounderDef& d = Def();
     Founder& f = me;
-    float maxStam = d.stamina * (f.chick ? 0.5f : 1.0f) * (col.HasTier(Tree::Flight, 2) ? 1.5f : 1.0f) * PerkSum(f.perks).stamina;   // (Long wings; Broad Wings)
+    float maxStam = d.stamina * (f.chick ? 0.5f : 1.0f) * (col.HasTier(Tree::Flight, 2) ? 1.5f : 1.0f) * PerkSum(f.perks).stamina * f.ageSpeed;   // (Long wings; Broad Wings; age)
     float carryMul = 1 - 0.06f * f.carrySize;
     {
         // steering: toward the player's aim, banking into the turn
@@ -504,6 +504,7 @@ void World::Step(float realDt, const FounderInput& in) {
     StepNestStyles(dt);
     StepStructures(dt);
     StepIsles(dt);
+    StepGenerations(dt);
     if (seasons > 0) for (int s = 0; s <= (int)sides.size(); s++) WithSide(s, [&] { StepVeterans(dt); });
     fogT += dt; fogNow = fogT >= 0.25f;
     if (fogNow) fogT = 0;

@@ -733,7 +733,8 @@ void World::ScoutStep(Bird& b, float dt) {
         MoveTo(b, {at.x + cosf(a) * r, at.y, at.z + sinf(a) * r}, R.speed * 0.7f, dt, 1);
         if (b.taskT > 6) {
             Rng rr{(uint32_t)(b.id * 7919 + (int)time * 13 + 1)};
-            if (b.scoutIsle >= 0) { b.obs = Observe(*this, b.scoutIsle, DecreeNow().scoutsExact ? Alt::Mid : b.alt, rr); if (DecreeNow().scoutsExact) b.obs.alt = (int)b.alt;   // (Scouts Aloft: exact)
+            bool exact = DecreeNow().scoutsExact || Elders(cur, VT_KEEN) > 0;   // (Scouts Aloft; a Keen elder)
+            if (b.scoutIsle >= 0) { b.obs = Observe(*this, b.scoutIsle, exact ? Alt::Mid : b.alt, rr); if (exact) b.obs.alt = (int)b.alt;   // (Scouts Aloft: exact)
                                     if (DecreeNow().scoutsBlind) { b.obs.nests = b.obs.caches = b.obs.birds = 0; b.obs.exact = false; } }   // (your own Fog Bank: your scouts see nothing)
             if (b.scoutZone >= 0) b.gobs = ObserveGround(*this, b.scoutZone);
             b.obsT = time; b.observed = true; b.task = Task::Deliver;

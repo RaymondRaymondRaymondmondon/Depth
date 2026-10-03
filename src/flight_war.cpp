@@ -237,8 +237,8 @@ void World::StepWar(float dt) {
         Bird* a = att.b; Role ar = roleOf(att), vr = roleOf(vic);
         const RoleDef& R = RoleOf(ar);
         Flock* af = inFlock(att); Flock* vf = inFlock(vic);
-        float dmg = att.f ? Founders()[att.f->def].attack * (att.f->chick ? 0.5f : 1.0f) * PerksOf(att.side).attack : R.attack * BendOfSide(att.side).attack;   // (Hooked Beak)
-        if (af && af->leader == -2) dmg *= PerksOf(att.side).ledAttack;   // (the flock the Founder leads)
+        float dmg = att.f ? Founders()[att.f->def].attack * (att.f->chick ? 0.5f : 1.0f) * PerksOf(att.side).attack * att.f->ageAttack : R.attack * BendOfSide(att.side).attack;   // (the Long Flight: a Founder in its prime +10%)   // (Hooked Beak)
+        if (af && af->leader == -2) dmg *= PerksOf(att.side).ledAttack * (FounderOf(att.side).old ? 1.1f + (PerksOf(att.side).ledAttack - 1) : 1.0f);   // (the flock the Founder leads; an old Founder's flock bonus doubles: everyone's used to it)
         if (BendOfSide(att.side).daylight < 1 && DayPhase() > 0.25f && DayPhase() < 0.75f) dmg *= BendOfSide(att.side).daylight;   // (the Owl by day)
         if (att.f && BendOfSide(att.side).plungeStrike && att.f->vel.y < -8) dmg *= 3;
         if (att.b && att.b->role == Role::Plunger && att.b->vel.y > -6) dmg = 8 * BendOfSide(att.side).attack;
