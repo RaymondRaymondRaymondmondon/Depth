@@ -25,6 +25,8 @@ const Economy& Econ() {
     if (!j.IsObj()) return e;
     auto F = [&](const char* k, float& v) { if (j.Has(k)) v = j[k].F(v); };
     auto I = [&](const char* k, int& v) { if (j.Has(k)) v = j[k].I(v); };
+    F("day_seconds", e.daySeconds); F("work_pace", e.workPace);
+    if (e.workPace <= 0) e.workPace = 240 / std::max(30.0f, e.daySeconds);   // (0: the pace the doc's 4-minute day was tuned at)
     F("feed_adult", e.feedAdult); F("feed_chick", e.feedChick); F("feed_founder", e.feedFounder); F("chick_drain", e.chickDrain);
     F("starve_days", e.starveDays); I("cache_capacity", e.cacheCap); F("spoil_days", e.spoilDays);
     I("courtship_fish", e.courtFish); I("courtship_step", e.courtStep); I("courtship_min_size", e.courtMinSize);
@@ -201,6 +203,7 @@ void World::RegrowFish(float dt) {
 
 // ---------------------------------------------------------------- flying
 bool World::MoveTo(Bird& b, Vector3 goal, float speed, float dt, float arrive) {
+    speed *= Econ().workPace;
     Vector3 d = Vector3Subtract(goal, b.pos);
     float flat = sqrtf(d.x * d.x + d.z * d.z);
     if (Vector3Length(d) < arrive) { b.vel = Vector3Scale(b.vel, 0.5f); return true; }
@@ -208,7 +211,7 @@ bool World::MoveTo(Bird& b, Vector3 goal, float speed, float dt, float arrive) {
     float cruise = std::max(goal.y, std::max(0.0f, island.Height(b.pos.x, b.pos.z)) + 10);
     Vector3 aim = flat > 14 ? Vector3{goal.x, std::max(goal.y, cruise), goal.z} : goal;
     Vector3 want = Vector3Scale(Vector3Normalize(Vector3Subtract(aim, b.pos)), speed);
-    b.vel = Vector3Lerp(b.vel, want, std::min(1.0f, dt * 3));
+    b.vel = Vector3Lerp(b.vel, want, std::min(1.0f, dt * 3 * Econ().workPace));
     b.pos = Vector3Add(b.pos, Vector3Scale(b.vel, dt));
     float g = std::max(0.0f, island.Height(b.pos.x, b.pos.z));
     if (b.pos.y < g + 0.3f && flat > 3) b.pos.y = g + 0.3f;
@@ -225,7 +228,7 @@ bool World::BirdEatsAtCache(Bird& b, float dt) {
     b.task = Task::Eat; b.taskT += dt;
     int feeders = Count(BStage::Adult, Role::Feeder), workers = Count(BStage::Adult) - feeders;
     bool served = feeders > 0 && feeders * Econ().feederCover >= workers;
-    if (b.taskT < (served ? Econ().fedS : Econ().selfFetchS)) return true;
+    if (b.taskT < (served ? Econ().fedS : Econ().selfFetchS) / Econ().workPace) return true;
     size_t k = 0; for (size_t i = 1; i < c.fish.size(); i++) if (c.fish[i].age > c.fish[k].age) k = i;
     b.hunger = std::min(1.0f, b.hunger + c.fish[k].size / Econ().feedAdult);
     c.fish.erase(c.fish.begin() + k);
@@ -307,7 +310,7 @@ void World::FisherStep(Bird& b, float dt) {
         break;
     case Task::Search: {
         // circle over the water, reading it for a fish near the surface it can lift
-        b.taskT += dt;
+        b.taskT += dt * Econ().workPace;
         float a = b.taskT * 0.5f + b.id;
         MoveTo(b, {b.goal.x + cosf(a) * 8, 12, b.goal.z + sinf(a) * 8}, speed * 0.7f, dt, 0.5f);
         if (fmodf(b.taskT, 0.5f) < dt) {
@@ -326,7 +329,7 @@ void World::FisherStep(Bird& b, float dt) {
     } break;
     case Task::Dive: {
         int fi = b.fish;
-        b.taskT += dt;
+        b.taskT += dt * Econ().workPace;
         bool gone = fi < 0 || fi >= (int)eco.agents.size() || !eco.agents[fi].alive;
         Vector3 fp = gone ? Vector3{b.pos.x, 0, b.pos.z} : eco.agents[fi].pos;
         MoveTo(b, {fp.x, 0.2f, fp.z}, 18, dt, 0.2f);

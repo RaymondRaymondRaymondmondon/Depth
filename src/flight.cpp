@@ -150,6 +150,7 @@ int World::FishNear(Vector3 p, float r, float maxDepth, int* count) const {
 void World::Init(const std::string& founderKey, uint32_t seed) {
     *this = World{};
     rng = seed ? seed * 2654435761u + 1 : 7;
+    DAY = Econ().daySeconds;
     island.Generate(seed ? seed : 1);
     const rt::MapData& sea = rt::Map(seaKey);
     eco.Init(sea, seed ? seed : 1, 1, 1);
@@ -421,7 +422,7 @@ void World::Step(float realDt, const FounderInput& in) {
             // (the web steers a fish back to its home point and toward its goal: move their depth too, or it dives back)
             a.home.y = t;
             if (a.st == rt::State::Return || a.st == rt::State::Graze || a.st == rt::State::Rest) a.goal.y = t;
-            a.pos.y += (t - a.pos.y) * std::min(1.0f, 0.6f * dt);
+            a.pos.y += (t - a.pos.y) * std::min(1.0f, 0.6f * dt * 240 / DAY);   // (the rise takes the same share of a shorter day)
         }
     }
     SyncBody();

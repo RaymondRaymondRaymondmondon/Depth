@@ -94,6 +94,7 @@ struct FounderInput {
 // ---------------------------------------------------------------- the colony (stage 2: design doc pp. 3-7, 11)
 // Every number is data: data/flight/flight_economy.json (Economy) and flight_roles.json (RoleDef).
 struct Economy {
+    float daySeconds = 120, workPace = 1;     // a game day in real seconds; colony birds work this much faster (keeps the per-day economy when days are short)
     float feedAdult = 2.5f, feedChick = 1, feedFounder = 3;   // feed units a full hunger bar holds (one day's eating)
     float chickDrain = 2;                     // chicks empty twice as fast
     float starveDays = 0.5f;                  // at 0 hunger this long, a bird dies
@@ -176,7 +177,7 @@ struct World {
     std::vector<std::string> log;
     int fishCaught = 0, fishMissed = 0, fishLost = 0, fishEaten = 0;
     bool forceHit = false;                      // (tests: a strike on a fish always lands)
-    static constexpr float DAY = 240;           // a game day is four real minutes
+    static inline float DAY = 120;              // seconds in a game day (flight_economy.json "day_seconds"; the user: shorter days than the doc's 4 minutes, so a match runs well past day 8)
     float DayPhase() const;                     // 0 midnight .. 0.25 dawn .. 0.5 noon .. 0.75 dusk
     const FounderDef& Def() const { return Founders()[me.def]; }
     void Init(const std::string& founderKey, uint32_t seed);

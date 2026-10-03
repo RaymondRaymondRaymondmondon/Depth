@@ -1,5 +1,9 @@
 {
   "_source": "The Flight design doc pp. 4-7 (hunger, courtship, mates, eggs, chicks, caches) and p. 34 (targets); numbers the doc leaves open are marked _open",
+  "day_seconds": 120,
+  "_day_note": "the user (2026-10-03): keep the doc's timings in days but make days and nights shorter than its 4 minutes; matches run well past day 8",
+  "work_pace": 0,
+  "_work_pace_note": "0 = 240 / day_seconds: colony birds fly and work at the pace the doc's per-day numbers (a fisher catches 3-6 fish a day) were set at",
   "feed_adult": 2.5,
   "feed_chick": 1,
   "feed_founder": 3,

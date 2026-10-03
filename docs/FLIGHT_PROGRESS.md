@@ -165,5 +165,7 @@ Gate (doc p33): "A bot colony grows to 40 and starves if it outfishes its lagoon
 - The open sea's stocks were doubled for this stage: the shelf and open-sea rows count ×2, leaving out sharks, barracuda, tuna and mahi.
 - Fishers' reach is 2.7 m (the lagoon's floor is 3 m down).
 
+**Day length (the user, 2026-10-03): keep the doc's timings in days, shorter days.** A game day is `day_seconds` 120 (was the doc's 240), so a 30-minute match runs to day 15. Colony birds work at `work_pace` 240/day_seconds (2x: they fly and fetch faster) and fish rise and sink at the same share of the shorter day, so every per-day number (3-6 fish a fisher a day, hatch 1, fledge 2...) holds. Last sim: careful reaches 40 birds on day 12 (24 minutes), no deaths; lagoon-only starves (24 of 24).
+
 ## Next: stage 3, islands, scouting and the map
 All four starting island types, the generator, the arrangements; scouts, fog, the map, reports (doc p34).
