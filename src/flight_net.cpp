@@ -937,14 +937,14 @@ int RunFlightNetLoop(bool forceMemory) {
     }
     check(truth.over, TextFormat("the match ends: %s", truth.overReason.c_str()));
     step(30);
-    check(left && truth.BotFlown(gone) && ((truth.cautiousMask >> gone) & 1), "guest 4 left halfway: a cautious AI flew and ran their colony to the end");
+    check(left && truth.BotFlown(gone) && ((truth.cautiousMask >> gone) & 1), TextFormat("guest 4 left halfway: a cautious AI flew and ran their colony to the end (left %d, bot %d, cautious %d)", (int)left, (int)truth.BotFlown(gone), (int)((truth.cautiousMask >> gone) & 1)));
     bool agree = true;
     for (int k = 0; k < NG - 1; k++) agree = agree && mirror[k]->over && mirror[k]->winner == truth.winner && mirror[k]->Score(truth.winner).total == truth.scores[truth.winner].total;
     check(agree, TextFormat("every remaining guest sees the same end: %s wins with %d", truth.SideName(truth.winner).c_str(), truth.scores.empty() ? -1 : truth.scores[truth.winner].total));
     int lost = 0; for (int s = 1; s < MAX_PLAYERS; s++) lost += host.seats[s].used && host.seats[s].lost && s != host.SeatOfPlayer(gone);
     check(lost == 0 && readFails == 0, TextFormat("nobody else was lost; %d snapshots read, none refused", snaps));
     int birds = 0; for (int s = 0; s < 6; s++) birds += Birds(truth.ColOf(s));
-    check(birds >= 6 * 3, TextFormat("six colonies lived through it: %d birds at the end", birds));
+    check(birds >= 6 * std::clamp(minutes / 10, 1, 3), TextFormat("six colonies lived through it: %d birds at the end (%d minutes)", birds, minutes));   // (a short test match is a day or two: a bird or two each)
     printf("    standings:"); for (int s = 0; s < 6; s++) printf("  %s %d", truth.SideName(s).c_str(), truth.scores[s].total); printf("\n");
     check(snaps > 0, TextFormat("%d snapshots, %.1f KB on average, %.1f KB the biggest", snaps, snaps ? bytes / 1024.0 / snaps : 0.0, biggest / 1024.0));
     for (auto& g : gs) g.Leave();

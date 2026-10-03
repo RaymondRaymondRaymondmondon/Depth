@@ -474,7 +474,8 @@ void World::BuilderStep(Bird& b, float dt) {
     // defences after nests: a hedge (twigs) or a tower (twigs and shells) the colony has laid out
     // a third of the builders keep a stock of shells at the cache while the research wants them
     int keeper = -1; for (const auto& o : col.birds) if (o.alive && o.stage == BStage::Adult && o.role == Role::Builder && o.retrainT <= 0) { keeper = o.id; break; }   // (the first builder keeps the stock, and every third)
-    if ((b.id == keeper || b.id % 3 == 0) && col.shells < ShellsWanted() && b.carryTwigs == 0) {
+    bool nestWaiting = false; for (const auto& n : col.nests) nestWaiting |= !n.built;   // (a lone builder raises the nests first)
+    if (((b.id == keeper && !nestWaiting) || b.id % 3 == 0) && col.shells < ShellsWanted() && b.carryTwigs == 0) {
         if (b.carryShells > 0) { b.task = Task::Deliver; if (MoveTo(b, Vector3Add(col.caches[0].pos, {0, 0.5f, 0}), R.speed, dt)) { col.shells += b.carryShells; b.carryShells = 0; b.task = Task::Idle; } return; }
         int src = -1; float bd = 1e9f;
         for (int i = 0; i < (int)col.twigSrc.size(); i++) { const auto& s = col.twigSrc[i]; if (!s.shells || s.twigs < 1) continue; float d = Vector3Distance(b.pos, s.pos); if (d < bd) { bd = d; src = i; } }

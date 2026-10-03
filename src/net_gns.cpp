@@ -111,7 +111,7 @@ public:
         conns.erase(h); Forget(h);
     }
     void CloseAll() override {
-        for (auto c : conns) s->CloseConnection(c, 0, "closing", true);
+        for (auto c : conns) { s->FlushMessagesOnConnection(c); s->CloseConnection(c, 0, "closing", true); }
         conns.clear(); idOf.clear(); hOf.clear();
         if (listen != k_HSteamListenSocket_Invalid) { s->CloseListenSocket(listen); listen = k_HSteamListenSocket_Invalid; }
     }
