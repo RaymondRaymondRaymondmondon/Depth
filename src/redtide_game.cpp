@@ -7,6 +7,7 @@
 #include "redtide_profile.h"
 #include "redtide_vis.h"
 #include "redtide_net.h"
+#include "voice.h"
 #include "arcade_session.h"
 #include "net.h"
 #include "skins.h"
@@ -708,7 +709,17 @@ static DiverInput Gather() {
     if (wheel != 0 && d.weapons.size() > 1) in.slot = (int8_t)((d.cur + (wheel > 0 ? 1 : (int)d.weapons.size() - 1)) % (int)d.weapons.size());
     return in;
 }
-static void Input(float dt) {
+// voice chat: each teammate's voice shaped by the helmet radios from here (HearDiver, redtide_net.cpp)
+static void RedTideVoiceFrame() {
+    if (!S.net) return;
+    const Match& m = M();
+    if (!m.map) return;
+    for (int p = 0; p < (int)m.divers.size(); p++) {
+        int seat = S.net->SeatOfPlayer(p);
+        if (seat >= 0 && p != S.me) voice::SetHearing(seat, HearDiver(m, S.me, p));
+    }
+}static void Input(float dt) {
+    RedTideVoiceFrame();
     DiverInput in = Gather();
     if (!S.net) { ApplyDiverInput(M(), S.me, in, dt); return; }
     Writer w; WriteInputAction(in, w); S.net->Act(w);
@@ -1476,6 +1487,7 @@ static bool DrawTeammate(const Match& m, const Agent& a) {
     P.tread = (1 - P.swim) * 0.7f;
     P.reach = 0.55f; P.elbow = 0.35f; P.grip = 0.85f;   // (the gun held before them: phase 4 puts the real one in the fists)
     P.blink = fmodf(S.time * 0.25f + di * 0.37f, 1.0f) < 0.03f ? 1.0f : 0.0f;
+    if (S.net) { int seat = S.net->SeatOfPlayer(di); if (seat >= 0 && VoiceSpeaking(seat)) { float lv = seat == VoiceMySeat() ? VoiceMicLevel() : voice::Level(seat); P.shout = 0.15f + 0.7f * lv * (0.55f + 0.45f * sinf(S.time * 23 + di)); } }   // (the mouth works with their voice, through the helmet port)
     float tilt = P.swim * 1.15f + std::clamp(d->pitch, -0.6f, 0.6f) * P.swim;
     if (d->downed) { tilt = -1.2f; P.tread = 0.3f; P.swim = 0; P.reach = 0.2f; }
     // the hips at the agent's position; the figure faces its yaw (its +x along the look), tipped about the hips

@@ -45,3 +45,12 @@ supply the rest over voice chat"; the mouth moves with voice chat). Built in ste
 - **Walkies** (design doc: 40 shillings, "channel-wide voice"; batteries 5, "last one night"): `Item::Walkie`, sold with one battery. At cast-off each walkie takes a battery and is live for the night (`Slot::ammo` batteries, `Slot::spare` live). Held in hand, it carries your voice crackling to every hand with a live walkie anywhere in their slots, the length of the boat or out to the skiff. Drawn in hand in both views (a green light while it talks).
 - **Mouths:** `Crew::talk` (local, not synced) is set from each player's voice level; the first-person figures' mouths work with it, as they do for a bot's bark.
 - Check: `depth.exe --trawl-voice-test`.
+
+## Step 3: Red Tide's helmet radios (done, 2026-10-02)
+- `HearDiver(m, you, them)` (redtide_net.cpp), set for every teammate each frame (`RedTideVoiceFrame`):
+  - **Radio:** the team's helmet radios carry everywhere. Within 6 m the voice also comes through the water, so the radio colour thins; far off it crackles. A downed diver's set crackles hard, and a dead diver (between tides) comes through faint.
+  - **Pan:** follows where they are relative to your look.
+  - **Poachers:** the rival pair are on another channel, heard only through the water within 10 m, bubbling and muffled.
+- **Mouths:** a teammate's mouth works with their voice, through the helmet port (`fig::Pose::shout` from the voice level; the design: "The mouth moves with voice chat and quips").
+- Scuttle and the lobbies keep plain voice (no shaping: everyone at the table hears everyone).
+- Check: `depth.exe --redtide-voice-test`.

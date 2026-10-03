@@ -1,4 +1,5 @@
 #pragma once
+namespace voice { struct Hearing; }   // (voice.h)
 // Red Tide over the Deep Arcade's network session (the design doc's stage 4: four divers, one match; the session
 // layer is docs/design/5_Depth_Arcade_Networking.md). Host-authoritative, like the Trawl: the host runs the one real
 // Match (a RedTideHost, the arcade's GameHost for G_RED_TIDE) and snapshots it 20 times a second; each guest keeps a
@@ -50,6 +51,10 @@ bool ReadMatch(Reader& r, Match& m, int keepLook = -1);
 // The Long Night (a host-side save, redtide_longnight_<map>.sav next to the exe): a small head (tide, clock) the menus
 // read cheaply, then the match's snapshot. Loading fits it to the seats: new seats get a fresh diver at the start,
 // seats no longer there are played by bots. A finished Long Night is cleared.
+// voice chat (voice.h): how diver `you` hears diver `them`: the team's helmet radios (clearer up close, where the water
+// carries it too; crackling when downed), and in Poachers the rival pair only through the water, close by
+voice::Hearing HearDiver(const Match& m, int you, int them);
+int RunRedTideVoiceTest();                               // depth.exe --redtide-voice-test
 bool SaveLongNight(const Match& m);
 bool LongNightSaved(const std::string& map, int* tide = nullptr, float* time = nullptr);
 bool LoadLongNight(const std::string& map, Match& m, int seats);

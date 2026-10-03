@@ -4,6 +4,7 @@
 #include "redtide_net.h"
 #include "arcade_session.h"
 #include "net.h"
+#include "voice.h"
 #include "raylib.h"
 #include "raymath.h"
 #include <algorithm>
@@ -317,6 +318,62 @@ bool ReadMatch(Reader& r, Match& m, int keepLook) {
 }
 
 
+
+// ---------------------------------------------------------------- voice: the helmet radios
+voice::Hearing HearDiver(const Match& m, int you, int them) {
+    voice::Hearing h; h.gain = 0;
+    if (you < 0 || them < 0 || you >= (int)m.divers.size() || them >= (int)m.divers.size() || you == them) return h;
+    const DiverState& L = m.divers[you];
+    const DiverState& S = m.divers[them];
+    Vector3 dir = Vector3Subtract(S.pos, L.pos);
+    float d = Vector3Length(dir);
+    Vector3 f{sinf(L.yaw), 0, cosf(L.yaw)}, r{-f.z, 0, f.x};   // (the look and its right, as the controls have them)
+    float pan = d > 0.5f ? std::clamp(Vector3DotProduct(Vector3Scale(dir, 1 / d), r), -1.0f, 1.0f) * 0.7f : 0;
+    bool rivals = m.mode == RM_POACHERS && Match::TeamOf(L.slot) != Match::TeamOf(S.slot);
+    if (rivals) {
+        // another channel: only what the water carries, close by, bubbling
+        float prox = std::clamp(1 - (d - 2) / 8, 0.0f, 1.0f);
+        h.gain = prox * 0.8f; h.bubble = 1; h.muffle = 0.5f; h.pan = pan;
+        return h;
+    }
+    // the team's radios: always heard; up close the voice comes through the water too and the radio's colour thins
+    float nearK = std::clamp((d - 6) / 24, 0.0f, 1.0f);
+    h.gain = 0.95f; h.pan = pan * (1 - nearK * 0.6f);
+    h.radio = 0.35f + 0.6f * nearK;
+    if (S.downed) { h.radio = 1; h.gain = 0.85f; }        // (a downed diver's set, crackling)
+    if (S.dead) { h.radio = 1; h.gain = 0.6f; h.muffle = 0.3f; }
+    return h;
+}
+
+int RunRedTideVoiceTest() {
+    int fails = 0;
+    auto check = [&](bool ok, const char* what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what); if (!ok) fails++; };
+    printf("Red Tide's helmet radios\n");
+    std::string why;
+    if (!DataOk(&why)) { printf("FAIL: no data: %s\n", why.c_str()); return 1; }
+    Match m; m.Init("ship", 4, 51, false);
+    DiverState& a = m.divers[0]; DiverState& b = m.divers[1];
+    a.pos = {0, 0, 0}; a.yaw = 0;                        // (facing +z; right is -x... as the controls have it)
+    b.pos = {2, 0, 2};
+    voice::Hearing nearH = HearDiver(m, 0, 1);
+    b.pos = {0, 0, 40};
+    voice::Hearing farH = HearDiver(m, 0, 1);
+    check(nearH.gain > 0.9f && farH.gain > 0.9f && farH.radio > nearH.radio + 0.3f, "a teammate is always heard on the radio, clearer up close, crackling far off");
+    Vector3 f{sinf(a.yaw), 0, cosf(a.yaw)}, r{-f.z, 0, f.x};
+    b.pos = Vector3Scale(r, 5);
+    check(HearDiver(m, 0, 1).pan > 0.4f, "a teammate on your right is heard on the right");
+    b.downed = true;
+    check(HearDiver(m, 0, 1).radio > 0.95f, "a downed diver's radio crackles");
+    b.downed = false;
+    Match p; p.mode = RM_POACHERS; p.Init("ship", 4, 52, false);
+    p.divers[0].pos = {0, 0, 0}; p.divers[1].pos = {0, 0, 4}; p.divers[2].pos = {0, 0, 30};
+    voice::Hearing rivalNear = HearDiver(p, 0, 1);
+    p.divers[1].pos = {0, 0, 15};
+    voice::Hearing rivalFar = HearDiver(p, 0, 1), mate = HearDiver(p, 0, 2);
+    check(rivalNear.gain > 0.3f && rivalNear.bubble > 0.9f && rivalFar.gain == 0 && mate.gain > 0.9f, "Poachers: the rival pair are on another channel, heard only through the water close by; your own pair on the radio anywhere");
+    printf(fails ? "redtide-voice-test: %d check(s) failed\n" : "redtide-voice-test: all checks passed\n", fails);
+    return fails ? 1 : 0;
+}
 // ---------------------------------------------------------------- the Long Night's save (host-side)
 static std::string LongNightPath(const std::string& map) { return std::string(GetApplicationDirectory()) + "redtide_longnight_" + map + ".sav"; }
 static const uint32_t LN_MAGIC = 0x4E4C5452;   // "RTLN"
