@@ -125,12 +125,12 @@ int Founder::Carry(const FounderDef& d) const { return std::max(1, chick ? d.car
 float World::Rand() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return (rng & 0xFFFFFF) / 16777216.0f; }
 void World::Say(const std::string& s) { if (quiet || predicting || !human) return; log.push_back(s); if (log.size() > 60) log.erase(log.begin()); }
 void World::SayTo(int side, const std::string& s) { if (side < 0 || side > (int)sides.size() || !HumanOf(side)) return; WithSide(side, [&] { bool q = quiet; quiet = false; Say(s); quiet = q; }); }
-float World::DayPhase() const { return fmodf(time / DAY + 0.22f, 1.0f); }   // (the match opens just before dawn's rise)
+float World::DayPhase() const { return EventNow(EV_LONG_NIGHT) ? 0.02f : fmodf(time / DAY + 0.22f, 1.0f); }   // (the Long Night: a whole day of dark)   // (the match opens just before dawn's rise)
 float World::FeedValue(int sp) const { return sp >= 0 && eco.map && sp < (int)eco.map->species.size() ? (float)eco.map->species[sp].size : 1; }
 float World::Thermal(Vector3 p) const {
     // thermals rise off the hill in the afternoon: free altitude
     float ph = DayPhase(), k = Smooth(0.42f, 0.5f, ph) * (1 - Smooth(0.68f, 0.76f, ph));
-    if (col.HasTier(Tree::Flight, 1)) k = std::max(k, 0.6f * Smooth(0.3f, 0.36f, ph) * (1 - Smooth(0.8f, 0.86f, ph)));   // (Thermal riding: lift all day)
+    if (col.HasTier(Tree::Flight, 1) || SeasonNow().thermalsAllDay) k = std::max(k, 0.6f * Smooth(0.3f, 0.36f, ph) * (1 - Smooth(0.8f, 0.86f, ph)));   // (Thermal riding, or summer: lift all day)
     if (volcano.isle >= 0 && p.y < 200) {   // (the volcano's thermals: free altitude all day)
         float dv = Vector2Distance({p.x, p.z}, {isles[volcano.isle].c.x, isles[volcano.isle].c.z});
         if (dv < 110) return 3.0f * (1 - dv / 110);
@@ -396,7 +396,7 @@ void World::FlyMotion(float dt, const FounderInput& in) {
         float drain = 0;
         if (f.sprinting) drain += 1.0f;                                     // (sprints and climbs cost breath; a level cruise is the bird's own pace)
         if (f.flapping && sinP > 0.05f) drain += 0.9f * sinP;
-        if (drain > 0) f.stamina -= drain * dt;
+        if (drain > 0) f.stamina -= drain * SeasonNow().stamina * dt;   // (winter's cold winds cost more)
         else if (f.flapping) f.stamina += 0.15f * dt;                     // (cruising level, it slowly gets its breath back)
         else f.stamina += (0.6f + (lift > 0.5f ? 0.8f : 0.0f) + (along > 0.5f ? 0.4f : 0.0f)) * dt;
         f.stamina = std::clamp(f.stamina, 0.0f, maxStam);
@@ -457,7 +457,7 @@ void World::Step(float realDt, const FounderInput& in) {
         float ph = DayPhase();
         float rise = std::max(Smooth(0.17f, 0.25f, ph) * (1 - Smooth(0.3f, 0.36f, ph)), Smooth(0.66f, 0.72f, ph) * (1 - Smooth(0.78f, 0.84f, ph)));
         float day = ph > 0.3f && ph < 0.7f ? 1.0f : 0.0f;
-        float target = rise > 0.01f ? -1.4f : day > 0 ? -3.8f : -11;   // (by day a few still come within a plunge's reach)
+        float target = (rise > 0.01f ? -1.4f : day > 0 ? -3.8f : -11) - SeasonNow().fishDepth;   // (by day a few still come within a plunge's reach; winter: deeper)
         for (auto& a : eco.agents) {
             if (!a.alive || a.diver >= 0) continue;
             const rt::Species& s = eco.map->species[a.sp];
@@ -467,7 +467,7 @@ void World::Step(float realDt, const FounderInput& in) {
             const rt::Zone& z = eco.map->zones[zi];
             float hh = sinf(a.home.x * 12.9898f + a.home.z * 78.233f) * 43758.5453f;   // (from its home point: steady, unlike its rng)
             float own = (hh - floorf(hh) - 0.5f) * (rise > 0.01f ? 1.0f : 4.0f);   // (each fish keeps its own depth round the shoal's)
-            float tz = rise <= 0.01f && day > 0 && zi < (int)zoneDay.size() ? zoneDay[zi] : target;   // (a zone's own day depth: upwelling round a stack)
+            float tz = rise <= 0.01f && day > 0 && zi < (int)zoneDay.size() ? zoneDay[zi] - SeasonNow().fishDepth : target;   // (a zone's own day depth: upwelling round a stack)
             float t = std::clamp(tz + own, z.y0 + 0.4f, z.y1 - 0.3f);
             // (the web steers a fish back to its home point and toward its goal: move their depth too, or it dives back)
             a.home.y = t;
@@ -479,6 +479,7 @@ void World::Step(float realDt, const FounderInput& in) {
     eco.Step(dt);
     StepTowns(dt);
     if (wholeMap) StepDanger(dt);
+    StepSeasons(dt);
     fogT += dt; fogNow = fogT >= 0.25f;
     if (fogNow) fogT = 0;
     StepColony(dt);   // (the caches spoil, the grounds regrow, the colony lives)

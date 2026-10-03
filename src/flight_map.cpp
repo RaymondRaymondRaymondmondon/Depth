@@ -501,6 +501,7 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
     me.st = FState::Perched; me.pos = island.nest;
     InitTowns();
     InitDanger();
+    seasons = o.seasons; InitSeasons();   // (the long match: seasons and their events)
     truceUntil.assign((sides.size() + 1) * (sides.size() + 1), -1);
     Reveal(me.pos, 120, home);
     StepMap(0);
@@ -768,6 +769,7 @@ int RunFlightScoutTest() {
     MapOpts o; o.players = 4; o.arr = Arrangement::Archipelago; o.home = IsleType::Tropical;
     auto fresh = [&](World& w, int scouts) {
         w.Init("taloned", 3, o);
+        w.ape.isle = -1; w.kraken.isle = -1;   // (scouting alone: the dangerous islands have their own test)
         for (int k = 0; k < scouts; k++) { Bird b; b.id = w.col.nextId++; b.stage = BStage::Adult; b.role = Role::Scout; b.pos = w.col.caches[0].pos; b.hunger = 1; w.col.birds.push_back(b); }
         w.me.hunger = 1;
     };
@@ -795,7 +797,7 @@ int RunFlightScoutTest() {
         World v; fresh(v, 1); seedRival(v);
         v.SendScout(target, -1, {}, (Alt)alt);
         float t0 = v.time; bool reported = false;
-        while (v.time - t0 < World::DAY * 2 && !reported) { v.Step(0.1f, FounderInput{}); reported = v.know.sight[target].t >= 0; }
+        while (v.time - t0 < World::DAY * 3 && !reported) { v.Step(0.1f, FounderInput{}); reported = v.know.sight[target].t >= 0; }   // (800 m out and back, and the night's rest since stage 6)
         const Sighting& s = v.know.sight[target];
         int seenNear = 0; float R = AltSight((Alt)alt);
         for (int j = 0; j < v.know.nz; j++) for (int i = 0; i < v.know.nx; i++) {
@@ -807,7 +809,7 @@ int RunFlightScoutTest() {
         bool logged = !v.know.log.empty() && v.know.log.back().text.find(v.isles[target].name) != std::string::npos;
         check(reported && s.alt == alt && counted && logged && v.know.isle[target] >= 1,
               TextFormat("a scout flown %s to %s (%.0f m off) comes home and reports %s%d nests (truly %d) after %.2f days; it saw %d fog cells round the island (sight %.0f m)", AltName((Alt)alt), v.isles[target].name.c_str(), dist,
-                         s.exact ? "" : "about ", s.nests, trueNests, (v.time - t0) / World::DAY, seenNear, R));
+                         s.exact ? "" : "about ", s.nests, trueNests, (v.time - t0) / World::DAY, seenNear, R) + std::string(TextFormat(" [scout: %s]", [&] { for (const auto& b : v.col.birds) if (b.role == Role::Scout) return b.alive ? (b.netT > 0 ? "netted" : b.observed ? "observed, flying home" : "alive, not there yet") : (b.cause.empty() ? "dead" : b.cause.c_str()); return "gone"; }())));
     }
     check(cells[2] > cells[1] && cells[1] > cells[0], "the higher it flies, the more of the map it clears");
     // ---- two high scouts on the same island cross-check: the count becomes exact

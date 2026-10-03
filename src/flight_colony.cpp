@@ -210,13 +210,13 @@ void World::RegrowFish(float dt) {
     for (auto& s : stocks) {
         const rt::Species& sp = eco.map->species[s.sp];
         if (wholeMap && s.zone < (int)liveZone.size() && !liveZone[s.zone]) {   // (asleep: the count regrows as a number)
-            float r = E.regrow[std::clamp(sp.size, 0, 6)];
+            float r = E.regrow[std::clamp(sp.size, 0, 6)] * RegrowMul(s.zone);
             s.pop = std::min(s.K, s.pop + step / DAY * (r * s.pop * (1 - s.pop / std::max(1.0f, s.K)) + E.immigration * s.K));
             continue;
         }
         int n = 0; int any = -1;
         for (int i = 0; i < (int)eco.agents.size(); i++) { const auto& a = eco.agents[i]; if (a.alive && a.diver < 0 && a.sp == s.sp && a.homeZone == s.zone) { n++; if (any < 0 || Rand() < 0.2f) any = i; } }
-        float r = E.regrow[std::clamp(sp.size, 0, 6)];
+        float r = E.regrow[std::clamp(sp.size, 0, 6)] * RegrowMul(s.zone);   // (the season, and the Spawning)
         float N = (float)n, K = std::max(1.0f, s.K);
         s.births += step / DAY * (r * N * (1 - N / K) + E.immigration * K);
         while (s.births >= 1 && n < (int)ceilf(K)) {
@@ -608,7 +608,7 @@ void World::MateStep(Bird& b, float dt) {
         if (b.clutchT >= E.clutchDays * DAY) {
             int inNest = 0; for (const auto& o : col.birds) if (o.alive && o.nest == b.nest && (o.stage == BStage::Egg || o.stage == BStage::Chick)) inNest++;
             int eggs = E.clutchMin + (int)(Rand() * (E.clutchMax - E.clutchMin + 1));
-            eggs += BendNow().clutch;
+            { float c = BendNow().clutch; eggs += (int)floorf(c) + (Rand() < c - floorf(c) ? 1 : 0); }   // (a fractional bend: a chance of one egg more)
             eggs = std::min(eggs, NestEggs() - inNest);
             if (eggs > 0) {
                 for (int k = 0; k < eggs; k++) { Bird e; e.id = col.nextId++; e.stage = BStage::Egg; e.nest = b.nest; e.pos = n.pos; e.hunger = 1; born.push_back(e); }   // (appended after the loop: b is a reference into col.birds)
@@ -787,8 +787,8 @@ void World::StepColony(float dt) {
     for (int i = 0; i < (int)col.nests.size(); i++) {
         Nest& n = col.nests[i];
         if (!n.built || n.mate >= 0) continue;
-        if (n.mateT < 0 && n.bowl >= n.bowlNeed && col.wildMates > 0) {
-            float mul = E.tropicalMate * BendNow().mateTime;
+        if (n.mateT < 0 && (n.bowl >= n.bowlNeed || EventNow(EV_MIGRATION)) && col.wildMates > 0) {   // (the Migration: mates come free)
+            float mul = E.tropicalMate * BendNow().mateTime * SeasonNow().mateTime;
             n.mateT = (E.mateMin + (E.mateMax - E.mateMin) * Rand()) * DAY * mul;
             Say("The courtship bowl is full: a mate will come within the day.");
         }
@@ -1023,7 +1023,7 @@ int World::BotFounderStep(float dt) {
     // (a careful player courts the first mate at once, later ones only while the colony is fed with room to spare)
     int court = -1;
     float mouths = MouthsPerDay(), feed = FeedPerDayEstimate();
-    bool affordable = Count(BStage::Mate) == 0 || (DaysOfFood() > 1.2f && feed >= mouths + Econ().feedAdult + 2 * Econ().feedChick);
+    bool affordable = Count(BStage::Mate) == 0 || (DaysOfFood() > 0.4f && feed >= mouths * 0.95f + Econ().feedAdult);   // (a catch that keeps up with the mouths, and a little in store)
     if (affordable || (fb.target >= 1000 && fb.carrySp >= 0))
         for (int i = 0; i < (int)col.nests.size(); i++) { const Nest& n = col.nests[i]; if (n.built && n.mate < 0 && n.mateT < 0 && col.wildMates > 0) { court = i; break; } }
     if (court >= 0) {
@@ -1124,7 +1124,7 @@ int RunFlightColonyTest() {
     std::string why;
     if (!rt::DataOk(&why)) { printf("FAIL: no data: %s\n", why.c_str()); return 1; }
     const Economy& E = Econ();
-    check(E.courtFish == 3 && E.nestEggs == 4 && E.hatchDays == 1 && E.chickDays == 2, "the economy loads (courtship 3 fish, 4 eggs a nest, hatch in a day, fledge in two)");
+    check(E.courtFish == 3 && E.nestEggs == 4 && E.hatchDays == 1 && fabsf(E.chickDays - 1.2f) < 0.01f, "the economy loads (courtship 3 fish, 4 eggs a nest, hatch in a day, fledge in 1.2: stage 8's pace, doc p27 fledglings by day 3)");
     const float D = World::DAY;
     auto run = [&](World& w, float secs, float dt = 0.1f) { FounderInput in; dt = std::min(dt, 0.1f); for (float t = 0; t < secs; t += dt) { w.Step(dt, in); } };   // (Step takes at most 0.1 s)
     // ---- the Founder's courtship: three fish of size 2+ in the bowl call a mate within a day

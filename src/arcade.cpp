@@ -33,8 +33,20 @@ int gRtModeSel = 0;       // and its mode (design doc "Modes")
 int gRtSeasonPick = 0;    // and the species season (0 none)
 static bool gRtCustomOpen = false;   // Custom mode's rules panel, over the arcade
 // the Flight's choices: your founder, your island, the arrangement, the starting islands (solo), the match's length
-int gFlSel = 0, gFlIsle = 0, gFlArr = 0, gFlPlayers = 4, gFlMinutes = 1;
-std::string FlOpts() { const auto& L = fl::MatchLengths(); return fl::FlightHostOpts(gFlArr, gFlIsle, L.empty() ? 30 : L[std::clamp(gFlMinutes, 0, (int)L.size() - 1)]); }
+int gFlSel = 0, gFlIsle = 0, gFlArr = 0, gFlPlayers = 4, gFlMinutes = 1, gFlSoloSeasons = 0;
+// the match's length: the standard lengths, then the expansion's long matches by seasons (2, 3 or 4)
+int FlLengthCount() { return std::max(1, (int)fl::MatchLengths().size()) + 3; }
+int FlSeasonsOf(int i) { int n = std::max(1, (int)fl::MatchLengths().size()); return i >= n ? 2 + (i - n) : 0; }
+std::string FlLengthName(int i) {
+    const auto& L = fl::MatchLengths(); int s = FlSeasonsOf(i);
+    if (s) { static const char* N[5] = {"", "", "Two seasons", "Three seasons", "Four seasons"}; return TextFormat("%s (%d days)", N[s], fl::SeasonDays(s)); }
+    return TextFormat("%d minutes", L.empty() ? 30 : L[std::clamp(i, 0, (int)L.size() - 1)]);
+}
+std::string FlOpts() {
+    const auto& L = fl::MatchLengths(); int s = FlSeasonsOf(gFlMinutes);
+    int minutes = s ? (int)(fl::SeasonDays(s) * fl::World::DAY / 60) : L.empty() ? 30 : L[std::clamp(gFlMinutes, 0, (int)L.size() - 1)];
+    return fl::FlightHostOpts(gFlArr, gFlIsle, minutes) + (s ? TextFormat(":seasons=%d", s) : "");
+}
 std::string RtOpts() { return std::string(RT_MAP_KEYS[gRtMapSel]) + ":" + RedTideModeKey(gRtModeSel) + ":" + std::to_string(gRtSeasonPick) + (std::string(RedTideModeKey(gRtModeSel)) == "custom" ? ":" + RedTideCustomRules() : std::string()); }
 bool gTrawlFp = false;   // the Trawl's view for a networked match (the reel remembers the last one chosen)
 int twCrew = 4;           // the Trawl's hands sailing solo (the rest are bots)
@@ -257,8 +269,8 @@ void DrawReels(Game& g) {
         // the map: your island type, the arrangement, how many starting islands (the rivals sit still until stage 4)
         int& flIsle = gFlIsle; int& flArr = gFlArr; int& flPlayers = gFlPlayers;
         // (on a plate to the left of the drum, like Red Tide's pages)
-        DrawRectangleRounded({28, 236, 268, 240}, 0.08f, 6, Fade(Color{8, 30, 34, 255}, 0.85f));
-        DrawRectangleRoundedLinesEx({28, 236, 268, 240}, 0.08f, 6, 2, Pal::BrassDk);
+        DrawRectangleRounded({28, 236, 268, 296}, 0.08f, 6, Fade(Color{8, 30, 34, 255}, 0.85f));
+        DrawRectangleRoundedLinesEx({28, 236, 268, 296}, 0.08f, 6, 2, Pal::BrassDk);
         DrawTextCenteredBold("The map", 162, 246, 18, Color{230, 200, 150, 255});
         auto cyc = [&](float y, const char* label, int& v, int n, const char* text) {
             Rectangle l{40, y + 16, 24, 22}, r{260, y + 16, 24, 22};
@@ -271,8 +283,9 @@ void DrawReels(Game& g) {
         cyc(276, "your island", flIsle, 4, FlightIsleTypeName(flIsle));
         cyc(326, "the arrangement", flArr, 4, FlightArrangementName(flArr));
         { int pv = flPlayers - 2; cyc(376, "starting islands (solo)", pv, 5, TextFormat("%d: you and %d bot colonies", flPlayers, flPlayers - 1)); flPlayers = pv + 2; }
-        DrawWrapped(FlightFounderLine(flSel), {40, 424, 244, 48}, 13, SCREEN_DIM);
-        if (Button({c.x - 110, c.y + 236, 220, 36}, "Fly (solo)", true, 15)) { StartFlight(g, FlightFounderKey(flSel), flIsle, flArr, flPlayers); return; }
+        { static const char* M[4] = {"Standard (no limit)", "Two seasons (7 days)", "Three seasons (11 days)", "Four seasons (16 days)"}; int mv = gFlSoloSeasons ? gFlSoloSeasons - 1 : 0; cyc(426, "the match", mv, 4, M[mv]); gFlSoloSeasons = mv ? mv + 1 : 0; }
+        DrawWrapped(FlightFounderLine(flSel), {40, 478, 244, 48}, 13, SCREEN_DIM);
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Fly (solo)", true, 15)) { StartFlight(g, FlightFounderKey(flSel), flIsle, flArr, flPlayers, gFlSoloSeasons); return; }
         if (Button({c.x + 120, c.y + 236, 170, 36}, "Roost wardrobe", true, 14)) { gFlWardrobe = true; return; }
         DrawTextCentered("Host or Join to fly with friends (2-6; the host picks the map and the length in the lobby)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
@@ -490,10 +503,11 @@ void DrawLobby() {
         const auto& L = fl::MatchLengths();
         bool ch = pick(p.x + 195, p.y + p.height - 140, FlightIsleTypeName(gFlIsle), gFlIsle, 4);
         ch |= pick(p.x + 195, p.y + p.height - 108, FlightArrangementName(gFlArr), gFlArr, 4);
-        ch |= pick(p.x + 505, p.y + p.height - 140, TextFormat("%d minutes", L.empty() ? 30 : L[std::clamp(gFlMinutes, 0, (int)L.size() - 1)]), gFlMinutes, std::max(1, (int)L.size()));
+        ch |= pick(p.x + 505, p.y + p.height - 140, FlLengthName(gFlMinutes).c_str(), gFlMinutes, FlLengthCount());
         DrawTextCentered(TextFormat("your founder: %s", FlightFounderName(gFlSel)), p.x + 505, p.y + p.height - 104, 15, Color{180, 230, 220, 255});
         gSess.gameOpts = FlOpts();
-        if (ch) gSess.Chat(std::string("The map: ") + FlightIsleTypeName(gFlIsle) + " homes, " + FlightArrangementName(gFlArr) + TextFormat(", %d minutes", L.empty() ? 30 : L[std::clamp(gFlMinutes, 0, (int)L.size() - 1)]));
+        if (ch) gSess.Chat(std::string("The map: ") + FlightIsleTypeName(gFlIsle) + " homes, " + FlightArrangementName(gFlArr) + ", " + FlLengthName(gFlMinutes));
+        (void)L;
     } else if (gSess.game == G_FLIGHT) DrawTextCentered(TextFormat("your founder: %s (pick it on the reel)", FlightFounderName(gFlSel)), p.x + 350, p.y + p.height - 104, 15, Color{180, 230, 220, 255});
     if (host) {
         std::string why;

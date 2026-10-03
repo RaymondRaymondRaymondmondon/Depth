@@ -1,5 +1,5 @@
 [
-  {"key": "fisher", "name": "Fisher", "hp": 60, "speed": 12, "carry": 2, "what": "Fishes an assigned ground and returns fish to the nearest cache; the economy. A fisher catches 3-6 fish a day by ground; dies to sharks if the ground is bloody."},
+  {"key": "fisher", "name": "Fisher", "hp": 60, "speed": 12, "carry": 3, "what": "Fishes an assigned ground and returns fish to the nearest cache; the economy. A fisher catches 3-6 fish a day by ground; dies to sharks if the ground is bloody."},
   {"key": "feeder", "name": "Feeder", "hp": 60, "speed": 14, "carry": 2, "what": "Carries fish from caches to nests and to birds on duty. Without feeders, every bird fetches its own and loses a third of its day."},
   {"key": "builder", "name": "Builder", "hp": 70, "speed": 11, "carry": 3, "what": "Gathers twigs and shells; builds and repairs nests and caches. Three builders raise a nest in a game hour."}
 ]

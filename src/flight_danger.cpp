@@ -298,7 +298,7 @@ void World::StepWorks(float dt) {
     if (C.HasTier(Tree::Bombing, 1)) {
         C.bombT += dt;
         float every = DAY * (C.boomState == 1 ? 0.6f : 1.0f);
-        if (C.bombT >= every) { C.bombT = 0; if (C.bombs < D.bMax && C.guano >= D.bGuano && C.sulfur >= D.bSulfur) { C.bombs++; C.guano -= D.bGuano; C.sulfur -= D.bSulfur; Say(TextFormat("The Works have made a bomb (%d ready).", C.bombs)); } }
+        if (C.bombT >= every) { C.bombT = 0; float bg = D.bGuano * SeasonNow().bombCost; if (C.bombs < D.bMax && C.guano >= bg && C.sulfur >= D.bSulfur) { C.bombs++; C.guano -= bg; C.sulfur -= D.bSulfur; Say(TextFormat("The Works have made a bomb (%d ready).", C.bombs)); } }
         if (C.HasTier(Tree::Bombing, 4)) { C.blockT += dt; if (C.blockT >= D.blockEvery * DAY) { C.blockT = 0; if (C.blockbusters < 2 && C.guano >= 2 * D.bGuano && C.sulfur >= 2 * D.bSulfur) { C.blockbusters++; C.guano -= 2 * D.bGuano; C.sulfur -= 2 * D.bSulfur; Say("The Works have made a blockbuster."); } } }
     }
     // stimulants: each Chemist brews a dose every half day of the colony's choice, if it's researched and afforded
@@ -326,7 +326,7 @@ void World::StepDanger(float dt) {
     // ---- weather: a storm every three to five days for two hours; fog some dawns
     if (weather.kind != 0) { weather.t -= dt; if (weather.t <= 0) { weather.kind = 0; for (int s = 0; s < N; s++) SayTo(s, "The weather clears."); } }
     if (weather.kind == 0 && time >= weather.next) {
-        weather.kind = 1; weather.t = D.stormHours * DAY / 24; weather.next = time + (D.stormMin + (D.stormMax - D.stormMin) * Rand()) * DAY;
+        weather.kind = 1; weather.t = D.stormHours * DAY / 24; weather.next = time + (D.stormMin + (D.stormMax - D.stormMin) * Rand()) * DAY / std::max(0.2f, SeasonNow().stormK);   // (autumn: storms twice as often)
         for (auto& t : towns) t.storm = weather.t + DAY * 0.25f;
         for (int s = 0; s < N; s++) SayTo(s, "A storm crosses the map: every bird is grounded until it passes (the towns pay double for fish).");
         // the atoll floods: eggs on its ring are lost
@@ -340,7 +340,8 @@ void World::StepDanger(float dt) {
         Vector3 cove = isles[kraken.isle].c;
         float blood = eco.BloodNear({cove.x, -0.5f, cove.z}, D.kRadius);
         bool offered = false; for (int s = 0; s < N; s++) offered |= time - ColOf(s).offeredKraken < D.kNeglect * DAY;
-        int want = StormNow() || blood > 2 * D.kWakeBlood || (!offered && time > D.kNeglect * DAY) ? 2 : blood > D.kWakeBlood ? 1 : 0;
+        float wake = D.kWakeBlood * SeasonNow().krakenWake;   // (autumn: it wakes on half the blood)
+        int want = StormNow() || blood > 2 * wake || (!offered && time > D.kNeglect * DAY) ? 2 : blood > wake ? 1 : 0;
         if (want > kraken.mood) { kraken.mood = want; kraken.calmT = 0; if (want == 2) for (int s = 0; s < N; s++) if (NestsOn(s, kraken.isle) > 0 || Flat2(FounderOf(s).pos, cove) < 400) SayTo(s, "THE KRAKEN SURFACES in its cove."); }
         else if (want < kraken.mood) { kraken.calmT += dt; if (kraken.calmT > D.kCalm * DAY) { kraken.mood = want; kraken.calmT = 0; } }
         // grabs: any bird low over the cove whose colony hasn't offered today

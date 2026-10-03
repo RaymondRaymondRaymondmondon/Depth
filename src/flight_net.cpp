@@ -279,6 +279,7 @@ ScoreCard World::Score(int side) const {
     c.birds = (int)lroundf(adults * K.bird + chicks * K.chick);
     c.nests = (int)lroundf(nests * K.nest);
     for (int i = 0; i < (int)isles.size(); i++) if (HolderOf(i) == side) c.isles += IsDangerous(isles[i].type) ? (int)K.danger : (int)K.island;   // (islands held: the most nests on them)
+    if (seasons >= 4 && Season() == SEASON_WINTER) { c.isles = (int)lroundf(c.isles * WinterHoldings()); c.nests = (int)lroundf(c.nests * WinterHoldings()); }   // (Winter's holdings count double)
     c.cache = (int)(fish / std::max(1.0f, K.cachePer));
     c.kills = (int)lroundf(C.kills * K.kill);
     c.founder = F.deaths == 0 ? (int)K.founder : 0;
@@ -485,6 +486,7 @@ template <class A> void Visit(A& a, World& w, bool full) {
     a.b(w.over); a.i(w.winner); a.s(w.overReason); a.f(w.matchLen);
     a.s(w.name0);
     a.f(w.dayAcc); a.i(w.dayNum);
+    { a.i(w.seasons); a.i(w.seasonEvent); a.f(w.eventUntil); int ed = (int)w.eventsDone; a.i(ed); w.eventsDone = (uint32_t)ed; for (float& d : w.eventDay) a.f(d); }   // (the long match's seasons and events)
     int N = (int)w.sides.size(); a.i(N);
     if (N != (int)w.sides.size()) { if constexpr (A::reading) a.r.bad = true; return; }
     // every side, in absolute order: its Founder, who flies it, its colony (yours in full), its name and livery
@@ -613,7 +615,7 @@ class FlightHost : public arcade::GameHost {
 public:
     std::unique_ptr<World> w = std::make_unique<World>();
     int arr = 0, homeType = 0, minutes = 30;
-    bool test = false;
+    bool test = false; int seasonsOpt = 0;
     int players = 2;
     std::vector<FounderInput> pend;
     uint32_t lobbyAi = 0, autoMask = 0;
@@ -627,13 +629,14 @@ public:
         int a = 0, h = 0, m = 30;
         if (sscanf(opts.c_str(), "%d:%d:%d", &a, &h, &m) >= 1) { arr = std::clamp(a, 0, (int)Arrangement::COUNT - 1); homeType = std::clamp(h, 0, 3); minutes = std::clamp(m, 1, 120); }
         test = opts.find(":test") != std::string::npos;
+        size_t ss = opts.find(":seasons="); seasonsOpt = ss != std::string::npos ? std::clamp(atoi(opts.c_str() + ss + 9), 0, 4) : 0;
         size_t sp = opts.find(":step=");
         stepDt = sp != std::string::npos ? std::clamp((float)atof(opts.c_str() + sp + 6), 1 / 60.0f, 0.1f) : 1 / 30.0f;
     }
     void Start(int n, uint32_t seed) override {
         players = std::clamp(n, 2, 6);
         MapOpts o; o.players = players; o.arr = (Arrangement)arr; o.home = (IsleType)homeType;
-        o.humanMask = (1u << players) - 1; o.minutes = (float)minutes; o.multi = true;
+        o.humanMask = (1u << players) - 1; o.minutes = (float)minutes; o.multi = true; o.seasons = seasonsOpt;
         w = std::make_unique<World>();
         w->Init("taloned", seed, o);
         w->name0 = "Host";

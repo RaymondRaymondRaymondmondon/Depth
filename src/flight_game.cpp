@@ -955,6 +955,10 @@ void DrawHud(const fl::World& w) {
         bool rise = (ph > 0.17f && ph < 0.36f) || (ph > 0.66f && ph < 0.84f);
         const char* part = ph < 0.2f || ph > 0.86f ? "night" : ph < 0.32f ? "dawn" : ph < 0.68f ? "day" : "dusk";
         DrawTextCentered(TextFormat("%02d:%02d  %s", hh, mm, part), c.x - 20, c.y + 66, 17, ink);
+        if (w.seasons > 0 && w.Season() >= 0) {   // (the long match: the season and the day of the match)
+            static const Color SC[4] = {{170, 240, 160, 255}, {255, 220, 120, 255}, {240, 160, 90, 255}, {190, 220, 255, 255}};
+            DrawTextCentered(TextFormat("%s, day %d of %d", w.SeasonNow().name.c_str(), w.GameDay(), fl::SeasonDays(w.seasons)), c.x - 20, c.y + 86, 14, SC[w.Season()]);
+        }
         if (rise) DrawTextCentered("the fish are rising", c.x - 30, c.y + 88, 15, Color{180, 255, 220, 255});
         float dof = w.DaysOfFood();
         DrawTextCentered(TextFormat("colony: %d birds", w.Alive()), c.x - 20, c.y + 110, 16, ink);
@@ -1042,6 +1046,7 @@ void DrawHud(const fl::World& w) {
     // the dangers (stage 7): the weather, the volcano, the kraken and the ape when they're near
     if (w.wholeMap) {
         std::vector<std::pair<std::string, Color>> warn;
+        if (w.seasonEvent >= 0 && w.EventNow(w.seasonEvent)) warn.push_back({std::string(fl::SeasonEventName(w.seasonEvent)) + ": " + fl::Seasons()[w.seasonEvent].eventWhat, Color{255, 236, 160, 255}});
         if (w.weather.kind == 1) warn.push_back({"STORM: the wind runs wild; every flock makes for home", Color{200, 220, 255, 255}});
         if (w.weather.kind == 2) warn.push_back({"FOG: the sea is shut in; Watchers see half as far", Color{230, 236, 240, 255}});
         if (w.volcano.isle >= 0) {
@@ -1986,8 +1991,8 @@ void FlightAudioFrame(const fl::World& w, float dt) {
 }
 }  // namespace
 
-void StartFlight(Game& g, const char* founder, int isleType, int arrangement, int players) {
-    fl::MapOpts o; o.home = (fl::IsleType)std::clamp(isleType, 0, 3); o.arr = (fl::Arrangement)std::clamp(arrangement, 0, 3); o.players = std::clamp(players, 2, 6);
+void StartFlight(Game& g, const char* founder, int isleType, int arrangement, int players, int seasons) {
+    fl::MapOpts o; o.home = (fl::IsleType)std::clamp(isleType, 0, 3); o.arr = (fl::Arrangement)std::clamp(arrangement, 0, 3); o.players = std::clamp(players, 2, 6); o.seasons = seasons;
     Start(g, founder ? founder : "taloned", (uint32_t)GetRandomValue(1, 1 << 30), false, o);
 }
 const char* FlightIsleTypeName(int t) { return fl::IsleTypeName((fl::IsleType)std::clamp(t, 0, 3)); }

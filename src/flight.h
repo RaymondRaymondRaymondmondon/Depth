@@ -82,7 +82,22 @@ struct MapOpts {
     uint32_t humanMask = 1;
     float minutes = 0;                          // 0: no limit (solo)
     bool multi = false;                         // no slow motion in a strike (the world can't crawl for one player)
+    int seasons = 0;                            // (the expansion's long match) 0 standard; 2, 3 or 4 seasons (7, 11 or 16 game days)
 };
+// ---------------------------------------------------------------- the long match (the expansion, doc pp. 35-51: flight_long.cpp)
+enum SeasonId { SEASON_SPRING = 0, SEASON_SUMMER, SEASON_AUTUMN, SEASON_WINTER, SEASON_COUNT };
+enum SeasonEvent { EV_SPAWNING = 0, EV_TUNA_RUN, EV_MIGRATION, EV_LONG_NIGHT, EV_SEASON_COUNT };
+struct SeasonFx {   // what a season does to the sea, the wind and the work (flight_long.json "seasons")
+    std::string name, sea, wind, rewards, event, eventWhat;
+    float regrowNear = 1, regrowFar = 1, mateTime = 1, windK = 1, stormK = 1, krakenWake = 1, stamina = 1, fishDepth = 0, bombCost = 1;
+    bool thermalsAllDay = false, galeOneQuarter = false;
+    int firstDay = 1, lastDay = 3;
+};
+const std::vector<SeasonFx>& Seasons();
+int SeasonDays(int seasons);                    // a long match's length in game days (2: 7, 3: 11, 4: 16)
+const char* SeasonEventName(int e);
+float WinterHoldings();
+int RunFlightLongTest();                        // depth.exe --flight-long-test                         // (a four-season match: Winter's islands and nests count this many times)
 struct IsleSpec { IsleType type = IsleType::Islet; Vector3 c{}; int start = -1; std::string name; };
 std::vector<IsleSpec> LayoutMap(const MapOpts& o);   // slot 0 at the origin; rotational fairness
 struct Rival { int isle = -1; std::vector<Vector3> nests; std::vector<Vector3> caches; int birds = 0; };   // (a colony that sits still until stage 4)
@@ -265,7 +280,7 @@ ResearchCost ResearchCostOf(int tier);
 struct Bend {
     float fishHit = 1, speed = 1, attack = 1, mateTime = 1, fervourGain = 1, fervourCap = 100, trade = 1, traderCarry = 1;
     float convert = 1, rest = 1, guano = 1, research = 1, stamina = 1, wind = 1, scout = 1, reach = 1, nestTwigs = 1, predatorRange = 1;
-    int carry = 0, clutch = 0, fledgeDays = 0, earlyTrees = 0;   // earlyTrees: bits by Tree that research faster and a day sooner
+    int carry = 0, earlyTrees = 0; float clutch = 0, fledgeDays = 0;   // (clutch: eggs, fractional = a chance of one more or one less)   // earlyTrees: bits by Tree that research faster and a day sooner
     bool nightFishing = false, eggTheft = false, noFaith = false, boom = false, goldenNest = false, talonLock = false, skim = false;
     bool tear = false, serenade = false, duskRaid = false, cornering = false, pilgrimage = false, brood = false, longReach = false;
 };
@@ -459,6 +474,19 @@ struct World {
     void InitTowns();
     // stage 7 (flight_danger.cpp): the dangerous islands, the weather, holding islands, sieges, bombs and stimulants
     Kraken kraken; Ape ape; Volcano volcano; WreckState wreck; Weather weather;
+    // the long match (flight_long.cpp): seasons and their events
+    int seasons = 0;                            // (MapOpts::seasons) 0: a standard match, no seasons
+    int seasonEvent = -1; float eventUntil = 0; uint32_t eventsDone = 0; float eventDay[EV_SEASON_COUNT] = {-1, -1, -1, -1};
+    std::vector<int> tuna;                      // (the Tuna Run's school: agent indices)
+    Vector3 tunaFrom{}, tunaTo{};
+    std::vector<uint8_t> zoneNear;              // (a ground near an island's shore: summer thins them)
+    int GameDay() const { return (int)(time / DAY) + 1; }
+    int Season() const;                         // SEASON_* or -1 in a standard match
+    const SeasonFx& SeasonNow() const;          // (a standard match: no change)
+    bool EventNow(int e) const { return seasonEvent == e && time < eventUntil; }
+    void InitSeasons();
+    void StepSeasons(float dt);
+    float RegrowMul(int zone) const;
     std::vector<std::string> lookOf;            // (stage 8) per absolute side: "costume;livery colour;livery hat" (cosmetic; from the hello)
     std::string& LookOf(int s) { if ((int)lookOf.size() <= s) lookOf.resize(s + 1); return lookOf[s]; }
     std::vector<int> outpostIsle;               // (scratch)
@@ -513,7 +541,7 @@ struct World {
     void Say(const std::string& s);              // (your log; silent while a rival steps)
     float Rand();
     // the sea
-    Vector2 WindAt() const { Vector2 v = wind.At(time); float k = weather.kind == 1 ? 2.5f : 1.0f; return {v.x * k, v.y * k}; }   // (a storm: a gale)
+    Vector2 WindAt() const { Vector2 v = wind.At(time); float k = (weather.kind == 1 ? 2.5f : 1.0f) * SeasonNow().windK; return {v.x * k, v.y * k}; }   // (a storm: a gale)
     float Thermal(Vector3 p) const;             // updraft m/s (the hill in the afternoon)
     int FishNear(Vector3 p, float r, float maxDepth, int* count = nullptr) const;   // nearest catchable fish agent
     float FeedValue(int sp) const;              // a fish's size class

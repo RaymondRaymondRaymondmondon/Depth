@@ -105,7 +105,7 @@ const Bend& BendOf(int def) {
             Fl("fish_hit", b.fishHit); Fl("speed", b.speed); Fl("attack", b.attack); Fl("mate_time", b.mateTime); Fl("fervour_gain", b.fervourGain); Fl("fervour_cap", b.fervourCap);
             Fl("trade", b.trade); Fl("trader_carry", b.traderCarry); Fl("convert", b.convert); Fl("rest", b.rest); Fl("guano", b.guano); Fl("research", b.research);
             Fl("stamina", b.stamina); Fl("wind", b.wind); Fl("scout", b.scout); Fl("reach", b.reach); Fl("nest_twigs", b.nestTwigs); Fl("predator_range", b.predatorRange);
-            In("carry", b.carry); In("clutch", b.clutch); In("fledge_days", b.fledgeDays);
+            In("carry", b.carry); Fl("clutch", b.clutch); Fl("fledge_days", b.fledgeDays);
             Bo("night_fishing", b.nightFishing); Bo("egg_theft", b.eggTheft); Bo("no_faith", b.noFaith); Bo("boom", b.boom); Bo("golden_nest", b.goldenNest);
             Bo("talon_lock", b.talonLock); Bo("skim", b.skim); Bo("tear", b.tear); Bo("serenade", b.serenade); Bo("dusk_raid", b.duskRaid); Bo("cornering", b.cornering);
             Bo("pilgrimage", b.pilgrimage); Bo("brood", b.brood); Bo("long_reach", b.longReach);

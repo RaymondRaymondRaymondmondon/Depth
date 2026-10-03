@@ -1,0 +1,26 @@
+{
+  "_source": "The Flight design document pp. 35-36 (the long match: the seasons, what they change and reward, their events) and p. 49 (pacing). Days are game days (2 real minutes each, the user's call), so a four-season match is 16 days.",
+  "season_days": {"2": 7, "3": 11, "4": 16},
+  "seasons": [
+    {"name": "Spring", "first": 1, "last": 3,
+     "sea": "Fish rise to the shallows; lagoons are full; mates are plentiful", "wind": "Light, shifting", "rewards": "Growth: nests, clutches, the first fishers",
+     "regrow_near": 1.3, "regrow_far": 1.0, "mate_time": 0.7, "wind_k": 0.6, "storm_k": 0.5,
+     "event": "The Spawning", "event_what": "Every ground doubles for a day; the sharks sleep"},
+    {"name": "Summer", "first": 4, "last": 7,
+     "sea": "Grounds thin near islands; the blue is rich; thermals all day", "wind": "Steady trades (predictable)", "rewards": "Expansion, trade, the first wars; Bombers fly cheap on thermals",
+     "regrow_near": 0.7, "regrow_far": 1.4, "wind_k": 0.9, "storm_k": 0.6, "thermals_all_day": true, "bomb_cost": 0.6,
+     "event": "The Tuna Run", "event_what": "A school of big fish crosses the map in a day: whoever follows it eats for a week"},
+    {"name": "Autumn", "first": 8, "last": 11,
+     "sea": "Storms; grounds shift; the kraken wakes more", "wind": "Gales from one quarter for a day at a time", "rewards": "Caches (the smokehouse matters), sieges, raids under fog",
+     "wind_k": 1.6, "storm_k": 2.0, "kraken_wake": 0.5, "gale_one_quarter": true,
+     "event": "The Migration", "event_what": "Every wild bird on the map flies through: mates are free for a day, and so is conversion"},
+    {"name": "Winter", "first": 12, "last": 16,
+     "sea": "Fish go deep (Deep Dive pays); the lagoons freeze on northern maps", "wind": "Cold winds; stamina costs rise", "rewards": "Holding what you have; the deciding war; the score (Winter's holdings count double)",
+     "regrow_near": 0.8, "regrow_far": 0.8, "wind_k": 1.2, "storm_k": 1.0, "stamina": 1.3, "fish_depth": 2.0,
+     "event": "The Long Night", "event_what": "One game day of darkness: Watchers and Shadow colonies own it"}
+  ],
+  "spawning_regrow": 3.0,
+  "migration_mates": 6,
+  "tuna": {"count": 26, "size_min": 4},
+  "winter_holdings": 2.0
+}
