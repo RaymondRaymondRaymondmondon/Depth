@@ -80,8 +80,11 @@ void Island::Generate(uint32_t s) {
     }
     // the first nest: in the palm nearest the hill's south slope (the Founder's home)
     Vector3 want{hill.x + 10, 0, hill.z + 22};
-    float best = 1e9f; nest = {hill.x + 10, 0, hill.z + 22};
-    for (const auto& p : palms) { float d = (p.x - want.x) * (p.x - want.x) + (p.z - want.z) * (p.z - want.z); if (d < best) { best = d; nest = p; } }
+    palmH.assign(palms.size(), 0);
+    for (auto& ph : palmH) ph = 6 + 4 * R();
+    float best = 1e9f; nest = {hill.x + 10, 0, hill.z + 22}; nestPalm = -1;
+    for (int i = 0; i < (int)palms.size(); i++) { const auto& p = palms[i]; float d = (p.x - want.x) * (p.x - want.x) + (p.z - want.z) * (p.z - want.z); if (d < best) { best = d; nest = p; nestPalm = i; } }
+    if (nestPalm >= 0) palmH[nestPalm] = 7.7f;
     nest.y += 7.5f;   // (up in the crown)
 }
 float Island::Height(float x, float z) const {
@@ -163,7 +166,8 @@ void World::Init(const std::string& founderKey, uint32_t seed) {
     me.def = fi >= 0 ? fi : 0;
     me.st = FState::Perched; me.pos = island.nest; me.yaw = PI * 0.5f; me.stamina = Def().stamina; me.hunger = 0.8f; me.hp = Def().hp;
     me.strikeLen = Def().key == "taloned" ? 1.0f : 0.5f;   // (the Taloned's strike window is twice as long)
-    Say(Def().name + " (" + Def().bird + ") wakes in its nest. Fish to eat, fish to grow.");
+    InitColony();
+    Say(Def().name + " (" + Def().bird + ") wakes in its nest. Fill its courtship bowl with three fish to call a mate.");
 }
 
 void World::Kill(const std::string& cause) {
@@ -319,12 +323,10 @@ void World::StepFounder(float dt, const FounderInput& in) {
             } else if (sp < 9) { f.st = FState::Floating; f.pos.y = 0; f.vel = {0, 0, 0}; f.airspeed = 0; f.pitch = 0; }
             else { f.pos.y = 0.3f; f.pitch = std::max(f.pitch, 0.05f); f.airspeed *= 0.9f; }   // (a skim off the swell)
         }
-        // low over the nest: drop the fish in it
-        if (in.interact && f.carrySp >= 0 && Vector3Distance(f.pos, island.nest) < 4) {
-            if ((int)cache.size() < cacheCap) { cache.push_back({f.carrySp, f.carrySize, 0}); Say("Into the nest: " + eco.map->species[f.carrySp].name + "."); }
-            else Say("The nest's cache is full.");
-            f.carrySp = -1; f.carrySize = 0;
-        }
+        // a slow approach to a palm crown (a nest site) perches there
+        if (f.st == FState::Fly && Vector3Length(f.vel) < 9)
+            for (const auto& s : col.sites) if (Vector3Distance(f.pos, s.pos) < 1.8f) { f.st = FState::Perched; f.pos = s.pos; f.vel = {0, 0, 0}; f.airspeed = 0; f.pitch = 0; f.bank = 0; break; }
+        if (in.interact) Interact();   // (low and slow over a nest or a cache: E works on the wing too)
     } break;
     case FState::Strike: break;   // (Step runs the strike on real time)
     case FState::Struggle: {
@@ -347,26 +349,16 @@ void World::StepFounder(float dt, const FounderInput& in) {
     case FState::Perched:
     case FState::Floating: {
         f.vel = {0, 0, 0}; f.airspeed = 0; f.bank = 0;
-        if (f.st == FState::Perched) f.pos.y = Vector3Distance({f.pos.x, 0, f.pos.z}, {island.nest.x, 0, island.nest.z}) < 1.5f ? island.nest.y : ground;
+        if (f.st == FState::Perched) {
+            float y = ground;
+            for (const auto& s : col.sites) if (Vector2Distance({f.pos.x, f.pos.z}, {s.pos.x, s.pos.z}) < 1.5f && fabsf(f.pos.y - s.pos.y) < 2) y = s.pos.y;
+            f.pos.y = y;
+        }
         else f.pos.y = 0;
         f.yaw += atan2f(sinf(in.yaw - f.yaw), cosf(in.yaw - f.yaw)) * std::min(1.0f, dt * 6);
         f.stamina = std::min(maxStam, f.stamina + (f.st == FState::Perched ? 1.2f : 0.6f) * dt);
-        bool atNest = Vector3Distance(f.pos, island.nest) < 3;
-        if (in.interact && f.carrySp >= 0 && atNest) {
-            if ((int)cache.size() < cacheCap) { cache.push_back({f.carrySp, f.carrySize, 0}); Say("Into the nest: " + eco.map->species[f.carrySp].name + "."); f.carrySp = -1; f.carrySize = 0; }
-            else Say("The nest's cache is full.");
-        }
-        if (in.eat && f.st == FState::Perched) {
-            // eat what you carry, or from the nest's cache
-            int sz = 0;
-            if (f.carrySp >= 0) { sz = f.carrySize; f.carrySp = -1; f.carrySize = 0; }
-            else if (atNest && !cache.empty()) { size_t best = 0; for (size_t k = 1; k < cache.size(); k++) if (cache[k].age > cache[best].age) best = k; sz = cache[best].size; cache.erase(cache.begin() + best); }   // (the oldest first, before it spoils)
-            if (sz > 0) {
-                f.hunger = std::min(1.0f, f.hunger + 0.25f * sz); fishEaten++;
-                if (f.chick) f.chickFish++;
-                Say(TextFormat("Ate a size-%d fish.%s", sz, f.chick ? TextFormat(" (%d of 3)", f.chickFish) : ""));
-            }
-        }
+        if (in.interact) Interact();
+        if (in.eat) Eat();
         if (in.takeoff && f.stamina > 0.4f) {
             f.st = FState::Fly; f.airspeed = f.pos.y <= 0.01f && !overLand ? 6.0f : 8.0f; f.pitch = 0.6f; f.pos.y += 0.4f;
             f.stamina -= f.pos.y <= 0.5f ? 1.0f : 0.4f;   // (off the water is hard work)
@@ -409,13 +401,13 @@ void World::Step(float realDt, const FounderInput& in) {
         float a = Rand() * 2 * PI; wind.nextDir = {cosf(a), sinf(a)}; wind.nextSpeed = 3 + Rand() * 7; wind.shiftT = 0; wind.shiftLen = 150 + Rand() * 90;
         Say(TextFormat("The wind shifts: %.0f m/s from the %s.", wind.nextSpeed, fabsf(wind.nextDir.x) > fabsf(wind.nextDir.y) ? (wind.nextDir.x > 0 ? "west" : "east") : (wind.nextDir.y > 0 ? "north" : "south")));
     }
-    if (me.st != FState::Strike) StepFounder(dt, in);
+    if (me.st != FState::Strike) { if (founderBot) BotFounderStep(dt); else StepFounder(dt, in); }
     // fish rise at dawn and dusk and sink by day and night (the best fishing is at the rises)
     {
         float ph = DayPhase();
         float rise = std::max(Smooth(0.17f, 0.25f, ph) * (1 - Smooth(0.3f, 0.36f, ph)), Smooth(0.66f, 0.72f, ph) * (1 - Smooth(0.78f, 0.84f, ph)));
         float day = ph > 0.3f && ph < 0.7f ? 1.0f : 0.0f;
-        float target = rise > 0.01f ? -1.4f : day > 0 ? -4.5f : -11;
+        float target = rise > 0.01f ? -1.4f : day > 0 ? -3.8f : -11;   // (by day a few still come within a plunge's reach)
         for (auto& a : eco.agents) {
             if (!a.alive || a.diver >= 0) continue;
             const rt::Species& s = eco.map->species[a.sp];
@@ -423,14 +415,18 @@ void World::Step(float realDt, const FounderInput& in) {
             int zi = a.zone;
             if (zi < 0 || zi >= (int)eco.map->zones.size()) continue;
             const rt::Zone& z = eco.map->zones[zi];
-            float t = std::clamp(target, z.y0 + 0.4f, z.y1 - 0.3f);
-            a.pos.y += (t - a.pos.y) * std::min(1.0f, 0.35f * dt);
+            float hh = sinf(a.home.x * 12.9898f + a.home.z * 78.233f) * 43758.5453f;   // (from its home point: steady, unlike its rng)
+            float own = (hh - floorf(hh) - 0.5f) * (rise > 0.01f ? 1.0f : 4.0f);   // (each fish keeps its own depth round the shoal's)
+            float t = std::clamp(target + own, z.y0 + 0.4f, z.y1 - 0.3f);
+            // (the web steers a fish back to its home point and toward its goal: move their depth too, or it dives back)
+            a.home.y = t;
+            if (a.st == rt::State::Return || a.st == rt::State::Graze || a.st == rt::State::Rest) a.goal.y = t;
+            a.pos.y += (t - a.pos.y) * std::min(1.0f, 0.6f * dt);
         }
     }
     SyncBody();
     eco.Step(dt);
-    // the cache: fish spoil after two game days
-    for (auto it = cache.begin(); it != cache.end();) { it->age += dt; if (it->age > 2 * DAY) { Say("A fish in the nest has spoiled."); it = cache.erase(it); } else ++it; }
+    StepColony(dt);   // (the caches spoil, the grounds regrow, the colony lives)
 }
 
 // ---------------------------------------------------------------- --flight-test
@@ -502,13 +498,14 @@ int RunFlightTest() {
             v.Step(1 / 60.0f, in);
         }
         check(struck && slow && v.me.carrySp == v.eco.map->SpeciesIndex("Mullet") && v.fishCaught == 1, "a dive at the water enters the slow strike; steering the talons onto a mullet catches it");
-        // fly it home and drop it in the nest; eat it
-        v.me.st = FState::Perched; v.me.pos = v.island.nest;
+        // fly it home and drop it in the cache; eat it
+        v.me.st = FState::Perched; v.me.pos = v.col.caches[0].pos;
         float h0 = v.me.hunger = 0.3f;
         FounderInput drop; drop.interact = true; v.Step(1 / 60.0f, drop);
-        bool cached = v.cache.size() == 1 && v.me.carrySp < 0;
+        bool cached = v.Cache0().size() == 1 && v.me.carrySp < 0;
         FounderInput eat; eat.eat = true; v.Step(1 / 60.0f, eat);
-        check(cached && v.cache.empty() && fabsf(v.me.hunger - (h0 + 0.5f)) < 0.02f, TextFormat("into the nest's cache, then eaten: hunger %.2f -> %.2f", h0, v.me.hunger));
+        float want = h0 + 2 / Econ().feedFounder;
+        check(cached && v.Cache0().empty() && fabsf(v.me.hunger - want) < 0.02f, TextFormat("into the cache, then eaten: hunger %.2f -> %.2f", h0, v.me.hunger));
     }
     {
         World v; v.Init("swift", 7); v.forceHit = true;   // (the Swift lifts only size 2: a snapper is too heavy)
@@ -543,7 +540,8 @@ int RunFlightTest() {
         check(s.me.st == FState::Dead && s.me.lastCause.find("Shark") != std::string::npos, TextFormat("floating over the reef with a hungry reef shark below: %s", s.me.lastCause.empty() ? "nothing happened" : s.me.lastCause.c_str()));
         for (int i = 0; i < 60 * 31; i++) s.Step(1 / 60.0f, none);
         bool chick = s.me.st == FState::Perched && s.me.chick && s.me.Carry(s.Def()) < s.Def().carry && s.me.Cruise(s.Def()) < s.Def().cruise * 0.6f;
-        for (int k = 0; k < 3; k++) { s.cache.push_back({1, 1, 0}); FounderInput e; e.eat = true; s.Step(1 / 60.0f, e); s.Step(1 / 60.0f, none); }
+        s.me.pos = s.col.caches[0].pos;
+        for (int k = 0; k < 3; k++) { s.Cache0().push_back({1, 1, 0}); FounderInput e; e.eat = true; s.Step(1 / 60.0f, e); s.Step(1 / 60.0f, none); }
         check(chick && !s.me.chick, "30 s later it's back in the nest as a chick-leader (half speed and carry); three fish make it the Founder again");
     }
     // ---- ten minutes of fishing by an autopilot (real dives, no forced hits): the stage's gate in numbers
@@ -558,8 +556,8 @@ int RunFlightTest() {
             auto climb = [&](float p) { return !resting ? p : std::min(p, 0.0f); };
             auto toward = [&](Vector3 p) { in.yaw = atan2f(p.z - f.pos.z, p.x - f.pos.x); };
             if (f.st == FState::Perched || f.st == FState::Floating) {
-                if (f.carrySp >= 0 && Vector3Distance(f.pos, v.island.nest) < 3) in.interact = true;
-                else if (f.hunger < 0.6f && !v.cache.empty() && Vector3Distance(f.pos, v.island.nest) < 3) in.eat = true;
+                if (f.carrySp >= 0 && Vector3Distance(f.pos, v.col.caches[0].pos) < 3) in.interact = true;
+                else if (f.hunger < 0.6f && !v.Cache0().empty() && Vector3Distance(f.pos, v.col.caches[0].pos) < 3) in.eat = true;
                 else if (f.stamina > 3) in.takeoff = true;
             } else if (f.st == FState::Strike) {
                 int fi = v.FishNear(f.strikeAt, 3.5f, 3);
@@ -569,10 +567,11 @@ int RunFlightTest() {
                     in.steer = {std::clamp(Vector3DotProduct(d, r) / 2.6f, -1.0f, 1.0f), std::clamp(Vector3DotProduct(d, fw) / 2.6f, -1.0f, 1.0f)};
                 }
             } else if (f.st == FState::Fly) {
-                if (f.carrySp >= 0) {   // home with it, gliding down onto the nest
-                    toward(v.island.nest);
-                    float dh = Vector2Distance({f.pos.x, f.pos.z}, {v.island.nest.x, v.island.nest.z});
-                    in.pitch = std::clamp(atan2f(v.island.nest.y + 1 - f.pos.y, std::max(dh, 1.0f)), -0.5f, 0.5f);
+                if (f.carrySp >= 0) {   // home with it, gliding down onto the cache
+                    Vector3 home = v.col.caches[0].pos;
+                    toward(home);
+                    float dh = Vector2Distance({f.pos.x, f.pos.z}, {home.x, home.z});
+                    in.pitch = std::clamp(atan2f(home.y + 1 - f.pos.y, std::max(dh, 1.0f)), -0.5f, 0.5f);
                     if (dh < 12) in.brake = true;
                     in.interact = dh < 4;
                 } else {
@@ -600,7 +599,7 @@ int RunFlightTest() {
             if (v.me.st == FState::Strike && was != FState::Strike) dives++;
             was = v.me.st;
         }
-        printf("  (ten minutes: %d strikes, %d caught, %d missed, %d lost, %d eaten, %d in the nest, hunger %.2f, %s)\n", dives, v.fishCaught, v.fishMissed, v.fishLost, v.fishEaten, (int)v.cache.size(), v.me.hunger, FStateName(v.me.st));
+        printf("  (ten minutes: %d strikes, %d caught, %d missed, %d lost, %d eaten, %d in the nest, hunger %.2f, %s)\n", dives, v.fishCaught, v.fishMissed, v.fishLost, v.fishEaten, (int)v.Cache0().size(), v.me.hunger, FStateName(v.me.st));
         check(dives >= 10 && v.fishCaught >= 4 && v.me.st != FState::Dead, TextFormat("an autopilot fishing for ten minutes strikes %d times and catches %d", dives, v.fishCaught));
     }
     printf(fails ? "flight-test: %d check(s) failed\n" : "flight-test: all checks passed\n", fails);

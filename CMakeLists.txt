@@ -25,6 +25,7 @@ src/voice_test.cpp
 src/trawl_voice.cpp
 src/flight.cpp
 src/flight_game.cpp
+src/flight_colony.cpp
     src/data.cpp
     src/ui.cpp
     src/render.cpp

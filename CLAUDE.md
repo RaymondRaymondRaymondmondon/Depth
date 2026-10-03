@@ -421,4 +421,14 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   - `flight_game.cpp`: `Scene::Flight`, drawn with Red Tide's renderer in daylight. The sun is `SceneLight::moonDir/moon/moonK`. Keep `filmic = 0`: the filmic curve whites out a daylit sky.
 - **The sea:** Red Tide's `rt::Ecosystem` on `data/flight/sea/<island>/` (map key `flight_<island>`; `MapLoad` and the art-sheet lookup redirect `flight_` keys). The bird is a Diver agent in the web while it is low over the water.
 - **Data files** must be saved as UTF-8 without a BOM: the JSON reader rejects a BOM.
-- **Checks:** `depth.exe --flight-test`. Shots: `flight_*`, `arcade_flight`. Stage 1 (flight and fishing) is done; stage 2 is the colony loop.
+- **Checks:** `depth.exe --flight-test`. Shots: `flight_*`, `arcade_flight`.
+- **Stage 1** (flight and fishing) **and stage 2** (the colony loop) **are done.** Stage 3 is next: islands, scouting and the map.
+- **The colony (stage 2):** `flight_colony.cpp` with `data/flight/flight_economy.json` and `flight_roles.json`.
+  - Colony birds are kinematic flyers (fisher, feeder, builder) that fish the real web.
+  - The grounds regrow logistically (`RegrowFish`). The Flight's spawn rows have `respawn_s` 0, so Red Tide's flat respawn is off.
+  - The fish's day depths move each agent's `home`/`goal` y; a per-fish offset comes from a hash of its home point. Never use `Agent::rng` for this: the web advances it every step.
+  - The Founder's E and F go through `World::Interact` / `Eat` (`InteractHint` for the HUD). Tab opens the colony panel.
+  - `World::Retrain`. New birds go through `World::born` (never push to `col.birds` while stepping it).
+- **Colony checks:**
+  - `depth.exe --flight-colony-test`.
+  - `depth.exe --flight-sim tropical <days> [careful|lagoon] [founder] [seed]`: the gate line. Careful reaches 40 in about 15 days with no deaths; lagoon-only starves.

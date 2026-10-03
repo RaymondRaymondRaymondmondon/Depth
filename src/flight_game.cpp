@@ -27,6 +27,9 @@ struct FlightScene {
     bool ready = false; int readyFor = -1;
     Model terrain{}, palm{}, nest{}, sea{};
     Model body{}, head{}, beak{}, tail{}, wingIn{}, wingOut{};
+    Model egg{}, chick{}, pile{};
+    bool panel = false;                       // the colony panel (Tab)
+    int plat = 0;                             // (the panel's fledging-plan row picked)
     bool seaReady = false;
 };
 FlightScene S;
@@ -146,7 +149,7 @@ void BuildBird(const fl::FounderDef& d) {
 }
 void FreeModels() {
     if (!S.ready) return;
-    for (Model* m : {&S.terrain, &S.palm, &S.nest, &S.body, &S.head, &S.beak, &S.tail, &S.wingIn, &S.wingOut}) UnloadModel(*m);
+    for (Model* m : {&S.terrain, &S.palm, &S.nest, &S.body, &S.head, &S.beak, &S.tail, &S.wingIn, &S.wingOut, &S.egg, &S.chick, &S.pile}) UnloadModel(*m);
     S.ready = false; S.readyFor = -1;
 }
 void EnsureModels() {
@@ -156,6 +159,17 @@ void EnsureModels() {
     { rt::MeshBuilder mb; BuildTerrain(mb, S.W.island); S.terrain = LoadModelFromMesh(mb.Build()); }
     { rt::MeshBuilder mb; BuildPalm(mb); S.palm = LoadModelFromMesh(mb.Build()); }
     { rt::MeshBuilder mb; BuildNest(mb); S.nest = LoadModelFromMesh(mb.Build()); }
+    { rt::MeshBuilder mb; mb.Lathe(0.075f, 5, 8, [](float u) { return 0.028f * sinf(std::max(0.05f, u) * PI) * (1.1f - 0.25f * u); }, [](float u) { return 0.028f * sinf(std::max(0.05f, u) * PI) * (1.1f - 0.25f * u); }, {244, 238, 226, 255}, {226, 218, 204, 255}); S.egg = LoadModelFromMesh(mb.Build()); }
+    { rt::MeshBuilder mb;   // a chick: a ball of down, a head, a gaping beak
+      Color down = Mix(S.W.Def().belly, Color{200, 196, 186, 255}, 0.6f);
+      mb.Lathe(0.16f, 5, 8, [](float u) { return 0.075f * sinf(std::max(0.08f, u) * PI); }, [](float u) { return 0.07f * sinf(std::max(0.08f, u) * PI); }, down, Shade(down, 0.85f), {0, 0.07f, 0});
+      mb.Lathe(0.09f, 4, 8, [](float u) { return 0.045f * sinf(std::max(0.08f, u) * PI); }, [](float u) { return 0.045f * sinf(std::max(0.08f, u) * PI); }, down, Shade(down, 0.9f), {0, 0.16f, 0.06f});
+      mb.Cone({0, 0.16f, 0.1f}, {0, 0.17f, 0.15f}, 0.018f, 5, S.W.Def().accent);
+      mb.Octa({0.025f, 0.18f, 0.09f}, 0.008f, {18, 18, 20, 255}); mb.Octa({-0.025f, 0.18f, 0.09f}, 0.008f, {18, 18, 20, 255});
+      S.chick = LoadModelFromMesh(mb.Build()); }
+    { rt::MeshBuilder mb;   // a cache: a low platform of sticks
+      for (int k = 0; k < 14; k++) { float a = k * 0.45f, r = 0.35f + 0.25f * Hash((float)k, 3); Vector3 c{cosf(a) * r * 0.5f, 0.03f + 0.025f * (k % 3), sinf(a) * r * 0.5f}; mb.Tube({Vector3Add(c, {cosf(a + 1.6f) * 0.45f, 0, sinf(a + 1.6f) * 0.45f}), Vector3Subtract(c, {cosf(a + 1.6f) * 0.45f, 0, sinf(a + 1.6f) * 0.45f})}, 0.03f, 0.025f, 4, {118, 90, 58, 255}, {140, 108, 70, 255}, 0); }
+      S.pile = LoadModelFromMesh(mb.Build()); }
     BuildBird(S.W.Def());
     S.ready = true; S.readyFor = (int)S.W.island.seed * 31 + S.W.me.def;
 }
@@ -218,7 +232,9 @@ fl::FounderInput Gather(float dt) {
     fl::FounderInput in;
     fl::Founder& f = S.W.me;
     if (S.shot) { in.yaw = S.aimYaw; in.pitch = S.aimPitch; return in; }
-    Vector2 md = MouseLook(f.st != fl::FState::Dead);
+    if (IsKeyPressed(KEY_TAB)) S.panel = !S.panel;
+    Vector2 md = MouseLook(f.st != fl::FState::Dead && !S.panel);   // (the panel takes the pointer: the bird flies on its last heading)
+    if (S.panel) md = {0, 0};
     if (f.st == fl::FState::Strike) {
         // the strike: the mouse steers the talons over the water (the world crawls at a quarter speed)
         S.steer.x = std::clamp(S.steer.x + md.x * 0.006f, -1.0f, 1.0f);
@@ -255,6 +271,47 @@ Matrix BirdWorld(const fl::Founder& f, float scale) {
     m = MatrixMultiply(m, MatrixRotateY(-f.yaw));
     return MatrixMultiply(m, MatrixTranslate(f.pos.x, f.pos.y, f.pos.z));
 }
+// One bird's body with its wings posed: shoulder (up/down beat), wrist, fold (0 spread .. 1 folded along the body),
+// flare (wings up and forward for a landing), head tilt and tail spread. Used for the Founder and every colony bird.
+void DrawBirdBody(const fl::FounderDef& d, Matrix W, float shoulder, float wrist, float fold, float flare, float headTilt, float tailSpread) {
+    float L = 0.22f + d.span * 0.14f;
+    float sweep = fold * 1.2f, raise = flare * 0.6f;
+    float inner = d.span * 0.5f * 0.45f;
+    auto wing = [&](float side) {   // side 1 the right wing (out along -x), -1 the left (mirrored, out along +x)
+        // after the mirror both wings use the right wing's angles times side: up/down about the body's axis (z),
+        // back about y for the fold; the outer panel hangs off the wrist at the inner panel's end
+        Matrix mir = side > 0 ? MatrixIdentity() : MatrixScale(-1, 1, 1);
+        float up = shoulder + raise;
+        Matrix sh = MatrixMultiply(MatrixRotateY(-sweep * 0.9f * side), MatrixRotateZ(-up * side));
+        Matrix base = MatrixMultiply(MatrixTranslate(-L * 0.12f * side, L * 0.08f, L * 0.08f), W);
+        Matrix shB = MatrixMultiply(sh, base);
+        float inLen = inner * (1 - fold * 0.45f);   // (folded, the inner panel tucks in toward the body)
+        rt::DrawStatic(S.wingIn, MatrixMultiply(MatrixMultiply(MatrixScale(1 - fold * 0.45f, 1, 1), mir), shB));
+        Matrix el = MatrixMultiply(MatrixRotateY(-sweep * 1.4f * side), MatrixRotateZ(-wrist * side * (1 - fold)));
+        rt::DrawStatic(S.wingOut, MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(1 - fold * 0.3f, 1, 1), mir), el), MatrixMultiply(MatrixTranslate(-inLen * side, 0, 0), shB)));
+    };
+    rt::DrawStatic(S.body, W);
+    Matrix headM = MatrixMultiply(MatrixMultiply(MatrixRotateX(headTilt), MatrixTranslate(0, L * 0.1f, L * 0.5f)), W);
+    rt::DrawStatic(S.head, headM);
+    rt::DrawStatic(S.beak, MatrixMultiply(MatrixTranslate(0, 0, L * 0.17f), headM));
+    rt::DrawStatic(S.tail, MatrixMultiply(MatrixMultiply(MatrixScale(tailSpread, 1, 1), MatrixMultiply(MatrixRotateX(-0.15f + 0.4f * flare), MatrixTranslate(0, 0, -L * 0.42f))), W));
+    wing(1); wing(-1);
+}
+Matrix PoseWorld(Vector3 pos, float yaw, float pitch, float bank, float scale) {
+    Matrix m = MatrixScale(scale, scale, scale);
+    m = MatrixMultiply(m, MatrixRotateY(PI * 0.5f));
+    m = MatrixMultiply(m, MatrixRotateX(bank));
+    m = MatrixMultiply(m, MatrixRotateZ(pitch));
+    m = MatrixMultiply(m, MatrixRotateY(-yaw));
+    return MatrixMultiply(m, MatrixTranslate(pos.x, pos.y, pos.z));
+}
+void DrawCarried(const fl::World& w, Matrix W, float L, int sp, int twigs, float yaw, float pitch) {
+    if (sp >= 0 && w.eco.map) {
+        const rt::CreatureModel& cm = rt::Creature(w.seaKey, w.eco.map->species[sp].name);
+        rt::DrawCreature(cm, Vector3Transform({0, -L * 0.35f, 0}, W), atan2f(cosf(yaw), sinf(yaw)), pitch * 0.5f, 1.0f, S.t * cm.freq * 1.5f, 0.6f);
+    }
+    for (int k = 0; k < twigs; k++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.6f, 0.03f, 0.03f), MatrixRotateY(0.4f + k * 0.5f)), MatrixMultiply(MatrixTranslate(0, -L * 0.3f - k * 0.03f, 0), W)), Color{120, 88, 54, 255});
+}
 void DrawBird(const fl::World& w, float dt) {
     const fl::Founder& f = w.me;
     const fl::FounderDef& d = w.Def();
@@ -277,34 +334,73 @@ void DrawBird(const fl::World& w, float dt) {
     float beat = sinf(S.flapPh);
     float shoulder = S.flapAmt * (0.25f + 0.75f * (1 - tired * 0.4f)) * 0.75f * beat + 0.08f * (1 - S.flapAmt) + 0.05f * sinf(S.t * 1.3f);
     float wrist = S.flapAmt * 0.45f * sinf(S.flapPh - 0.9f);
-    float sweep = S.fold * 1.2f, raise = S.flare * 0.6f;
-    float half = d.span * 0.5f, inner = half * 0.45f;
-    auto wing = [&](float side) {   // side 1 the right wing (out along -x), -1 the left (mirrored, out along +x)
-        // after the mirror both wings use the right wing's angles times side: up/down about the body's axis (z),
-        // back about y for the fold; the outer panel hangs off the wrist at the inner panel's end
-        Matrix mir = side > 0 ? MatrixIdentity() : MatrixScale(-1, 1, 1);
-        float up = shoulder + raise;
-        Matrix sh = MatrixMultiply(MatrixRotateY(-sweep * 0.9f * side), MatrixRotateZ(-up * side));
-        Matrix base = MatrixMultiply(MatrixTranslate(-L * 0.12f * side, L * 0.08f, L * 0.08f), W);
-        Matrix shB = MatrixMultiply(sh, base);
-        float inLen = inner * (1 - S.fold * 0.45f);   // (folded, the inner panel tucks in toward the body)
-        rt::DrawStatic(S.wingIn, MatrixMultiply(MatrixMultiply(MatrixScale(1 - S.fold * 0.45f, 1, 1), mir), shB));
-        Matrix el = MatrixMultiply(MatrixRotateY(-sweep * 1.4f * side), MatrixRotateZ(-wrist * side * (1 - S.fold)));
-        Matrix outerM = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(1 - S.fold * 0.3f, 1, 1), mir), el), MatrixMultiply(MatrixTranslate(-inLen * side, 0, 0), shB));
-        rt::DrawStatic(S.wingOut, outerM);
-    };
-    rt::DrawStatic(S.body, W);
-    Matrix headM = MatrixMultiply(MatrixMultiply(MatrixRotateX(f.st == fl::FState::Strike ? 0.35f : -0.1f * f.pitch), MatrixTranslate(0, L * 0.1f, L * 0.5f)), W);
-    rt::DrawStatic(S.head, headM);
-    rt::DrawStatic(S.beak, MatrixMultiply(MatrixTranslate(0, 0, L * 0.17f * 1.0f), headM));
-    float spread = 0.7f + 0.6f * S.flare + 0.2f * fabsf(f.bank);
-    rt::DrawStatic(S.tail, MatrixMultiply(MatrixMultiply(MatrixScale(spread, 1, 1), MatrixMultiply(MatrixRotateX(-0.15f + 0.4f * S.flare), MatrixTranslate(0, 0, -L * 0.42f))), W));
-    wing(1); wing(-1);
-    // the talons' catch: carried head forward beneath the body
-    if (f.carrySp >= 0 && w.eco.map) {
-        const rt::CreatureModel& cm = rt::Creature(w.seaKey, w.eco.map->species[f.carrySp].name);
-        Vector3 under = Vector3Transform({0, -L * 0.35f, 0}, W);
-        rt::DrawCreature(cm, under, atan2f(cosf(f.yaw), sinf(f.yaw)), f.pitch * 0.5f, 1.0f, S.t * cm.freq * 1.5f, 0.6f);
+    DrawBirdBody(d, W, shoulder, wrist, S.fold, S.flare, f.st == fl::FState::Strike ? 0.35f : -0.1f * f.pitch, 0.7f + 0.6f * S.flare + 0.2f * fabsf(f.bank));
+    DrawCarried(w, W, L, f.carrySp, f.carryTwigs, f.yaw, f.pitch);
+}
+// the colony's birds: smaller than the Founder (its species, the colony's look), posed from their motion
+void DrawColonyBird(const fl::World& w, const fl::Bird& b) {
+    const fl::FounderDef& d = w.Def();
+    float L = 0.22f + d.span * 0.14f;
+    float sp = Vector3Length(b.vel);
+    bool sitting = b.task == fl::Task::Sit || b.task == fl::Task::Eat || sp < 0.6f;
+    bool diving = b.task == fl::Task::Dive;
+    float pitch = sitting ? 0 : std::clamp(asinf(std::clamp(b.vel.y / std::max(sp, 0.1f), -1.0f, 1.0f)), -1.2f, 0.6f);
+    Matrix W = PoseWorld(b.pos, b.yaw, pitch, 0, 0.75f);
+    float beat = sinf(b.flapPh);
+    float shoulder = sitting ? 0 : diving ? 0.1f : 0.55f * beat + 0.05f;
+    DrawBirdBody(d, W, shoulder, sitting ? 0 : 0.35f * sinf(b.flapPh - 0.9f), sitting ? 1.0f : diving ? 0.85f : 0.0f, 0, sitting ? 0.1f * sinf(S.t * 2 + b.id) : 0, 0.7f);
+    DrawCarried(w, W, L * 0.75f, b.carrySp, b.carryTwigs + b.carryShells, b.yaw, pitch);
+}
+void DrawColony(const fl::World& w, const Camera3D& cam) {
+    const fl::Colony& c = w.col;
+    // nests: built ones whole; under way, a flat ring that thickens with its twigs
+    for (const auto& n : c.nests) {
+        float need = (float)((w.Def().key == "albatross" ? 2 : 1) * fl::Econ().nestTwigs);
+        float k = n.built ? 1.0f : std::clamp(n.twigs / need, 0.05f, 1.0f);
+        rt::DrawStatic(S.nest, MatrixMultiply(MatrixScale(0.6f + 0.4f * k, 0.3f + 0.7f * k, 0.6f + 0.4f * k), MatrixTranslate(n.pos.x, n.pos.y - 0.05f, n.pos.z)));
+        if (n.built && n.shells >= fl::Econ().liningShells) rt::DrawStatic(S.egg, MatrixMultiply(MatrixScale(2.2f, 0.25f, 2.2f), MatrixTranslate(n.pos.x, n.pos.y + 0.03f, n.pos.z)), Color{236, 226, 210, 255});   // (the shell lining)
+        // the courtship bowl: a row of cups beside the nest, lit as fish fill them
+        if (n.built && n.mate < 0) for (int b = 0; b < n.bowlNeed; b++) {
+            float a = b * 0.7f;
+            Vector3 p{n.pos.x + 0.62f + 0.08f * cosf(a), n.pos.y + 0.06f, n.pos.z + 0.08f * sinf(a)};
+            rt::DrawStatic(S.egg, MatrixMultiply(MatrixScale(0.6f, 0.35f, 0.6f), MatrixTranslate(p.x, p.y, p.z)), b < n.bowl ? Color{120, 200, 210, 255} : Color{90, 80, 70, 255});
+        }
+    }
+    // eggs, chicks, mates, and the working birds
+    for (const auto& b : c.birds) {
+        if (!b.alive) continue;
+        if (Vector3Distance(b.pos, cam.position) > 160) continue;
+        if (b.stage == fl::BStage::Egg) {
+            const fl::Nest& n = c.nests[b.nest];
+            float a = b.id * 2.39f;
+            rt::DrawStatic(S.egg, MatrixMultiply(MatrixRotateY(a), MatrixTranslate(n.pos.x + cosf(a) * 0.14f, n.pos.y + 0.08f, n.pos.z + sinf(a) * 0.14f)), b.chillT > 0.3f * fl::World::DAY ? Color{170, 180, 200, 255} : WHITE);
+        } else if (b.stage == fl::BStage::Chick) {
+            float bob = 0.04f * fabsf(sinf(S.t * 3 + b.id)), grow = 0.6f + 0.25f * std::min(1.0f, b.age / fl::Econ().chickDays);
+            Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(grow, grow, grow), MatrixRotateY(b.id * 1.3f + 0.4f * sinf(S.t + b.id))), MatrixTranslate(b.pos.x, b.pos.y + bob, b.pos.z));
+            rt::DrawStatic(S.chick, m, b.hunger < 0.25f ? Color{200, 170, 160, 255} : WHITE);
+        } else DrawColonyBird(w, b);
+    }
+    // caches: a twig platform on the ground with its fish on it; the colony's twig stock beside the first
+    for (size_t i = 0; i < c.caches.size(); i++) {
+        const fl::Cache& ca = c.caches[i];
+        float k = ca.built ? 1.0f : std::clamp(ca.twigs / fl::Econ().cacheTwigs, 0.1f, 1.0f);
+        rt::DrawStatic(S.pile, MatrixMultiply(MatrixScale(k, k, k), MatrixTranslate(ca.pos.x, ca.pos.y, ca.pos.z)));
+        for (size_t f = 0; f < ca.fish.size() && f < 10; f++) {
+            const rt::CreatureModel& cm = rt::Creature(w.seaKey, w.eco.map->species[ca.fish[f].sp].name);
+            float a = f * 2.4f, r = 0.15f + 0.07f * f;
+            Color tint = ca.fish[f].age > 1.5f * fl::World::DAY ? Color{170, 180, 130, 255} : WHITE;   // (going off)
+            rt::DrawCreature(cm, {ca.pos.x + cosf(a) * r, ca.pos.y + 0.15f + 0.02f * f, ca.pos.z + sinf(a) * r}, a, 0, 0.8f, 0, 0, tint);
+        }
+    }
+    for (int k = 0; k < std::min(c.twigs, 24); k++) {
+        Vector3 p = Vector3Add(c.caches[0].pos, {-1.4f + 0.05f * (k % 5), 0.05f + 0.035f * (k / 5), 0.9f});
+        rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.7f, 0.035f, 0.035f), MatrixRotateY(k * 0.9f)), MatrixTranslate(p.x, p.y, p.z)), Color{122, 92, 58, 255});
+    }
+    // driftwood and shells on the beach (what the builders gather)
+    for (const auto& s : c.twigSrc) {
+        if (Vector3Distance(s.pos, cam.position) > 120) continue;
+        if (s.shells) { for (int k = 0; k < (int)s.twigs; k++) rt::DrawStatic(S.egg, MatrixMultiply(MatrixScale(0.7f, 0.3f, 0.7f), MatrixTranslate(s.pos.x + 0.25f * k, s.pos.y, s.pos.z + 0.1f * k)), Color{236, 214, 200, 255}); }
+        else if (s.cap <= 2.5f && s.twigs >= 1) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.6f, 0.14f, 0.14f), MatrixRotateY(s.pos.x)), MatrixTranslate(s.pos.x, s.pos.y, s.pos.z)), Color{150, 132, 106, 255});
     }
 }
 void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
@@ -313,19 +409,12 @@ void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
     rt::DrawWorldCube({w.island.x0 + 160, -12.6f, w.island.z0 + 160}, {5000, 0.4f, 5000}, Color{60, 96, 104, 255});   // (the sea floor beyond the island's shelf)
     for (size_t k = 0; k < is.palms.size(); k++) {
         const Vector3& p = is.palms[k];
-        bool home = fabsf(p.x - is.nest.x) < 0.01f && fabsf(p.z - is.nest.z) < 0.01f;
-        float h = home ? (is.nest.y - p.y) * 0.97f : 6 + 4 * Hash(p.x, p.z);   // (the nest's palm holds it in its crown)
+        float h = k < is.palmH.size() ? is.palmH[k] : 7;
         float sway = 0.03f * sinf(S.t * 0.8f + k);
         Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(h, h, h), MatrixRotateY(Hash(p.z, p.x) * 6.28f)), MatrixRotateZ(sway));
         rt::DrawStatic(S.palm, MatrixMultiply(m, MatrixTranslate(p.x, p.y - 0.2f, p.z)));
     }
-    rt::DrawStatic(S.nest, MatrixTranslate(is.nest.x, is.nest.y - 0.05f, is.nest.z));
-    // the nest's cache: the fish laid in it
-    for (size_t k = 0; k < w.cache.size() && k < 8; k++) {
-        const rt::CreatureModel& cm = rt::Creature(w.seaKey, w.eco.map->species[w.cache[k].sp].name);
-        float a = k * 2.4f;
-        rt::DrawCreature(cm, {is.nest.x + cosf(a) * 0.25f, is.nest.y + 0.08f, is.nest.z + sinf(a) * 0.25f}, a, 0, 0.6f, 0, 0);
-    }
+    DrawColony(w, cam);
     // the sea's life: what's near enough to see (the water drawn over it shows the shallow ones plainly)
     for (const auto& a : w.eco.agents) {
         if (!a.alive || a.diver >= 0) continue;
@@ -409,9 +498,28 @@ void DrawHud(const fl::World& w) {
         const char* part = ph < 0.2f || ph > 0.86f ? "night" : ph < 0.32f ? "dawn" : ph < 0.68f ? "day" : "dusk";
         DrawTextCentered(TextFormat("%02d:%02d  %s", hh, mm, part), c.x - 20, c.y + 66, 17, ink);
         if (rise) DrawTextCentered("the fish are rising", c.x - 30, c.y + 88, 15, Color{180, 255, 220, 255});
-        DrawTextCentered(TextFormat("nest: %d fish", (int)w.cache.size()), c.x - 20, c.y + 110, 16, ink);
-        DrawTextCentered(TextFormat("caught %d  missed %d  lost %d", w.fishCaught, w.fishMissed, w.fishLost), c.x - 70, c.y + 130, 14, dim);
+        float dof = w.DaysOfFood();
+        DrawTextCentered(TextFormat("colony: %d birds", w.Alive()), c.x - 20, c.y + 110, 16, ink);
+        DrawTextCentered(TextFormat("food: %.1f days   Tab: colony", dof), c.x - 50, c.y + 130, 14, dof < 1 && w.Alive() > 1 ? Color{255, 140, 120, 255} : dim);
     }
+    // the colony's nests, labelled when near: the courtship bowl, or what's in the nest
+    for (const auto& n : w.col.nests) {
+        float d = Vector3Distance(S.cam.position, n.pos);
+        if (d > 45) continue;
+        Vector3 fwd = Vector3Normalize(Vector3Subtract(S.cam.target, S.cam.position));
+        if (Vector3DotProduct(Vector3Subtract(n.pos, S.cam.position), fwd) < 0) continue;
+        Vector2 p = GetWorldToScreenEx(Vector3Add(n.pos, {0, 1.2f, 0}), S.cam, SCREEN_W, SCREEN_H);
+        int eggs = 0, chicks = 0; bool mate = false;
+        for (const auto& b : w.col.birds) if (b.alive && b.nest == (int)(&n - &w.col.nests[0])) { eggs += b.stage == fl::BStage::Egg; chicks += b.stage == fl::BStage::Chick; mate = mate || b.stage == fl::BStage::Mate; }
+        std::string s = !n.built ? TextFormat("nest: %.0f/%d twigs", n.twigs, fl::Econ().nestTwigs * (w.Def().key == "albatross" ? 2 : 1))
+                      : n.mateT >= 0 ? "a mate is coming"
+                      : !mate ? TextFormat("courtship bowl %d/%d", n.bowl, n.bowlNeed)
+                      : TextFormat("mate  %d eggs  %d chicks", eggs, chicks);
+        DrawTextCentered(s, p.x, p.y, 14, Fade(ink, std::clamp(1.3f - d / 45, 0.3f, 1.0f)));
+    }
+    // starving: the colony panel's alarm, flashing
+    if (w.Alive() > 1 && w.DaysOfFood() < 0.5f && w.FeedPerDayEstimate() < w.MouthsPerDay() && fmodf(S.t, 1.0f) < 0.6f)
+        DrawTextCenteredBold("THE COLONY IS RUNNING OUT OF FOOD", SCREEN_W / 2.0f, 82, 20, Color{255, 120, 100, 255});
     // the nest's mark, always
     if (f.st != fl::FState::Dead) {
         Vector3 to = Vector3Subtract(w.island.nest, S.cam.position);
@@ -435,14 +543,16 @@ void DrawHud(const fl::World& w) {
         DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.35f));
         DrawTextCenteredBold(TextFormat("The Founder is %s", f.lastCause.c_str()), SCREEN_W / 2.0f, SCREEN_H / 2.0f - 40, 30, ink);
         DrawTextCentered(TextFormat("back in the nest as a chick-leader in %.0f s", std::max(0.0f, f.respawnT)), SCREEN_W / 2.0f, SCREEN_H / 2.0f + 4, 20, dim);
-    } else if (f.st == fl::FState::Perched || f.st == fl::FState::Floating) {
-        bool atNest = Vector3Distance(f.pos, w.island.nest) < 3;
-        std::string tip = "Space: take off";
-        if (f.carrySp >= 0 && atNest) tip += "    E: into the cache    F: eat it";
-        else if (f.carrySp >= 0) tip += "    F: eat it here";
-        else if (atNest && !w.cache.empty()) tip += "    F: eat from the cache";
-        if (f.st == fl::FState::Floating) tip += "    (sharks hunt the water: don't sit long)";
-        DrawTextCentered(tip, SCREEN_W / 2.0f, SCREEN_H - (S.help ? 110 : 60), 18, ink);
+    } else if (f.st == fl::FState::Perched || f.st == fl::FState::Floating || f.st == fl::FState::Fly) {
+        std::string tip = w.InteractHint();
+        bool sitting = f.st != fl::FState::Fly;
+        if (sitting) {
+            if (f.carrySp >= 0) tip += std::string(tip.empty() ? "" : "    ") + "F: eat it";
+            else if (w.NearestCache(f.pos, true, false) >= 0 && Vector3Distance(f.pos, w.col.caches[w.NearestCache(f.pos, true, false)].pos) < 3.5f) tip += std::string(tip.empty() ? "" : "    ") + "F: eat from the cache";
+            tip = "Space: take off    " + tip;
+            if (f.st == fl::FState::Floating) tip += "    (sharks hunt the water: don't sit long)";
+        }
+        if (!tip.empty()) DrawTextCentered(tip, SCREEN_W / 2.0f, SCREEN_H - (S.help ? 110 : 60), 18, ink);
     } else if (f.st == fl::FState::Fainted) {
         DrawTextCenteredBold("Fainted from hunger...", SCREEN_W / 2.0f, SCREEN_H / 2.0f, 28, Color{255, 180, 140, 255});
     }
@@ -458,10 +568,76 @@ void DrawHud(const fl::World& w) {
     if (S.help) {
         const char* lines[] = {"Mouse: steer (look where you fly)   W: flap   Shift: sprint   S: flare / brake   A D: turn",
                                "Dive steeply at the water near fish to strike; steer the talons in the slow motion",
-                               "Space: take off   E: drop a fish in the nest   F: eat   H: hide this   Esc: menu"};
+                               "Space: take off   E: use (bowl, cache, twigs, nest site)   F: eat   Tab: colony   H: hide this   Esc: menu"};
         DrawRectangleRounded({SCREEN_W - 680.0f, SCREEN_H - 74.0f, 668, 62}, 0.2f, 6, Fade(Color{10, 20, 30, 255}, 0.45f));
         for (int k = 0; k < 3; k++) DrawTextCentered(lines[k], SCREEN_W - 346.0f, SCREEN_H - 70.0f + k * 18, 14, ink);
     }
+}
+
+// The colony panel (Tab; design doc p7): birds by role, mouths per day, feed per day, days of food, the stores, the
+// nests, and the orders a stage-2 colony takes: the fledging plan, retraining, nests wanted, the fishers' ground.
+void DrawColonyPanel(fl::World& w) {
+    const fl::Economy& E = fl::Econ();
+    Color ink{250, 248, 236, 255}, dim{200, 214, 214, 255}, good{170, 240, 180, 255}, bad{255, 140, 120, 255};
+    float x = 20, y = 186, W = 440;
+    float fpd = w.FeedPerDayEstimate(), mouths = w.MouthsPerDay(), dof = w.DaysOfFood();
+    bool starving = w.Alive() > 1 && dof < 1 && fpd < mouths;
+    DrawRectangleRounded({x, y, W, 500}, 0.05f, 6, Fade(Color{8, 18, 28, 255}, 0.86f));
+    DrawRectangleRoundedLinesEx({x, y, W, 500}, 0.05f, 6, 2, starving && fmodf(S.t, 1.0f) < 0.5f ? bad : Color{200, 170, 110, 255});
+    TxtBold("The colony", x + 16, y + 10, 22, ink);
+    Txt("Tab closes", x + W - 90, y + 16, 14, dim);
+    float ly = y + 42;
+    auto line = [&](const std::string& s, Color c) { Txt(s, x + 16, ly, 16, c); ly += 21; };
+    line(TextFormat("Birds %d:  the Founder, %d adults, %d mates, %d chicks, %d eggs", w.Alive(), w.Count(fl::BStage::Adult), w.Count(fl::BStage::Mate), w.Count(fl::BStage::Chick), w.Count(fl::BStage::Egg)), ink);
+    line(TextFormat("Feed per day %.0f   mouths per day %.0f", fpd, mouths), fpd >= mouths ? good : bad);
+    int nfish = 0; for (const auto& c : w.col.caches) nfish += (int)c.fish.size();
+    line(TextFormat("In store: %.0f feed (%d fish in %d caches) = %.1f days of food", w.CacheFeed(), nfish, (int)w.col.caches.size(), dof), dof < 1 ? bad : dof > 3 ? good : ink);
+    line(TextFormat("Twigs %d   shells %d   wild mates left %d", w.col.twigs, w.col.shells, w.col.wildMates), dim);
+    ly += 6;
+    // roles: the count, and a button that retrains one bird into it (from the biggest other role; a day's retraining)
+    TxtBold("Roles", x + 16, ly, 17, ink); Txt("fledging plan", x + 250, ly + 1, 15, dim); ly += 24;
+    for (int r = 1; r < (int)fl::Role::COUNT; r++) {
+        fl::Role role = (fl::Role)r;
+        int n = w.Count(fl::BStage::Adult, role), training = 0;
+        for (const auto& b : w.col.birds) if (b.alive && b.retrainT > 0 && b.retrainTo == role) training++;
+        Txt(TextFormat("%-8s %2d%s", fl::RoleName(role), n, training ? TextFormat(" (+%d training)", training) : ""), x + 16, ly + 3, 16, ink);
+        if (Button({x + 168, ly, 66, 24}, "retrain", w.Count(fl::BStage::Adult) > n, 13)) {
+            w.Retrain(role);
+        }
+        float total = 0; for (int k = 1; k < (int)fl::Role::COUNT; k++) total += w.col.plan[k];
+        Txt(TextFormat("%3.0f%%", 100 * w.col.plan[r] / std::max(0.01f, total)), x + 262, ly + 3, 16, ink);
+        if (Button({x + 318, ly, 26, 24}, "-", w.col.plan[r] > 0.01f, 16)) w.col.plan[r] = std::max(0.0f, w.col.plan[r] - 0.1f);
+        if (Button({x + 350, ly, 26, 24}, "+", true, 16)) w.col.plan[r] += 0.1f;
+        ly += 30;
+    }
+    ly += 4;
+    // nests
+    int built = 0, under = 0, free = 0; for (const auto& n : w.col.nests) (n.built ? built : under)++;
+    for (const auto& s : w.col.sites) free += s.nest < 0;
+    TxtBold("Nests", x + 16, ly, 17, ink); ly += 24;
+    Txt(TextFormat("%d built, %d under way, %d free sites", built, under, free), x + 16, ly + 3, 16, ink);
+    Txt(TextFormat("builders raise up to %d", w.col.nestsWanted), x + 16, ly + 24, 15, dim);
+    if (Button({x + 318, ly + 18, 26, 24}, "-", w.col.nestsWanted > 1, 16)) w.col.nestsWanted--;
+    if (Button({x + 350, ly + 18, 26, 24}, "+", w.col.nestsWanted < (int)w.col.sites.size(), 16)) w.col.nestsWanted++;
+    ly += 52;
+    Txt("A mate comes to a nest whose courtship bowl you fill:", x + 16, ly, 14, dim); ly += 17;
+    Txt(TextFormat("carry fish of size %d+ to it and press E (%d for the first).", E.courtMinSize, E.courtFish), x + 16, ly, 14, dim); ly += 26;
+    // the fishers' ground
+    TxtBold("Fishers fish", x + 16, ly, 17, ink);
+    const auto& zones = w.eco.map->zones;
+    std::string gname = w.col.ground < 0 ? "the best ground" : zones[w.col.ground].name;
+    if (Button({x + 150, ly - 2, 26, 24}, "<", true, 16)) w.col.ground = w.col.ground < 0 ? (int)zones.size() - 1 : w.col.ground - 1;
+    Txt(gname, x + 184, ly + 1, 16, ink);
+    if (Button({x + 350, ly - 2, 26, 24}, ">", true, 16)) w.col.ground = w.col.ground + 1 >= (int)zones.size() ? -1 : w.col.ground + 1;
+    ly += 26;
+    if (w.col.ground >= 0) { Txt(TextFormat("its stock: %.0f%% of what it holds", w.StockOf(w.col.ground) * 100), x + 16, ly, 14, w.StockOf(w.col.ground) < 0.35f ? bad : dim); }
+    else if (w.lagoonZone >= 0) Txt(TextFormat("the lagoon's stock: %.0f%%", w.StockOf(w.lagoonZone) * 100), x + 16, ly, 14, w.StockOf(w.lagoonZone) < 0.35f ? bad : dim);
+    ly += 22;
+    if (!w.col.deaths.empty()) {
+        std::string d = "Deaths:"; for (const auto& p : w.col.deaths) d += TextFormat("  %s %d", p.first.c_str(), p.second);
+        Txt(d, x + 16, ly, 14, bad);
+    }
+    if (w.col.leaderless) Txt("Leaderless: the old orders are running down.", x + 16, y + 476, 14, bad);
 }
 
 void Render(float dt) {
@@ -546,6 +722,7 @@ void SceneFlight(Game& g) {
     S.t += dt * S.W.timeScale;
     Render(dt * S.W.timeScale);
     DrawHud(S.W);
+    if (S.panel) DrawColonyPanel(S.W);
 }
 
 // --shots: 0 cruising over the lagoon at dawn, 1 the strike, 2 at the nest with a fish, 3 noon from high over the island
@@ -565,7 +742,15 @@ void DebugFlightShot(Game& g, int which) {
         w.Step(1 / 60.0f, fl::FounderInput{f.yaw, -1.0f});
         if (f.st != fl::FState::Strike) { f.st = fl::FState::Strike; f.strikeT = 0.1f; f.strikeAt = f.strikeAim = {at.x, 0, at.z}; w.timeScale = 0.25f; }
     }
-    if (which == 2) { w.time = fl::World::DAY * 0.42f; f.st = fl::FState::Perched; f.pos = w.island.nest; f.carrySp = w.eco.map->SpeciesIndex("Mullet"); f.carrySize = 2; w.cache.push_back({w.eco.map->SpeciesIndex("Sardine"), 1, 0}); S.aimPitch = -0.25f; S.aimYaw = PI * 0.9f; }
+    if (which == 2) { w.time = fl::World::DAY * 0.42f; f.st = fl::FState::Perched; f.pos = w.island.nest; f.carrySp = w.eco.map->SpeciesIndex("Mullet"); f.carrySize = 2; w.Cache0().push_back({w.eco.map->SpeciesIndex("Sardine"), 1, 0}); S.aimPitch = -0.25f; S.aimYaw = PI * 0.9f; }
+    if (which == 4 || which == 5) {   // a colony grown by the bot Founder for six days, seen at the nest and through its panel
+        w.founderBot = true; f.st = fl::FState::Fly; f.pos = Vector3Add(w.island.nest, {0, 2, 0}); f.hunger = 1;
+        w.col.restBelow = 0.45f;
+        for (float tt = 0; tt < fl::World::DAY * 6.3f; tt += 0.1f) { w.col.nestsWanted = std::max(2, w.Count(fl::BStage::Mate) + 1); w.Step(0.1f, fl::FounderInput{}); }
+        w.founderBot = false;
+        f.st = fl::FState::Fly; f.pos = Vector3Add(w.col.caches[0].pos, {-10, 9, -8}); f.yaw = 0.7f; f.airspeed = 8; f.pitch = -0.2f; f.carrySp = -1;
+        S.aimYaw = f.yaw; S.aimPitch = -0.45f; S.panel = which == 5; S.help = false;
+    }
     if (which == 3) { w.time = fl::World::DAY * 0.27f; f.pos = {40, 70, 120}; f.yaw = -PI * 0.6f; S.aimPitch = -0.35f; }
     S.aimYaw = which == 2 ? S.aimYaw : f.yaw; S.camYaw = S.aimYaw; S.camPitch = S.aimPitch * 0.8f - 0.12f;
 }

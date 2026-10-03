@@ -103,5 +103,67 @@ Gate (doc p33): "Fishing feels good alone for ten minutes."
 - A controller.
 - Other players' birds.
 
-## Next: stage 2, the colony loop
-Mates, eggs, chicks and fledging into roles; feeding the colony from the cache; the nest panel. See doc pp. 4-12 and 33.
+## Stage 2: the colony loop (done; gate met)
+
+Gate (doc p33): "A bot colony grows to 40 and starves if it outfishes its lagoon."
+
+**Code:** `src/flight_colony.cpp`, and the colony types in `flight.h` (`Colony`, `Bird`, `Nest`, `Cache`, `Site`, `Stock`, `Economy`, `RoleDef`). Every number is data:
+- `data/flight/flight_economy.json`: hunger, feed, courtship, mates, clutches, eggs, chicks, twigs, regrowth. Keys marked `_open` are numbers the doc leaves open.
+- `data/flight/flight_roles.json`: the fisher, feeder and builder roles (doc p11).
+
+**The loop (doc pp. 3-7):**
+- **Feed:** a fish's feed is its size class. A full hunger bar holds one day's eating: 2.5 for an adult, 1 for a chick ("a sardine feeds one chick for a day"), 3 for the Founder. Chicks empty twice as fast. At zero for half a day, a bird dies, so chicks starve first.
+- **Courtship:** a nest's courtship bowl wants 3 fish of size 2+, and one more for each mate after. Only the Founder fills it, carrying fish there and pressing E (doc p4: the Founder picks the mate).
+- **Mates:** a mate arrives within 0.3-0.9 of a day (×0.8 on a tropical island, ×0.5 for the Lyrebird), from a finite wild flock of 30. It sits on the nest, eats from the nest's larder, and lays 2-4 eggs (Lyrebird +1, Cuckoo -1) every 2 days while fed, 3 clutches in all, up to 4 eggs and chicks in a nest. With no feeders, the mate fetches food for itself and its chicks, leaving the eggs to chill.
+- **Eggs:** they hatch after a day while warmed by the mate (+25% faster in a nest lined with 3 shells), and fail after 2 days unwarmed.
+- **Chicks:** they eat from the larder and fledge after 2 days (a day later for the Swift; +25% faster while fully fed). Each fledges into the role furthest below the colony's fledging plan.
+- **Roles** (kinematic flyers that read the real sea):
+  - *Fishers* go to the best ground: the nearest reachable fish, weighted `exp(-d/100)`, with resting grounds avoided. They dive at a fish within 2.7 m of the surface. A hungry shark within 6 m can take them. They carry the catch to the nearest cache with room.
+  - *Feeders* carry fish from the caches to the nests that need them most.
+  - *Builders* raise nests on free sites, up to the number wanted. They raise caches on the shore as the fishers multiply, gathering twigs from palms and driftwood, and line nests with beach shells.
+- **Meals:** a working bird eats at a cache: 2 s when the feeders cover it (one feeder per 8 workers), 20 s when it fetches its own.
+- **Night:** the colony roosts (fervour, a later stage, will keep it working). Retraining takes a day.
+- **The stores:** caches hold 20 fish, and fish spoil after 2 days. The first cache is at the foot of the home palm. There are 24 nest sites, the palm crowns nearest home.
+- **The grounds:** they regrow logistically: `r × N × (1 - N/K) + 4% of K` a day, with r by size class (3.0, 1.6, 0.9, 0.5). Red Tide's flat respawn is switched off for the Flight's rows (`respawn_s` 0). A fished-out ground recovers only slowly.
+- **The day's depths:** fish rise to about 1.4 m at dawn and dusk (all in reach), sit about 3.8 m down by day give or take 2 m (a few in reach), and go deep at night. Each fish keeps its own depth from a hash of its home point. Red Tide's steering returns a fish to its home and goal, so their depths move too. The 3 m lagoon is in reach all day, which is why it gets overfished.
+- **The Founder's E** (`InteractHint` / `Interact`): fill a courtship bowl, lay food in a nest, store a fish in a cache, take a fish from a cache, pick up twigs (palms, driftwood, the stock pile), add twigs to a build, or lay out a nest on a free site.
+- **The Founder's F:** eat a carried fish, or the oldest in a nearby cache.
+- **Leaderless:** a minute after the Founder dies, or while it's a chick, the old orders run down: no new nests, and fledglings fish.
+
+**The scene:**
+- *In the world:* colony birds (the founder's species at 0.75 scale, posed from their motion, carrying fish, twigs or shells), nests (growing as twigs come in), shell linings, courtship bowls (a cup lit per fish), eggs (blue-grey as they chill), chicks (down, a gaping beak, growing, pinker when hungry), cache piles with their fish (yellowing as they go off), the twig stock, and driftwood and shells on the beaches.
+- *Labels:* nests within 45 m are labelled with twigs, their bowl, "a mate is coming", or the mate, eggs and chicks.
+- *The HUD:* the E hint, the colony's size and days of food, and a flashing alarm when the colony is running out.
+- *The colony panel (Tab):* the mouse is freed while it's open.
+  - birds, feed per day against mouths per day, and the stores (days of food);
+  - twigs, shells and the wild mates left;
+  - each role with a retrain button;
+  - the fledging plan (−/+);
+  - nests built, under way, free sites, and how many builders raise (−/+);
+  - the fishers' ground (`<` `>`: the best, or a zone) with its stock;
+  - deaths by cause.
+
+**Checks:**
+- `depth.exe --flight-colony-test` (13 checks):
+  - the data and the start;
+  - the courtship bowl (a sardine is too small; three mullet), the mate's arrival, a clutch, hatching, fledging into the plan's roles;
+  - chilled eggs, and chicks starving before adults;
+  - a fisher, a feeder and a builder at work;
+  - logistic regrowth (fished to 4%: back to 37% in a day; fished to 50%: back to 93%).
+- `depth.exe --flight-sim tropical <days> [careful|lagoon] [founder] [seed]`:
+  - Runs a bot colony. The Founder is flown by the colony's logic: it eats, courts when the colony can afford another mate, builds alone until there are builders, and otherwise fishes.
+  - A governor plays the panel the careful way: nests just ahead of the mates, the plan by the feed, idle builders and feeders retrained as fishers, and grounds rested under 45%.
+  - It prints a row a day, each role's time by task, the catch by ground, the grounds' stock at the end, deaths, and a GATE line.
+- **The gate, last run:**
+  - *Careful:* 40 birds on day 16 (seed 1) and day 14 (seed 2), no deaths, the lagoon held near 45%, fishers about 5 fish a day each (the doc's 3-6).
+  - *Lagoon-only:* 23 birds by day 7, then the lagoon is empty, 25 birds starve, and 2 are left.
+- Shots: `flight_colony`, `flight_panel` (a colony grown for six days by the bot).
+
+**A target not met (logged, a question for the user):** the doc's balance target is 40 birds by day 6 and 100 by day 10 (p34). Its own timings don't allow that: hatch 1 day, fledge 2, a clutch every 2 days, a mate a day after its bowl is full, and every courtship fish carried by the Founder alone. With those numbers a careful bot reaches 40 in 14-16 days.
+
+**Tuning notes from this stage:**
+- The open sea's stocks were doubled for this stage: the shelf and open-sea rows count ×2, leaving out sharks, barracuda, tuna and mahi.
+- Fishers' reach is 2.7 m (the lagoon's floor is 3 m down).
+
+## Next: stage 3, islands, scouting and the map
+All four starting island types, the generator, the arrangements; scouts, fog, the map, reports (doc p34).
