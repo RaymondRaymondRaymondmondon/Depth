@@ -5,6 +5,7 @@
 #include "game.h"
 #include "arcade_session.h"
 #include "scuttle.h"
+#include "flight_net.h"
 #include "net.h"
 #include "skins.h"
 #include "voice.h"
@@ -30,6 +31,9 @@ int gRtMapSel = 0;        // Red Tide's map on the reel (solo, and what a host's
 int gRtModeSel = 0;       // and its mode (design doc "Modes")
 int gRtSeasonPick = 0;    // and the species season (0 none)
 static bool gRtCustomOpen = false;   // Custom mode's rules panel, over the arcade
+// the Flight's choices: your founder, your island, the arrangement, the starting islands (solo), the match's length
+int gFlSel = 0, gFlIsle = 0, gFlArr = 0, gFlPlayers = 4, gFlMinutes = 1;
+std::string FlOpts() { const auto& L = fl::MatchLengths(); return fl::FlightHostOpts(gFlArr, gFlIsle, L.empty() ? 30 : L[std::clamp(gFlMinutes, 0, (int)L.size() - 1)]); }
 std::string RtOpts() { return std::string(RT_MAP_KEYS[gRtMapSel]) + ":" + RedTideModeKey(gRtModeSel) + ":" + std::to_string(gRtSeasonPick) + (std::string(RedTideModeKey(gRtModeSel)) == "custom" ? ":" + RedTideCustomRules() : std::string()); }
 bool gTrawlFp = false;   // the Trawl's view for a networked match (the reel remembers the last one chosen)
 int twCrew = 4;           // the Trawl's hands sailing solo (the rest are bots)
@@ -173,7 +177,7 @@ void DrawReels(Game& g) {
         {G_SCUTTLE, "2-4 players", "5-10 min", "A fast crab-racing card game anyone can learn in one hand."},
         {G_FATHOMS, "2-6 players", "20-30 min", "The island strategy game: six factions of the deep."},
         {G_RED_TIDE, "1-4 co-op", "20-60 min", "Divers in living ecosystems: kill for scrip, and the blood in the water brings what eats everything."},
-        {G_FLIGHT, "solo for now (2-6 later)", "40-60 min", "Be the bird: fly your Founder in person, fish the living sea, and grow a colony."},
+        {G_FLIGHT, "2-6 players, or solo with bots", "20-45 min", "Be the bird: fly your Founder in person, fish the living sea, and grow a colony."},
     };
     gDrum += (gSel - gDrum) * std::min(1.0f, GetFrameTime() * 8);
     float wheel = GetMouseWheelMove();
@@ -194,7 +198,7 @@ void DrawReels(Game& g) {
     DrawWrapped(reels[gSel].line, {c.x - 200, c.y + 100, 400, 50}, 17, Color{200, 240, 232, 255});
 
     // the valve wheels: Host, Join, Browse (and a practice table against the arcade's own crabs)
-    bool ready = Info(reels[gSel].game).built && reels[gSel].game != G_FLIGHT;   // (the Flight's host runs in tests; its networked screen comes next in stage 5)
+    bool ready = Info(reels[gSel].game).built;
     int selGame = reels[gSel].game;
     const char* valves[3] = {"Host", "Join", "Browse"};
     for (int k = 0; k < 3; k++) {
@@ -211,7 +215,7 @@ void DrawReels(Game& g) {
             gError.clear();
             if (k == 0) {
                 std::string err;
-                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : ""; }
+                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : ""; }
                 else gError = "Couldn't host: " + err;
             } else if (k == 1) { gMode = MODE_JOIN; gJoinFocus = true; }
             else gMode = MODE_BROWSE;
@@ -240,7 +244,7 @@ void DrawReels(Game& g) {
         if (CheckCollisionPointRec(GetMousePosition(), {c.x - 200, c.y + 274, 400, 20}) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gTrawlFp = !gTrawlFp;
     }
     if (selGame == G_FLIGHT) {   // stage 1: the Founder alone over the tropical island
-        static int flSel = 0;
+        int& flSel = gFlSel;
         int nf = std::max(1, FlightFounderCount());
         Rectangle l{c.x - 190, c.y + 52, 30, 26}, r{c.x + 160, c.y + 52, 30, 26};
         DrawTextCenteredBold(FlightFounderName(flSel), c.x, c.y + 54, 20, Color{230, 200, 150, 255});
@@ -250,7 +254,7 @@ void DrawReels(Game& g) {
         if ((IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) || IsKeyPressed(KEY_RIGHT)) { flSel = (flSel + 1) % nf; PlayCue("ui.click"); }
 
         // the map: your island type, the arrangement, how many starting islands (the rivals sit still until stage 4)
-        static int flIsle = 0, flArr = 0, flPlayers = 4;
+        int& flIsle = gFlIsle; int& flArr = gFlArr; int& flPlayers = gFlPlayers;
         // (on a plate to the left of the drum, like Red Tide's pages)
         DrawRectangleRounded({28, 236, 268, 240}, 0.08f, 6, Fade(Color{8, 30, 34, 255}, 0.85f));
         DrawRectangleRoundedLinesEx({28, 236, 268, 240}, 0.08f, 6, 2, Pal::BrassDk);
@@ -265,10 +269,10 @@ void DrawReels(Game& g) {
         };
         cyc(276, "your island", flIsle, 4, FlightIsleTypeName(flIsle));
         cyc(326, "the arrangement", flArr, 4, FlightArrangementName(flArr));
-        { int pv = flPlayers - 2; cyc(376, "starting islands", pv, 5, TextFormat("%d (rivals sit still for now)", flPlayers)); flPlayers = pv + 2; }
+        { int pv = flPlayers - 2; cyc(376, "starting islands (solo)", pv, 5, TextFormat("%d: you and %d bot colonies", flPlayers, flPlayers - 1)); flPlayers = pv + 2; }
         DrawWrapped(FlightFounderLine(flSel), {40, 424, 244, 48}, 13, SCREEN_DIM);
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Fly (solo)", true, 15)) { StartFlight(g, FlightFounderKey(flSel), flIsle, flArr, flPlayers); return; }
-        DrawTextCentered("Flight, the colony and the map so far; war and friends come in later stages", c.x, c.y + 280, 13, SCREEN_DIM);
+        DrawTextCentered("Host or Join to fly with friends (2-6; the host picks the map and the length in the lobby)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (selGame == G_RED_TIDE) {
         const char* const* RT_MAPS = RT_MAP_KEYS;
@@ -470,10 +474,29 @@ void DrawLobby() {
         if (before != gRtMapSel || beforeMode != gRtModeSel)
             gSess.Chat(std::string("We dive ") + RT_TITLES[gRtMapSel] + (gRtModeSel ? std::string(": ") + RedTideModeName(gRtModeSel) + " - " + RedTideModeRules(gRtModeSel) : std::string()));
     }
+    if (gSess.game == G_FLIGHT && host) {
+        // the host picks the map and the match's length (design doc p27: 20, 30 or 45 minutes)
+        auto pick = [&](float x, float y, const char* text, int& v, int n) {
+            Rectangle l{x - 150, y, 26, 26}, r{x + 124, y, 26, 26};
+            DrawTextCenteredBold("<", l.x + 13, l.y + 2, 20, Pal::Brass); DrawTextCenteredBold(">", r.x + 13, r.y + 2, 20, Pal::Brass);
+            DrawTextCenteredBold(text, x, y + 3, 17, Color{230, 200, 150, 255});
+            bool ch = false;
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = (v + n - 1) % n; ch = true; }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = (v + 1) % n; ch = true; }
+            return ch;
+        };
+        const auto& L = fl::MatchLengths();
+        bool ch = pick(p.x + 195, p.y + p.height - 140, FlightIsleTypeName(gFlIsle), gFlIsle, 4);
+        ch |= pick(p.x + 195, p.y + p.height - 108, FlightArrangementName(gFlArr), gFlArr, 4);
+        ch |= pick(p.x + 505, p.y + p.height - 140, TextFormat("%d minutes", L.empty() ? 30 : L[std::clamp(gFlMinutes, 0, (int)L.size() - 1)]), gFlMinutes, std::max(1, (int)L.size()));
+        DrawTextCentered(TextFormat("your founder: %s", FlightFounderName(gFlSel)), p.x + 505, p.y + p.height - 104, 15, Color{180, 230, 220, 255});
+        gSess.gameOpts = FlOpts();
+        if (ch) gSess.Chat(std::string("The map: ") + FlightIsleTypeName(gFlIsle) + " homes, " + FlightArrangementName(gFlArr) + TextFormat(", %d minutes", L.empty() ? 30 : L[std::clamp(gFlMinutes, 0, (int)L.size() - 1)]));
+    } else if (gSess.game == G_FLIGHT) DrawTextCentered(TextFormat("your founder: %s (pick it on the reel)", FlightFounderName(gFlSel)), p.x + 350, p.y + p.height - 104, 15, Color{180, 230, 220, 255});
     if (host) {
         std::string why;
         bool can = gSess.CanLaunch(&why);
-        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : "Start the race";
+        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : "Start the race";
         if (Button({p.x + p.width - 250, p.y + p.height - 66, 220, 50}, go, can, 20)) { std::string w2; gSess.Launch(&w2); }
         if (!can) Txt(why, p.x + 30, p.y + p.height - 50, 15, SCREEN_DIM);
     } else if (gSess.mySeat >= 0) {
@@ -893,6 +916,7 @@ void DrawRoom(Game& g) {
         case S_PLAYING:
             if (gSess.game == G_TRAWL) { StartTrawlNet(g, &gSess, gTrawlFp); return; }   // aboard the Gannet (host or guest)
             if (gSess.game == G_RED_TIDE) { StartRedTideNet(g, &gSess); return; }       // into the water (host or guest)
+            if (gSess.game == G_FLIGHT) { StartFlightNet(g, &gSess, FlightFounderKey(gFlSel), gProfile.name.c_str()); return; }   // into the air (host or guest)
             DrawTable(g);
             break;
         case S_ENDED: {

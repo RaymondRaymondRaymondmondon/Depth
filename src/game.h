@@ -882,6 +882,8 @@ void StartFlight(Game& g, const char* founder = "taloned", int isleType = 0, int
 const char* FlightIsleTypeName(int t);
 const char* FlightArrangementName(int a);
 void LeaveFlight(Game& g);
+void StartFlightNet(Game& g, arcade::Session* net, const char* founderKey, const char* name);   // a Deep Arcade match of the Flight (host or guest)
+void FlightMenuTick(float dt);                                                                 // (the game menu is open) a networked Flight keeps talking
 void DebugFlightShot(Game& g, int which);   // --shots: 0 dawn over the lagoon, 1 the strike, 2 the nest, 3 high over the island
 int FlightFounderCount();
 const char* FlightFounderName(int i);

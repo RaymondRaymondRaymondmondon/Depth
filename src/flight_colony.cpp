@@ -25,7 +25,7 @@ const Economy& Econ() {
     if (!j.IsObj()) return e;
     auto F = [&](const char* k, float& v) { if (j.Has(k)) v = j[k].F(v); };
     auto I = [&](const char* k, int& v) { if (j.Has(k)) v = j[k].I(v); };
-    F("day_seconds", e.daySeconds); F("work_pace", e.workPace); F("founder_hunger_s", e.founderHungerS);
+    F("day_seconds", e.daySeconds); F("work_pace", e.workPace); F("founder_hunger_s", e.founderHungerS); I("start_pearls", e.startPearls); I("start_shells", e.startShells);
     if (e.workPace <= 0) e.workPace = 240 / std::max(30.0f, e.daySeconds);   // (0: the pace the doc's 4-minute day was tuned at)
     F("feed_adult", e.feedAdult); F("feed_chick", e.feedChick); F("feed_founder", e.feedFounder); F("chick_drain", e.chickDrain);
     F("starve_days", e.starveDays); I("cache_capacity", e.cacheCap); F("spoil_days", e.spoilDays);
@@ -49,12 +49,18 @@ const RoleDef& RoleOf(Role r) {
         v[2] = {"feeder", "Feeder", "Carries fish from the caches to the nests.", 60, 14, 2};
         v[3] = {"builder", "Builder", "Gathers twigs and shells; builds nests and caches.", 70, 11, 3};
         v[4] = {"scout", "Scout", "Flies to a target at the height you set, looks, and comes home to report.", 50, 18, 0};
-        v[5] = {"skirmisher", "Skirmisher", "Quick attacks: hit, climb, hit again; raids caches and nests; harasses fishers.", 50, 20, 1};
-        v[6] = {"tank", "Tank", "Takes hits: a wall in the air; escorts.", 180, 10, 0};
-        v[7] = {"striker", "Striker", "Strong, slow attacks from above: the killer; takes chicks.", 90, 14, 0};
-        v[8] = {"watcher", "Watcher", "Island defence: guards the nests and caches, throws nets that hold a bird.", 80, 9, 0};
-        v[9] = {"screamer", "Screamer", "Morale: raises its flock's and lowers the enemy's.", 60, 15, 0};
-        v[10] = {"flockmaster", "Flockmaster", "Leads a flock without the Founder: holds formation, +5% speed.", 90, 13, 0};
+        v[5] = {"trader", "Trader", "Carries the colony's surplus fish to a town's dock and buys what it needs; unarmed and known.", 65, 13, 4};
+        v[6] = {"priest", "Priest", "Tends the shrine: raises fervour, offers the surplus, converts wild birds (and, at Zeal, enemy birds).", 55, 11, 0};
+        v[7] = {"chemist", "Chemist", "Brews stimulants from guano and pearls at the Works and doses a flock before it flies.", 55, 11, 0};
+        v[8] = {"pathfinder", "Pathfinder", "Founds new colonies without the Founder: lands, builds, and calls a mate.", 70, 15, 2};
+        v[9] = {"skirmisher", "Skirmisher", "Quick attacks: hit, climb, hit again; raids caches and nests; harasses fishers.", 50, 20, 1};
+        v[10] = {"tank", "Tank", "Takes hits: a wall in the air; escorts.", 180, 10, 0};
+        v[11] = {"striker", "Striker", "Strong, slow attacks from above: the killer; takes chicks.", 90, 14, 0};
+        v[12] = {"watcher", "Watcher", "Island defence: guards the nests and caches, throws nets that hold a bird.", 80, 9, 0};
+        v[13] = {"screamer", "Screamer", "Morale: raises its flock's and lowers the enemy's.", 60, 15, 0};
+        v[14] = {"flockmaster", "Flockmaster", "Leads a flock without the Founder: holds formation, +5% speed.", 90, 13, 0};
+        v[15] = {"bomber", "Bomber", "Carries one bomb from the Works at high altitude and drops it: a blast that breaks hedges, towers and nests.", 120, 9, 0};
+        v[16] = {"pirate", "Fisher-of-Birds", "A frigatebird: steals fish from enemy fishers in the air.", 100, 17, 2};
         Json j = LoadJsonFile(FlightDataDir() + "/flight_roles.json");
         for (const Json& r : j.a) {
             std::string k = r["key"].Str0();
@@ -130,7 +136,7 @@ int World::NearestCache(Vector3 p, bool withFish, bool withRoom) const {
         const Cache& c = col.caches[i];
         if (!c.built) continue;
         if (withFish && c.fish.empty()) continue;
-        if (withRoom && (int)c.fish.size() >= Econ().cacheCap) continue;
+        if (withRoom && (int)c.fish.size() >= CacheCap()) continue;
         float d = Vector3Distance(p, c.pos);
         if (d < bd) { bd = d; best = i; }
     }
@@ -157,6 +163,7 @@ void World::InitColony() {
     const Economy& E = Econ();
     col = Colony{};
     col.wildMates = E.wildMates;
+    col.pearls = E.startPearls; col.shells = E.startShells;
     // nest sites: the island's own (palm crowns and beach, ledges, roofs and the tower, the ring), the nearest to home first
     std::vector<Vector3> sites = island.sites;
     std::sort(sites.begin(), sites.end(), [&](const Vector3& a, const Vector3& b) { return Vector3Distance(a, island.nest) < Vector3Distance(b, island.nest); });
@@ -261,12 +268,13 @@ int World::ChooseGround(Vector3 from) const {
     if (col.ground >= 0) return col.ground;
     // the best ground: fish near the surface that a fisher can lift, over the distance to get there
     std::vector<float> score(eco.map->zones.size(), 0);
-    int carry = RoleOf(Role::Fisher).carry + (Def().key == "strongbird" ? 2 : Def().key == "swift" ? -1 : 0);
+    int carry = std::max(1, RoleOf(Role::Fisher).carry + BendNow().carry);
+    float reach = 100 * BendNow().reach;   // (the Albatross's Long Reach: far grounds are worth the trip)
     for (const auto& a : eco.agents) {
         if (!a.alive || a.diver >= 0 || a.pos.y < -FISHER_REACH || a.zone < 0) continue;
         const rt::Species& s = eco.map->species[a.sp];
         if (!Catchable(s) || s.size > carry) continue;
-        score[a.zone] += expf(-Dist2(from, a.pos) / 100);   // (a fisher wants the nearest good patch: far fish are worth little)
+        score[a.zone] += expf(-Dist2(from, a.pos) / reach);   // (a fisher wants the nearest good patch: far fish are worth little)
     }
     // waters asleep (no fish drawn there now): their count, at the share the time of day brings within reach
     if (wholeMap) {
@@ -279,7 +287,7 @@ int World::ChooseGround(Vector3 from) const {
             const rt::Zone& Z = eco.map->zones[s.zone];
             float reach = Z.y0 > -FISHER_REACH - 0.5f ? 1.0f : rise ? 1.0f : night ? 0.0f : 0.2f;
             float dz = std::max(0.0f, Dist2(from, Z.Center()) - std::min(Z.plan.width, Z.plan.height) * 0.4f);
-            score[s.zone] += s.pop * reach * expf(-dz / 100);
+            score[s.zone] += s.pop * reach * expf(-dz / (100 * BendNow().reach));
         }
     }
     int best = wholeMap ? -1 : lagoonZone; float bs = -1;
@@ -297,9 +305,12 @@ int World::ChooseGround(Vector3 from) const {
 // ---------------------------------------------------------------- the jobs
 void World::FisherStep(Bird& b, float dt) {
     const RoleDef& R = RoleOf(b.role == Role::None ? Role::Fisher : b.role);
-    int carry = R.carry + (Def().key == "strongbird" ? 2 : Def().key == "swift" ? -1 : 0);
+    const Bend& BD = BendNow();
+    int carry = std::max(1, R.carry + BD.carry);
     if (&b == &fb) carry = me.Carry(Def());
-    float speed = R.speed * (Def().key == "swift" ? 1.25f : Def().key == "taloned" ? 0.9f : 1.0f);
+    float speed = R.speed * BD.speed;
+    float boom = col.boomState == 1 ? 1.6f : col.boomState == 2 ? 0.6f : 1.0f;   // (the Tycoon's boom and bust: the feed)
+    bool coop = col.HasTier(Tree::Fishing, 4);
     if (b.carrySp >= 0) {
         // home with it: a courtship fish to its bowl, otherwise the nearest cache with room (hungry, it eats it)
         if (b.hunger < 0.25f && NearestCache(b.pos, true, false) < 0) { b.hunger = std::min(1.0f, b.hunger + b.carrySize / Econ().feedAdult); b.carrySp = -1; b.carrySize = 0; return; }
@@ -318,6 +329,8 @@ void World::FisherStep(Bird& b, float dt) {
         if (MoveTo(b, Vector3Add(col.caches[ci].pos, {0, 0.6f, 0}), speed, dt)) {
             col.caches[ci].fish.push_back({b.carrySp, b.carrySize, 0});
             col.feedToday += b.carrySize; col.caughtToday++; b.caught++;
+            if (col.HasTier(Tree::Fishing, 2) && Rand() < DeepDivePearl()) { col.pearls++; Say("A fisher brings up a pearl from the oyster beds."); }   // (Deep dive)
+            else if (&b == &fb && Rand() < 0.1f) { col.pearls++; Say("The Founder brings up a pearl with the catch."); }   // (the Founder dives deep: doc p6)
             b.carrySp = -1; b.carrySize = 0; b.task = Task::Idle;
         }
         return;
@@ -334,7 +347,7 @@ void World::FisherStep(Bird& b, float dt) {
                 b.taskT = 0;
                 float stock = StockOf(z), total = 0;
                 for (const auto& s : stocks) if (s.zone == z) { const rt::Species& sp = eco.map->species[s.sp]; if (Catchable(sp) && sp.size <= carry && sp.size >= minSize) total += s.pop; }
-                if (total >= 1 && Rand() < 0.55f * std::clamp(stock * 1.5f, 0.1f, 1.0f)) {
+                if (total >= 1 && Rand() < 0.55f * BD.fishHit * boom * (coop ? 1.5f : 1.0f) * std::clamp(stock * 1.5f, 0.1f, 1.0f)) {
                     float pick = Rand() * total;
                     for (auto& s : stocks) if (s.zone == z) { const rt::Species& sp = eco.map->species[s.sp]; if (!Catchable(sp) || sp.size > carry || sp.size < minSize) continue; pick -= s.pop; if (pick <= 0) { s.pop -= 1; b.carrySp = s.sp; b.carrySize = sp.size; b.task = Task::Idle; break; } }
                 }
@@ -371,7 +384,7 @@ void World::FisherStep(Bird& b, float dt) {
         float a = b.taskT * 0.5f + b.id;
         MoveTo(b, {b.goal.x + cosf(a) * 8, 12, b.goal.z + sinf(a) * 8}, speed * 0.7f, dt, 0.5f);
         if (fmodf(b.taskT, 0.5f) < dt) {
-            int best = -1; float bd = 25;
+            int best = -1; float bd = col.HasTier(Tree::Fishing, 1) ? 35.0f : 25.0f;   // (Schooling eye: schools seen from farther)
             for (int i = 0; i < (int)eco.agents.size(); i++) {
                 const auto& ag = eco.agents[i];
                 if (!ag.alive || ag.diver >= 0 || ag.pos.y < -FISHER_REACH) continue;
@@ -392,15 +405,19 @@ void World::FisherStep(Bird& b, float dt) {
         MoveTo(b, {fp.x, 0.2f, fp.z}, 18, dt, 0.2f);
         if (b.taskT < 1.2f && b.pos.y > 0.6f) break;
         // the strike: hit chance by size, the founder's boost, the water; a hungry shark below may take the bird
-        eco.AddNoise({b.pos.x, 0, b.pos.z}, 1.5f);
-        for (const auto& ag : eco.agents) {
-            if (!ag.alive || ag.diver >= 0 || !EatsBirds(eco, ag.sp)) continue;
-            if (Vector3Distance(ag.pos, {b.pos.x, 0, b.pos.z}) < 6 && ag.hunger > 0.5f && Rand() < 0.35f) { BirdDies(b, "taken by a " + eco.map->species[ag.sp].name); return; }
+        eco.AddNoise({b.pos.x, 0, b.pos.z}, coop ? 4.5f : 1.5f);   // (Cooperative fishing: triple splash)
+        {
+            float ph = DayPhase();
+            bool dark = ph < 0.22f || ph > 0.8f;
+            float risk = 0.35f * (dark && !col.HasTier(Tree::Fishing, 3) && !BD.nightFishing ? 1.6f : 1.0f);   // (Night fishing: the dusk and dawn are safe)
+            for (const auto& ag : eco.agents) {
+                if (!ag.alive || ag.diver >= 0 || !EatsBirds(eco, ag.sp)) continue;
+                if (Vector3Distance(ag.pos, {b.pos.x, 0, b.pos.z}) < 6 * BD.predatorRange && ag.hunger > 0.5f && Rand() < risk) { BirdDies(b, "taken by a " + eco.map->species[ag.sp].name); return; }
+            }
         }
         if (!gone && Dist2(fp, b.pos) < 3 && fp.y > -FISHER_REACH - 0.3f) {
             const rt::Species& s = eco.map->species[eco.agents[fi].sp];
-            float boost = Def().key == "taloned" ? 1.3f : Def().key == "beaked" ? 0.85f : Def().key == "shadow" || Def().key == "sigma" ? 0.9f : 1.0f;
-            float chance = 0.55f * boost * (1.15f - 0.1f * s.size);
+            float chance = 0.55f * BD.fishHit * boom * (coop ? 1.5f : 1.0f) * (1.15f - 0.1f * s.size);
             if (Rand() < chance) {
                 b.carrySp = eco.agents[fi].sp; b.carrySize = s.size;
                 if (eco.agents[fi].homeZone >= 0 && eco.agents[fi].homeZone < 16) caughtIn[eco.agents[fi].homeZone]++;
@@ -452,15 +469,28 @@ void World::BuilderStep(Bird& b, float dt) {
     // what needs raising: a nest under way, a cache under way; else lay one out (nests up to the wanted count, a cache
     // when the piles are filling)
     // defences after nests: a hedge (twigs) or a tower (twigs and shells) the colony has laid out
+    // a third of the builders keep a stock of shells at the cache while the research wants them
+    if (b.id % 3 == 0 && col.shells < ShellsWanted() && b.carryTwigs == 0) {
+        if (b.carryShells > 0) { b.task = Task::Deliver; if (MoveTo(b, Vector3Add(col.caches[0].pos, {0, 0.5f, 0}), R.speed, dt)) { col.shells += b.carryShells; b.carryShells = 0; b.task = Task::Idle; } return; }
+        int src = -1; float bd = 1e9f;
+        for (int i = 0; i < (int)col.twigSrc.size(); i++) { const auto& s = col.twigSrc[i]; if (!s.shells || s.twigs < 1) continue; float d = Vector3Distance(b.pos, s.pos); if (d < bd) { bd = d; src = i; } }
+        if (src >= 0) { b.task = Task::Gather; if (MoveTo(b, Vector3Add(col.twigSrc[src].pos, {0, 0.3f, 0}), R.speed, dt)) { int k = std::min((int)col.twigSrc[src].twigs, R.carry); col.twigSrc[src].twigs -= k; b.carryShells = k; } return; }
+    }
     bool nestJob = false; for (const auto& n : col.nests) nestJob |= !n.built;
-    if (!nestJob) for (auto& st : col.builds) {
-        if (st.built) continue;
+    for (const auto& st : col.builds) if (!st.built && st.kind == ST_ROOST) nestJob = false;   // (the Roost before more nests: research waits on it)
+    if (!nestJob) for (int pass = 0; pass < 2; pass++) for (auto& st : col.builds) {
+        if (st.built || (pass == 0) != (st.kind == ST_ROOST)) continue;   // (the Roost first)
         int needT = StructureTwigs(st.kind) - (int)st.twigs, needS = StructureShells(st.kind) - st.shells;
         if (b.carryTwigs > 0 || b.carryShells > 0) {
             b.task = Task::Build;
             if (MoveTo(b, Vector3Add(st.pos, {0, 0.6f, 0}), R.speed, dt)) {
                 st.twigs += b.carryTwigs; st.shells += b.carryShells; b.carryTwigs = 0; b.carryShells = 0; b.task = Task::Idle;
-                if (st.twigs >= StructureTwigs(st.kind) && st.shells >= StructureShells(st.kind)) { st.built = true; Say(st.kind == 0 ? "A hedge of thorn now rings the home nest: Skirmishers can't get through." : "A tower stands over the colony: a Watcher on it sees farther and nets farther."); }
+                if (st.twigs >= StructureTwigs(st.kind) && st.shells >= StructureShells(st.kind)) {
+                    st.built = true;
+                    static const char* DONE[ST_COUNT] = {"A hedge of thorn now rings the home nest: Skirmishers can't get through.", "A tower stands over the colony: a Watcher on it sees farther and nets farther.",
+                                                         "The Roost is built: research can begin (the colony panel's third page).", "The shrine is raised: priests can tend it, and the Founder can pray there.", "The Works stand: bombs and stimulants can be made."};
+                    Say(DONE[std::clamp(st.kind, 0, ST_COUNT - 1)]);
+                }
             }
             return;
         }
@@ -496,7 +526,7 @@ void World::BuilderStep(Bird& b, float dt) {
             if (s >= 0) { Nest n; n.site = s; n.pos = col.sites[s].pos; n.bowlNeed = E.courtFish + E.courtStep * (int)col.nests.size(); col.sites[s].nest = (int)col.nests.size(); col.nests.push_back(n); job = (int)col.nests.size() - 1; }
         }
     }
-    float need = job < 0 ? 0 : jobCache ? E.cacheTwigs - col.caches[job].twigs : (Def().key == "albatross" ? 2 : 1) * E.nestTwigs - col.nests[job].twigs;
+    float need = job < 0 ? 0 : jobCache ? E.cacheTwigs - col.caches[job].twigs : NestTwigs() - col.nests[job].twigs;
     Vector3 jobPos = job < 0 ? Vector3{} : jobCache ? col.caches[job].pos : col.nests[job].pos;
     if (b.carryTwigs > 0) {
         Vector3 to = job >= 0 ? jobPos : col.caches[0].pos;
@@ -504,7 +534,7 @@ void World::BuilderStep(Bird& b, float dt) {
         if (MoveTo(b, Vector3Add(to, {0, 0.5f, 0}), R.speed, dt)) {
             if (job >= 0) {
                 if (jobCache) { col.caches[job].twigs += b.carryTwigs; if (col.caches[job].twigs >= E.cacheTwigs) { col.caches[job].built = true; Say("A new cache is built."); } }
-                else { col.nests[job].twigs += b.carryTwigs; if (col.nests[job].twigs >= (Def().key == "albatross" ? 2 : 1) * E.nestTwigs) { col.nests[job].built = true; Say(TextFormat("A new nest is built: its courtship bowl wants %d fish.", col.nests[job].bowlNeed)); } }
+                else { col.nests[job].twigs += b.carryTwigs; if (col.nests[job].twigs >= NestTwigs()) { col.nests[job].built = true; Say(TextFormat("A new nest is built: its courtship bowl wants %d fish.", col.nests[job].bowlNeed)); } }
             } else col.twigs += b.carryTwigs;
             b.carryTwigs = 0; b.task = Task::Idle;
         }
@@ -531,6 +561,7 @@ void World::BuilderStep(Bird& b, float dt) {
     }
     // nothing to raise: shells for the nests' linings, and a stock of twigs for the next nest
     bool lining = false; for (const auto& n : col.nests) if (n.built && n.shells < E.liningShells) lining = true;
+    if (col.shells < ShellsWanted()) lining = true;   // (shells for the research and the shrine: a stock at the cache)
     int want = -1; float bd = 1e9f;
     for (int i = 0; i < (int)col.twigSrc.size(); i++) {
         const auto& s = col.twigSrc[i];
@@ -570,9 +601,8 @@ void World::MateStep(Bird& b, float dt) {
         if (b.clutchT >= E.clutchDays * DAY) {
             int inNest = 0; for (const auto& o : col.birds) if (o.alive && o.nest == b.nest && (o.stage == BStage::Egg || o.stage == BStage::Chick)) inNest++;
             int eggs = E.clutchMin + (int)(Rand() * (E.clutchMax - E.clutchMin + 1));
-            if (Def().key == "lyrebird") eggs++;
-            if (Def().key == "cuckoo") eggs--;
-            eggs = std::min(eggs, E.nestEggs - inNest);
+            eggs += BendNow().clutch;
+            eggs = std::min(eggs, NestEggs() - inNest);
             if (eggs > 0) {
                 for (int k = 0; k < eggs; k++) { Bird e; e.id = col.nextId++; e.stage = BStage::Egg; e.nest = b.nest; e.pos = n.pos; e.hunger = 1; born.push_back(e); }   // (appended after the loop: b is a reference into col.birds)
                 b.clutches++; b.clutchT = 0;
@@ -583,6 +613,7 @@ void World::MateStep(Bird& b, float dt) {
 }
 
 bool World::Retrain(Role to, Role from) {
+    if (!RoleUnlocked(to)) { Say(std::string("The ") + RoleName(to) + " role isn't researched yet."); return false; }
     if (from == Role::None) { int most = 0; for (int o = 1; o < (int)Role::COUNT; o++) if ((Role)o != to && Count(BStage::Adult, (Role)o) > most) { most = Count(BStage::Adult, (Role)o); from = (Role)o; } }
     for (auto& b : col.birds) if (b.alive && b.stage == BStage::Adult && b.role == from && b.retrainT <= 0 && b.carrySp < 0 && b.carryTwigs == 0 && b.flock < 0) {
         b.retrainTo = to; b.retrainT = Econ().retrainDays * DAY; b.task = Task::Idle;
@@ -599,12 +630,13 @@ void World::Fledge(Bird& b) {
         float worst = -1e9f;
         for (int k = 1; k < (int)Role::COUNT; k++) {
             float gap = col.plan[k] * total - Count(BStage::Adult, (Role)k);
-            if (col.plan[k] > 0 && gap > worst) { worst = gap; r = (Role)k; }
+            if (col.plan[k] > 0 && gap > worst && RoleUnlocked((Role)k)) { worst = gap; r = (Role)k; }
         }
         if (r == Role::None) r = Role::Fisher;
         if (col.leaderless) r = Role::Fisher;
     }
-    b.stage = BStage::Adult; b.role = r; b.retrainTo = Role::None; b.task = Task::Idle; b.age = 0; b.hp = RoleOf(r).hp; b.fight = 25;
+    if (!RoleUnlocked(r)) r = Role::Fisher;
+    b.stage = BStage::Adult; b.role = r; b.retrainTo = Role::None; b.task = Task::Idle; b.age = 0; b.hp = MaxHp(r); b.fight = 25;
     b.pos.y += 0.5f;
     Say(std::string("A chick fledges: a ") + RoleName(r) + ".");
 }
@@ -623,7 +655,7 @@ void World::StepBird(Bird& b, float dt) {
     const Economy& E = Econ();
     // hunger: a day to empty (chicks twice as fast); chicks and mates eat what's laid in the nest
     if (b.stage != BStage::Egg) {
-        b.hunger -= dt / DAY * (b.stage == BStage::Chick ? E.chickDrain : 1.0f);
+        b.hunger -= dt / DAY * (b.stage == BStage::Chick ? E.chickDrain : 1.0f) * (FervourBand() >= 4 ? 1.2f : 1.0f);   // (a colony at Zeal eats 20% more)
         if ((b.stage == BStage::Chick || b.stage == BStage::Mate) && b.nest >= 0 && b.hunger < 0.85f) {
             Nest& n = col.nests[b.nest];
             float cap = b.stage == BStage::Chick ? E.feedChick : E.feedAdult;
@@ -639,7 +671,7 @@ void World::StepBird(Bird& b, float dt) {
         bool warm = false;
         if (n.mate >= 0) for (const auto& o : col.birds) if (o.id == n.mate && o.alive && o.task == Task::Sit) warm = true;
         if (n.founders && me.st == FState::Perched && Vector3Distance(me.pos, n.pos) < 2) warm = true;
-        if (warm) { b.age += dt / DAY * (n.shells >= E.liningShells ? 1 + E.liningHatch : 1.0f); b.chillT = std::max(0.0f, b.chillT - dt * 0.5f); }
+        if (warm) { b.age += dt / DAY * (n.shells >= E.liningShells || col.HasTier(Tree::Nesting, 1) ? 1 + E.liningHatch : 1.0f); b.chillT = std::max(0.0f, b.chillT - dt * 0.5f); }
         else { b.chillT += dt; if (b.chillT > E.chillDays * DAY) { BirdDies(b, "chilled"); return; } }
         if (b.age >= E.hatchDays) { b.stage = BStage::Chick; b.age = 0; b.hunger = 0.8f; Say("An egg hatches."); }
     } break;
@@ -647,13 +679,16 @@ void World::StepBird(Bird& b, float dt) {
         Nest& n = col.nests[b.nest];
         b.pos = Vector3Add(n.pos, {0.15f * cosf(b.id * 1.7f), 0.2f, 0.15f * sinf(b.id * 1.7f)});
         b.age += dt / DAY * (b.hunger > 0.9f ? 1 + E.overfeed : 1.0f);
-        if (b.age >= E.chickDays + (Def().key == "swift" ? 1 : 0)) Fledge(b);
+        if (b.age >= E.chickDays + BendNow().fledgeDays) Fledge(b);
     } break;
     case BStage::Mate: MateStep(b, dt); break;
     case BStage::Adult: {
         // night: the colony roosts (fervour, a later stage, will keep it working); a bird with a fish brings it home first
-        float ph = DayPhase();
-        bool night = ph < 0.19f || ph > 0.87f;
+        // (fervour shortens the night's rest: half a night, two hours, none at Zeal; the Shadow's and Night fishing's
+        // fishers work it)
+        float ph = DayPhase(), rest = NightRest();
+        bool night = ph < 0.19f * rest || ph > 1 - 0.13f * rest;
+        if ((b.role == Role::Fisher && (BendNow().nightFishing || col.HasTier(Tree::Fishing, 3)) && (ph > 0.1f && ph < 0.95f))) night = false;
         if (night && b.carrySp < 0 && b.carryTwigs == 0 && b.carryShells == 0 && !(b.role == Role::Scout && b.hasOrder) && b.flock < 0 && b.role != Role::Watcher) {   // (a scout out, a flock and a Watcher stay up)   // (a scout out on an order flies on)
             if (b.hunger < 0.3f && BirdEatsAtCache(b, dt)) break;
             const Site& s = col.sites[(b.id * 7) % col.sites.size()];
@@ -661,12 +696,12 @@ void World::StepBird(Bird& b, float dt) {
             if (b.task == Task::Sit) b.vel = {0, 0, 0};
             break;
         }
-        if (b.retrainT > 0) { b.retrainT -= dt; b.task = Task::Sit; MoveTo(b, Vector3Add(col.caches[0].pos, {0, 0.4f, -1.2f}), 10, dt, 0.4f); if (b.retrainT <= 0) { b.role = b.retrainTo; b.retrainTo = Role::None; b.task = Task::Idle; b.hp = RoleOf(b.role).hp; b.fight = 25; } break; }
+        if (b.retrainT > 0) { b.retrainT -= dt; b.task = Task::Sit; MoveTo(b, Vector3Add(col.caches[0].pos, {0, 0.4f, -1.2f}), 10, dt, 0.4f); if (b.retrainT <= 0) { b.role = b.retrainTo; b.retrainTo = Role::None; b.task = Task::Idle; b.hp = MaxHp(b.role); b.fight = 25; } break; }
         if (IsWarrior(b.role)) {
             if (b.flock >= 0) break;   // (StepWar flies it)
             if (b.hunger < 0.4f && BirdEatsAtCache(b, dt)) break;
-            b.fight = std::min(25.0f, b.fight + 0.5f * dt);
-            if (b.hp < RoleOf(b.role).hp) b.hp = std::min(RoleOf(b.role).hp, b.hp + RoleOf(b.role).hp * dt / DAY);   // (it heals over a day at home)
+            b.fight = std::min(FightStamina(cur), b.fight + 0.5f * dt);
+            if (b.hp < MaxHp(b.role)) b.hp = std::min(MaxHp(b.role), b.hp + MaxHp(b.role) * dt / DAY);   // (it heals over a day at home)
             // a Watcher perches by the nests (on a tower if there is one); the rest roost round home
             Vector3 post;
             if (b.role == Role::Watcher) {
@@ -684,6 +719,9 @@ void World::StepBird(Bird& b, float dt) {
         else if (b.role == Role::Feeder) FeederStep(b, dt);
         else if (b.role == Role::Builder) BuilderStep(b, dt);
         else if (b.role == Role::Scout) ScoutStep(b, dt);
+        else if (b.role == Role::Trader) TraderStep(b, dt);
+        else if (b.role == Role::Priest) PriestStep(b, dt);
+        else { if (b.hunger < 0.35f && BirdEatsAtCache(b, dt)) break; b.task = MoveTo(b, Vector3Add(col.caches[0].pos, {-1.8f, 0.4f, 1.2f}), 11, dt, 0.4f) ? Task::Sit : Task::Fly; }   // (the Chemist and the Pathfinder wait for their work: stage 7)
     } break;
     }
 }
@@ -710,15 +748,17 @@ void World::StepColony(float dt) {
     for (auto& c : col.caches) {
         for (auto& f : c.fish) f.age += dt;
         size_t before = c.fish.size();
-        c.fish.erase(std::remove_if(c.fish.begin(), c.fish.end(), [&](const CachedFish& f) { return f.age > E.spoilDays * DAY; }), c.fish.end());
+        float spoil = SpoilDays();
+        c.fish.erase(std::remove_if(c.fish.begin(), c.fish.end(), [&](const CachedFish& f) { return f.age > spoil * DAY; }), c.fish.end());
         if (c.fish.size() < before && &c == &col.caches[0]) Say("Fish in the cache have spoiled.");
     }
-    for (auto& s : col.twigSrc) s.twigs = std::min(s.cap, s.twigs + s.cap / (E.twigRegrowDays * DAY) * dt);
+    float fert = 1 + std::min(0.5f, col.guano / 200);   // (guano fattens the island's trees)
+    for (auto& s : col.twigSrc) s.twigs = std::min(s.cap, s.twigs + s.cap / (E.twigRegrowDays * DAY) * dt * fert);
     for (int i = 0; i < (int)col.nests.size(); i++) {
         Nest& n = col.nests[i];
         if (!n.built || n.mate >= 0) continue;
         if (n.mateT < 0 && n.bowl >= n.bowlNeed && col.wildMates > 0) {
-            float mul = E.tropicalMate * (Def().key == "lyrebird" ? 0.5f : 1.0f);
+            float mul = E.tropicalMate * BendNow().mateTime;
             n.mateT = (E.mateMin + (E.mateMax - E.mateMin) * Rand()) * DAY * mul;
             Say("The courtship bowl is full: a mate will come within the day.");
         }
@@ -734,6 +774,7 @@ void World::StepColony(float dt) {
         }
     }
     // the colony without its leader: after a minute the old orders run down (no new nests, fledglings fish)
+    StepSociety(dt);   // (research, fervour, priests, the boom: stage 6)
     col.downT = me.st == FState::Dead || me.chick ? col.downT + dt : 0;
     col.leaderless = col.downT > 60;
     dayAcc += dt;
@@ -742,14 +783,28 @@ void World::StepColony(float dt) {
 
 // ---------------------------------------------------------------- the Founder's hands: E and F
 namespace {
-enum class Act { None, Bowl, Larder, Store, PickFish, AddTwigs, StockTwigs, PickTwigs, StartNest };
+enum class Act { None, Bowl, Larder, Store, PickFish, AddTwigs, StockTwigs, PickTwigs, StartNest, Pray, Offer, Trade, Parasite, Serenade };
 }
 static Act FounderAct(const World& w, int* idx) {
     const Founder& f = w.me;
     if (f.st == FState::Dead || f.st == FState::Strike || f.st == FState::Fainted || f.st == FState::Struggle) return Act::None;
     if (f.st == FState::Fly && Vector3Length(f.vel) > 9) return Act::None;   // (too fast to land on anything)
     const Economy& E = Econ();
+    // the shrine: a fish laid on it (Faith 2), or a prayer; a town's dock: the fish sold
+    if (const Structure* sh = w.Built(ST_SHRINE); sh && Vector3Distance(f.pos, sh->pos) < 5) {
+        if (f.carrySp >= 0 && w.col.HasTier(Tree::Faith, 2)) return Act::Offer;
+        if (f.carrySp < 0 && f.carryTwigs == 0) return Act::Pray;
+    }
+    if (f.carrySp >= 0) { int t = w.NearestTown(f.pos, 12); if (t >= 0) { *idx = t; return Act::Trade; } }
+    // a nest not yours (the Cuckoo's brood parasite; anyone with Trade 4)
+    if (f.carrySp < 0 && f.carryTwigs == 0 && (w.BendNow().brood || w.col.HasTier(Tree::Trade, 4)))
+        for (int s = 0; s <= (int)w.sides.size(); s++) {
+            if (s == w.cur) continue;
+            const Colony& C = w.ColOf(s);
+            for (const auto& nn : C.nests) if (nn.built && Vector3Distance(f.pos, nn.pos) < 3.5f) { *idx = w.HomeOf(s); return Act::Parasite; }
+        }
     int n = w.NearestNest(f.pos, 3.5f);
+    if (n >= 0 && f.carrySp < 0 && w.BendNow().serenade && w.col.nests[n].built && w.col.nests[n].mate < 0 && w.col.nests[n].mateT < 0 && w.col.serenadeDay != (int)(w.time / World::DAY) && w.col.wildMates > 0) { *idx = n; return Act::Serenade; }
     int c = -1; { float bd = 3.5f; for (int i = 0; i < (int)w.col.caches.size(); i++) { float d = Vector3Distance(f.pos, w.col.caches[i].pos); if (d < bd) { bd = d; c = i; } } }
     if (f.carrySp >= 0) {
         if (n >= 0 && w.col.nests[n].built && w.col.nests[n].mate < 0 && w.col.nests[n].mateT < 0 && w.col.wildMates > 0) { *idx = n; return Act::Bowl; }
@@ -780,7 +835,12 @@ std::string World::InteractHint() const {
     case Act::AddTwigs: return "E: add the twigs to the build";
     case Act::StockTwigs: return "E: add the twigs to the colony's stock";
     case Act::PickTwigs: return "E: pick up twigs";
-    case Act::StartNest: return TextFormat("E: lay out a nest here (%d twigs)", (Def().key == "albatross" ? 2 : 1) * Econ().nestTwigs);
+    case Act::StartNest: return TextFormat("E: lay out a nest here (%d twigs)", NestTwigs());
+    case Act::Pray: return "E: pray at the shrine (+15 fervour for an hour, once a day)";
+    case Act::Offer: return "E: lay the fish on the shrine (an offering: fervour)";
+    case Act::Trade: return TextFormat("E: sell the fish at %s's dock for %s (%.1f feed each)", isles[towns[i].isle].name.c_str(), GoodName(col.tradeFor), SellPrice(i, col.tradeFor) / std::max(0.1f, FishPrice(i)));
+    case Act::Parasite: return "E: lay your egg in their nest (it fledges as your scout inside their colony)";
+    case Act::Serenade: return "E: sing at the nest (a mate comes at once, once a day)";
     default: return "";
     }
 }
@@ -808,7 +868,7 @@ void World::Interact() {
     case Act::AddTwigs:
         if (i >= 0 && i < (int)col.nests.size() && !col.nests[i].built && Vector3Distance(f.pos, col.nests[i].pos) < 3.5f) {
             Nest& n = col.nests[i]; n.twigs += f.carryTwigs; f.carryTwigs = 0;
-            float need = (float)((Def().key == "albatross" ? 2 : 1) * E.nestTwigs);
+            float need = (float)NestTwigs();
             if (n.twigs >= need) { n.built = true; n.bowlNeed = E.courtFish + E.courtStep * (i); Say(TextFormat("The nest is built. Its courtship bowl wants %d fish of size %d+.", n.bowlNeed, E.courtMinSize)); }
             else Say(TextFormat("The nest: %.0f of %.0f twigs.", n.twigs, need));
         } else { Cache& c = col.caches[i]; c.twigs += f.carryTwigs; f.carryTwigs = 0; if (c.twigs >= E.cacheTwigs) { c.built = true; Say("The cache is built."); } }
@@ -822,8 +882,24 @@ void World::Interact() {
     case Act::StartNest: {
         Nest n; n.site = i; n.pos = col.sites[i].pos; n.bowlNeed = E.courtFish + E.courtStep * (int)col.nests.size();
         col.sites[i].nest = (int)col.nests.size(); col.nests.push_back(n);
-        Say(TextFormat("A nest is laid out: bring %d twigs (palms and driftwood have them).", (Def().key == "albatross" ? 2 : 1) * E.nestTwigs));
+        Say(TextFormat("A nest is laid out: bring %d twigs (palms and driftwood have them).", NestTwigs()));
     } break;
+    case Act::Pray: Pray(); break;
+    case Act::Offer: if (Offer(f.carrySize)) { f.carrySp = -1; f.carrySize = 0; } break;
+    case Act::Trade: {
+        int got = 0;
+        if (TradeAt(i, f.carrySize, col.tradeFor, &got)) {
+            f.carrySp = -1; f.carrySize = 0;
+            Say(got > 0 ? TextFormat("Sold at the dock: %d %s for the colony.", got, GoodName(col.tradeFor)) : "Sold at the dock: the town keeps the credit toward your next purchase.");
+        }
+    } break;
+    case Act::Parasite: {
+        bool known = false; for (int s : col.spies) known |= s == i;
+        if (known) { Say("You already have a chick in that colony."); break; }
+        col.spies.push_back(i);
+        Say("Your egg is in their nest: their colony will raise your scout, and it will report every day.");
+    } break;
+    case Act::Serenade: Serenade(i); break;
     default: break;
     }
 }
@@ -910,13 +986,42 @@ int World::BotFounderStep(float dt) {
     if (job >= 0 && Count(BStage::Adult, Role::Builder) == 0) {
         Nest& n = col.nests[job];
         if (fb.carryTwigs > 0) {
-            if (MoveTo(fb, Vector3Add(n.pos, {0, 0.4f, 0}), 11, dt)) { n.twigs += fb.carryTwigs; fb.carryTwigs = 0; if (n.twigs >= (Def().key == "albatross" ? 2 : 1) * E.nestTwigs) { n.built = true; Say("The Founder has built a nest."); } }
+            if (MoveTo(fb, Vector3Add(n.pos, {0, 0.4f, 0}), 11, dt)) { n.twigs += fb.carryTwigs; fb.carryTwigs = 0; if (n.twigs >= NestTwigs()) { n.built = true; Say("The Founder has built a nest."); } }
         } else {
             int t = NearestTwigs(n.pos, 1e9f);
             if (t >= 0 && MoveTo(fb, Vector3Add(col.twigSrc[t].pos, {0, 0.3f, 0}), 11, dt)) { int k = std::min(2, (int)col.twigSrc[t].twigs); col.twigSrc[t].twigs -= k; fb.carryTwigs = k; }
         }
         f.pos = fb.pos; f.yaw = fb.yaw; return 3;
     }
+    // 3a. the Roost (the first structure after the nest), raised by the Founder while there are no builders
+    if (Count(BStage::Adult, Role::Builder) == 0) for (auto& st : col.builds) {
+        if (st.built || st.kind != ST_ROOST) continue;
+        if (fb.carryTwigs > 0) {
+            if (MoveTo(fb, Vector3Add(st.pos, {0, 0.5f, 0}), 11, dt)) { st.twigs += fb.carryTwigs; fb.carryTwigs = 0; if (st.twigs >= StructureTwigs(ST_ROOST)) { st.built = true; Say("The Founder has raised the Roost: research can begin."); } }
+        } else {
+            int t = NearestTwigs(st.pos, 1e9f);
+            if (t >= 0 && MoveTo(fb, Vector3Add(col.twigSrc[t].pos, {0, 0.3f, 0}), 11, dt)) { int k = std::min(2, (int)col.twigSrc[t].twigs); col.twigSrc[t].twigs -= k; fb.carryTwigs = k; }
+        }
+        f.pos = fb.pos; f.yaw = fb.yaw; return 3;
+    }
+    // 3b. pearls for the Roost: with no Traders yet, the Founder carries the colony's surplus to the nearest town's dock
+    int town = towns.empty() ? -1 : NearestTown(col.caches[0].pos, 1600);
+    if (town >= 0 && Count(BStage::Adult, Role::Trader) == 0 && Built(ST_ROOST) && col.pearls < 5 && (fb.target == 2000 || DaysOfFood() > 0.4f) && DayPhase() > 0.25f && DayPhase() < 0.8f && !(fb.carrySp >= 0 && fb.target != 2000)) {
+        if (fb.carrySp < 0) {
+            int ci = NearestCache(f.pos, true, false);
+            if (ci < 0) { fb.target = -1; f.pos = fb.pos; return 5; }
+            if (MoveTo(fb, Vector3Add(col.caches[ci].pos, {0, 0.5f, 0}), 11, dt)) {
+                auto& fish = col.caches[ci].fish; size_t k = 0; for (size_t i = 1; i < fish.size(); i++) if (fish[i].size > fish[k].size && fish[i].size <= f.Carry(Def())) k = i;
+                if (fish[k].size <= f.Carry(Def())) { fb.carrySp = fish[k].sp; fb.carrySize = fish[k].size; fish.erase(fish.begin() + k); fb.target = 2000; }
+            }
+        } else if (MoveTo(fb, Vector3Add(towns[town].dock, {0, 1, 0}), 11, dt, 2)) {
+            int got = 0; TradeAt(town, fb.carrySize, G_PEARLS, &got);
+            fb.carrySp = -1; fb.carrySize = 0; fb.target = -1;
+        }
+        f.pos = fb.pos; f.yaw = fb.yaw; f.carrySp = fb.carrySp; f.carrySize = fb.carrySize;
+        return 5;
+    }
+    if (fb.target == 2000) fb.target = -1;
     // 4. otherwise it fishes for the caches like any fisher
     if (fb.target >= 1000) fb.target = -1;
     FisherStep(fb, dt);
@@ -1017,6 +1122,7 @@ int RunFlightColonyTest() {
 
 // ---------------------------------------------------------------- --flight-sim <island> <days> [careful|lagoon] [founder] [seed]
 int RunFlightSim(int argc, char** argv) {
+    if (argc > 2 && std::string(argv[2]) == "founders") return RunFlightFounders(argc > 3 ? atoi(argv[3]) : 10, argc > 4 ? atoi(argv[4]) : 2);
     std::string island = argc > 2 ? argv[2] : "tropical";
     int days = argc > 3 ? atoi(argv[3]) : 10;
     std::string mode = argc > 4 ? argv[4] : "careful";

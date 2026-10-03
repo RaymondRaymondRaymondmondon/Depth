@@ -155,6 +155,7 @@ struct FounderInput {
 // Every number is data: data/flight/flight_economy.json (Economy) and flight_roles.json (RoleDef).
 struct Economy {
     float daySeconds = 120, workPace = 1;     // a game day in real seconds; colony birds work this much faster (keeps the per-day economy when days are short)
+    int startPearls = 2, startShells = 12;    // (a founder's dowry: the first research by day 2, as the doc's pacing has it)
     float founderHungerS = 360;               // real seconds a full Founder lasts (the user: a day's worth emptied far too fast once days were 2 minutes)
     float feedAdult = 2.5f, feedChick = 1, feedFounder = 3;   // feed units a full hunger bar holds (one day's eating)
     float chickDrain = 2;                     // chicks empty twice as fast
@@ -173,8 +174,10 @@ struct Economy {
 };
 const Economy& Econ();
 // working roles (doc p11) and warrior roles (p11-12; stage 4); the Bomber comes with the Works (stage 7)
-enum class Role : uint8_t { None, Fisher, Feeder, Builder, Scout, Skirmisher, Tank, Striker, Watcher, Screamer, Flockmaster, COUNT };
+// (stage 6 adds the Trader, Priest, Chemist and Pathfinder; stage 7 the Bomber and the frigatebird Pirate)
+enum class Role : uint8_t { None, Fisher, Feeder, Builder, Scout, Trader, Priest, Chemist, Pathfinder, Skirmisher, Tank, Striker, Watcher, Screamer, Flockmaster, Bomber, Pirate, COUNT };
 inline bool IsWarrior(Role r) { return r >= Role::Skirmisher; }
+const char* RoleAbbrev(Role r);
 struct RoleDef {
     std::string key, name, what; float hp = 60, speed = 12; int carry = 2;
     float attack = 3, cooldown = 1.2f; Alt pref = Alt::Mid; bool perched = false;   // (flight_war.json)
@@ -203,6 +206,7 @@ struct Bird {
     int flock = -1; int tgtSide = -1, tgtId = 0;   // tgtId 0 = the side's Founder
     bool struck = false;                      // (its first strike in this engagement is spent)
     Vector3 post{};                           // a Watcher's perch
+    int carryGood = -1, carryN = 0;           // (a Trader's goods coming home; carrySp -2 an egg being stolen)
 };
 struct Site { Vector3 pos{}; int palm = -1; int nest = -1; };
 struct Nest {
@@ -232,9 +236,43 @@ struct Flock {
     bool retreating = false, scattered = false, leaderDead = false;
     std::string name;
 };
-// what a colony has raised to defend its nests (doc p24): hedges round nest sites, towers for Watchers
-int StructureTwigs(int kind); int StructureShells(int kind);   // (flight_war.json: a hedge 10 twigs, a tower 20 and 5 shells)
-struct Structure { int kind = 0; Vector3 pos{}; float twigs = 0; int shells = 0; bool built = false; int site = -1; };   // kind 0 hedge, 1 tower
+// what a colony has raised (doc p24, p20): hedges round nest sites, towers for Watchers, the Roost (research), the
+// shrine (faith), the Works (bombs and stimulants: stage 7)
+enum { ST_HEDGE = 0, ST_TOWER = 1, ST_ROOST = 2, ST_SHRINE = 3, ST_WORKS = 4, ST_COUNT };
+int StructureTwigs(int kind); int StructureShells(int kind);   // (flight_war.json and flight_research.json)
+const char* StructureName(int kind);
+struct Structure { int kind = 0; Vector3 pos{}; float twigs = 0; int shells = 0; bool built = false; int site = -1; float hp = 100; int isle = -1; };
+
+// ---------------------------------------------------------------- stage 6: research, faith, trade, the founders' bends
+// (flight_society.cpp; data/flight/flight_research.json, flight_bends.json, flight_towns.json)
+enum class Tree : uint8_t { Nesting, Fishing, Flight, Caches, War, Bombing, Chemistry, Faith, Trade, COUNT };
+const char* TreeName(Tree t);
+struct ResearchTier { std::string name, what; };
+const ResearchTier& ResearchOf(Tree t, int tier);           // tier 1-4
+struct ResearchCost { int pearls = 2, shells = 10; float days = 0.5f; int birds = 0; };
+ResearchCost ResearchCostOf(int tier);
+// a founder species' bend on its whole colony (doc pp. 8-10): every number is data (flight_bends.json)
+struct Bend {
+    float fishHit = 1, speed = 1, attack = 1, mateTime = 1, fervourGain = 1, fervourCap = 100, trade = 1, traderCarry = 1;
+    float convert = 1, rest = 1, guano = 1, research = 1, stamina = 1, wind = 1, scout = 1, reach = 1, nestTwigs = 1, predatorRange = 1;
+    int carry = 0, clutch = 0, fledgeDays = 0, earlyTrees = 0;   // earlyTrees: bits by Tree that research faster and a day sooner
+    bool nightFishing = false, eggTheft = false, noFaith = false, boom = false, goldenNest = false, talonLock = false, skim = false;
+    bool tear = false, serenade = false, duskRaid = false, cornering = false, pilgrimage = false, brood = false, longReach = false;
+};
+const Bend& BendOf(int founderDef);
+// a fishing town's dock market (doc p26): prices in feed (fish), moving with supply and the hour
+enum Good : uint8_t { G_FISH, G_TWIGS, G_SHELLS, G_PEARLS, G_COUNT };
+const char* GoodName(int g);
+struct Town {
+    int isle = -1; Vector3 dock{};
+    float price[G_COUNT] = {1, 0.5f, 1, 4};   // feed per unit (fish: what the town pays per feed)
+    float stock[G_COUNT] = {60, 80, 60, 10};  // what it has to sell (fish: what it has bought, in feed)
+    std::vector<float> rep;                   // per side, -100..100
+    float storm = 0;                          // (a storm coming: fish pays double)
+};
+struct Barter {   // an offer between two colonies (Trade tier 2): goods each way, a truce
+    int id = 0, from = 0, to = 0; int give[G_COUNT] = {}, get[G_COUNT] = {}; float truceDays = 0, t = 0; int state = 0;   // 0 open, 1 accepted, 2 refused, 3 expired
+};
 struct Colony {
     int side = 0;                             // whose (0 you; 1.. the rivals)
     std::vector<Bird> birds;
@@ -257,6 +295,21 @@ struct Colony {
     int stolen = 0, lostToRaids = 0, kills = 0, losses = 0;   // (war tallies)
     float warT = 0;                           // (a bot's next war decision)
     float downT = 0;                          // (how long its Founder has been down)
+    // stage 6: the stores research and trade are made of; research; faith; trade; the Tycoon's boom
+    int pearls = 0; float guano = 0, sulfur = 0;
+    uint8_t tier[(int)Tree::COUNT] = {};      // research reached per tree (0-4)
+    int resTree = -1; float resLeft = 0, resDays = 0;   // the research under way (days left of it), at the Roost
+    float fervour = 20;                       // 0-100 (doc p26)
+    float prayerT = 0; int prayedDay = -1;    // the Founder's prayer: +15 for a game hour, once a day
+    int tradeFor = G_PEARLS;                  // what the Traders buy with the surplus fish
+    int boomState = 0; float boomT = 0, boomCd = 0;   // the Tycoon: 0 none, 1 boom (2 days), 2 bust (1 day)
+    bool cornered = false; float cornerT = -1; int cornerTown = -1; float cornerBuy = 0;   // the Sigma's market cornering
+    int serenadeDay = -1;                     // the Lyrebird's once-a-day call
+    std::vector<int> spies;                   // the Cuckoo's parasite chicks: islands they report from
+    int eggsStolen = 0, nestsDestroyed = 0, converted = 0;   // (tallies for the score and the news)
+    float goldenT = 0;                        // (the Tycoon's golden nest: a pearl a day)
+    float convertAcc = 0;                     // (the priests' conversions under way)
+    bool HasTier(Tree t, int n) const { return tier[(int)t] >= n; }
 };
 // A rival (and, while it steps, you): everything that is one player's and not the world's. The colony code works on the
 // World's own fields; a rival steps by swapping its Side in (World::SwapSide), so one set of code runs every colony.
@@ -267,7 +320,7 @@ struct Side {
     int slot = 1; std::string name; Color livery{200, 60, 60, 255};
 };
 // the score (design doc p27; data/flight/flight_scoring.json)
-struct ScoreCard { int birds = 0, nests = 0, isles = 0, cache = 0, kills = 0, founder = 0, total = 0; };
+struct ScoreCard { int birds = 0, nests = 0, isles = 0, cache = 0, kills = 0, founder = 0, total = 0, research = 0, pearls = 0, faith = 0, thefts = 0; };
 
 // ---------------------------------------------------------------- the world (one Founder, one island: stage 1)
 struct World {
@@ -335,6 +388,53 @@ struct World {
     std::vector<ScoreCard> scores; float scoreT = 0;   // (every side's, kept a second at a time; a mirror's come from the host)
     ScoreCard Score(int side) const;
     void CheckEnd();
+    // stage 6 (flight_society.cpp): research, faith, trade, barter, the founders' bends
+    std::vector<Town> towns;                    // every fishing town on the map (neutral and home)
+    std::vector<float> townCredit;              // (town * 8 + side: feed sold there and not yet spent)
+    Sighting TrueSighting(int isle);            // what's really on an island now (exact counts)
+    std::vector<Barter> offers; int nextOffer = 1;
+    std::vector<float> truceUntil;              // (side a * N + b) -> game time the truce lasts to
+    const Bend& BendNow() const { return BendOf(me.def); }   // the bend of the colony in the fields
+    const Bend& BendOfSide(int side) const { return BendOf(FounderOf(side).def); }
+    bool CanResearch(Tree t, std::string* why = nullptr) const;   // the colony in the fields
+    bool StartResearch(Tree t);
+    bool RoleUnlocked(Role r) const;             // (fledging and retraining into it)
+    bool BuildUnlocked(int kind) const;
+    const Structure* Built(int kind) const;      // the colony's built structure of that kind, or null
+    void StepSociety(float dt);                  // research, fervour, priests, the boom, guano (the colony in the fields)
+    void StepTowns(float dt);                    // the markets' prices recover and move through the day (once a step)
+    float FervourBand() const;                   // what fervour does now: 0 low, 1 normal, 2 high, 3 very high, 4 zeal
+    int FervourBandOf(int side) const;
+    float FervourRout() const;                   // (a flock routed: the colony's fervour drops)
+    float WindPenalty(int side) const;           // a headwind's cost (the Albatross and Wind reading halve it)
+    float FightStamina(int side) const;          // a warrior's fighting breath (Long wings, the founder's bend)
+    int CacheCap() const;                        // (Big caches)
+    float SpoilDays() const;                     // (the Smokehouse)
+    int NestEggs() const;                        // (Big nests)
+    float MaxHp(Role r) const;                   // (Shell armor)
+    int NestTwigs() const;                       // twigs a nest takes (the Albatross's are big)
+    int ShellsWanted() const;                    // (the stock of shells the builders keep for research)
+    float DeepDivePearl() const;                 // (Deep dive: the chance a delivered catch brings a pearl)
+    float NightRest() const;                     // the share of the night the colony roosts (fervour)
+    int NearestTown(Vector3 p, float r) const;
+    float SellPrice(int town, int good) const;   // what the town wants (feed per unit) for one of its goods now
+    float FishPrice(int town) const;             // what it pays per feed now
+    bool TradeAt(int town, int feedIn, int good, int* got = nullptr);   // sell feed for a good (the colony in the fields)
+    bool Pray();                                 // the Founder at the shrine
+    bool Offer(int size);                        // a fish laid at the shrine
+    bool StartBoom();                            // the Tycoon
+    bool Corner(int town);                       // the Sigma
+    bool Serenade(int nest);                     // the Lyrebird
+    bool Pelican(int town, int isle);            // a pearl for one true thing about an island
+    bool Truce(int a, int b) const;
+    int MakeOffer(int from, int to, const int give[G_COUNT], const int get[G_COUNT], float truceDays);
+    bool AnswerOffer(int side, int id, bool accept);
+    bool PayGoods(int side, const int goods[G_COUNT], bool take);   // take from (or check) a colony's stores
+    void GiveGoods(int side, const int goods[G_COUNT]);
+    void BotSociety(float dt);                   // a bot's research, shrine, trade and boom (the colony in the fields)
+    void TraderStep(Bird& b, float dt);
+    void PriestStep(Bird& b, float dt);
+    void InitTowns();
     void PredictFounder(float dt, const FounderInput& in);   // the guest's own Founder between snapshots
     void StepFog(float dt);                     // the fog round the side in the fields
     // war (flight_war.cpp)
@@ -429,6 +529,8 @@ int RunFlightSim(int argc, char** argv);        // depth.exe --flight-sim <islan
 int RunFlightFairTest(int argc, char** argv);   // depth.exe --flight-fair [seed]: every arrangement and player count is fair
 int RunFlightScoutTest();                       // depth.exe --flight-scout-test: the stage-3 gate (a scout's report from each altitude)
 int RunFlightWar(int argc, char** argv);         // depth.exe --flight-war [scenario|all] [runs]: the five rules in scripted fights; the stage-4 gate
+int RunFlightFounders(int days, int seeds);      // depth.exe --flight-sim founders [days] [seeds]: every founder's window (the stage-6 gate)
+int RunFlightSocietyTest();                     // depth.exe --flight-society-test: research, faith, trade, the founders (stage 6)
 int RunFlightNetTest();                         // depth.exe --flight-net-test: inputs, orders, snapshots, mirrors, the score (flight_net.cpp)
 int RunFlightNetLoop(bool forceMemory);         // depth.exe --net-loop flight [mem]: the stage-5 gate (six players finish a 30-minute match)
 

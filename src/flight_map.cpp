@@ -499,6 +499,8 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
         SwapSide(k);
     }
     me.st = FState::Perched; me.pos = island.nest;
+    InitTowns();
+    truceUntil.assign((sides.size() + 1) * (sides.size() + 1), -1);
     Reveal(me.pos, 120, home);
     StepMap(0);
     Say(TextFormat("%s, %s, %d islands. Fill your nest's courtship bowl (three fish) to call a mate.", ArrangementName(opts.arr), IsleTypeName(island.type), (int)isles.size()));
@@ -559,6 +561,7 @@ static Sighting Observe(World& w, int isle, Alt alt, Rng& R) {
     } else { s.nests = nests; s.caches = caches; s.birds = birds; s.exact = true; }
     return s;
 }
+Sighting World::TrueSighting(int isle) { Rng R{1}; return Observe(*this, isle, Alt::Mid, R); }
 static GroundInfo ObserveGround(World& w, int zone) {
     GroundInfo g; g.t = w.time; g.stock = w.StockOf(zone);
     int preds = 0;

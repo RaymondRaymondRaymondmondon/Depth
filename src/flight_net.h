@@ -24,6 +24,7 @@ enum : uint8_t {
     FA_HELLO,              // name, founder key (the founder only counts in the first 30 s)
     FA_PLAN, FA_NESTS, FA_GROUND, FA_REST, FA_RETRAIN, FA_SCOUT,
     FA_FLOCK_MAKE, FA_FLOCK_SET, FA_FLOCK_ORDER, FA_FLOCK_HOME, FA_FLOCK_DISBAND, FA_LEAD, FA_BUILD,
+    FA_RESEARCH, FA_TRADEFOR, FA_BOOM, FA_CORNER, FA_PELICAN, FA_BARTER, FA_ANSWER,   // (stage 6)
     FA_AUTOPILOT,          // (tests only: a host configured with "test" lets a seat's colony and Founder run themselves)
     FA_COUNT
 };
@@ -48,6 +49,14 @@ void OrderFlockHome(Writer& w, int flock);
 void OrderFlockDisband(Writer& w, int flock);
 void OrderLead(Writer& w);
 void OrderBuild(Writer& w, int kind);
+void OrderResearch(Writer& w, Tree t);
+void OrderTradeFor(Writer& w, int good);
+void OrderBoom(Writer& w);
+void OrderCorner(Writer& w, int town);
+void OrderPelican(Writer& w, int town, int isle);
+void OrderBarter(Writer& w, int to, const int give[G_COUNT], const int get[G_COUNT], float truceDays);
+void OrderAnswer(Writer& w, int offer, bool accept);
+bool FormationUnlocked(const Colony& c, Formation f);   // (War 1: formations beyond the chevron and the scatter)
 // a side's order on the world (anything but FA_INPUT, FA_AUTOPILOT); false if it was refused or changed nothing
 bool ApplyOrder(World& w, int side, Reader& r);
 bool ApplyOrder(World& w, int side, const Writer& order);   // (solo: the scene's own orders)

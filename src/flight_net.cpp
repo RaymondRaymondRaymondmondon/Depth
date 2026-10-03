@@ -64,6 +64,19 @@ void OrderFlockHome(Writer& w, int flock) { w.U8(FA_FLOCK_HOME); w.I32(flock); }
 void OrderFlockDisband(Writer& w, int flock) { w.U8(FA_FLOCK_DISBAND); w.I32(flock); }
 void OrderLead(Writer& w) { w.U8(FA_LEAD); }
 void OrderBuild(Writer& w, int kind) { w.U8(FA_BUILD); w.U8((uint8_t)kind); }
+void OrderResearch(Writer& w, Tree t) { w.U8(FA_RESEARCH); w.U8((uint8_t)t); }
+void OrderTradeFor(Writer& w, int good) { w.U8(FA_TRADEFOR); w.U8((uint8_t)good); }
+void OrderBoom(Writer& w) { w.U8(FA_BOOM); }
+void OrderCorner(Writer& w, int town) { w.U8(FA_CORNER); w.I32(town); }
+void OrderPelican(Writer& w, int town, int isle) { w.U8(FA_PELICAN); w.I32(town); w.I32(isle); }
+void OrderBarter(Writer& w, int to, const int give[G_COUNT], const int get[G_COUNT], float truceDays) {
+    w.U8(FA_BARTER); w.I32(to);
+    for (int g = 0; g < G_COUNT; g++) w.I32(give[g]);
+    for (int g = 0; g < G_COUNT; g++) w.I32(get[g]);
+    w.F32(truceDays);
+}
+void OrderAnswer(Writer& w, int offer, bool accept) { w.U8(FA_ANSWER); w.I32(offer); w.U8(accept ? 1 : 0); }
+bool FormationUnlocked(const Colony& c, Formation f) { return f == Formation::Chevron || f == Formation::Scatter || c.HasTier(Tree::War, 1); }
 
 std::string TargetText(World& w, const Flock& f) {
     switch (f.target) {
@@ -127,6 +140,7 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
         std::vector<int> ids; for (uint32_t k = 0; k < n; k++) ids.push_back(r.I32());
         int fo = (int)r.U8(), al = (int)r.U8(), st = (int)r.U8();
         if (r.bad || fo >= (int)Formation::COUNT || al > 2 || st >= (int)Stance::COUNT) return false;
+        if (!FormationUnlocked(C, (Formation)fo)) fo = (int)Formation::Chevron;   // (formations want War 1)
         int f = w.MakeFlock(side, ids, (Formation)fo, (Alt)al, (Stance)st);
         if (f >= 0) w.Say(TextFormat("Flock %d formed: pick a target on the chart (M).", f));
         return f >= 0;
@@ -136,6 +150,7 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
         if (r.bad || fo >= (int)Formation::COUNT || al > 2 || st >= (int)Stance::COUNT) return false;
         Flock* f = w.FindFlock(side, id);
         if (!f) return false;
+        if (!FormationUnlocked(C, (Formation)fo)) { w.Say("Formations want War 1 at the Roost (the chevron and the scatter need none)."); return false; }
         f->form = (Formation)fo; f->alt = (Alt)al; f->stance = (Stance)st;
         return true;
     }
@@ -143,6 +158,7 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
         int id = r.I32(); int t = (int)r.U8(); int ts = r.I32(), ti = r.I32(), tz = r.I32(), tf = r.I32(); float x = r.F32(), z = r.F32();
         if (r.bad || t >= (int)Target::COUNT || ts < -1 || ts >= nSides || ti < -1 || ti >= nIsles || tz < -1 || tz >= nZones || !std::isfinite(x) || !std::isfinite(z)) return false;
         if ((t == (int)Target::Cache || t == (int)Target::Nests || t == (int)Target::Flock) && (ts < 0 || ts == side)) return false;
+        if (ts >= 0 && w.Truce(side, ts)) { w.Say("A truce holds with " + w.SideName(ts) + "."); return false; }
         Flock* f = w.FindFlock(side, id);
         if (!f) return false;
         w.OrderFlock(side, id, (Target)t, ts, ti, tz, tf, {x, 0, z});
@@ -169,14 +185,36 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
     }
     case FA_BUILD: {
         int kind = (int)r.U8();
-        if (r.bad || kind > 1 || C.caches.empty()) return false;
+        if (r.bad || kind >= ST_COUNT || C.caches.empty()) return false;
         for (const auto& s : C.builds) if (s.kind == kind) return false;
-        Structure n; n.kind = kind;
-        n.pos = kind == 0 ? C.caches[0].pos : w.GroundAt(C.caches[0].pos.x + 6, C.caches[0].pos.z + 4);
+        if (!w.BuildUnlocked(kind)) { w.Say(std::string("The ") + StructureName(kind) + " isn't researched yet."); return false; }
+        static const Vector3 OFF[ST_COUNT] = {{0, 0, 0}, {6, 0, 4}, {-5, 0, 3}, {4, 0, -5}, {-6, 0, -4}};
+        Structure n; n.kind = kind; n.isle = w.home;
+        n.pos = kind == ST_HEDGE ? C.caches[0].pos : w.GroundAt(C.caches[0].pos.x + OFF[kind].x, C.caches[0].pos.z + OFF[kind].z);
         C.builds.push_back(n);
-        w.Say(std::string("Your builders will raise a ") + (kind == 0 ? "hedge." : "tower."));
+        w.Say(std::string("Your builders will raise the ") + StructureName(kind) + TextFormat(" (%d twigs, %d shells).", StructureTwigs(kind), StructureShells(kind)));
         return true;
     }
+    case FA_RESEARCH: {
+        int t = (int)r.U8();
+        if (r.bad || t >= (int)Tree::COUNT) return false;
+        std::string why;
+        if (!w.CanResearch((Tree)t, &why)) { w.Say(std::string(TreeName((Tree)t)) + ": " + why + "."); return false; }
+        return w.StartResearch((Tree)t);
+    }
+    case FA_TRADEFOR: { int g = (int)r.U8(); if (r.bad || g <= G_FISH || g >= G_COUNT) return false; C.tradeFor = g; w.Say(std::string("The Traders will buy ") + GoodName(g) + "."); return true; }
+    case FA_BOOM: return w.StartBoom();
+    case FA_CORNER: { int t = r.I32(); if (r.bad) return false; return w.Corner(t); }
+    case FA_PELICAN: { int t = r.I32(), i = r.I32(); if (r.bad) return false; return w.Pelican(t, i); }
+    case FA_BARTER: {
+        int to = r.I32(), give[G_COUNT], get[G_COUNT];
+        for (int g = 0; g < G_COUNT; g++) give[g] = r.I32();
+        for (int g = 0; g < G_COUNT; g++) get[g] = r.I32();
+        float truce = r.F32();
+        if (r.bad || !std::isfinite(truce)) return false;
+        return w.MakeOffer(side, to, give, get, truce) >= 0;
+    }
+    case FA_ANSWER: { int id = r.I32(); bool yes = r.U8() != 0; if (r.bad) return false; return w.AnswerOffer(side, id, yes); }
     default: return false;
     }
 }
@@ -194,7 +232,7 @@ bool ApplyOrder(World& w, int side, const Writer& order) { Reader r(order.b); re
 // ---------------------------------------------------------------- the score and the end (doc p27; flight_scoring.json)
 namespace {
 struct Scoring {
-    float bird = 2, chick = 1, nest = 5, island = 30, cachePer = 5, kill = 1, founder = 60;
+    float bird = 2, chick = 1, nest = 5, island = 30, cachePer = 5, kill = 1, founder = 60, pearl = 3, tier = 10, tier4 = 40, fervour = 50, theft = 5;
     float holdShare = 2.0f / 3, holdDay = 3, holdPer = 4;
     std::vector<int> lengths{20, 30, 45};
 };
@@ -206,7 +244,7 @@ const Scoring& SC() {
     if (!LoadJsonFile(FlightDataDir() + "/flight_scoring.json", j, &err)) return s;
     auto F = [&](const char* k, float& v) { if (j[k].IsNum()) v = j[k].F(v); };
     F("living_bird", s.bird); F("chick", s.chick); F("nest", s.nest); F("island_held", s.island); F("cache_fish_per_point", s.cachePer);
-    F("enemy_bird_killed", s.kill); F("founder_never_died", s.founder);
+    F("enemy_bird_killed", s.kill); F("founder_never_died", s.founder); F("pearl", s.pearl); F("research_tier", s.tier); F("research_tier4", s.tier4); F("fervour_full", s.fervour); F("egg_stolen", s.theft);
     F("hold_share", s.holdShare); F("hold_from_day", s.holdDay); F("hold_min_nests_per_player", s.holdPer);
     if (j["match_minutes"].IsArr()) { s.lengths.clear(); for (const Json& m : j["match_minutes"].a) s.lengths.push_back(m.I(30)); }
     return s;
@@ -231,7 +269,11 @@ ScoreCard World::Score(int side) const {
     c.cache = (int)(fish / std::max(1.0f, K.cachePer));
     c.kills = (int)lroundf(C.kills * K.kill);
     c.founder = F.deaths == 0 ? (int)K.founder : 0;
-    c.total = c.birds + c.nests + c.isles + c.cache + c.kills + c.founder;
+    for (int t = 0; t < (int)Tree::COUNT; t++) for (int n = 1; n <= C.tier[t]; n++) c.research += (int)(n == 4 ? K.tier4 : K.tier);
+    c.pearls = (int)(C.pearls * K.pearl);
+    c.faith = C.fervour >= 100 ? (int)K.fervour : 0;
+    c.thefts = (int)((C.eggsStolen + C.nestsDestroyed) * K.theft);
+    c.total = c.birds + c.nests + c.isles + c.cache + c.kills + c.founder + c.research + c.pearls + c.faith + c.thefts;
     return c;
 }
 void World::CheckEnd() {
@@ -314,7 +356,7 @@ template <class A> void VisitFounder(A& a, Founder& f) {
     int fl = (f.flapping ? 1 : 0) | (f.sprinting ? 2 : 0) | (f.gliding ? 4 : 0) | (f.exhausted ? 8 : 0) | (f.chick ? 16 : 0);
     a.i(fl);
     if constexpr (A::reading) { f.flapping = fl & 1; f.sprinting = fl & 2; f.gliding = fl & 4; f.exhausted = fl & 8; f.chick = fl & 16; }
-    a.i(f.carrySp); a.i(f.carrySize); a.i(f.carryTwigs);
+    a.i(f.carrySp); a.i(f.carrySize); a.i(f.carryTwigs); a.f(f.airT);
     a.f(f.strikeT); a.f(f.strikeLen); a.v3(f.strikeAt); a.v3(f.strikeAim); a.f(f.strikeSpeed);
     a.f(f.struggleT); a.i(f.struggleSp); a.f(f.underT); a.f(f.faintT); a.f(f.respawnT);
     a.i(f.chickFish); a.f(f.adultT); a.i(f.deaths); a.i(f.agent); a.s(f.lastCause);
@@ -326,6 +368,7 @@ template <class A> void VisitBird(A& a, Bird& b, bool own) {
     a.q8(b.hunger, 1); a.f(b.age); a.f(b.chillT); a.f(b.retrainT);
     a.e(b.task); a.i(b.carrySp); a.i(b.carrySize); a.i(b.carryTwigs); a.i(b.carryShells);
     a.q8(b.hp, 255); a.q8(b.fight, 25.5f); a.q8(b.netT, 25.5f); a.i(b.flock); a.i(b.tgtSide); a.i(b.tgtId);
+    a.i(b.carryGood); a.i(b.carryN);
     if (own) { a.i(b.scoutIsle); a.i(b.scoutZone); a.e(b.alt); a.b(b.hasOrder); a.b(b.observed); a.i(b.caught); }
 }
 template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const std::function<bool(const Bird&)>& keep) {
@@ -352,7 +395,13 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
         a.f(f.morale); a.f(f.wins); a.f(f.engagedT); a.i(f.startSize); a.i(f.lost);
         a.b(f.retreating); a.b(f.scattered); a.b(f.leaderDead); a.s(f.name);
     });
-    a.vec(c.builds, [&](Structure& s) { a.i(s.kind); a.v3(s.pos); a.f(s.twigs); a.i(s.shells); a.b(s.built); a.i(s.site); });
+    a.vec(c.builds, [&](Structure& s) { a.i(s.kind); a.v3(s.pos); a.f(s.twigs); a.i(s.shells); a.b(s.built); a.i(s.site); a.f(s.hp); a.i(s.isle); });
+    // stage 6: the stores, research, fervour, the buttons
+    a.i(c.pearls); a.f(c.guano); a.f(c.sulfur);
+    for (int t = 0; t < (int)Tree::COUNT; t++) { int v = c.tier[t]; a.i(v); c.tier[t] = (uint8_t)std::clamp(v, 0, 4); }
+    a.i(c.resTree); a.f(c.resLeft); a.f(c.resDays); a.f(c.fervour); a.f(c.prayerT); a.i(c.prayedDay); a.i(c.tradeFor);
+    a.i(c.boomState); a.f(c.boomT); a.f(c.boomCd); a.b(c.cornered); a.i(c.serenadeDay); a.i(c.eggsStolen); a.i(c.nestsDestroyed); a.i(c.converted);
+    if (own) a.vec(c.spies, [&](int& s) { a.i(s); });
 }
 // each zone's stock as a share of what it holds (one pass over the fish)
 std::vector<float> ZoneStocks(const World& w) {
@@ -435,7 +484,14 @@ template <class A> void Visit(A& a, World& w, bool full) {
     if (full) {
         VisitKnowledge(a, w.know);
         a.vec(w.log, [&](std::string& s) { a.s(s); });
-        a.vec(w.scores, [&](ScoreCard& c) { a.i(c.birds); a.i(c.nests); a.i(c.isles); a.i(c.cache); a.i(c.kills); a.i(c.founder); a.i(c.total); });
+        a.vec(w.scores, [&](ScoreCard& c) { a.i(c.birds); a.i(c.nests); a.i(c.isles); a.i(c.cache); a.i(c.kills); a.i(c.founder); a.i(c.total); a.i(c.research); a.i(c.pearls); a.i(c.faith); a.i(c.thefts); });
+        // the towns' markets (what they have, your standing), offers made to you and by you, truces
+        a.vec(w.towns, [&](Town& t) { a.i(t.isle); a.v3(t.dock); for (int g = 0; g < G_COUNT; g++) { a.f(t.price[g]); a.f(t.stock[g]); } a.f(t.storm); a.vec(t.rep, [&](float& r) { a.f(r); }); });
+        a.vec(w.townCredit, [&](float& c) { a.f(c); });
+        std::vector<Barter> mine;
+        if constexpr (!A::reading) for (const auto& o : w.offers) if ((o.from == w.cur || o.to == w.cur) && w.time - o.t < World::DAY * 2) mine.push_back(o);
+        a.vec(A::reading ? w.offers : mine, [&](Barter& o) { a.i(o.id); a.i(o.from); a.i(o.to); for (int g = 0; g < G_COUNT; g++) { a.i(o.give[g]); a.i(o.get[g]); } a.f(o.truceDays); a.f(o.t); a.i(o.state); });
+        a.vec(w.truceUntil, [&](float& v) { a.f(v); });
         std::vector<float> st;
         if constexpr (!A::reading) st = ZoneStocks(w);
         a.vec(st, [&](float& v) { a.q8(v, 1.5f); });
@@ -583,6 +639,7 @@ public:
         uint32_t cautious = 0;
         for (int s = 0; s < players; s++) {
             if ((lobbyAi >> s) & 1) continue;
+            if ((ai >> s) & 1) autoMask &= ~(1u << s);   // (a person who's gone keeps no autopilot: the cautious AI has it)
             bool aiNow = ((ai >> s) & 1) || ((autoMask >> s) & 1);
             BotRef(W, s) = aiNow;
             if (((ai >> s) & 1) && !((autoMask >> s) & 1)) cautious |= 1u << s;
@@ -627,6 +684,250 @@ uint32_t FlightDataHash() {
         h = Fnv1a(b.data(), b.size(), h);
     }
     return h;
+}
+
+// ---------------------------------------------------------------- --flight-net-test
+namespace {
+void Autopilot(arcade::GameHost& h, int player, bool on) { Writer w; w.U8(FA_AUTOPILOT); w.U8(on ? 1 : 0); Reader r(w.b); h.Act(player, r); }
+bool Send(arcade::GameHost& h, int player, const Writer& w) { Reader r(w.b); return h.Act(player, r); }
+int Birds(const Colony& c) { int n = 0; for (const auto& b : c.birds) n += b.alive && b.stage != BStage::Egg; return n; }
+}
+int RunFlightNetTest() {
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    int fails = 0;
+    auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
+    printf("The Flight, stage 5: network play (inputs, orders, snapshots, the host)\n");
+    std::string why;
+    if (!rt::DataOk(&why)) { printf("FAIL: no data: %s\n", why.c_str()); return 1; }
+    {   // input frames
+        FounderInput in; in.yaw = 1.25f; in.pitch = -0.4f; in.steer = {0.5f, -1}; in.flap = true; in.sprint = true; in.interact = true;
+        Writer w; WriteInput(in, w); Reader r(w.b); r.U8(); FounderInput o;
+        check(ReadInput(r, o) && o.yaw == 1.25f && o.flap && o.sprint && !o.brake && o.interact && fabsf(o.steer.y + 1) < 0.01f, TextFormat("an input frame round-trips in %d bytes", (int)w.b.size()));
+        FounderInput acc; MergeInput(acc, in); FounderInput next; next.yaw = 2; next.flap = true; MergeInput(acc, next);
+        check(acc.interact && acc.yaw == 2, "presses add up between steps; the steering is the newest");
+        ClearPresses(acc);
+        check(!acc.interact && acc.flap, "and a step's use leaves only the held keys");
+    }
+    // a four-seat match: three people (one of them the host) and a lobby AI seat; the people's colonies run on the
+    // autopilot (tests only) for two game days so there's something to see
+    auto host = MakeFlightHost();
+    host->Configure("0:0:30:test:step=0.1");
+    host->Start(4, 20261003);
+    World& W = *FlightHostWorld(host.get());
+    check(W.sides.size() == 3 && W.multi && W.matchLen == 30 * 60, TextFormat("the host's options: four starting islands, a %.0f-minute match", W.matchLen / 60));
+    for (int p = 0; p < 3; p++) Autopilot(*host, p, true);
+    { Writer o; OrderHello(o, "Ana", "albatross"); check(Send(*host, 1, o) && W.SideName(1) == "Ana" && Founders()[W.FounderOf(1).def].key == "albatross", "a player's hello names their colony and picks their founder"); }
+    host->Tick(0.1f, 1u << 3);
+    check(!W.HumanOf(3) && W.HumanOf(1) && W.SideName(3) == "Bot 3", "the lobby's AI seat is a bot colony; the people's are theirs");
+    for (int k = 0; k < (int)(World::DAY * 2 / 0.1f); k++) host->Tick(0.1f, 1u << 3);
+    int b1 = Birds(W.ColOf(1));
+    int eggs1 = 0; for (const auto& b : W.ColOf(1).birds) eggs1 += b.alive && b.stage == BStage::Egg;
+    check(b1 + eggs1 >= 2, TextFormat("two days on: colonies of %d, %d, %d and %d birds (player 1's: %d eggs too)", Birds(W.ColOf(0)), b1, Birds(W.ColOf(2)), Birds(W.ColOf(3)), eggs1));
+    // the snapshot for player 1: their side in the fields, a mirror that writes back the same bytes
+    {
+        Writer a; WriteWorld(W, 1, a, true);
+        auto mir = std::make_unique<World>(); Reader r(a.b);
+        bool ok = ReadWorld(r, *mir);
+        Writer b; WriteWorld(*mir, 1, b, true);
+        check(ok && r.Done() && mir->mirror && mir->cur == 1, TextFormat("player 1's snapshot (%d bytes) builds a mirror with their colony in the fields", (int)a.b.size()));
+        check(a.b == b.b, "the mirror writes back exactly the bytes it read");
+        check(Vector3Distance(mir->me.pos, W.FounderOf(1).pos) < 1e-4f && Birds(mir->col) == b1 && mir->know.isle == W.sides[0].know.isle, "the mirror's own Founder, colony and knowledge are player 1's");
+        int near = 0; Vector2 e{W.FounderOf(1).pos.x, W.FounderOf(1).pos.z};
+        for (const auto& b : W.ColOf(2).birds) if (b.alive && Vector2Distance(Qxz(b.pos), e) < 330) near++;
+        check((int)mir->ColOf(2).birds.size() == near && near < Birds(W.ColOf(2)) + 1, TextFormat("another colony's birds only near player 1: %d of %d", near, Birds(W.ColOf(2))));
+        int fish = 0; for (const auto& g : mir->eco.agents) fish += g.alive;
+        int hostFish = 0; for (const auto& g : W.eco.agents) hostFish += g.alive && g.diver < 0;
+        check(fish > 0 && fish < hostFish, TextFormat("the sea's fish only round player 1's bird: %d of %d", fish, hostFish));
+        Writer pf, pp; PackWorld(W, 1, pf, true); PackWorld(W, 1, pp, false);
+        float kbs = (pf.b.size() + 3.0f * pp.b.size()) / 4 * 20 / 1024;
+        check(kbs < 120, TextFormat("on the wire: a full snapshot %d B, the ones between %d B: %.0f KB/s to each guest at 20 Hz", (int)pf.b.size(), (int)pp.b.size(), kbs));
+        Writer v0; host->Snapshot(0, v0);
+        check(!v0.b.empty(), "the host's own snapshot (a test host writes it in full)");
+    }
+    // orders
+    {
+        Writer o; OrderPlan(o, Role::Scout, 0.7f);
+        check(Send(*host, 2, o) && fabsf(W.ColOf(2).plan[(int)Role::Scout] - 0.7f) < 1e-5f, "an order reaches its own colony: player 2's fledging plan");
+        Writer n; OrderNests(n, 5); Send(*host, 2, n);
+        check(W.ColOf(2).nestsWanted == 5 || W.ColOf(2).nestsWanted == (int)W.ColOf(2).sites.size(), "player 2's nests wanted");
+        // warriors for player 2, a flock of them, sent to raid player 1
+        Colony& C = W.ColOf(2);
+        std::vector<int> ids;
+        for (int k = 0; k < 4; k++) { Bird b; b.id = C.nextId++; b.stage = BStage::Adult; b.role = k < 2 ? Role::Skirmisher : Role::Striker; b.hp = RoleOf(b.role).hp; b.fight = 25; b.hunger = 1; b.pos = C.caches[0].pos; C.birds.push_back(b); ids.push_back(b.id); }
+        Writer mk; OrderFlockMake(mk, ids, Formation::Hammer, Alt::High, Stance::Raid);
+        check(Send(*host, 2, mk) && !W.ColOf(2).flocks.empty(), "player 2 forms a flock by order");
+        int fid = W.ColOf(2).flocks.back().id;
+        Writer bad; OrderFlockTarget(bad, fid, Target::Cache, 2, -1, -1, -1, {});
+        check(!Send(*host, 2, bad), "a raid on your own caches is refused");
+        Writer go; OrderFlockTarget(go, fid, Target::Cache, 1, W.HomeOf(1), -1, -1, W.isles[W.HomeOf(1)].c);
+        check(Send(*host, 2, go) && W.FindFlock(2, fid)->target == Target::Cache && W.FindFlock(2, fid)->tSide == 1, "and sends it to raid player 1's caches");
+        Writer other; OrderFlockHome(other, fid);
+        check(!Send(*host, 1, other) || W.FindFlock(2, fid)->target == Target::Cache, "player 1 can't order player 2's flock");
+        Writer junk; junk.U8(FA_PLAN); junk.U8(99);
+        check(!Send(*host, 2, junk), "a malformed order is refused");
+    }
+    // a person flies their own Founder by input
+    {
+        Autopilot(*host, 1, false);
+        host->Tick(0.1f, 1u << 3);
+        Founder& F = W.FounderOf(1);
+        F.st = FState::Perched; F.pos = W.isles[W.HomeOf(1)].nest; F.stamina = 8; F.hunger = 1;
+        Vector3 p0 = F.pos;
+        for (int k = 0; k < 30; k++) {
+            FounderInput in; in.yaw = F.yaw; in.pitch = 0.3f; in.flap = true; in.takeoff = k == 0;
+            Writer w; WriteInput(in, w); Reader r(w.b); host->Act(1, r);
+            host->Tick(0.1f, 1u << 3);
+        }
+        check(F.st == FState::Fly && Vector3Distance(F.pos, p0) > 15, TextFormat("player 1's input lifts their Founder off its nest and away (%.0f m in 3 s)", Vector3Distance(F.pos, p0)));
+        // a guest's prediction: the mirror flies ahead on the same input and stays with the host
+        auto mir = std::make_unique<World>();
+        { Writer a; PackWorld(W, 1, a, true); Reader r(a.b); ReadWorld(r, *mir); }
+        float worst = 0;
+        for (int k = 0; k < 40; k++) {
+            FounderInput in; in.yaw = F.yaw + 0.4f; in.pitch = 0.1f; in.flap = true;
+            { Writer w; WriteInput(in, w); Reader r(w.b); host->Act(1, r); }
+            host->Tick(0.1f, 1u << 3);
+            for (int s = 0; s < 6; s++) mir->PredictFounder(1 / 60.0f, in);
+            if (k % 2 == 1) { Writer a; PackWorld(W, 1, a, false); Reader r(a.b); ReadWorld(r, *mir, true); }
+            worst = std::max(worst, Vector3Distance(mir->me.pos, W.FounderOf(1).pos));
+        }
+        check(worst < 4, TextFormat("a guest's own Founder, flown ahead between snapshots, stays within %.1f m of the host's", worst));
+    }
+    // a person who drops: their colony is the AI's (cautious: it doesn't raid), and theirs again when they're back
+    {
+        host->Tick(0.1f, (1u << 3) | (1u << 1));
+        check(W.BotFlown(1) && ((W.cautiousMask >> 1) & 1) && W.HumanOf(1), "player 1 drops: a cautious AI flies and runs their colony");
+        int before = (int)W.ColOf(1).flocks.size();
+        for (int k = 0; k < 600; k++) host->Tick(0.1f, (1u << 3) | (1u << 1));
+        int raids = 0; for (const auto& f : W.ColOf(1).flocks) raids += f.target == Target::Cache || f.target == Target::Nests;
+        check(raids == 0, TextFormat("and in a minute it sends no raids (%d flocks before, %d now)", before, (int)W.ColOf(1).flocks.size()));
+        host->Tick(0.1f, 1u << 3);
+        check(!W.BotFlown(1), "player 1 rejoins: their Founder is theirs again");
+    }
+    // the end: a one-minute match ends at the limit with a winner, on every screen
+    {
+        auto h2 = MakeFlightHost();
+        h2->Configure("1:2:1:test:step=0.1");
+        h2->Start(2, 9);
+        World& V = *FlightHostWorld(h2.get());
+        for (int k = 0; k < 620 && !h2->Over(); k++) h2->Tick(0.1f, 0);
+        check(h2->Over() && V.winner >= 0 && V.scores.size() == 2 && V.overReason.find("Time") != std::string::npos, TextFormat("a one-minute match ends at the limit: %s (%d to %d)", V.overReason.c_str(), V.scores.size() > 0 ? V.scores[0].total : -1, V.scores.size() > 1 ? V.scores[1].total : -1));
+        auto mir = std::make_unique<World>(); Writer a; WriteWorld(V, 1, a, true); Reader r(a.b);
+        check(ReadWorld(r, *mir) && mir->over && mir->winner == V.winner && mir->Score(0).total == V.scores[0].total, "the guest's mirror shows the same end and the same scores");
+        Writer late; OrderPlan(late, Role::Fisher, 1);
+        check(!Send(*h2, 0, late), "a finished match takes no orders");
+    }
+    printf(fails ? "flight-net-test: %d check(s) failed\n" : "flight-net-test: all checks passed\n", fails);
+    return fails ? 1 : 0;
+}
+
+// ---------------------------------------------------------------- --net-loop flight: the stage-5 gate
+int RunFlightNetLoop(bool forceMemory) {
+    using namespace arcade;
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    std::string err;
+    if (!rt::DataOk(&err)) { printf("FAIL: no data: %s\n", err.c_str()); return 1; }
+    bool real = !forceMemory && net::Init(&err);
+    auto make = [&]() { return real ? net::MakeTransport() : net::MakeMemoryTransport(); };
+    uint16_t port = 47820;
+    std::string addr = real ? "127.0.0.1:" + std::to_string(port) : "mem:" + std::to_string(port);
+    // the doc's gate is six players finishing a 30-minute match; over real sockets the test runs in real time, so it
+    // plays a shorter one there (DEPTH_FLIGHT_MINUTES overrides)
+    int minutes = getenv("DEPTH_FLIGHT_MINUTES") ? std::max(1, atoi(getenv("DEPTH_FLIGHT_MINUTES"))) : real ? 3 : 30;
+    printf("net-loop flight over %s: a host and five guests, a %d-minute match\n", real ? "GameNetworkingSockets (loopback UDP)" : "the in-memory transport", minutes);
+    int fails = 0;
+    auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
+    const int NG = 5;
+    Session host, gs[NG];
+    Profile ph{"Host", 50};
+    if (!host.Host(ph, G_FLIGHT, &err, port, make(), false)) { printf("FAIL: host: %s\n", err.c_str()); return 1; }
+    host.gameOpts = TextFormat("0:0:%d:test%s", minutes, real ? "" : ":step=0.1");
+    const float dt = real ? 1 / 30.0f : 0.1f;
+    double t = 0;
+    std::vector<std::unique_ptr<World>> mirror; for (int k = 0; k < NG; k++) mirror.push_back(std::make_unique<World>());
+    int seen[NG] = {}, mirrorOk[NG] = {}, readFails = 0;
+    size_t bytes = 0, biggest = 0; int snaps = 0;
+    auto pace = [&]() { if (real) std::this_thread::sleep_for(std::chrono::milliseconds(33)); };
+    auto step = [&](int frames) {
+        for (int f = 0; f < frames; f++) {
+            t += dt; host.Update(t, dt);
+            for (int k = 0; k < NG; k++) {
+                gs[k].Update(t, dt);
+                if (gs[k].stage == S_PLAYING && gs[k].stateVersion != seen[k] && !gs[k].Snapshot().empty()) {
+                    seen[k] = gs[k].stateVersion;
+                    Reader r(gs[k].Snapshot());
+                    if (ReadWorld(r, *mirror[k], mirror[k]->mirror)) mirrorOk[k]++; else readFails++;
+                    bytes += gs[k].Snapshot().size(); biggest = std::max(biggest, gs[k].Snapshot().size()); snaps++;
+                }
+            }
+            pace();
+        }
+    };
+    auto until = [&](std::function<bool()> ok, float seconds) { for (int i = 0; i < seconds / dt && !ok(); i++) step(1); };
+    for (int k = 0; k < NG; k++) { Profile p{std::string("Bird ") + char('A' + k), (uint64_t)(60 + k)}; if (!gs[k].Join(p, addr, &err, 0, make())) { printf("FAIL: join: %s\n", err.c_str()); return 1; } }
+    until([&] { for (auto& g : gs) if (g.stage != S_LOBBY) return false; return true; }, 15);
+    for (auto& g : gs) g.SetReady(true);
+    until([&] { for (int s = 1; s <= NG; s++) if (!host.seats[s].ready) return false; return true; }, 10);
+    std::string why;
+    check(host.Launch(&why), "six founders launch the Flight" + (why.empty() ? std::string() : ": " + why));
+    until([&] { for (int k = 0; k < NG; k++) if (mirrorOk[k] == 0) return false; return true; }, 20);
+    bool all = true; for (int k = 0; k < NG; k++) all = all && mirror[k]->sides.size() == 5 && mirror[k]->cur == gs[k].MyPlayer();
+    check(all, "every guest mirrors the six-colony map from their own side");
+    World& truth = *FlightHostWorld(host.HostGame());
+    // everyone says hello; the host and guests 1-4 let the autopilot fly and run their colonies (a test seat's
+    // stand-in for a person); guest 0 plays by hand: input and orders
+    { Writer o; OrderHello(o, "Host", "taloned"); host.Act(o); }
+    for (int k = 0; k < NG; k++) { Writer o; OrderHello(o, std::string("Bird ") + char('A' + k), Founders()[(k * 3 + 1) % Founders().size()].key); gs[k].Act(o); }
+    { Writer w; w.U8(FA_AUTOPILOT); w.U8(1); host.Act(w); }
+    for (int k = 1; k < NG; k++) { Writer w; w.U8(FA_AUTOPILOT); w.U8(1); gs[k].Act(w); }
+    step(5);
+    int me = gs[0].MyPlayer();
+    bool autoOk = !truth.BotFlown(me); for (int k = 1; k < NG; k++) autoOk = autoOk && truth.BotFlown(gs[k].MyPlayer());
+    check(truth.SideName(me) == "Bird A" && autoOk, "names arrive; the autopilot seats fly themselves, guest 0 flies by hand");
+    // guest 0: off the nest by input, a circuit, back
+    Vector3 start = truth.FounderOf(me).pos;
+    float far = 0;
+    for (int f = 0; f < (int)(20 / dt); f++) {
+        World& m = *mirror[0];
+        FounderInput in; in.yaw = m.me.yaw + 0.15f; in.pitch = 0.15f; in.flap = true; in.takeoff = f < 3;
+        Writer w; WriteInput(in, w); gs[0].Act(w);
+        m.PredictFounder(dt, in);
+        step(1);
+        far = std::max(far, Vector3Distance(truth.FounderOf(me).pos, start));
+    }
+    check(far > 30, TextFormat("guest 0 flies their Founder by input: %.0f m from the nest", far));
+    { Writer o; OrderPlan(o, Role::Fisher, 0.8f); gs[0].Act(o); Writer n; OrderNests(n, 4); gs[0].Act(n); }
+    step(10);
+    check(fabsf(truth.ColOf(me).plan[(int)Role::Fisher] - 0.8f) < 1e-4f && truth.ColOf(me).nestsWanted == 4 && fabsf(mirror[0]->col.plan[(int)Role::Fisher] - 0.8f) < 1e-4f, "guest 0's orders run their colony, and their mirror shows it");
+    // the match runs; guest 0 sends a heartbeat of input; halfway, guest 4 leaves (its colony goes to a cautious AI)
+    int gone = gs[4].MyPlayer();
+    bool left = false;
+    int lastMin = -1;
+    while (!truth.over && t < minutes * 60 + 120) {
+        { FounderInput in; in.yaw = mirror[0]->me.yaw; Writer w; WriteInput(in, w); gs[0].Act(w); }
+        step(1);
+        if (!left && truth.time > truth.matchLen * 0.5f) { gs[4].Leave(); left = true; }
+        int mm = (int)(truth.time / 60);
+        if (mm != lastMin && mm % 5 == 0) { lastMin = mm; int birds = 0; for (int s = 0; s < 6; s++) birds += Birds(truth.ColOf(s)); printf("    [%2d min] %d birds on the map, %d snapshots read\n", mm, birds, snaps); }
+    }
+    check(truth.over, TextFormat("the match ends: %s", truth.overReason.c_str()));
+    step(30);
+    check(left && truth.BotFlown(gone) && ((truth.cautiousMask >> gone) & 1), "guest 4 left halfway: a cautious AI flew and ran their colony to the end");
+    bool agree = true;
+    for (int k = 0; k < NG - 1; k++) agree = agree && mirror[k]->over && mirror[k]->winner == truth.winner && mirror[k]->Score(truth.winner).total == truth.scores[truth.winner].total;
+    check(agree, TextFormat("every remaining guest sees the same end: %s wins with %d", truth.SideName(truth.winner).c_str(), truth.scores.empty() ? -1 : truth.scores[truth.winner].total));
+    int lost = 0; for (int s = 1; s < MAX_PLAYERS; s++) lost += host.seats[s].used && host.seats[s].lost && s != host.SeatOfPlayer(gone);
+    check(lost == 0 && readFails == 0, TextFormat("nobody else was lost; %d snapshots read, none refused", snaps));
+    int birds = 0; for (int s = 0; s < 6; s++) birds += Birds(truth.ColOf(s));
+    check(birds >= 6 * 3, TextFormat("six colonies lived through it: %d birds at the end", birds));
+    printf("    standings:"); for (int s = 0; s < 6; s++) printf("  %s %d", truth.SideName(s).c_str(), truth.scores[s].total); printf("\n");
+    check(snaps > 0, TextFormat("%d snapshots, %.1f KB on average, %.1f KB the biggest", snaps, snaps ? bytes / 1024.0 / snaps : 0.0, biggest / 1024.0));
+    for (auto& g : gs) g.Leave();
+    host.Leave();
+    step(5);
+    if (real) net::Shutdown();
+    printf(fails ? "%d FAILED\n" : "net-loop flight: all checks passed\n", fails);
+    return fails ? 1 : 0;
 }
 
 }  // namespace fl

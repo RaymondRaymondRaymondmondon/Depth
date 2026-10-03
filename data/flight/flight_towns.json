@@ -1,0 +1,15 @@
+{
+  "_source": "The Flight design document p7 (Trade) and p26 (Towns, reputation, the Sigma's cornering, the pelican). Prices are in feed (a fish's size).",
+  "sell_price": {"twigs": 0.5, "shells": 1.0, "pearls": 4.0},
+  "fish_price_morning": 0.8,
+  "fish_price_evening": 1.3,
+  "fish_glut_per_feed": 0.006,
+  "recover_per_day": 0.5,
+  "stock": {"fish": 0, "twigs": 80, "shells": 60, "pearls": 12},
+  "restock_per_day": {"twigs": 40, "shells": 25, "pearls": 5},
+  "rep_per_trade": 1,
+  "rep_shoo": -50,
+  "rep_trader_killed": -25,
+  "pelican_pearls": 1,
+  "trader_surplus_days": 1
+}

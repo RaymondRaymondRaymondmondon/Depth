@@ -3,6 +3,9 @@
 // daylight (design doc, "Presentation": Depth's inked low-poly in daylight, a thin ink line, silhouettes do the work).
 #include "game.h"
 #include "flight.h"
+#include "flight_net.h"
+#include "arcade_session.h"
+#include "net.h"
 #include "redtide_render.h"
 #include "input.h"
 #include "sound.h"
@@ -34,9 +37,19 @@ struct FlightScene {
     bool panel = false;                       // the colony panel (Tab)
     int page = 0, selFlock = -1; bool raidChicks = false;   // (the panel's page: 0 the colony, 1 the flocks; the flock picked for chart orders)
     int plat = 0;                             // (the panel's fledging-plan row picked)
+    int bTo = 1, bGive[fl::G_COUNT] = {}, bGet[fl::G_COUNT] = {}; float bTruce = 0;   // (the barter offer being drafted)
+    int pelicanIsle = -1, hoverTree = -1;
     bool seaReady = false;
+    // a networked match (stage 5): the session; the host draws its real world, a guest its mirror of the snapshots
+    arcade::Session* net = nullptr;
+    fl::World* live = nullptr;
+    int seenVersion = -1; float sinceSnap = 0; bool helloSent = false; size_t flocksSeen = 0;
+    std::string netFounder = "taloned", netName = "Founder";
 };
 FlightScene S;
+fl::World& WD() { return S.live ? *S.live : S.W; }
+// every order the player gives (the panels, the chart, G) goes through the same path, solo or networked
+void Order(const Writer& w) { if (S.net) S.net->Act(w); else fl::ApplyOrder(WD(), 0, w); }
 
 constexpr int SN = 120; constexpr float SC = 24;  // the sea grid round the eye: 120 cells of 24 m (the haze hides its edge)
 
@@ -171,25 +184,25 @@ void FreeModels() {
 }
 void EnsureModels() {
     if (!IsWindowReady()) return;
-    int key = (int)S.W.island.seed * 31 + S.W.me.def + (int)S.W.isles.size() * 7919;
+    int key = (int)WD().island.seed * 31 + WD().me.def + (int)WD().isles.size() * 7919;
     if (S.ready && S.readyFor == key) return;
     FreeModels();
-    if (S.W.wholeMap) for (size_t i = 0; i < S.W.isles.size(); i++) { rt::MeshBuilder mb; if (S.W.isles[i].type != fl::IsleType::Wreck) BuildTerrain(mb, S.W.isles[i], (int)i == S.W.home ? 1 : 2); else mb.Tri({0, -30, 0}, {0.1f, -30, 0}, {0, -30, 0.1f}, BLACK); S.terr.push_back(LoadModelFromMesh(mb.Build())); }
-    else { rt::MeshBuilder mb; BuildTerrain(mb, S.W.island); S.terr.push_back(LoadModelFromMesh(mb.Build())); }
+    if (WD().wholeMap) for (size_t i = 0; i < WD().isles.size(); i++) { rt::MeshBuilder mb; if (WD().isles[i].type != fl::IsleType::Wreck) BuildTerrain(mb, WD().isles[i], (int)i == WD().home ? 1 : 2); else mb.Tri({0, -30, 0}, {0.1f, -30, 0}, {0, -30, 0.1f}, BLACK); S.terr.push_back(LoadModelFromMesh(mb.Build())); }
+    else { rt::MeshBuilder mb; BuildTerrain(mb, WD().island); S.terr.push_back(LoadModelFromMesh(mb.Build())); }
     { rt::MeshBuilder mb; BuildPalm(mb); S.palm = LoadModelFromMesh(mb.Build()); }
     { rt::MeshBuilder mb; BuildNest(mb); S.nest = LoadModelFromMesh(mb.Build()); }
     { rt::MeshBuilder mb; mb.Lathe(0.075f, 5, 8, [](float u) { return 0.028f * sinf(std::max(0.05f, u) * PI) * (1.1f - 0.25f * u); }, [](float u) { return 0.028f * sinf(std::max(0.05f, u) * PI) * (1.1f - 0.25f * u); }, {244, 238, 226, 255}, {226, 218, 204, 255}); S.egg = LoadModelFromMesh(mb.Build()); }
     { rt::MeshBuilder mb;   // a chick: a ball of down, a head, a gaping beak
-      Color down = Mix(S.W.Def().belly, Color{200, 196, 186, 255}, 0.6f);
+      Color down = Mix(WD().Def().belly, Color{200, 196, 186, 255}, 0.6f);
       mb.Lathe(0.16f, 5, 8, [](float u) { return 0.075f * sinf(std::max(0.08f, u) * PI); }, [](float u) { return 0.07f * sinf(std::max(0.08f, u) * PI); }, down, Shade(down, 0.85f), {0, 0.07f, 0});
       mb.Lathe(0.09f, 4, 8, [](float u) { return 0.045f * sinf(std::max(0.08f, u) * PI); }, [](float u) { return 0.045f * sinf(std::max(0.08f, u) * PI); }, down, Shade(down, 0.9f), {0, 0.16f, 0.06f});
-      mb.Cone({0, 0.16f, 0.1f}, {0, 0.17f, 0.15f}, 0.018f, 5, S.W.Def().accent);
+      mb.Cone({0, 0.16f, 0.1f}, {0, 0.17f, 0.15f}, 0.018f, 5, WD().Def().accent);
       mb.Octa({0.025f, 0.18f, 0.09f}, 0.008f, {18, 18, 20, 255}); mb.Octa({-0.025f, 0.18f, 0.09f}, 0.008f, {18, 18, 20, 255});
       S.chick = LoadModelFromMesh(mb.Build()); }
     { rt::MeshBuilder mb;   // a cache: a low platform of sticks
       for (int k = 0; k < 14; k++) { float a = k * 0.45f, r = 0.35f + 0.25f * Hash((float)k, 3); Vector3 c{cosf(a) * r * 0.5f, 0.03f + 0.025f * (k % 3), sinf(a) * r * 0.5f}; mb.Tube({Vector3Add(c, {cosf(a + 1.6f) * 0.45f, 0, sinf(a + 1.6f) * 0.45f}), Vector3Subtract(c, {cosf(a + 1.6f) * 0.45f, 0, sinf(a + 1.6f) * 0.45f})}, 0.03f, 0.025f, 4, {118, 90, 58, 255}, {140, 108, 70, 255}, 0); }
       S.pile = LoadModelFromMesh(mb.Build()); }
-    BuildBird(S.W.Def());
+    BuildBird(WD().Def());
     S.ready = true; S.readyFor = key;
 }
 void EnsureSea() {
@@ -249,17 +262,11 @@ DayLook Day(float ph) {
 // ---------------------------------------------------------------- input
 fl::FounderInput Gather(float dt) {
     fl::FounderInput in;
-    fl::Founder& f = S.W.me;
+    fl::Founder& f = WD().me;
     if (S.shot) { in.yaw = S.aimYaw; in.pitch = S.aimPitch; return in; }
-    if (IsKeyPressed(KEY_TAB)) { if (!S.panel) { S.panel = true; S.page = 0; } else if (S.page == 0) S.page = 1; else S.panel = false; S.chart = false; }
+    if (IsKeyPressed(KEY_TAB)) { if (!S.panel) { S.panel = true; S.page = 0; } else if (S.page < 2) S.page++; else S.panel = false; S.chart = false; }
     // G: the Founder takes the lead of the nearest flock of yours (or lets it go)
-    if (IsKeyPressed(KEY_G) && f.st != fl::FState::Dead && !f.chick) {
-        fl::Flock* best = nullptr; float bd = 70;
-        for (auto& fk : S.W.col.flocks) { float d = Vector3Distance(fk.pos, f.pos); if (d < bd) { bd = d; best = &fk; } }
-        if (best && best->leader == -2) { best->leader = -1; S.W.ColonySay("You leave " + best->name + "."); }
-        else if (best) { for (auto& fk : S.W.col.flocks) if (fk.leader == -2) fk.leader = -1; best->leader = -2; best->target = fl::Target::Home; S.W.ColonySay("You lead " + best->name + ": it follows you (+20 morale, +10% speed)."); }
-        else S.W.ColonySay("No flock of yours within 70 m to lead.");
-    }
+    if (IsKeyPressed(KEY_G) && f.st != fl::FState::Dead) { Writer o; fl::OrderLead(o); Order(o); }
     if (IsKeyPressed(KEY_M)) { S.chart = !S.chart; S.panel = false; }
     Vector2 md = MouseLook(f.st != fl::FState::Dead && !S.panel && !S.chart);   // (the panel and the chart take the pointer: the bird flies on its last heading)
     if (S.panel || S.chart) md = {0, 0};
@@ -467,6 +474,8 @@ void DrawColony(const fl::World& w, const fl::Colony& c, const Camera3D& cam, Co
 struct Feather { Vector3 p, v; float life, spin; Color c; };
 struct Faller { Vector3 p, v; float yaw, spin; Color tint; fl::Role role; bool splashed; };
 struct Stain { Vector2 p; float age; };
+struct NameTag { Vector3 p; std::string name; Color c; };
+std::vector<NameTag> gNames;   // (people's Founders, labelled after the 3D pass)
 std::vector<Feather> gFeathers; std::vector<Faller> gFallers; std::vector<Stain> gStains;
 size_t gFxSeen = 0;
 void StepWarFx(const fl::World& w, float dt) {
@@ -526,10 +535,18 @@ void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
         }
     }
     DrawColony(w, w.col, cam, WHITE);
-    for (size_t s = 0; s < w.sides.size(); s++) {
-        DrawColony(w, w.sides[s].col, cam, w.sides[s].livery);
-        const fl::Founder& f = w.sides[s].me;
-        if (f.st != fl::FState::Dead && Vector3Distance(f.pos, cam.position) < 260) DrawBirdBody(w.Def(), PoseWorld(f.pos, f.yaw, 0, 0, 1.0f), 0.4f * sinf(S.t * 6 + s), 0.2f, 0.2f, 0, 0, 0.7f, w.sides[s].livery);
+    for (int s = 0; s <= (int)w.sides.size(); s++) {
+        if (s == w.cur) continue;
+        DrawColony(w, w.ColOf(s), cam, w.SideColor(s));
+        const fl::Founder& f = w.FounderOf(s);
+        if (f.st == fl::FState::Dead || f.st == fl::FState::Under || Vector3Distance(f.pos, cam.position) > 260) continue;
+        bool flying = f.st == fl::FState::Fly || f.st == fl::FState::Strike;
+        DrawBirdBody(w.Def(), PoseWorld(f.pos, f.yaw, flying ? f.pitch : 0, flying ? f.bank : 0, f.chick ? 0.7f : 1.0f), flying ? 0.5f * sinf(S.t * 7 + s) : 0, flying ? 0.25f : 0, flying ? 0.1f : 1.0f, 0, 0, 0.7f, w.SideColor(s));
+        DrawCarried(w, PoseWorld(f.pos, f.yaw, 0, 0, 1.0f), 0.22f + w.Def().span * 0.14f, f.carrySp, f.carryTwigs, f.yaw, f.pitch);
+        if (w.multi && Vector3Distance(f.pos, cam.position) < 120) {   // (a person's Founder: their name over it)
+            Vector3 fwd = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
+            if (Vector3DotProduct(Vector3Subtract(f.pos, cam.position), fwd) > 0) { gNames.push_back({Vector3Add(f.pos, {0, 1.6f, 0}), w.SideName(s), w.SideColor(s)}); }
+        }
     }
     DrawWarFx(w);
     // the sea's life: what's near enough to see (the water drawn over it shows the shallow ones plainly)
@@ -577,10 +594,32 @@ void DrawHud(const fl::World& w) {
         DrawRectangle(SCREEN_W / 2 - 120, 132, (int)(240 * k), 6, Color{255, 236, 160, 220});
         DrawTextCentered("steer the talons with the mouse (or WASD)", SCREEN_W / 2.0f, 144, 15, dim);
     }
+    // the other people's Founders, named
+    for (const auto& n : gNames) {
+        Vector2 p = GetWorldToScreenEx(n.p, S.cam, SCREEN_W, SCREEN_H);
+        DrawTextCenteredBold(n.name, p.x, p.y, 15, n.c);
+    }
+    gNames.clear();
+    // a networked match: the time left and the standings (top middle)
+    if (w.multi) {
+        float left = std::max(0.0f, w.matchLen - w.time);
+        DrawRectangleRounded({SCREEN_W / 2.0f - 170, 8, 340, 30.0f + 17 * (w.sides.size() + 1)}, 0.15f, 6, Fade(Color{10, 20, 30, 255}, 0.45f));
+        DrawTextCenteredBold(w.matchLen > 0 ? TextFormat("%d:%02d left   day %d", (int)left / 60, (int)left % 60, (int)(w.time / fl::World::DAY) + 1) : TextFormat("day %d", (int)(w.time / fl::World::DAY) + 1), SCREEN_W / 2.0f, 12, 17, ink);
+        std::vector<int> order; for (int s = 0; s <= (int)w.sides.size(); s++) order.push_back(s);
+        std::sort(order.begin(), order.end(), [&](int a, int b) { return w.Score(a).total > w.Score(b).total; });
+        for (size_t k = 0; k < order.size(); k++) {
+            int s = order[k];
+            Color c = s == w.cur ? Color{255, 230, 140, 255} : Mix(w.SideColor(s), WHITE, 0.35f);
+            std::string who = s == w.cur ? "you" : w.SideName(s);
+            if (!w.HumanOf(s)) who += " (bot)"; else if (w.BotFlown(s)) who += " (AI standing in)";
+            Txt(TextFormat("%d. %s", (int)k + 1, who.c_str()), SCREEN_W / 2.0f - 150, 34 + 17.0f * k, 14, c);
+            Txt(TextFormat("%d", w.Score(s).total), SCREEN_W / 2.0f + 110, 34 + 17.0f * k, 14, c);
+        }
+    }
     // dark plates under the text (the sky is bright)
     DrawRectangleRounded({12, 10, 470, 62}, 0.2f, 6, Fade(Color{10, 20, 30, 255}, 0.5f));
     if (!w.log.empty()) DrawRectangleRounded({12, 76, 560, 94}, 0.15f, 6, Fade(Color{10, 20, 30, 255}, 0.35f));
-    DrawRectangleRounded({SCREEN_W - 260.0f, 24, 248, 196}, 0.12f, 6, Fade(Color{10, 20, 30, 255}, 0.45f));
+    DrawRectangleRounded({SCREEN_W - 260.0f, 24, 248, 222}, 0.12f, 6, Fade(Color{10, 20, 30, 255}, 0.45f));
     DrawRectangleRounded({12, SCREEN_H - 132.0f, 560, 92}, 0.15f, 6, Fade(Color{10, 20, 30, 255}, 0.4f));
     // top left: who and what
     TxtBold(d.name + "  (" + d.bird + ")", 24, 18, 22, ink);
@@ -618,6 +657,8 @@ void DrawHud(const fl::World& w) {
         float dof = w.DaysOfFood();
         DrawTextCentered(TextFormat("colony: %d birds", w.Alive()), c.x - 20, c.y + 110, 16, ink);
         DrawTextCentered(TextFormat("food: %.1f days   Tab: colony", dof), c.x - 50, c.y + 130, 14, dof < 1 && w.Alive() > 1 ? Color{255, 140, 120, 255} : dim);
+        DrawTextCentered(TextFormat("pearls %d   fervour %.0f%s", w.col.pearls, w.col.fervour, w.col.resTree >= 0 ? "   researching" : ""), c.x - 50, c.y + 148, 14, Color{255, 220, 150, 255});
+        if (w.col.boomState) DrawTextCentered(w.col.boomState == 1 ? "BOOM" : "bust", c.x - 50, c.y + 166, 15, w.col.boomState == 1 ? Color{255, 220, 120, 255} : Color{255, 140, 120, 255});
     }
     // the colony's nests, labelled when near: the courtship bowl, or what's in the nest
     for (const auto& n : w.col.nests) {
@@ -635,7 +676,7 @@ void DrawHud(const fl::World& w) {
         DrawTextCentered(s, p.x, p.y, 14, Fade(ink, std::clamp(1.3f - d / 45, 0.3f, 1.0f)));
     }
     // a raid: an enemy flock over your island
-    if (!w.col.caches.empty()) for (int s = 1; s <= (int)w.sides.size(); s++) for (const auto& fk : w.sides[s - 1].col.flocks)
+    if (!w.col.caches.empty()) for (int s = 0; s <= (int)w.sides.size(); s++) if (s != w.cur) for (const auto& fk : w.ColOf(s).flocks)
         if (!fk.retreating && Vector2Distance({fk.pos.x, fk.pos.z}, {w.col.caches[0].pos.x, w.col.caches[0].pos.z}) < 250 && fmodf(S.t, 1.2f) < 0.8f)
             DrawTextCenteredBold(TextFormat("RAID: %s's %s (%d) over your island", w.SideName(s).c_str(), fk.name.c_str(), (int)fk.members.size()), SCREEN_W / 2.0f, 104, 20, Color{255, 110, 90, 255});
     for (const auto& fk : w.col.flocks) if (fk.leader == -2) {
@@ -643,7 +684,7 @@ void DrawHud(const fl::World& w) {
         DrawRectangle(SCREEN_W / 2 - 110, SCREEN_H - 152, (int)(220 * fk.morale / 100), 10, fk.morale < 30 ? Color{230, 90, 70, 255} : Color{120, 220, 140, 255});
         DrawTextCentered(TextFormat("leading %s (%d): morale %.0f", fk.name.c_str(), (int)fk.members.size(), fk.morale), SCREEN_W / 2.0f, SCREEN_H - 172, 15, ink);
     }
-    for (int s = 0; s <= (int)w.sides.size(); s++) for (const auto& b : (s == 0 ? w.col : w.sides[s - 1].col).birds) {
+    for (int s = 0; s <= (int)w.sides.size(); s++) for (const auto& b : w.ColOf(s).birds) {
         if (!b.alive || b.stage != fl::BStage::Adult || !fl::IsWarrior(b.role) || (b.tgtSide < 0 && b.hp >= fl::RoleOf(b.role).hp)) continue;
         if (Vector3Distance(b.pos, S.cam.position) > 70) continue;
         Vector3 fwd = Vector3Normalize(Vector3Subtract(S.cam.target, S.cam.position));
@@ -651,7 +692,7 @@ void DrawHud(const fl::World& w) {
         Vector2 p = GetWorldToScreenEx(Vector3Add(b.pos, {0, 0.8f, 0}), S.cam, SCREEN_W, SCREEN_H);
         float k = std::clamp(b.hp / fl::RoleOf(b.role).hp, 0.0f, 1.0f);
         DrawRectangle((int)p.x - 12, (int)p.y, 24, 3, Fade(BLACK, 0.6f));
-        DrawRectangle((int)p.x - 12, (int)p.y, (int)(24 * k), 3, s == 0 ? Color{120, 230, 140, 255} : w.SideColor(s));
+        DrawRectangle((int)p.x - 12, (int)p.y, (int)(24 * k), 3, s == w.cur ? Color{120, 230, 140, 255} : w.SideColor(s));
     }
     // starving: the colony panel's alarm, flashing
     if (w.Alive() > 1 && w.DaysOfFood() < 0.5f && w.FeedPerDayEstimate() < w.MouthsPerDay() && fmodf(S.t, 1.0f) < 0.6f)
@@ -738,23 +779,24 @@ void DrawColonyPanel(fl::World& w) {
     line(TextFormat("Feed per day %.0f   mouths per day %.0f", fpd, mouths), fpd >= mouths ? good : bad);
     int nfish = 0; for (const auto& c : w.col.caches) nfish += (int)c.fish.size();
     line(TextFormat("In store: %.0f feed (%d fish in %d caches) = %.1f days of food", w.CacheFeed(), nfish, (int)w.col.caches.size(), dof), dof < 1 ? bad : dof > 3 ? good : ink);
-    line(TextFormat("Twigs %d   shells %d   wild mates left %d", w.col.twigs, w.col.shells, w.col.wildMates), dim);
+    line(TextFormat("Twigs %d   shells %d   pearls %d   wild mates left %d", w.col.twigs, w.col.shells, w.col.pearls, w.col.wildMates), dim);
     ly += 6;
     // roles: the count, and a button that retrains one bird into it (from the biggest other role; a day's retraining)
     TxtBold("Roles", x + 16, ly, 17, ink); Txt("fledging plan", x + 250, ly + 1, 15, dim); ly += 24;
+    int nRoles = 0; for (int r = 1; r < (int)fl::Role::COUNT; r++) nRoles += w.RoleUnlocked((fl::Role)r);
+    float rowH = nRoles > 11 ? 17.0f : 21.0f;
     for (int r = 1; r < (int)fl::Role::COUNT; r++) {
         fl::Role role = (fl::Role)r;
+        if (!w.RoleUnlocked(role)) continue;
         int n = w.Count(fl::BStage::Adult, role), training = 0;
         for (const auto& b : w.col.birds) if (b.alive && b.retrainT > 0 && b.retrainTo == role) training++;
         Txt(TextFormat("%-8s %2d%s", fl::RoleName(role), n, training ? TextFormat(" (+%d)", training) : ""), x + 16, ly + 2, 14, fl::IsWarrior(role) ? Color{255, 200, 170, 255} : ink);
-        if (SmallBtn({x + 168, ly, 66, 19}, "retrain", w.Count(fl::BStage::Adult) > n)) {
-            w.Retrain(role);
-        }
+        if (SmallBtn({x + 168, ly, 66, 19}, "retrain", w.Count(fl::BStage::Adult) > n)) { Writer o; fl::OrderRetrain(o, role); Order(o); }
         float total = 0; for (int k = 1; k < (int)fl::Role::COUNT; k++) total += w.col.plan[k];
         Txt(TextFormat("%3.0f%%", 100 * w.col.plan[r] / std::max(0.01f, total)), x + 262, ly + 2, 14, ink);
-        if (SmallBtn({x + 318, ly, 26, 19}, "-", w.col.plan[r] > 0.01f)) w.col.plan[r] = std::max(0.0f, w.col.plan[r] - 0.1f);
-        if (SmallBtn({x + 350, ly, 26, 19}, "+", true)) w.col.plan[r] += 0.1f;
-        ly += 21;
+        if (SmallBtn({x + 318, ly, 26, 19}, "-", w.col.plan[r] > 0.01f)) { Writer o; fl::OrderPlan(o, role, std::max(0.0f, w.col.plan[r] - 0.1f)); Order(o); }
+        if (SmallBtn({x + 350, ly, 26, 19}, "+", true)) { Writer o; fl::OrderPlan(o, role, w.col.plan[r] + 0.1f); Order(o); }
+        ly += rowH;
     }
     ly += 4;
     // nests
@@ -763,8 +805,8 @@ void DrawColonyPanel(fl::World& w) {
     TxtBold("Nests", x + 16, ly, 17, ink); ly += 24;
     Txt(TextFormat("%d built, %d under way, %d free sites", built, under, free), x + 16, ly + 3, 16, ink);
     Txt(TextFormat("builders raise up to %d", w.col.nestsWanted), x + 16, ly + 24, 15, dim);
-    if (SmallBtn({x + 318, ly + 18, 26, 24}, "-", w.col.nestsWanted > 1)) w.col.nestsWanted--;
-    if (SmallBtn({x + 350, ly + 18, 26, 24}, "+", w.col.nestsWanted < (int)w.col.sites.size())) w.col.nestsWanted++;
+    if (SmallBtn({x + 318, ly + 18, 26, 24}, "-", w.col.nestsWanted > 1)) { Writer o; fl::OrderNests(o, w.col.nestsWanted - 1); Order(o); }
+    if (SmallBtn({x + 350, ly + 18, 26, 24}, "+", w.col.nestsWanted < (int)w.col.sites.size())) { Writer o; fl::OrderNests(o, w.col.nestsWanted + 1); Order(o); }
     ly += 52;
     Txt("A mate comes to a nest whose courtship bowl you fill:", x + 16, ly, 14, dim); ly += 17;
     Txt(TextFormat("carry fish of size %d+ to it and press E (%d for the first).", E.courtMinSize, E.courtFish), x + 16, ly, 14, dim); ly += 26;
@@ -772,9 +814,9 @@ void DrawColonyPanel(fl::World& w) {
     TxtBold("Fishers fish", x + 16, ly, 17, ink);
     const auto& zones = w.eco.map->zones;
     std::string gname = w.col.ground < 0 ? "the best ground" : zones[w.col.ground].name;
-    if (SmallBtn({x + 150, ly - 2, 26, 24}, "<", true)) w.col.ground = w.col.ground < 0 ? (int)zones.size() - 1 : w.col.ground - 1;
+    if (SmallBtn({x + 150, ly - 2, 26, 24}, "<", true)) { Writer o; fl::OrderGround(o, w.col.ground < 0 ? (int)zones.size() - 1 : w.col.ground - 1); Order(o); }
     Txt(gname, x + 184, ly + 1, 16, ink);
-    if (SmallBtn({x + 350, ly - 2, 26, 24}, ">", true)) w.col.ground = w.col.ground + 1 >= (int)zones.size() ? -1 : w.col.ground + 1;
+    if (SmallBtn({x + 350, ly - 2, 26, 24}, ">", true)) { Writer o; fl::OrderGround(o, w.col.ground + 1 >= (int)zones.size() ? -1 : w.col.ground + 1); Order(o); }
     ly += 26;
     if (w.col.ground >= 0) { Txt(TextFormat("its stock: %.0f%% of what it holds", w.StockOf(w.col.ground) * 100), x + 16, ly, 14, w.StockOf(w.col.ground) < 0.35f ? bad : dim); }
     else if (w.lagoonZone >= 0) Txt(TextFormat("the lagoon's stock: %.0f%%", w.StockOf(w.lagoonZone) * 100), x + 16, ly, 14, w.StockOf(w.lagoonZone) < 0.35f ? bad : dim);
@@ -788,23 +830,13 @@ void DrawColonyPanel(fl::World& w) {
 
 // The flocks (Tab, the second page; design doc p13): warriors in flocks with a leader, a formation, a height, a stance
 // and a target; the colony's defences (a hedge, a tower). Targets are given on the chart (M) with a flock picked here.
-std::string TargetText(fl::World& w, const fl::Flock& f) {
-    switch (f.target) {
-    case fl::Target::Home: return "guarding home";
-    case fl::Target::Cache: return "raiding " + w.SideName(f.tSide) + "'s caches";
-    case fl::Target::Nests: return "taking " + w.SideName(f.tSide) + "'s chicks";
-    case fl::Target::Ground: return f.tZone >= 0 ? "harassing " + w.eco.map->zones[f.tZone].name : "over a ground";
-    case fl::Target::Flock: { fl::Flock* t = w.FindFlock(f.tSide, f.tFlock); return t ? "intercepting " + w.SideName(f.tSide) + "'s " + t->name : "intercepting"; }
-    default: return "flying to a mark";
-    }
-}
 void DrawFlockPanel(fl::World& w) {
     Color ink{250, 248, 236, 255}, dim{200, 214, 214, 255}, bad{255, 140, 120, 255}, good{170, 240, 180, 255};
     float x = 20, y = 78, W = 440, H = 620;
     DrawRectangleRounded({x, y, W, H}, 0.05f, 6, Fade(Color{8, 18, 28, 255}, 0.86f));
     DrawRectangleRoundedLinesEx({x, y, W, H}, 0.05f, 6, 2, Color{200, 110, 90, 255});
     TxtBold("Flocks", x + 16, y + 10, 22, ink);
-    Txt("Tab closes", x + W - 86, y + 16, 14, dim);
+    Txt("Tab: research", x + W - 110, y + 16, 14, dim);
     float ly = y + 42;
     // idle warriors, and a flock of them
     int idle[(int)fl::Role::COUNT] = {}, nIdle = 0;
@@ -814,8 +846,7 @@ void DrawFlockPanel(fl::World& w) {
     Txt(nIdle ? "Idle: " + sum : "No idle warriors: retrain some on the colony page, or set warriors in the fledging plan.", x + 16, ly, 14, nIdle ? ink : dim); ly += 20;
     if (SmallBtn({x + 16, ly, 250, 22}, "Form a flock of them", nIdle >= 2)) {
         bool strikers = idle[(int)fl::Role::Striker] > 0, skirm = idle[(int)fl::Role::Skirmisher] > 0;
-        int f = w.MakeFlock(0, ids, strikers && skirm ? fl::Formation::Hammer : fl::Formation::Chevron, strikers ? fl::Alt::High : fl::Alt::Mid, fl::Stance::RetreatHalf);
-        if (f >= 0) { S.selFlock = f; w.ColonySay(TextFormat("Flock %d formed: pick a target on the chart (M).", f)); }
+        Writer o; fl::OrderFlockMake(o, ids, strikers && skirm ? fl::Formation::Hammer : fl::Formation::Chevron, strikers ? fl::Alt::High : fl::Alt::Mid, fl::Stance::RetreatHalf); Order(o);
     }
     ly += 30;
     // each flock
@@ -824,9 +855,9 @@ void DrawFlockPanel(fl::World& w) {
         bool sel = S.selFlock == f.id;
         DrawRectangleRounded({x + 10, ly - 4, W - 20, 96}, 0.1f, 4, Fade(sel ? Color{90, 60, 40, 255} : Color{30, 40, 50, 255}, 0.7f));
         int n[(int)fl::Role::COUNT] = {};
-        for (int id : f.members) if (fl::Bird* b = w.FindBird(0, id)) n[(int)b->role]++;
-        std::string comp; static const char* AB[] = {"", "", "", "", "", "Skm", "Tnk", "Str", "Wch", "Scr", "FM"};
-        for (int r = (int)fl::Role::Skirmisher; r < (int)fl::Role::COUNT; r++) if (n[r]) comp += TextFormat("%d %s ", n[r], AB[r]);
+        for (int id : f.members) if (fl::Bird* b = w.FindBird(w.cur, id)) n[(int)b->role]++;
+        std::string comp;
+        for (int r = (int)fl::Role::Skirmisher; r < (int)fl::Role::COUNT; r++) if (n[r]) comp += TextFormat("%d %s ", n[r], fl::RoleAbbrev((fl::Role)r));
         TxtBold(f.name, x + 18, ly, 16, ink);
         Txt(TextFormat("%s   led by %s", comp.c_str(), f.leader == -2 ? "the Founder" : f.leader >= 0 ? "a Flockmaster" : "no one"), x + 120, ly + 2, 13, dim);
         // morale
@@ -834,38 +865,187 @@ void DrawFlockPanel(fl::World& w) {
         DrawRectangle((int)x + 18, (int)ly + 22, (int)(160 * f.morale / 100), 8, f.morale < 30 ? bad : f.morale < 50 ? Color{240, 200, 90, 255} : good);
         Txt(TextFormat("morale %.0f%s", f.morale, f.retreating ? ", retreating" : ""), x + 186, ly + 18, 13, f.retreating ? bad : dim);
         // formation, height, stance
-        auto cyc = [&](float cx, const char* text, int& v, int nv) {
-            if (SmallBtn({cx, ly + 36, 18, 19}, "<")) v = (v + nv - 1) % nv;
+        auto cyc = [&](float cx, const char* text, int& v, int nv, bool forms = false) {
+            auto ok = [&](int k) { return !forms || fl::FormationUnlocked(w.col, (fl::Formation)k); };   // (formations want War 1)
+            if (SmallBtn({cx, ly + 36, 18, 19}, "<")) { do v = (v + nv - 1) % nv; while (!ok(v)); }
             Txt(text, cx + 22, ly + 38, 13, ink);
-            if (SmallBtn({cx + 108, ly + 36, 18, 19}, ">")) v = (v + 1) % nv;
+            if (SmallBtn({cx + 108, ly + 36, 18, 19}, ">")) { do v = (v + 1) % nv; while (!ok(v)); }
         };
         int fo = (int)f.form, al = (int)f.alt, stc = (int)f.stance;
-        cyc(x + 18, fl::FormationName(f.form), fo, (int)fl::Formation::COUNT);
+        cyc(x + 18, fl::FormationName(f.form), fo, (int)fl::Formation::COUNT, true);
         cyc(x + 158, TextFormat("%s %.0f m", fl::AltName(f.alt), fl::AltHeight(f.alt)), al, 3);
         cyc(x + 298, fl::StanceName(f.stance), stc, (int)fl::Stance::COUNT);
-        f.form = (fl::Formation)fo; f.alt = (fl::Alt)al; f.stance = (fl::Stance)stc;
+        if (fo != (int)f.form || al != (int)f.alt || stc != (int)f.stance) { Writer o; fl::OrderFlockSet(o, f.id, (fl::Formation)fo, (fl::Alt)al, (fl::Stance)stc); Order(o); }
         Txt(TargetText(w, f), x + 18, ly + 62, 13, Color{255, 220, 170, 255});
         if (SmallBtn({x + 240, ly + 60, 60, 20}, sel ? "picked" : "pick")) S.selFlock = f.id;
-        if (SmallBtn({x + 304, ly + 60, 56, 20}, "home")) w.OrderFlock(0, f.id, fl::Target::Home, -1, -1, -1, -1, {});
-        if (SmallBtn({x + 364, ly + 60, 56, 20}, "disband")) { f.retreating = true; f.target = fl::Target::Home; f.engagedT = 0; }
+        if (SmallBtn({x + 304, ly + 60, 56, 20}, "home")) { Writer o; fl::OrderFlockHome(o, f.id); Order(o); }
+        if (SmallBtn({x + 364, ly + 60, 56, 20}, "disband")) { Writer o; fl::OrderFlockDisband(o, f.id); Order(o); }
         ly += 104;
     }
     // defences
     ly = y + H - 140;
-    TxtBold("Defences", x + 16, ly, 17, ink); ly += 24;
+    TxtBold("Defences", x + 16, ly, 17, ink);
+    if (!w.BuildUnlocked(fl::ST_HEDGE)) Txt("(hedges and towers want War 3)", x + 110, ly + 2, 13, dim);
+    ly += 24;
     const fl::Structure* hedge = nullptr; const fl::Structure* tower = nullptr;
     for (const auto& s : w.col.builds) { if (s.kind == 0) hedge = &s; else tower = &s; }
     int watchers = w.Count(fl::BStage::Adult, fl::Role::Watcher);
     auto row = [&](const char* name, const fl::Structure* s, int kind, const char* cost) {
         std::string st = !s ? "none" : s->built ? "built" : TextFormat("under way: %.0f of %d twigs", s->twigs, fl::StructureTwigs(kind));
         Txt(TextFormat("%s: %s", name, st.c_str()), x + 16, ly + 2, 14, s && s->built ? good : ink);
-        if (!s && SmallBtn({x + W - 206, ly, 190, 20}, cost)) { fl::Structure n; n.kind = kind; n.pos = kind == 0 ? w.col.caches[0].pos : w.GroundAt(w.col.caches[0].pos.x + 6, w.col.caches[0].pos.z + 4); w.col.builds.push_back(n); w.ColonySay(std::string("Your builders will raise a ") + (kind == 0 ? "hedge." : "tower.")); }
+        if (!s && SmallBtn({x + W - 206, ly, 190, 20}, cost, w.BuildUnlocked(kind))) { Writer o; fl::OrderBuild(o, kind); Order(o); }
         ly += 24;
     };
     row("Hedge round the home cache", hedge, 0, "raise (10 twigs)");
     row("Tower for a Watcher", tower, 1, "raise (20 twigs, 5 shells)");
     Txt(TextFormat("%d Watchers guard the nests (hedges stop Skirmishers; Strikers go over)", watchers), x + 16, ly + 2, 13, dim); ly += 22;
     DrawWrapped("Pick a flock, then click a target on the chart (M). G: the Founder leads the nearest flock (+20 morale, +10% speed).", {x + 16, ly, W - 32, 34}, 13, dim);
+}
+
+// The third page (Tab three times; design doc pp. 20-22, 25-27): research at the Roost, faith and fervour, trade at
+// the towns and with the other colonies, and the founder's own button (the Tycoon's boom, the Sigma's corner).
+void DrawSocietyPanel(fl::World& w) {
+    Color ink{250, 248, 236, 255}, dim{200, 214, 214, 255}, good{170, 240, 180, 255}, bad{255, 140, 120, 255}, gold{255, 220, 150, 255};
+    float x = 20, y = 78, W = 540, H = 640;
+    const fl::Colony& C = w.col;
+    DrawRectangleRounded({x, y, W, H}, 0.05f, 6, Fade(Color{8, 18, 28, 255}, 0.88f));
+    DrawRectangleRoundedLinesEx({x, y, W, H}, 0.05f, 6, 2, Color{150, 170, 220, 255});
+    TxtBold("Research, faith and trade", x + 16, y + 10, 22, ink);
+    Txt("Tab closes", x + W - 86, y + 16, 14, dim);
+    float ly = y + 40;
+    Txt(TextFormat("pearls %d   shells %d   twigs %d   guano %.0f", C.pearls, C.shells, C.twigs, C.guano), x + 16, ly, 15, gold); ly += 22;
+    // ---- research
+    const fl::Structure* roost = w.Built(fl::ST_ROOST);
+    bool roostLaid = false; for (const auto& s : C.builds) roostLaid |= s.kind == fl::ST_ROOST;
+    TxtBold("Research", x + 16, ly, 17, ink);
+    if (!roost) {
+        Txt(roostLaid ? "the Roost is going up (builders)" : "research needs a Roost:", x + 110, ly + 2, 14, roostLaid ? dim : bad);
+        if (!roostLaid && SmallBtn({x + W - 200, ly - 2, 184, 22}, TextFormat("raise it (%d twigs)", fl::StructureTwigs(fl::ST_ROOST)))) { Writer o; fl::OrderBuild(o, fl::ST_ROOST); Order(o); }
+    } else if (C.resTree >= 0) {
+        int n = C.tier[C.resTree] + 1;
+        Txt(TextFormat("%s %d: %s", fl::TreeName((fl::Tree)C.resTree), n, fl::ResearchOf((fl::Tree)C.resTree, n).name.c_str()), x + 110, ly + 2, 14, gold);
+        float k = 1 - C.resLeft / std::max(0.01f, C.resDays);
+        DrawRectangle((int)(x + W - 150), (int)ly + 6, 130, 8, Fade(BLACK, 0.5f)); DrawRectangle((int)(x + W - 150), (int)ly + 6, (int)(130 * k), 8, gold);
+    } else Txt("the Roost is idle: pick the next tier", x + 110, ly + 2, 14, dim);
+    ly += 24;
+    S.hoverTree = -1;
+    for (int t = 0; t < (int)fl::Tree::COUNT; t++) {
+        fl::Tree tr = (fl::Tree)t;
+        int tier = C.tier[t];
+        Rectangle row{x + 10, ly - 2, W - 20, 21};
+        if (CheckCollisionPointRec(GetMousePosition(), row)) { S.hoverTree = t; DrawRectangleRec(row, Fade(Color{80, 90, 120, 255}, 0.4f)); }
+        Txt(fl::TreeName(tr), x + 16, ly, 14, ink);
+        for (int k = 0; k < 4; k++) DrawCircle((int)(x + 186 + k * 13), (int)ly + 8, 4.5f, k < tier ? gold : Fade(dim, 0.35f));
+        if (tier < 4) {
+            fl::ResearchCost c = fl::ResearchCostOf(tier + 1);
+            Txt(fl::ResearchOf(tr, tier + 1).name, x + 244, ly, 13, dim);
+            std::string why; bool can = w.CanResearch(tr, &why);
+            if (SmallBtn({x + W - 100, ly - 1, 84, 19}, TextFormat("%dp %ds", c.pearls, c.shells), can)) { Writer o; fl::OrderResearch(o, tr); Order(o); }
+        } else Txt("complete", x + 244, ly, 13, good);
+        ly += 21;
+    }
+    if (S.hoverTree >= 0) {
+        fl::Tree tr = (fl::Tree)S.hoverTree;
+        int n = std::min(4, C.tier[S.hoverTree] + 1);
+        std::string why; w.CanResearch(tr, &why);
+        fl::ResearchCost c = fl::ResearchCostOf(n);
+        DrawWrapped(TextFormat("%s %d, %s: %s. %.1f days%s.%s", fl::TreeName(tr), n, fl::ResearchOf(tr, n).name.c_str(), fl::ResearchOf(tr, n).what.c_str(), c.days, c.birds ? TextFormat(", a colony of %d", c.birds) : "", why.empty() ? "" : (" (" + why + ")").c_str()), {x + 16, ly, W - 32, 36}, 13, gold);
+    }
+    ly += 38;
+    // ---- faith
+    float band = w.FervourBand();
+    static const char* BANDS[5] = {"low: the colony sleeps a full night; flocks break at 40", "normal", "high: half a night's rest, morale +10", "very high: two hours' rest, dusk and dawn fishing, morale +20", "ZEAL: no rest, no rout, conversion near the shrine; it eats 20% more"};
+    TxtBold("Faith", x + 16, ly, 17, ink);
+    DrawRectangle((int)x + 80, (int)ly + 4, 200, 10, Fade(BLACK, 0.5f));
+    DrawRectangle((int)x + 80, (int)ly + 4, (int)(2 * std::min(C.fervour, w.BendNow().fervourCap)), 10, band >= 3 ? gold : Color{150, 190, 255, 255});
+    Txt(TextFormat("fervour %.0f%s", C.fervour, C.prayerT > 0 ? " (+15 prayer)" : ""), x + 290, ly + 1, 14, ink);
+    ly += 20;
+    Txt(BANDS[(int)band], x + 16, ly, 13, dim); ly += 18;
+    const fl::Structure* shrine = w.Built(fl::ST_SHRINE);
+    bool shrineLaid = false; for (const auto& s : C.builds) shrineLaid |= s.kind == fl::ST_SHRINE;
+    int priests = w.Count(fl::BStage::Adult, fl::Role::Priest);
+    if (w.BendNow().noFaith) Txt("Your founder has no faith tree.", x + 16, ly, 13, dim);
+    else if (!w.BuildUnlocked(fl::ST_SHRINE)) Txt("The shrine and its priests want Faith 1.", x + 16, ly, 13, dim);
+    else if (!shrine) {
+        Txt(shrineLaid ? "the shrine is going up" : "no shrine yet", x + 16, ly, 13, shrineLaid ? dim : bad);
+        if (!shrineLaid && SmallBtn({x + W - 260, ly - 2, 244, 20}, TextFormat("raise a shrine (%d twigs, %d shells)", fl::StructureTwigs(fl::ST_SHRINE), fl::StructureShells(fl::ST_SHRINE)))) { Writer o; fl::OrderBuild(o, fl::ST_SHRINE); Order(o); }
+    } else Txt(TextFormat("the shrine: %d priests (plan them on the colony page); land on it and press E to pray%s", priests, C.HasTier(fl::Tree::Faith, 2) ? " or offer a fish" : ""), x + 16, ly, 13, ink);
+    ly += 24;
+    // ---- trade
+    TxtBold("Trade", x + 16, ly, 17, ink);
+    int town = w.towns.empty() ? -1 : w.NearestTown(C.caches.empty() ? w.me.pos : C.caches[0].pos, 1e9f);
+    if (town < 0) Txt("no town on this map", x + 80, ly + 2, 14, dim);
+    else {
+        const fl::Town& T = w.towns[town];
+        float rep = w.cur < (int)T.rep.size() ? T.rep[w.cur] : 0;
+        Txt(TextFormat("%s: fish pays %.2f; a pearl %.1f, a shell %.1f, a twig %.1f feed; your standing %+.0f", w.isles[T.isle].name.c_str(), w.FishPrice(town), w.SellPrice(town, fl::G_PEARLS), w.SellPrice(town, fl::G_SHELLS), w.SellPrice(town, fl::G_TWIGS), rep), x + 80, ly + 2, 13, ink);
+    }
+    ly += 22;
+    Txt("Traders and your Founder (E at a dock with a fish) buy:", x + 16, ly + 2, 13, dim);
+    for (int g = fl::G_TWIGS; g < fl::G_COUNT; g++) {
+        Rectangle r{x + 336 + (g - 1) * 64.0f, ly, 58, 20};
+        if (SmallBtn(r, fl::GoodName(g))) { Writer o; fl::OrderTradeFor(o, g); Order(o); }
+        if (C.tradeFor == g) DrawRectangleLinesEx({r.x - 2, r.y - 2, r.width + 4, r.height + 4}, 2, Color{200, 60, 40, 255});
+    }
+    ly += 26;
+    if (town >= 0 && Vector3Distance(w.me.pos, w.towns[town].dock) < 12) {   // the old pelican on the dock: a pearl for one true thing
+        int n = (int)w.isles.size();
+        if (S.pelicanIsle < 0 || S.pelicanIsle >= n) S.pelicanIsle = 0;
+        if (SmallBtn({x + 16, ly, 22, 20}, "<")) S.pelicanIsle = (S.pelicanIsle + n - 1) % n;
+        Txt(w.isles[S.pelicanIsle].name, x + 44, ly + 2, 13, ink);
+        if (SmallBtn({x + 200, ly, 22, 20}, ">")) S.pelicanIsle = (S.pelicanIsle + 1) % n;
+        if (SmallBtn({x + 232, ly, 230, 20}, "the old pelican (a pearl): the truth", C.pearls >= 1)) { Writer o; fl::OrderPelican(o, town, S.pelicanIsle); Order(o); }
+        ly += 26;
+    }
+    // ---- the founder's own button
+    const fl::Bend& B = w.BendNow();
+    if (B.boom) {
+        const char* st = C.boomState == 1 ? "BOOM" : C.boomState == 2 ? "bust" : C.boomCd > 0 ? "cooling" : "ready";
+        Txt(TextFormat("The Tycoon's boom: %s%s", st, C.boomState ? TextFormat(" (%.1f days)", C.boomT / fl::World::DAY) : C.boomCd > 0 ? TextFormat(" (%.1f days)", C.boomCd / fl::World::DAY) : ""), x + 16, ly + 2, 14, C.boomState == 1 ? gold : C.boomState == 2 ? bad : ink);
+        if (SmallBtn({x + W - 140, ly, 124, 20}, "BOOM", C.boomState == 0 && C.boomCd <= 0)) { Writer o; fl::OrderBoom(o); Order(o); }
+        ly += 26;
+    }
+    if (B.cornering && town >= 0) {
+        Txt(C.cornered ? "The market is cornered (once a match)." : "Corner the nearest town's catch (morning; sells at evening):", x + 16, ly + 2, 14, ink);
+        if (!C.cornered && SmallBtn({x + W - 140, ly, 124, 20}, "corner it", w.DayPhase() > 0.2f && w.DayPhase() < 0.45f)) { Writer o; fl::OrderCorner(o, town); Order(o); }
+        ly += 26;
+    }
+    // ---- barter with the other colonies (Trade 2)
+    TxtBold("Barter", x + 16, ly, 17, ink);
+    if (!C.HasTier(fl::Tree::Trade, 2)) { Txt("wants Trade 2", x + 90, ly + 2, 14, dim); ly += 22; }
+    else {
+        ly += 22;
+        int N = (int)w.sides.size() + 1;
+        if (S.bTo == w.cur || S.bTo >= N) S.bTo = (w.cur + 1) % N;
+        if (SmallBtn({x + 16, ly, 22, 20}, "<")) { do S.bTo = (S.bTo + N - 1) % N; while (S.bTo == w.cur); }
+        Txt(w.SideName(S.bTo), x + 44, ly + 2, 14, Mix(w.SideColor(S.bTo), WHITE, 0.4f));
+        if (SmallBtn({x + 170, ly, 22, 20}, ">")) { do S.bTo = (S.bTo + 1) % N; while (S.bTo == w.cur); }
+        if (SmallBtn({x + 210, ly, 22, 20}, "-")) S.bTruce = std::max(0.0f, S.bTruce - 1);
+        Txt(TextFormat("truce %.0f d", S.bTruce), x + 238, ly + 2, 13, ink);
+        if (SmallBtn({x + 310, ly, 22, 20}, "+")) S.bTruce = std::min(5.0f, S.bTruce + 1);
+        if (SmallBtn({x + W - 110, ly, 94, 20}, "send offer")) { Writer o; fl::OrderBarter(o, S.bTo, S.bGive, S.bGet, S.bTruce); Order(o); }
+        ly += 24;
+        for (int side = 0; side < 2; side++) {
+            int* v = side == 0 ? S.bGive : S.bGet;
+            Txt(side == 0 ? "you give" : "you want", x + 16, ly + 2, 13, dim);
+            for (int g = 0; g < fl::G_COUNT; g++) {
+                float bx = x + 90 + g * 108.0f;
+                if (SmallBtn({bx, ly, 18, 18}, "-")) v[g] = std::max(0, v[g] - (g == fl::G_PEARLS ? 1 : 5));
+                Txt(TextFormat("%d %s", v[g], fl::GoodName(g)), bx + 22, ly + 2, 13, ink);
+                if (SmallBtn({bx + 84, ly, 18, 18}, "+")) v[g] += g == fl::G_PEARLS ? 1 : 5;
+            }
+            ly += 22;
+        }
+    }
+    for (const auto& o : w.offers) {
+        if (o.state != 0 || o.to != w.cur || ly > y + H - 30) continue;
+        std::string give, get;
+        for (int g = 0; g < fl::G_COUNT; g++) { if (o.give[g]) give += TextFormat("%d %s ", o.give[g], fl::GoodName(g)); if (o.get[g]) get += TextFormat("%d %s ", o.get[g], fl::GoodName(g)); }
+        Txt(TextFormat("%s gives %sfor %s%s", w.SideName(o.from).c_str(), give.empty() ? "nothing " : give.c_str(), get.empty() ? "nothing" : get.c_str(), o.truceDays > 0 ? TextFormat(", truce %.0f d", o.truceDays) : ""), x + 16, ly + 2, 13, gold);
+        if (SmallBtn({x + W - 150, ly, 64, 20}, "accept")) { Writer a; fl::OrderAnswer(a, o.id, true); Order(a); }
+        if (SmallBtn({x + W - 80, ly, 64, 20}, "refuse")) { Writer a; fl::OrderAnswer(a, o.id, false); Order(a); }
+        ly += 24;
+    }
 }
 
 // The chart (M; design doc pp. 18-19): the world as the colony has seen it. A hand-drawn chart: fog is cloud, old
@@ -991,12 +1171,12 @@ void DrawChart(fl::World& w) {
     // flocks: yours with their names; an enemy's where your birds can see it now
     for (int s = 0; s <= (int)w.sides.size(); s++) for (const auto& fk : w.ColOf(s).flocks) {
         if (fk.members.empty()) continue;
-        if (s > 0 && K.SeenAt(fk.pos.x, fk.pos.z) < w.time - 2) continue;
+        if (s != w.cur && K.SeenAt(fk.pos.x, fk.pos.z) < w.time - 2) continue;
         Vector2 p = toS(fk.pos.x, fk.pos.z);
-        Color c = s == 0 ? Color{40, 110, 60, 255} : w.SideColor(s);
+        Color c = s == w.cur ? Color{40, 110, 60, 255} : w.SideColor(s);
         DrawCircleV(p, 9, Fade(c, 0.85f)); DrawCircleLinesV(p, 9, ink);
         DrawTextCentered(TextFormat("%d", (int)fk.members.size()), p.x, p.y - 6, 12, WHITE);
-        if (s == 0) DrawTextCentered(fk.name + (S.selFlock == fk.id ? " *" : ""), p.x, p.y + 11, 11, ink);
+        if (s == w.cur) DrawTextCentered(fk.name + (S.selFlock == fk.id ? " *" : ""), p.x, p.y + 11, 11, ink);
         else DrawTextCentered(w.SideName(s), p.x, p.y + 11, 11, c);
     }
     if (w.me.st != fl::FState::Dead) {
@@ -1031,9 +1211,9 @@ void DrawChart(fl::World& w) {
                     {side.x + 12, y, side.width - 24, 60}, 13, ink);
     } else if (S.chartMode == 1) {
         DrawWrapped(TextFormat("Click a ground: the fishers work it (now: %s).", w.col.ground < 0 ? "the best ground" : w.eco.map->zones[w.col.ground].name.c_str()), {side.x + 12, y, side.width - 24, 40}, 13, ink);
-        if (SmallBtn({side.x + 12, y + 36, 150, 24}, "the best ground", true)) w.col.ground = -1;
+        if (SmallBtn({side.x + 12, y + 36, 150, 24}, "the best ground", true)) { Writer o; fl::OrderGround(o, -1); Order(o); }
     } else {
-        fl::Flock* sf = w.FindFlock(0, S.selFlock);
+        fl::Flock* sf = w.FindFlock(w.cur, S.selFlock);
         if (!sf && !w.col.flocks.empty()) { S.selFlock = w.col.flocks[0].id; sf = &w.col.flocks[0]; }
         if (sf && SmallBtn({side.x + 12, y, 130, 22}, sf->name.c_str(), true)) { size_t k = 0; for (; k < w.col.flocks.size(); k++) if (w.col.flocks[k].id == sf->id) break; S.selFlock = w.col.flocks[(k + 1) % w.col.flocks.size()].id; }
         if (SmallBtn({side.x + 150, y, 140, 22}, S.raidChicks ? "raids take chicks" : "raids take fish", true)) S.raidChicks = !S.raidChicks;
@@ -1045,21 +1225,20 @@ void DrawChart(fl::World& w) {
         Vector2 at = toW(m);
         int isle = -1; for (int i = 0; i < (int)w.isles.size(); i++) if (Vector2Distance(at, {w.isles[i].c.x, w.isles[i].c.z}) < w.isles[i].radius + 15) isle = i;
         int zone = w.eco.ZoneAt({at.x, -1, at.y});
-        if (S.chartMode == 0) {
-            if (!w.SendScout(isle, isle < 0 ? zone : -1, {at.x, 0, at.y}, S.chartAlt)) w.ColonySay(scouts ? "Every scout is out." : "No scouts in the colony.");
-        } else if (S.chartMode == 1) { if (zone >= 0) { w.col.ground = zone; w.ColonySay("The fishers will work " + w.eco.map->zones[zone].name + "."); } }
-        else if (fl::Flock* sf = w.FindFlock(0, S.selFlock)) {
+        if (S.chartMode == 0) { Writer o; fl::OrderScout(o, isle, isle < 0 ? zone : -1, {at.x, 0, at.y}, S.chartAlt); Order(o); }
+        else if (S.chartMode == 1) { if (zone >= 0) { Writer o; fl::OrderGround(o, zone); Order(o); } }
+        else if (fl::Flock* sf = w.FindFlock(w.cur, S.selFlock)) {
             // an enemy flock where you clicked (one you can see now), an island (yours: guard it; a rival's: raid it), a ground, a mark
             int ts = -1, tf = -1; float bd = 40 / std::max(0.3f, S.chartZoom) * 3;
-            for (int s = 1; s <= (int)w.sides.size(); s++) for (const auto& ef : w.ColOf(s).flocks) if (K.SeenAt(ef.pos.x, ef.pos.z) > w.time - 2 && Vector2Distance(at, {ef.pos.x, ef.pos.z}) < bd) { bd = Vector2Distance(at, {ef.pos.x, ef.pos.z}); ts = s; tf = ef.id; }
-            int owner = -1; if (isle >= 0) for (int s = 1; s <= (int)w.sides.size(); s++) if (w.sides[s - 1].home == isle) owner = s;
-            if (tf >= 0) w.OrderFlock(0, sf->id, fl::Target::Flock, ts, -1, -1, tf, {});
-            else if (isle == w.home) w.OrderFlock(0, sf->id, fl::Target::Home, -1, -1, -1, -1, {});
-            else if (owner > 0) w.OrderFlock(0, sf->id, S.raidChicks ? fl::Target::Nests : fl::Target::Cache, owner, isle, -1, -1, w.isles[isle].c);
-            else if (zone >= 0 && isle < 0) w.OrderFlock(0, sf->id, fl::Target::Ground, -1, -1, zone, -1, {at.x, 0, at.y});
-            else w.OrderFlock(0, sf->id, fl::Target::Point, -1, -1, -1, -1, {at.x, 0, at.y});
-            if (sf->leader == -2) sf->leader = -1;
-            w.ColonySay(sf->name + ": " + TargetText(w, *sf) + ".");
+            for (int s = 0; s <= (int)w.sides.size(); s++) if (s != w.cur) for (const auto& ef : w.ColOf(s).flocks) if (K.SeenAt(ef.pos.x, ef.pos.z) > w.time - 2 && Vector2Distance(at, {ef.pos.x, ef.pos.z}) < bd) { bd = Vector2Distance(at, {ef.pos.x, ef.pos.z}); ts = s; tf = ef.id; }
+            int owner = isle >= 0 ? w.OwnerOf(isle) : -1;
+            Writer o;
+            if (tf >= 0) fl::OrderFlockTarget(o, sf->id, fl::Target::Flock, ts, -1, -1, tf, {});
+            else if (isle == w.home) fl::OrderFlockTarget(o, sf->id, fl::Target::Home, -1, -1, -1, -1, {});
+            else if (owner >= 0 && owner != w.cur) fl::OrderFlockTarget(o, sf->id, S.raidChicks ? fl::Target::Nests : fl::Target::Cache, owner, isle, -1, -1, w.isles[isle].c);
+            else if (zone >= 0 && isle < 0) fl::OrderFlockTarget(o, sf->id, fl::Target::Ground, -1, -1, zone, -1, {at.x, 0, at.y});
+            else fl::OrderFlockTarget(o, sf->id, fl::Target::Point, -1, -1, -1, -1, {at.x, 0, at.y});
+            Order(o);
         }
     }
     TxtBold("Reports", side.x + 12, y, 18, ink); y += 24;
@@ -1077,7 +1256,7 @@ void DrawChart(fl::World& w) {
 }
 
 void Render(float dt) {
-    fl::World& w = S.W;
+    fl::World& w = WD();
     fl::Founder& f = w.me;
     EnsureModels(); EnsureSea();
     // ---- the camera: behind and above the bird along the aim; close in for the strike
@@ -1138,8 +1317,9 @@ void Start(Game& g, const std::string& founder, uint32_t seed, bool shot, const 
     if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
     S.active = true; S.shot = shot; S.founder = founder; S.opts = o;
     S.W.Init(founder, seed, o);
+
     S.chart = false; S.panel = false; S.chartZoom = 1; S.chartAt = {0, 0};
-    S.aimYaw = S.W.me.yaw; S.aimPitch = 0.1f; S.camYaw = S.aimYaw; S.camPitch = -0.1f;
+    S.aimYaw = WD().me.yaw; S.aimPitch = 0.1f; S.camYaw = S.aimYaw; S.camPitch = -0.1f;
     S.t = 0; S.help = true;
     g.scene = Scene::Flight;
 }
@@ -1151,7 +1331,60 @@ void StartFlight(Game& g, const char* founder, int isleType, int arrangement, in
 }
 const char* FlightIsleTypeName(int t) { return fl::IsleTypeName((fl::IsleType)std::clamp(t, 0, 3)); }
 const char* FlightArrangementName(int a) { return fl::ArrangementName((fl::Arrangement)std::clamp(a, 0, 3)); }
-void LeaveFlight(Game& g) { S.active = false; FreeModels(); g.scene = Scene::Arcade; }
+void LeaveFlight(Game& g) {
+    if (S.net) { if (S.net->role == arcade::R_HOST) S.net->BackToLobby(); else S.net->Leave(); }
+    S.net = nullptr; S.live = nullptr;
+    S.active = false; FreeModels(); g.scene = Scene::Arcade;
+}
+// Network play (stage 5): the arcade's session launched the Flight. The host draws its real world; a guest draws its
+// mirror of the host's snapshots, flying its own Founder ahead of them. Either way the Founder is flown by input and
+// the colony run by orders.
+void StartFlightNet(Game& g, arcade::Session* net, const char* founderKey, const char* name) {
+    std::string why;
+    if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
+    S.net = net; S.live = nullptr;
+    S.W = fl::World{};
+    S.seenVersion = -1; S.sinceSnap = 0; S.helloSent = false; S.flocksSeen = 0;
+    S.netFounder = founderKey ? founderKey : "taloned"; S.netName = name ? name : "Founder";
+    S.active = true; S.shot = false;
+    S.chart = false; S.panel = false; S.chartZoom = 1; S.chartAt = {0, 0};
+    S.aimYaw = PI * 0.5f; S.aimPitch = 0.1f; S.camYaw = S.aimYaw; S.camPitch = -0.1f;
+    S.t = 0; S.help = true;
+    g.scene = Scene::Flight;
+}
+// (the game menu is open: the session and the world go on underneath)
+void FlightMenuTick(float dt) {
+    if (!S.active || !S.net) return;
+    fl::FounderInput in; in.yaw = S.aimYaw; in.pitch = S.aimPitch;
+    Writer w; fl::WriteInput(in, w); S.net->Act(w);
+    S.net->Update(GetTime(), dt);
+}
+// the end of a match: the standings, the winner, the way out
+static void DrawResults(Game& g, fl::World& w) {
+    Color ink{250, 248, 236, 255}, dim{200, 214, 214, 255};
+    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.55f));
+    Rectangle r{SCREEN_W / 2.0f - 450, 110, 900, 150.0f + 30 * (w.sides.size() + 1)};
+    DrawRectangleRounded(r, 0.06f, 6, Fade(Color{8, 18, 28, 255}, 0.92f));
+    DrawRectangleRoundedLinesEx(r, 0.06f, 6, 2, Color{214, 180, 110, 255});
+    DrawTextCenteredBold(w.winner == w.cur ? "Your colony wins!" : w.SideName(w.winner) + " wins", SCREEN_W / 2.0f, r.y + 14, 30, Color{255, 226, 150, 255});
+    DrawTextCentered(w.overReason, SCREEN_W / 2.0f, r.y + 52, 16, dim);
+    float y = r.y + 82;
+    static const char* COLS[] = {"birds", "nests", "island", "cache", "kills", "Founder", "research", "pearls", "faith", "thefts", "total"};
+    for (int c = 0; c < 11; c++) Txt(COLS[c], r.x + 220 + c * 60.0f, y, 14, dim);
+    y += 22;
+    std::vector<int> order; for (int s = 0; s <= (int)w.sides.size(); s++) order.push_back(s);
+    std::sort(order.begin(), order.end(), [&](int a, int b) { return w.Score(a).total > w.Score(b).total; });
+    for (int s : order) {
+        fl::ScoreCard c = w.Score(s);
+        Color col = s == w.cur ? Color{255, 230, 140, 255} : Mix(w.SideColor(s), WHITE, 0.35f);
+        TxtBold(s == w.cur ? "You" : w.SideName(s), r.x + 24, y, 17, col);
+        int v[11] = {c.birds, c.nests, c.isles, c.cache, c.kills, c.founder, c.research, c.pearls, c.faith, c.thefts, c.total};
+        for (int k = 0; k < 11; k++) Txt(TextFormat("%d", v[k]), r.x + 220 + k * 60.0f, y, 17, k == 10 ? col : ink);
+        y += 30;
+    }
+    bool host = !S.net || S.net->role == arcade::R_HOST;
+    if (Button({SCREEN_W / 2.0f - 120, r.y + r.height - 50, 240, 38}, S.net ? (host ? "Back to the lobby" : "Leave the table") : "Back to the arcade", true, 16)) LeaveFlight(g);
+}
 const char* FlightFounderName(int i) { const auto& v = fl::Founders(); return i >= 0 && i < (int)v.size() ? v[i].name.c_str() : "?"; }
 const char* FlightFounderKey(int i) { const auto& v = fl::Founders(); return i >= 0 && i < (int)v.size() ? v[i].key.c_str() : "taloned"; }
 const char* FlightFounderLine(int i) { const auto& v = fl::Founders(); return i >= 0 && i < (int)v.size() ? v[i].playstyle.c_str() : ""; }
@@ -1160,21 +1393,73 @@ int FlightFounderCount() { return (int)fl::Founders().size(); }
 void SceneFlight(Game& g) {
     if (!S.active) { StartFlight(g, "taloned"); if (!S.active) return; }
     float dt = S.shot ? 1 / 60.0f : std::min(GetFrameTime(), 1 / 30.0f);
-    if (S.shot && S.W.me.st == fl::FState::Strike) S.W.me.strikeT = std::min(S.W.me.strikeT, 0.2f);   // (the shot holds the strike)
+    if (S.net) {
+        // ---- network play: the session first (the host's world steps inside it), then the snapshot into the mirror
+        arcade::Session& N = *S.net;
+        N.Update(GetTime(), dt);
+        if (N.stage != arcade::S_PLAYING) { S.net = nullptr; S.live = nullptr; S.active = false; FreeModels(); g.scene = Scene::Arcade; return; }
+        if (N.role == arcade::R_HOST) S.live = fl::FlightHostWorld(N.HostGame());
+        else {
+            S.sinceSnap += dt;
+            if (N.stateVersion != S.seenVersion && !N.Snapshot().empty()) {
+                S.seenVersion = N.stateVersion;
+                Reader r(N.Snapshot());
+                if (fl::ReadWorld(r, S.W, S.W.mirror)) S.sinceSnap = 0;
+            } else if (S.W.mirror && S.sinceSnap < 0.3f) {
+                // between snapshots everything else flies and swims on along its last heading
+                for (auto& a : S.W.eco.agents) if (a.alive && a.diver < 0) a.pos = Vector3Add(a.pos, Vector3Scale(a.vel, dt));
+                for (int s = 0; s <= (int)S.W.sides.size(); s++) {
+                    for (auto& b : S.W.ColOf(s).birds) if (b.alive) b.pos = Vector3Add(b.pos, Vector3Scale(b.vel, dt));
+                    if (s != S.W.cur) { fl::Founder& f = S.W.FounderOf(s); if (f.st == fl::FState::Fly) f.pos = Vector3Add(f.pos, Vector3Scale(f.vel, dt)); }
+                }
+            }
+        }
+        fl::World& w = WD();
+        if (!w.wholeMap || (!S.live && !w.mirror)) {
+            ClearBackground(Color{120, 170, 200, 255});
+            DrawTextCenteredBold("Taking wing...", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 24, WHITE);
+            return;
+        }
+        if (!S.helloSent) {   // (your name and your founder, once: the founder counts in the match's first 30 s)
+            Writer o; fl::OrderHello(o, S.netName, S.netFounder); N.Act(o); S.helloSent = true;
+            S.aimYaw = w.me.yaw; S.camYaw = S.aimYaw;
+        }
+        if (w.col.flocks.size() > S.flocksSeen && !w.col.flocks.empty()) S.selFlock = w.col.flocks.back().id;   // (a flock just formed is the one picked)
+        S.flocksSeen = w.col.flocks.size();
+        fl::FounderInput in = Gather(dt);
+        if (w.over) in = fl::FounderInput{in.yaw, in.pitch};
+        Writer iw; fl::WriteInput(in, iw); N.Act(iw);
+        if (!S.live) w.PredictFounder(dt, in);   // (a guest flies its own bird ahead of the host)
+        if (!S.live) { w.fogNow = true; w.StepFog(dt); }
+        S.t += dt;
+        Render(dt);
+        DrawHud(w);
+        if (S.panel) { if (S.page == 0) DrawColonyPanel(w); else if (S.page == 1) DrawFlockPanel(w); else DrawSocietyPanel(w); }
+        if (S.chart) DrawChart(w);
+        // a person lost: their colony runs on its last orders, then the AI stands in
+        for (int k = 0; k < arcade::MAX_PLAYERS; k++) if (N.seats[k].used && N.seats[k].lost && !N.seats[k].ai && fmodf(S.t, 1.4f) < 1.0f)
+            DrawTextCenteredBold(TextFormat("%s is lost: their colony runs on its last orders (the AI in %d s)", N.seats[k].name.c_str(), (int)N.pauseLeft), SCREEN_W / 2.0f, SCREEN_H - 200, 16, Color{255, 200, 140, 255});
+        if (w.over) DrawResults(g, w);
+        return;
+    }
+    if (S.shot && WD().me.st == fl::FState::Strike) WD().me.strikeT = std::min(WD().me.strikeT, 0.2f);   // (the shot holds the strike)
     fl::FounderInput in = Gather(dt);
-    S.W.Step(dt, in);
-    S.t += dt * S.W.timeScale;
-    Render(dt * S.W.timeScale);
-    DrawHud(S.W);
-    if (S.panel) { if (S.page == 0) DrawColonyPanel(S.W); else DrawFlockPanel(S.W); }
-    if (S.chart) DrawChart(S.W);
+    if (S.W.col.flocks.size() > S.flocksSeen && !S.W.col.flocks.empty()) S.selFlock = S.W.col.flocks.back().id;
+    S.flocksSeen = S.W.col.flocks.size();
+    WD().Step(dt, in);
+    S.t += dt * WD().timeScale;
+    Render(dt * WD().timeScale);
+    DrawHud(WD());
+    if (S.panel) { if (S.page == 0) DrawColonyPanel(WD()); else if (S.page == 1) DrawFlockPanel(WD()); else DrawSocietyPanel(WD()); }
+    if (S.chart) DrawChart(WD());
+    if (WD().over) DrawResults(g, WD());
 }
 
 // --shots: 0 cruising over the lagoon at dawn, 1 the strike, 2 at the nest with a fish, 3 noon from high over the island
 void DebugFlightShot(Game& g, int which) {
     fl::MapOpts o; o.home = which == 6 ? fl::IsleType::Stack : which == 7 ? fl::IsleType::Town : which == 8 ? fl::IsleType::Atoll : fl::IsleType::Tropical;
     Start(g, which == 3 ? "albatross" : "taloned", 11, true, o);
-    fl::World& w = S.W;
+    fl::World& w = WD();
     fl::Founder& f = w.me;
     f.st = fl::FState::Fly; f.airspeed = 11; f.yaw = PI * 0.5f; f.pitch = 0;
     S.help = which == 0;
@@ -1234,6 +1519,54 @@ void DebugFlightShot(Game& g, int which) {
         for (float tt = 0; tt < fl::World::DAY * 1.2f; tt += 0.1f) w.Step(0.1f, fl::FounderInput{});
         w.founderBot = false;
         S.chart = true;
+    }
+    if (which == 13) {   // the research, faith and trade page of a colony some days in
+        w.time = fl::World::DAY * 4.4f; S.help = false;
+        fl::Structure r; r.kind = fl::ST_ROOST; r.built = true; r.pos = w.GroundAt(w.col.caches[0].pos.x - 5, w.col.caches[0].pos.z + 3); w.col.builds.push_back(r);
+        fl::Structure sh; sh.kind = fl::ST_SHRINE; sh.built = true; sh.pos = w.GroundAt(w.col.caches[0].pos.x + 4, w.col.caches[0].pos.z - 5); w.col.builds.push_back(sh);
+        w.col.tier[(int)fl::Tree::Nesting] = 2; w.col.tier[(int)fl::Tree::Fishing] = 1; w.col.tier[(int)fl::Tree::War] = 2; w.col.tier[(int)fl::Tree::Faith] = 1; w.col.tier[(int)fl::Tree::Trade] = 2;
+        w.col.resTree = (int)fl::Tree::Caches; w.col.resDays = 0.5f; w.col.resLeft = 0.2f;
+        w.col.pearls = 7; w.col.shells = 26; w.col.twigs = 14; w.col.guano = 31; w.col.fervour = 58;
+        int give[fl::G_COUNT] = {0, 0, 20, 0}, get[fl::G_COUNT] = {0, 0, 0, 3};
+        w.ColOf(1).tier[(int)fl::Tree::Trade] = 2; w.ColOf(1).shells = 40;
+        w.MakeOffer(1, 0, give, get, 2);
+        S.panel = true; S.page = 2;
+    }
+    if (which == 14) {   // the end of a match: the standings
+        S.help = false;
+        w.multi = true; w.matchLen = 60; w.time = 61; w.name0 = "You";
+        if (w.sides.size() >= 2) { w.sides[0].name = "Ana"; w.sides[1].name = "Bot 2"; }
+        for (int k = 0; k < 8; k++) w.Cache0().push_back({w.eco.map->SpeciesIndex("Mullet"), 2, 0});
+        w.col.tier[(int)fl::Tree::Nesting] = 2; w.col.pearls = 4;
+        w.Step(0.1f, fl::FounderInput{f.yaw});
+    }
+    if (which == 15) {   // a guest's screen in a networked match: a host, this guest and an AI colony over the in-memory transport
+        static arcade::Session host, guest;
+        host.Leave(); guest.Leave();
+        std::string err;
+        arcade::Profile ph{"Host", 1}, pg{"Guest", 2};
+        host.Host(ph, arcade::G_FLIGHT, &err, 47798, net::MakeMemoryTransport(), false);
+        host.gameOpts = "0:0:30";
+        guest.Join(pg, "mem:47798", &err, 0, net::MakeMemoryTransport());
+        double t = 0;
+        auto pump = [&](int frames) { for (int i = 0; i < frames; i++) { t += 1 / 30.0; host.Update(t, 1 / 30.0f); guest.Update(t, 1 / 30.0f); } };
+        for (int i = 0; i < 300 && guest.stage != arcade::S_LOBBY; i++) pump(1);
+        host.AddAI(); guest.SetReady(true);
+        for (int i = 0; i < 300 && !host.seats[1].ready; i++) pump(1);
+        std::string why; host.Launch(&why);
+        for (int i = 0; i < 300 && (guest.stage != arcade::S_PLAYING || guest.Snapshot().empty()); i++) pump(1);
+        if (fl::World* hw = fl::FlightHostWorld(host.HostGame())) {
+            int me = std::max(0, guest.MyPlayer());
+            // the guest over its island at mid-morning, the host's Founder flying nearby
+            hw->time = fl::World::DAY * 0.32f;
+            fl::Founder& G = hw->FounderOf(me); fl::Island& is = hw->isles[hw->HomeOf(me)];
+            G.st = fl::FState::Fly; G.pos = {is.c.x - 30, 26, is.c.z + 40}; G.yaw = atan2f(is.c.z - G.pos.z, is.c.x - G.pos.x); G.airspeed = 11; G.pitch = -0.1f;
+            fl::Founder& H = hw->FounderOf(0); H.st = fl::FState::Fly; H.pos = Vector3Add(G.pos, {cosf(G.yaw) * 9 + 3, 2, sinf(G.yaw) * 9 - 2}); H.yaw = G.yaw + 0.3f; H.airspeed = 11;
+        }
+        pump(15);
+        StartFlightNet(g, &guest, "swift", "Guest");
+        S.shot = true; S.help = false;
+        return;
     }
     S.aimYaw = which == 2 ? S.aimYaw : f.yaw; S.camYaw = S.aimYaw; S.camPitch = S.aimPitch * 0.8f - 0.12f;
 }

@@ -1,0 +1,76 @@
+{
+  "_source": "The Flight design document pp. 20-22 (Research: the nine trees; costs; the order of work); p11 (the Roost)",
+  "costs": [
+    {"tier": 1, "pearls": 2, "shells": 10, "days": 0.5, "birds": 0},
+    {"tier": 2, "pearls": 5, "shells": 20, "days": 1, "birds": 0},
+    {"tier": 3, "pearls": 10, "shells": 40, "days": 2, "birds": 0},
+    {"tier": 4, "pearls": 20, "shells": 80, "days": 3, "birds": 25}
+  ],
+  "structures": {
+    "roost": {"twigs": 16, "shells": 0, "what": "The colony's first structure after the nest: research happens here, one line at a time"},
+    "shrine": {"twigs": 14, "shells": 10, "what": "Faith 1: priests tend it, the Founder prays at it, offerings are laid on it"},
+    "works": {"twigs": 20, "shells": 15, "what": "Bombing 1 / Chemistry 1: bombs from guano and sulfur, stimulants from guano and pearls"}
+  },
+  "trees": {
+    "nesting": [
+      {"name": "Shell lining", "what": "eggs hatch 25% faster"},
+      {"name": "Big nests", "what": "6 eggs to a nest"},
+      {"name": "Cliff nests", "what": "nest sites on vertical rock anywhere (+50% sites)"},
+      {"name": "Hanging colony", "what": "nests under overhangs, immune to rock-throws and ash"}
+    ],
+    "fishing": [
+      {"name": "Schooling eye", "what": "fishers see schools from farther (they find fish 40% sooner)"},
+      {"name": "Deep dive", "what": "fishers work the oyster beds: pearls"},
+      {"name": "Night fishing", "what": "fishers work dusk and dawn safely"},
+      {"name": "Cooperative fishing", "what": "fishers herd a school together: double yield, triple splash"}
+    ],
+    "flight": [
+      {"name": "Thermal riding", "what": "free altitude on tropical and volcanic islands"},
+      {"name": "Long wings", "what": "stamina +50%"},
+      {"name": "Wind reading", "what": "wind penalties halved; the chart shows the wind a day ahead"},
+      {"name": "Formation flight", "what": "flocks fly 30% faster in a V"}
+    ],
+    "caches": [
+      {"name": "Smokehouse", "what": "fish keep six days"},
+      {"name": "Big caches", "what": "a cache holds 50"},
+      {"name": "Shell armor", "what": "Tanks +60 HP"},
+      {"name": "Nets", "what": "Watchers' nets hold 5 s; fishers net small schools"}
+    ],
+    "war": [
+      {"name": "Flock orders", "what": "formations"},
+      {"name": "Skirmishers and Strikers", "what": "the Skirmisher and Striker roles"},
+      {"name": "Towers and hedges", "what": "Watchers' towers (sight +50%, nets) and hedges round the nests"},
+      {"name": "Flockmasters and sieges", "what": "the Flockmaster role and the siege order (a flock blockades a ground)"}
+    ],
+    "bombing": [
+      {"name": "The Works", "what": "makes bombs from guano and sulfur: 1 a day"},
+      {"name": "Bombers", "what": "the Bomber role"},
+      {"name": "Incendiary", "what": "burns hedges and nests; skull island's plants"},
+      {"name": "Blockbuster", "what": "one bomb per two days; destroys a Roost or a tower outright"}
+    ],
+    "chemistry": [
+      {"name": "The Works", "what": "shared with Bombing; the Chemist role"},
+      {"name": "Haste", "what": "a flock +30% speed for a day; afterward a day of half stamina"},
+      {"name": "Fury and Clot", "what": "Fury: attack +40%, it won't retreat, bleeds more; Clot: bleeding halved"},
+      {"name": "The Draught", "what": "one flock, one day: all stats +50%, immune to morale; then it sleeps a full day"}
+    ],
+    "faith": [
+      {"name": "The shrine", "what": "the shrine and the Priest role (fervour)"},
+      {"name": "Offerings", "what": "fish for fervour; +10 per big fish"},
+      {"name": "Conversion", "what": "priests turn wild birds into colony birds"},
+      {"name": "Zeal", "what": "at fervour 100 the colony works through nights and warriors never rout; priests convert enemy birds near the shrine"}
+    ],
+    "trade": [
+      {"name": "Traders", "what": "the Trader role and the market screen"},
+      {"name": "Barter", "what": "trade with players (the offer screen)"},
+      {"name": "Egg theft", "what": "any Skirmisher can carry an enemy egg home"},
+      {"name": "Brood parasitism", "what": "lay an egg in an enemy nest; the Pathfinder role"}
+    ]
+  },
+  "fervour": {"base": 20, "drift_per_day": 10, "priest_per_day": 7, "prayer": 15, "prayer_hours": 1, "offering_per_size": 2.5,
+              "starving_per_day": -25, "founder_death": -10, "zeal_founder_death": -30, "rout": -8, "convert_per_priest_day": 1,
+              "zeal_hunger": 1.2},
+  "guano_per_bird_day": 0.25,
+  "deep_dive_pearl_chance": 0.07,
+  "golden_nest_pearls_per_day": 1
+}

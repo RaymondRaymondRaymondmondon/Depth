@@ -29,6 +29,7 @@ src/flight_colony.cpp
 src/flight_map.cpp
 src/flight_war.cpp
 src/flight_net.cpp
+src/flight_society.cpp
     src/data.cpp
     src/ui.cpp
     src/render.cpp

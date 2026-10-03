@@ -331,5 +331,117 @@ Gate (doc p34): "Two bot colonies fight and the higher, downwind flock wins."
 - *Home islands:* a sea stack colony grows to about 13 birds by day 8, where tropical, town and atoll colonies reach 24-27. The doc wants about 75%; this is about 54%, because the stack is short of twigs and has few fish within reach.
 - *Changes made:* the stack's waters got 1.6× the fish, upwelling (shoals at 2.6 m by day) and more driftwood.
 - *Morale:* morale is now decisive, and the Flockmaster is a liability if it dies early.
-## Next: stage 5, multiplayer
-The Flight on the Deep Arcade's shared session (host-authoritative, like the Trawl and Red Tide): six founders in a match on LAN. Gate: six players finish a 30-minute match (doc p34).
+## Stage 5: multiplayer (done 2026-10-03)
+Doc p32 ("Simulation and networking") and p27 (victory and score). The Flight on the Deep Arcade's shared session, host-authoritative like the Trawl and Red Tide. Code: `flight_net.h/.cpp`.
+
+**How a networked match works:**
+- *One world on the host.* The host runs the one real `World` (`FlightHost`, the GameHost for `G_FLIGHT`): the ecosystem, every colony and the war. Each person is a side; side 0 is the host. Lobby AI seats are bot colonies.
+- *Per-side state.* Every side now has its own input, fog, knowledge, news log and diver body in the web (`Side::know`, `log`, `human`; `SwapSide` swaps them). `WithSide(s, fn)` runs code with any side swapped in; `SayTo(s, ...)` sends a side its news. A shark's strike finds whose Founder it hit.
+- *Input and orders.* A person's Founder flies by `FA_INPUT` (12 bytes a frame). Everything else is an order (`ApplyOrder`): the colony panel, the flocks page, the chart, G. **Solo play goes through the same orders**, so the two can't drift apart.
+- *The snapshot.* Each player gets their own 20 times a second (`WriteWorld`/`PackWorld`, deflated): their colony in the World's fields, their knowledge and news, every Founder and colony, another colony's birds only within 330 m of them, the sea's fish only within 160 m. One templated `Visit` writes and reads, so the two can never disagree.
+- *The guest's mirror.* It is rebuilt from the seed and options (the islands, the sea and the stocks are already there), lifts its own fog locally, and flies its own Founder ahead of the host between snapshots (`PredictFounder`, eased toward the host's). Everything else dead-reckons between snapshots.
+- *No slow motion.* A strike can't slow the world for one player, so in a networked match the strike runs in real time.
+
+**Dropping out:**
+- A dropped player's colony runs on its last orders. The table does not pause (`GameInfo::pauseOnLost` false for the Flight); the HUD shows the countdown.
+- After the session's two minutes a cautious AI flies and runs the colony: it fishes, defends and never raids (`cautiousMask`).
+- They get it back if they rejoin.
+
+**Winning:**
+- The match ends at the time limit (20, 30 or 45 minutes, chosen in the lobby) or when one colony holds two-thirds of the nests in use (from day 3, with at least 4 nests a player on the map).
+- The score is the doc's p27 table so far: birds 2 (chicks 1), nests 5, home island 30, fish in caches 1 per 5, kills 1, the Founder never died 60. Stage 6 adds pearls, research tiers, fervour and stolen eggs. All of it is data in `data/flight/flight_scoring.json`.
+- The HUD shows the time left and the standings; the results panel shows the end.
+
+**The arcade:** the Flight reel hosts. The lobby picks the home island type, the arrangement and the length; each player's founder (from the reel) arrives in their hello. "Take wing" launches it.
+
+**Checks:**
+- `depth.exe --flight-net-test`: inputs, orders (including refused ones), the snapshot rewritten byte-identical, interest management, bandwidth, prediction (within 0.6 m), a drop and a rejoin, the end on every screen.
+- `depth.exe --net-loop flight mem`, **the gate**: a host and five guests over the in-memory transport play a full 30-minute match. Guest 0 plays by hand (input and orders); the host and guests 1-4 use a test-only autopilot (`FA_AUTOPILOT`, accepted only by a host configured with `:test`); guest 4 leaves halfway.
+- Over real sockets the loop plays a 3-minute match (`DEPTH_FLIGHT_MINUTES` overrides).
+
+**The gate run:**
+- Six colonies, 124 birds at the end, 81,133 snapshots (3.3 KB average, 6.4 KB at most), none refused, nobody else lost.
+- Every remaining guest agreed on the winner and the scores.
+- It took about 48 minutes of real time over the in-memory transport.
+
+Shots: `flight_guest` (a guest's screen), `flight_results`.
+
+**Playtest fixes (2026-10-03):**
+- The Founder couldn't take off: it re-perched on its nest at once. It now can't settle on a site for its first second in the air.
+- Founder hunger lasts `founder_hunger_s` (360 s), not one 2-minute day.
+
+## Stage 6: research, faith, trade, the twelve founders (done 2026-10-03)
+Doc pp. 6-10, 20-22, 25-27. Code: `flight_society.cpp`. Data: `flight_research.json`, `flight_bends.json`, `flight_towns.json`.
+
+**Research (nine trees, four tiers each):**
+- It runs at the **Roost** (a structure: 16 twigs; the bots and the Founder raise it first), one line at a time.
+- Costs, from the doc: tier 1 is 2 pearls, 10 shells and half a day; up to tier 4 at 20 pearls, 80 shells, 3 days and a colony of 25.
+- Bombing and Chemistry open on day 5 (the Alchemist's on day 4, at 1.5x speed). Their effects come in stage 7.
+- Wired effects:
+  - *Nesting:* shell lining (eggs hatch faster), big nests (6 eggs), cliff nests (+50% sites).
+  - *Fishing:* schooling eye (fishers see 40% farther), deep dive (pearls), night fishing, cooperative fishing (x1.5 catches, triple splash).
+  - *Flight:* thermal riding, long wings (stamina +50%), wind reading (headwinds halved), formation flight (the chevron +30%).
+  - *Caches and craft:* smokehouse (6 days), big caches (50), shell armour (Tanks +60 HP), nets (hold 5 s).
+  - *War:* formations (War 1), Skirmishers and Strikers (War 2), towers and hedges (War 3), Flockmasters (War 4).
+  - *Faith:* the shrine and priests, offerings, conversion, Zeal.
+  - *Trade:* Traders (Trade 1), barter (Trade 2), egg theft for everyone (Trade 3), brood parasitism (Trade 4).
+- Roles and builds are gated (`RoleUnlocked`, `BuildUnlocked`): fledging falls back to a fisher, and retraining is refused.
+
+**New roles:** the Trader, the Priest, the Chemist and the Pathfinder (stage 7 gives the last two their work), and the Bomber and the frigatebird Pirate (stage 7).
+
+**Faith (fervour 0-100):**
+- *Raised by:* priests at the shrine (7 a day each, up to a ceiling), offerings (Faith 2: a fish laid on the shrine, 10 for a big one), and the Founder's prayer (+15 for an hour, once a day).
+- *Lowered by:* drift back toward 20, hunger (-25 a day while starving), a routed flock (-8), and the Founder's death (-10, or -30 at Zeal).
+- *What it does (the doc's bands):* how much of the night the colony sleeps; morale +10 or +20; low fervour breaks flocks at 40.
+- *At 100 with Faith 4 (Zeal):* no rest, no rout, priests convert enemy birds near the shrine, and the colony eats 20% more.
+- *Conversion (Faith 3):* priests turn wild birds into fishers, at one per priest a day.
+
+**Trade:**
+- Every fishing town on the map has a dock market priced in feed.
+  - Fish pays 0.8 in the morning and 1.3 at evening, less in a glut and double in a storm.
+  - A pearl costs 4 feed, a shell 1 and a twig 0.5, dearer when the town is short.
+  - Each colony keeps credit at each town and has a reputation there: trade raises it, and at -50 the town shoos you away.
+- Traders carry the surplus beyond a day's food to the nearest dock and bring back the colony's choice (pearls by default). The Founder sells a carried fish in person (E at a dock).
+- The old pelican sells one true thing about an island for a pearl.
+- Barter (Trade 2) offers goods each way plus a truce. A truce stops raids and fights between the two; bots accept fair offers.
+
+**The twelve founders** (`flight_bends.json`) bend their whole colony:
+- Every boost and weakness in the doc is a number there.
+- Every unique is in:
+  - the Taloned's Talon Lock;
+  - the Swift's Skim;
+  - the Beaked's Tear (hits bleed);
+  - the Lyrebird's Serenade (E at a nest);
+  - the Shadow's Dusk Raid and fervour cap of 80;
+  - the Sigma's better rates and Market Cornering;
+  - the Ibis's fervour and conversion;
+  - the Cuckoo's egg theft (Skirmishers carry eggs home, where they hatch yours) and Brood Parasite (E at an enemy nest: a daily exact report from that island);
+  - the Tycoon's Boom (+60% for 2 days, then -40% for 1) and Golden Nest (a pearl a day);
+  - the Alchemist's early trees and double guano;
+  - the Albatross's Long Reach and halved wind.
+- The Pilgrimage scores in stage 7, when shrines can stand on other islands.
+
+**Design calls (logged; the user may change them):**
+- Each colony starts with a founder's dowry of 2 pearls and 12 shells (data), so the first research comes by day 2 as the doc's pacing expects.
+- The Founder brings up a pearl with 10% of its catches (the doc lists the Founder among the pearl gatherers).
+- A third of the builders keep a stock of shells for the research.
+
+**The scene:**
+- The third Tab page holds research (the Roost, nine trees with tier dots, costs, the hover text), faith (fervour bar, band, shrine and priests), trade (the nearest town's prices and your standing, what the Traders buy, the pelican at a dock), the founder's own button (boom, corner) and barter (draft an offer; accept or refuse one).
+- The colony page lists only the roles the colony can fledge. Formations cycle only through the unlocked ones.
+- The HUD shows pearls, fervour and research, and the boom.
+
+**Checks:**
+- `depth.exe --flight-society-test`: the bends, research and gating, towns and trade, the pelican, priests and conversion, prayer, the Shadow's cap, the boom and the golden nest, the serenade, barter and the truce, the Cuckoo's egg theft, and a bot colony's society over eight days.
+- `depth.exe --flight-sim founders [days] [seeds]`, **the gate**: every founder's window is shown. Twelve bot colonies (one per species) run on the same maps in 12 threads, about 6 minutes. Each prints its strength against the field at days 3, 6 and 10, its window, and the doc's window.
+
+**Balance (stage 8):**
+- The first run had only 3 of 12 windows where the doc puts them.
+- The Sigma was far ahead (its corner paid 3x; fixed to 1x).
+- The bots research slowly: shells and pearls are the bottleneck, as the doc intends, but too tight.
+- The ±3% target is stage 8's.
+
+Shot: `flight_society`.
+
+## Next: stage 7, dangerous islands, sieges, bombing and chemistry
+The kraken, skull island, the volcano, the wreck and the reef; sieges and assaults; bombing and chemistry. Gate: a bot takes the cove and holds it through a siege (doc p34).

@@ -226,6 +226,9 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"flight_battle", [](Game& g) { DebugFlightShot(g, 10); }},
         {"flight_flocks", [](Game& g) { DebugFlightShot(g, 11); }},
         {"flight_chartwar", [](Game& g) { DebugFlightShot(g, 12); }},
+        {"flight_society", [](Game& g) { DebugFlightShot(g, 13); }},
+        {"flight_results", [](Game& g) { DebugFlightShot(g, 14); }},
+        {"flight_guest", [](Game& g) { DebugFlightShot(g, 15); }},
         {"arcade_flight", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(5); }},
         {"trawl_deck", [](Game& g) { DebugTrawlShot(g, 0); }},
         {"trawl_engine", [](Game& g) { DebugTrawlShot(g, 1); }},
@@ -743,6 +746,8 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--flight-colony-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightColonyTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSim(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--flight-fair") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightFairTest(argc, argv); }
+    if (argc >= 2 && strcmp(argv[1], "--flight-society-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSocietyTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--flight-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightNetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-war") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightWar(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--flight-scout-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightScoutTest(); }
     if (argc >= 2 && strcmp(argv[1], "--bet-test") == 0) { SetTraceLogLevel(LOG_WARNING); return RunBetTest(); }
@@ -845,10 +850,11 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--course-seed-test") == 0) return RunCourseSeedTest(argc, argv, 2);
     if (argc >= 2 && strcmp(argv[1], "--scuttle-sim") == 0) return RunScuttleSim(argc >= 3 ? std::max(1, atoi(argv[2])) : 2000);
     if (argc >= 2 && strcmp(argv[1], "--net-loop") == 0) {
-        int lag = 0; bool mem = false, trawl = false, redtide = false;
-        for (int i = 2; i < argc; i++) { if (strcmp(argv[i], "mem") == 0) mem = true; else if (strcmp(argv[i], "trawl") == 0) trawl = true; else if (strcmp(argv[i], "redtide") == 0) redtide = true; else if (strcmp(argv[i], "scuttle") != 0) lag = atoi(argv[i]); }
+        int lag = 0; bool mem = false, trawl = false, redtide = false, flight = false;
+        for (int i = 2; i < argc; i++) { if (strcmp(argv[i], "mem") == 0) mem = true; else if (strcmp(argv[i], "trawl") == 0) trawl = true; else if (strcmp(argv[i], "redtide") == 0) redtide = true; else if (strcmp(argv[i], "flight") == 0) flight = true; else if (strcmp(argv[i], "scuttle") != 0) lag = atoi(argv[i]); }
         if (trawl) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlNetLoop(mem); }
         if (redtide) { SetTraceLogLevel(LOG_WARNING); return rt::RunRedTideNetLoop(mem); }
+        if (flight) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightNetLoop(mem); }
         return RunNetLoop(lag, mem);
     }
     if (argc >= 4 && strcmp(argv[1], "--brain-test") == 0) { SetTraceLogLevel(LOG_WARNING); BrainTest(atoi(argv[2]), std::max(1, atoi(argv[3]))); return 0; }
@@ -943,6 +949,7 @@ int main(int argc, char** argv) {
                 GameMenuFrame(g);
                 if (g.scene == Scene::Trawl) TrawlMenuTick(GetFrameTime());   // (a crew at sea doesn't stop for one hand's menu)
                 if (g.scene == Scene::RedTide) RedTideMenuTick(GetFrameTime());   // (nor does the tide)
+                if (g.scene == Scene::Flight) FlightMenuTick(GetFrameTime());     // (nor the other colonies)
                 MouseLookFrameEnd();                                          // (the menu needs the pointer)
                 ArcadeVoiceFrame(GetFrameTime());                             // (voices carry on while the menu's open)
                 DrawVoiceHud();

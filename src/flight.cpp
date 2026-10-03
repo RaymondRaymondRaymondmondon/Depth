@@ -130,6 +130,7 @@ float World::FeedValue(int sp) const { return sp >= 0 && eco.map && sp < (int)ec
 float World::Thermal(Vector3 p) const {
     // thermals rise off the hill in the afternoon: free altitude
     float ph = DayPhase(), k = Smooth(0.42f, 0.5f, ph) * (1 - Smooth(0.68f, 0.76f, ph));
+    if (col.HasTier(Tree::Flight, 1)) k = std::max(k, 0.6f * Smooth(0.3f, 0.36f, ph) * (1 - Smooth(0.8f, 0.86f, ph)));   // (Thermal riding: lift all day)
     if (k <= 0 || p.y > 180) return 0;
     float d = Vector2Distance({p.x, p.z}, {island.hill.x, island.hill.z});
     return d < 34 ? 3.6f * k * (1 - d / 34) : 0;
@@ -184,6 +185,7 @@ void World::HookDiverHits() {
 void World::Kill(const std::string& cause) {
     if (me.st == FState::Dead) return;
     me.st = FState::Dead; me.respawnT = 30; me.deaths++; me.lastCause = cause;
+    col.fervour = std::max(0.0f, col.fervour + (FervourBand() >= 4 ? -30.0f : -10.0f));   // (doc p26: the Founder's death; -30 at Zeal)
     if (me.carrySp >= 0) { me.carrySp = -1; me.carrySize = 0; fishLost++; }
     me.vel = {0, 0, 0}; me.airspeed = 0;
     eco.AddBlood({me.pos.x, -0.5f, me.pos.z}, 15);
@@ -273,6 +275,14 @@ void World::StepFounder(float dt, const FounderInput& in) {
     switch (f.st) {
     case FState::Fly: {
         FlyMotion(dt, in);
+        // the Swift's Skim: a low, quick pass takes a small fish without a dive (no strike, no time under)
+        if (BendNow().skim && f.carrySp < 0 && f.pos.y < 2.5f && f.airspeed > 6 && !overLand) {
+            int fi = FishNear(f.pos, 1.6f, 0.8f);
+            if (fi >= 0 && eco.map->species[eco.agents[fi].sp].size <= 1) {
+                f.carrySp = eco.agents[fi].sp; f.carrySize = 1; eco.agents[fi].alive = false; fishCaught++;
+                Say("Skimmed a " + eco.map->species[f.carrySp].name + " off the top.");
+            }
+        }
         // the strike: a fast dive about to meet open water
         if (!overLand && f.vel.y < -4 && f.airspeed > 10 && f.pos.y > 0.3f && f.pos.y / -f.vel.y < 0.35f) { StartStrike(); break; }
         // the ground and the sea
@@ -348,7 +358,7 @@ void World::StepFounder(float dt, const FounderInput& in) {
 void World::FlyMotion(float dt, const FounderInput& in) {
     const FounderDef& d = Def();
     Founder& f = me;
-    float maxStam = d.stamina * (f.chick ? 0.5f : 1.0f);
+    float maxStam = d.stamina * (f.chick ? 0.5f : 1.0f) * (col.HasTier(Tree::Flight, 2) ? 1.5f : 1.0f);   // (Long wings)
     float carryMul = 1 - 0.06f * f.carrySize;
     {
         // steering: toward the player's aim, banking into the turn
@@ -389,7 +399,7 @@ void World::FlyMotion(float dt, const FounderInput& in) {
         if (f.stamina <= 0.05f) { if (!f.exhausted) Say("Out of breath: glide to get it back."); f.exhausted = true; }
         if (f.exhausted && f.stamina > std::min(2.0f, maxStam * 0.5f)) f.exhausted = false;
         // velocity: the air's speed along the heading, the wind's 30% with or against, the glide's sink, a thermal's lift
-        float pen = d.key == "albatross" && along < 0 ? 0.15f : 0.3f;
+        float pen = 0.3f * (along < 0 ? WindPenalty(cur) : 1.0f);   // (the Albatross and Wind reading halve a headwind's cost)
         float gs = 1 + pen * along * windK;
         Vector3 fwd{cosf(f.pitch) * cosf(f.yaw), sinP, cosf(f.pitch) * sinf(f.yaw)};
         f.vel = Vector3Scale(fwd, f.airspeed);
@@ -463,6 +473,7 @@ void World::Step(float realDt, const FounderInput& in) {
     }
     SyncBody();
     eco.Step(dt);
+    StepTowns(dt);
     fogT += dt; fogNow = fogT >= 0.25f;
     if (fogNow) fogT = 0;
     StepColony(dt);   // (the caches spoil, the grounds regrow, the colony lives)
