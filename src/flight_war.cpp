@@ -123,6 +123,7 @@ float World::Morale(int side, const Flock& f) const {
     // fervour (doc p26): high fervour steadies a flock (+10, +20); the wreck's bell rings in their ears
     { int band = W_.FervourBandOf(side); m += band == 2 ? 10.0f : band >= 3 ? 20.0f : 0.0f; }
     if (W_.ColOf(side).bell) m += BellMorale();
+    m += W_.DecreeOf(side).morale;   // (Mutiny Watch -10)
     if (f.stim == STIM_DRAUGHT && f.stimT > 0) return 100;   // (the Draught: immune to morale)
     // the colony's feed: a hungry colony's flocks fight poorly
     float food = 0, mouths = 1;
@@ -230,6 +231,8 @@ void World::StepWar(float dt) {
         Flock* af = inFlock(att); Flock* vf = inFlock(vic);
         float dmg = att.f ? Founders()[att.f->def].attack * (att.f->chick ? 0.5f : 1.0f) : R.attack * BendOfSide(att.side).attack;
         if (af && af->stimT > 0) dmg *= StimAttack(af->stim);   // (Fury, the Draught)
+        if (att.b && !IsWarrior(att.b->role) && DecreeOf(att.side).callToArms) dmg = RoleOf(Role::Skirmisher).attack * BendOfSide(att.side).attack;   // (Call to Arms: Skirmisher stats for the day)
+        if (float g = DecreeOf(att.side).grudge; g > 0) dmg *= ColOf(att.side).lastRaider == vic.side ? 1 + g : 1 - g;   // (Grudge: +20% on whoever last raided you, -20% on the rest)
         if (R.strong & (1u << (int)vr)) dmg *= w.strong;
         if (R.weak & (1u << (int)vr)) dmg *= w.weak;
         // altitude: the first strike from above, diving, +50%
@@ -359,8 +362,8 @@ void World::StepWar(float dt) {
             float sp = 99; for (int id : fl.members) { Bird* b = FindBird(s, id); if (!b) continue; sp = std::min(sp, RoleOf(b->role).speed * (b->fight <= 0 ? 0.5f : 1.0f)); }
             if (sp > 98 || asleep) continue;   // (every member fell this step; or the flock sleeps)
             if (fl.stimT > 0) sp *= StimSpeed(fl.stim);   // (Haste, the Draught)
-            sp *= 1 + (fl.leader == -2 ? w.founderSpeed : fl.leader >= 0 ? w.fmSpeed : 0) + (fl.form == Formation::Chevron ? w.chevSpeed + (C.HasTier(Tree::Flight, 4) ? 0.3f : 0.0f) : 0);
-            sp *= BendOfSide(s).speed;
+            sp *= 1 + (fl.leader == -2 ? w.founderSpeed : fl.leader >= 0 ? w.fmSpeed : 0) + (fl.form == Formation::Chevron && !DecreeOf(s).noFormation ? w.chevSpeed + (C.HasTier(Tree::Flight, 4) ? 0.3f : 0.0f) : 0);
+            sp *= BendOfSide(s).speed * DecreeOf(s).flockSpeed;   // (Open Skies +30%)
             Vector2 dir = Flat(goal, fl.pos) > 1 ? Vector2Normalize({goal.x - fl.pos.x, goal.z - fl.pos.z}) : Vector2{0, 0};
             float along = windSp > 0.1f ? Vector2DotProduct(dir, Vector2Scale(wind, 1 / windSp)) : 0;
             float gs = sp * (1 + w.windK * along * std::min(1.0f, windSp / 8) * (along < 0 ? WindPenalty(s) : 1.0f));
@@ -478,7 +481,7 @@ void World::StepWar(float dt) {
                     b->carrySp = -1; b->carrySize = 0;
                 }
                 // egg theft (Trade 3; the Cuckoo from the start): a Skirmisher at a nest carries an egg home, where it hatches yours
-                if (fl.target == Target::Nests && b->role == Role::Skirmisher && b->carrySp == -1 && (C.HasTier(Tree::Trade, 3) || BendOfSide(s).eggTheft)) {
+                if (fl.target == Target::Nests && b->role == Role::Skirmisher && b->carrySp == -1 && (C.HasTier(Tree::Trade, 3) || BendOfSide(s).eggTheft) && !DecreeOf(fl.tSide).noRaids) {   // (Egg Watch: cuckoos fail)
                     Colony& T = ColOf(fl.tSide);
                     for (auto& e : T.birds) {
                         if (!e.alive || e.stage != BStage::Egg || Vector3Distance(b->pos, e.pos) > 3) continue;
@@ -503,7 +506,7 @@ void World::StepWar(float dt) {
                     if (fl.target == Target::Ground && fl.tZone >= 0) goal = eco.map->zones[fl.tZone].Center();
                     if (Flat(b->pos, goal) < 6) { Blast(GroundAt(goal.x, goal.z), s, b->carrySize); b->carrySp = -1; b->carrySize = 0; SayTo(s, "A Bomber drops its bomb."); }
                 }
-                if (fl.target == Target::Nests && b->role == Role::Striker) {
+                if (fl.target == Target::Nests && b->role == Role::Striker && !DecreeOf(fl.tSide).noRaids) {   // (Egg Watch: nests can't be raided)
                     Colony& T = ColOf(fl.tSide);
                     // an assault: with no chick or egg left in it, the nest is torn down (and the island's holding with it)
                     for (int ni = 0; ni < (int)T.nests.size(); ni++) {
@@ -567,7 +570,8 @@ void World::StepWar(float dt) {
         bool guarding = false; for (const auto& fl : C.flocks) if (fl.name == "Home guard") guarding = true;
         if (guarding) continue;
         std::vector<int> ids;
-        for (const auto& b : C.birds) if (b.alive && b.stage == BStage::Adult && IsWarrior(b.role) && b.role != Role::Watcher && b.flock < 0 && b.retrainT <= 0) ids.push_back(b.id);
+        bool arms = DecreeOf(s).callToArms;   // (Call to Arms: every adult rises)
+        for (const auto& b : C.birds) if (b.alive && b.stage == BStage::Adult && (IsWarrior(b.role) || arms) && b.role != Role::Watcher && b.flock < 0 && b.retrainT <= 0) ids.push_back(b.id);
         if (ids.size() < 2) continue;
         int f = MakeFlock(s, ids, Formation::Hammer, Alt::Mid, Stance::Hold);
         if (Flock* fl = FindFlock(s, f)) { fl->name = "Home guard"; OrderFlock(s, f, Target::Flock, threatSide, -1, -1, threat->id, threat->pos); }
@@ -660,7 +664,8 @@ void World::BotWar(int side, float dt) {
     if (f < 0) return;
     OrderFlock(side, f, t, tgt, -1, -1, -1, to);
     if (Flock* fl = FindFlock(side, f)) fl->name = t == Target::Cache ? "Cache raiders" : "Chick snatchers";
-    SayTo(tgt, TextFormat("%s's flock (%d) leaves its island, heading your way.", SideName(side).c_str(), (int)idle.size()));
+    if (!DecreeOf(side).silentRaids) SayTo(tgt, TextFormat("%s's flock (%d) leaves its island, heading your way.", SideName(side).c_str(), (int)idle.size()));   // (Quiet Wings: no warning)
+    ColOf(tgt).lastRaider = side;
 }
 
 // ---------------------------------------------------------------- --flight-war [scenario|all] [runs]: the five rules, raids, the gate

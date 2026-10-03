@@ -351,7 +351,7 @@ void World::StepDanger(float dt) {
             kraken.grabT = 0;
             for (int s = 0; s < N; s++) {
                 Colony& C = ColOf(s);
-                bool safe = time - C.offeredKraken < D.kOfferDays * DAY;
+                bool safe = time - C.offeredKraken < D.kOfferDays * DAY || DecreeOf(s).dangersIgnore;   // (Offerings: it ignores you today)
                 if (safe) continue;
                 auto chance = [&](float y) { return kraken.mood == 2 ? D.kSurfaced : kraken.mood == 1 ? D.kAwake : (y < 5 ? D.kAsleep : 0.0f); };
                 for (auto& b : C.birds) {
@@ -411,6 +411,7 @@ void World::StepDanger(float dt) {
             // the nearest low flyer in range, whoever's
             int ts = -1; Bird* tb = nullptr; Founder* tf = nullptr; float bd = D.apeRange;
             for (int s = 0; s < N; s++) {
+                if (DecreeOf(s).dangersIgnore) continue;   // (Offerings)
                 for (auto& b : ColOf(s).birds) if (b.alive && b.stage == BStage::Adult && b.pos.y < D.apeBelow + ape.pos.y * 0.3f && Vector3Length(b.vel) > 0.5f) { float d = Flat2(b.pos, ape.pos); if (d < bd) { bd = d; ts = s; tb = &b; tf = nullptr; } }
                 Founder& F = FounderOf(s);
                 if (F.st == FState::Fly && F.pos.y < D.apeBelow + ape.pos.y * 0.3f) { float d = Flat2(F.pos, ape.pos); if (d < bd) { bd = d; ts = s; tf = &F; tb = nullptr; } }

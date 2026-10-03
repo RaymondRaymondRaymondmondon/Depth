@@ -79,6 +79,7 @@ void OrderAnswer(Writer& w, int offer, bool accept) { w.U8(FA_ANSWER); w.I32(off
 void OrderFound(Writer& w, int isle) { w.U8(FA_FOUND); w.I32(isle); }
 void OrderDose(Writer& w, int flock, int stim) { w.U8(FA_DOSE); w.I32(flock); w.U8((uint8_t)stim); }
 void OrderBrew(Writer& w, int stim) { w.U8(FA_BREW); w.U8((uint8_t)stim); }
+void OrderDecree(Writer& w, int k) { w.U8(FA_DECREE); w.U8((uint8_t)k); }
 bool FormationUnlocked(const Colony& c, Formation f) { return f == Formation::Chevron || f == Formation::Scatter || c.HasTier(Tree::War, 1); }
 
 std::string TargetText(World& w, const Flock& f) {
@@ -227,6 +228,7 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
         return true;
     }
     case FA_DOSE: { int id = r.I32(); int s = (int)r.U8(); if (r.bad) return false; return w.Dose(id, s); }
+    case FA_DECREE: { int k = (int)r.U8(); if (r.bad) return false; return w.PickDecree(k); }
     case FA_BREW: { int s = (int)r.U8(); if (r.bad || s <= STIM_NONE || s >= STIM_COUNT) return false; C.brewFor = s; w.Say(std::string("The Chemists will brew ") + StimName(s) + "."); return true; }
     default: return false;
     }
@@ -419,6 +421,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     a.i(c.boomState); a.f(c.boomT); a.f(c.boomCd); a.b(c.cornered); a.i(c.serenadeDay); a.i(c.eggsStolen); a.i(c.nestsDestroyed); a.i(c.converted);
     if (own) a.vec(c.spies, [&](int& s) { a.i(s); });
     a.i(c.bombs); a.i(c.blockbusters); for (int k = 0; k < STIM_COUNT; k++) a.i(c.stims[k]); a.i(c.brewFor); a.b(c.bell); a.f(c.offeredKraken); a.i(c.krakenKill); a.i(c.expandTo);
+    a.i(c.decree); a.i(c.yesterday); for (int& o : c.offer) a.i(o); a.i(c.dealtDay); a.i(c.lastRaider); { int u = (int)c.decreesUsed; a.i(u); c.decreesUsed = (uint32_t)u; }   // (the long match's decrees)
 }
 // each zone's stock as a share of what it holds (one pass over the fish)
 std::vector<float> ZoneStocks(const World& w) {

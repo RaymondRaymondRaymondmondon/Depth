@@ -958,6 +958,7 @@ void DrawHud(const fl::World& w) {
         if (w.seasons > 0 && w.Season() >= 0) {   // (the long match: the season and the day of the match)
             static const Color SC[4] = {{170, 240, 160, 255}, {255, 220, 120, 255}, {240, 160, 90, 255}, {190, 220, 255, 255}};
             DrawTextCentered(TextFormat("%s, day %d of %d", w.SeasonNow().name.c_str(), w.GameDay(), fl::SeasonDays(w.seasons)), c.x - 20, c.y + 86, 14, SC[w.Season()]);
+            if (w.col.decree >= 0 && w.col.decree < (int)fl::Decrees().size()) DrawTextCentered(TextFormat("decree: %s", fl::Decrees()[w.col.decree].name.c_str()), c.x - 20, c.y + 102, 13, Color{255, 226, 160, 255});
         }
         if (rise) DrawTextCentered("the fish are rising", c.x - 30, c.y + 88, 15, Color{180, 255, 220, 255});
         float dof = w.DaysOfFood();
@@ -1063,6 +1064,23 @@ void DrawHud(const fl::World& w) {
             DrawRectangleRounded({SCREEN_W / 2.0f - tw / 2.0f, wy - 3, (float)tw, 26}, 0.4f, 6, Fade(BLACK, 0.5f));
             DrawTextCenteredBold(wn.first, SCREEN_W / 2.0f, wy, 18, Fade(wn.second, 0.75f + 0.25f * sinf(S.t * 4)));
             wy += 30;
+        }
+    }
+    // the long match: at dawn, today's three decrees (doc pp. 36-38): one click picks one; by mid-morning, a Day of Rest
+    if (w.seasons > 0 && w.col.decree < 0 && w.col.offer[0] >= 0 && !S.chart) {
+        const auto& D = fl::Decrees();
+        float cw = 250, ch = 128, x0 = SCREEN_W / 2.0f - cw * 1.5f - 12, y0 = SCREEN_H - 330.0f;
+        DrawTextCenteredBold(TextFormat("Dawn of day %d: choose today's decree", w.GameDay()), SCREEN_W / 2.0f, y0 - 30, 20, Color{255, 236, 170, 255});
+        for (int k = 0; k < 3; k++) {
+            int i = w.col.offer[k]; if (i < 0 || i >= (int)D.size()) continue;
+            Rectangle r{x0 + k * (cw + 12), y0, cw, ch};
+            bool hover = CheckCollisionPointRec(GetMousePosition(), r);
+            DrawRectangleRounded(r, 0.08f, 6, Fade(hover ? Color{70, 54, 34, 255} : Color{24, 30, 40, 255}, 0.92f));
+            DrawRectangleRoundedLinesEx(r, 0.08f, 6, 2, hover ? Color{255, 220, 140, 255} : Color{200, 170, 110, 255});
+            DrawTextCenteredBold(D[i].name, r.x + cw / 2, r.y + 10, 18, Color{255, 230, 160, 255});
+            DrawWrapped(D[i].effect, {r.x + 12, r.y + 38, cw - 24, 44}, 14, Color{220, 240, 220, 255});
+            if (!D[i].tradeoff.empty()) DrawWrapped("but: " + D[i].tradeoff, {r.x + 12, r.y + 82, cw - 24, 40}, 13, Color{255, 180, 150, 255});
+            if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { Writer o; fl::OrderDecree(o, k); Order(o); PlayCue("ui.click"); }
         }
     }
     // the log

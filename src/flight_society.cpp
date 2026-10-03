@@ -180,7 +180,7 @@ float World::FervourRout() const { return RD().fRout; }
 float World::WindPenalty(int side) const { return BendOfSide(side).wind * (ColOf(side).HasTier(Tree::Flight, 3) ? 0.5f : 1.0f); }
 float World::FightStamina(int side) const { return 25 * BendOfSide(side).stamina * (ColOf(side).HasTier(Tree::Flight, 2) ? 1.5f : 1.0f); }
 int World::CacheCap() const { return col.HasTier(Tree::Caches, 2) ? 50 : Econ().cacheCap; }
-float World::SpoilDays() const { return col.HasTier(Tree::Caches, 1) ? 6 : Econ().spoilDays; }
+float World::SpoilDays() const { return (col.HasTier(Tree::Caches, 1) ? 6 : Econ().spoilDays) / std::max(0.25f, DecreeNow().spoil); }   // (Feast Day: caches empty faster)
 int World::NestEggs() const { return col.HasTier(Tree::Nesting, 2) ? 6 : Econ().nestEggs; }
 int World::ShellsWanted() const {
     // the builders keep a stock of shells at the cache: enough for the cheapest next research and a shrine
@@ -285,7 +285,8 @@ bool World::TradeAt(int town, int feedIn, int good, int* got) {
     if ((int)T.rep.size() <= cur) T.rep.resize(cur + 1, 0);
     if (T.rep[cur] <= TD().repShoo) { Say(isles[T.isle].name + "'s people shoo your birds away (your reputation there)."); return false; }
     // the colony's credit at the town (feed sold and not yet spent) buys as many of the good as it covers
-    float value = feedIn * FishPrice(town) * BendNow().trade * (T.rep[cur] >= 50 ? 1.1f : 1.0f);
+    float value = feedIn * FishPrice(town) * BendNow().trade * DecreeNow().trade * (T.rep[cur] >= 50 ? 1.1f : 1.0f);   // (Market Day +30%)
+    if (int tithe = DecreeNow().tithe; tithe > 0) { col.titheFish += feedIn; while (col.titheFish >= tithe) { col.titheFish -= tithe; col.pearls++; } }   // (the Tithe: a pearl per 20 traded)
     T.stock[G_FISH] += feedIn;
     if (townCredit.size() < towns.size() * 8) townCredit.resize(towns.size() * 8, 0);
     float& cr = townCredit[town * 8 + cur];   // (each colony's credit at each town: feed sold, not yet spent)
@@ -419,7 +420,7 @@ void World::StepSociety(float dt) {
     }
     // guano: every bird makes it; it fattens the island's trees (twigs) and is the chemistry tree's base
     int birds = Alive();
-    C.guano += birds * D.guano * B.guano * day;
+    C.guano += birds * D.guano * B.guano * DecreeNow().guano * day;
     // the Tycoon's golden nest: a pearl a day
     if (B.goldenNest) { C.goldenT += day; while (C.goldenT >= 1) { C.goldenT -= 1; C.pearls += (int)D.goldenPearls; Say("The golden nest gives a pearl."); } }
     // fervour: priests raise it, it drifts back to its base, hunger drains it; the prayer is a burst
@@ -435,7 +436,7 @@ void World::StepSociety(float dt) {
     if (birds > 2 && DaysOfFood() < 0.3f && FeedPerDayEstimate() < MouthsPerDay()) f += D.fStarve * day;
     C.fervour = std::clamp(f, 0.0f, B.fervourCap);
     // priests: conversion (Faith 3: wild birds; at Zeal, enemy birds within sight of the shrine); offerings (Faith 2)
-    if (shrine && priests > 0) {
+    if (shrine && priests > 0 && !DecreeNow().noConvert) {   // (a Sermon day: no conversions)
         static const float CONV_STEP = 1;
         float conv = priests * D.convert * B.convert * day;
         C.convertAcc += conv;

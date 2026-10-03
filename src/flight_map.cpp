@@ -552,6 +552,7 @@ static Sighting Observe(World& w, int isle, Alt alt, Rng& R) {
     for (int s = 0; s <= (int)w.sides.size(); s++) {
         int h = s == w.cur ? w.home : s == 0 ? w.sides[w.cur - 1].home : w.sides[s - 1].home;
         if (h != isle) continue;
+        if (w.DecreeOf(s).hidden) continue;   // (a Fog Bank: the island shows nothing)
         Colony& C = w.ColOf(s);
         for (const auto& n : C.nests) nests += n.built;
         caches = (int)C.caches.size();
@@ -698,7 +699,8 @@ void World::ScoutStep(Bird& b, float dt) {
         MoveTo(b, {at.x + cosf(a) * r, at.y, at.z + sinf(a) * r}, R.speed * 0.7f, dt, 1);
         if (b.taskT > 6) {
             Rng rr{(uint32_t)(b.id * 7919 + (int)time * 13 + 1)};
-            if (b.scoutIsle >= 0) b.obs = Observe(*this, b.scoutIsle, b.alt, rr);
+            if (b.scoutIsle >= 0) { b.obs = Observe(*this, b.scoutIsle, DecreeNow().scoutsExact ? Alt::Mid : b.alt, rr); if (DecreeNow().scoutsExact) b.obs.alt = (int)b.alt;   // (Scouts Aloft: exact)
+                                    if (DecreeNow().scoutsBlind) { b.obs.nests = b.obs.caches = b.obs.birds = 0; b.obs.exact = false; } }   // (your own Fog Bank: your scouts see nothing)
             if (b.scoutZone >= 0) b.gobs = ObserveGround(*this, b.scoutZone);
             b.obsT = time; b.observed = true; b.task = Task::Deliver;
         }

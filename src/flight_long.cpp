@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <map>
 
 namespace fl {
 
@@ -143,6 +144,135 @@ void World::StepSeasons(float dt) {
 }
 
 
+// ---------------------------------------------------------------- decrees (doc pp. 36-38)
+namespace {
+std::vector<DecreeDef> LoadDecrees() {
+    std::vector<DecreeDef> v;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_long.json");
+    auto fill = [](const Json& d, DecreeFx& f, const char* pre) {
+        auto K = [&](const char* k) { return std::string(pre) + k; };
+        f.catchK = d[K("catch")].F(f.catchK); f.splash = d[K("splash")].F(f.splash); f.grow = d[K("grow")].F(f.grow); f.spoil = d[K("spoil")].F(f.spoil);
+        f.build = d[K("build")].F(f.build); f.trade = d[K("trade")].F(f.trade); f.flockSpeed = d[K("flock_speed")].F(f.flockSpeed); f.chill = d[K("chill")].F(f.chill);
+        f.guano = d[K("guano")].F(f.guano); f.mateTime = d[K("mate_time")].F(f.mateTime); f.morale = d[K("morale")].F(f.morale); f.grudge = d[K("grudge")].F(f.grudge);
+        f.heal = d[K("heal")].F(f.heal); f.cacheCost = d[K("cache_cost")].F(f.cacheCost);
+        f.fervour = d[K("fervour")].I(f.fervour); f.tithe = d[K("tithe")].I(f.tithe); f.reputation = d[K("reputation")].I(f.reputation); f.wildJoin = d[K("wild_join")].I(f.wildJoin);
+        f.hatchAll = d[K("hatch_all")].Bool0(f.hatchAll); f.noClutch = d[K("no_clutch")].Bool0(f.noClutch); f.callToArms = d[K("call_to_arms")].Bool0(f.callToArms);
+        f.pearlDive = d[K("pearl_dive")].Bool0(f.pearlDive); f.noConvert = d[K("no_convert")].Bool0(f.noConvert); f.scoutsExact = d[K("scouts_exact")].Bool0(f.scoutsExact);
+        f.scoutsLate = d[K("scouts_late")].Bool0(f.scoutsLate); f.noRaids = d[K("no_raids")].Bool0(f.noRaids); f.noFormation = d[K("no_formation")].Bool0(f.noFormation);
+        f.dangersIgnore = d[K("dangers_ignore")].Bool0(f.dangersIgnore); f.extraEgg = d[K("extra_egg")].Bool0(f.extraEgg); f.noMates = d[K("no_mates")].Bool0(f.noMates);
+        f.visible = d[K("visible")].Bool0(f.visible); f.hidden = d[K("hidden")].Bool0(f.hidden); f.scoutsBlind = d[K("scouts_blind")].Bool0(f.scoutsBlind);
+        f.noDesert = d[K("no_desert")].Bool0(f.noDesert); f.thermalHome = d[K("thermal_home")].Bool0(f.thermalHome); f.salvage = d[K("salvage")].Bool0(f.salvage);
+        f.silentRaids = d[K("silent_raids")].Bool0(f.silentRaids); f.tradersKnown = d[K("traders_known")].Bool0(f.tradersKnown); f.rest = d[K("rest")].Bool0(f.rest);
+    };
+    for (const Json& d : j["decrees"].a) {
+        DecreeDef x; x.key = d["key"].Str0(); x.name = d["name"].Str0(x.key); x.effect = d["effect"].Str0(); x.tradeoff = d["tradeoff"].Str0();
+        fill(d, x.fx, ""); fill(d, x.tomorrow, "tomorrow_");
+        v.push_back(x);
+    }
+    return v;
+}
+}  // namespace
+const std::vector<DecreeDef>& Decrees() { static std::vector<DecreeDef> v = LoadDecrees(); return v; }
+int DecreeIndex(const std::string& key) { const auto& v = Decrees(); for (int i = 0; i < (int)v.size(); i++) if (v[i].key == key) return i; return -1; }
+
+const DecreeFx& World::DecreeOf(int side) const {
+    static thread_local DecreeFx slot[8];
+    static const DecreeFx none;
+    if (seasons <= 0 || side < 0 || side > 7) return none;
+    const Colony& C = ColOf(side);
+    const auto& D = Decrees();
+    DecreeFx f = C.decree >= 0 && C.decree < (int)D.size() ? D[C.decree].fx : DecreeFx{};
+    if (C.yesterday >= 0 && C.yesterday < (int)D.size()) {   // (yesterday's after-effects: a tired colony, no clutches)
+        const DecreeFx& y = D[C.yesterday].tomorrow;
+        f.catchK *= y.catchK; f.noClutch |= y.noClutch;
+    }
+    slot[side] = f;
+    return slot[side];
+}
+
+int World::BotDecree() const {
+    const Colony& C = col;
+    const auto& D = Decrees();
+    float food = DaysOfFood();
+    int chicks = 0, eggs = 0, mates = 0; for (const auto& b : C.birds) if (b.alive) { chicks += b.stage == BStage::Chick; eggs += b.stage == BStage::Egg; mates += b.stage == BStage::Mate; }
+    bool threat = false; for (int s = 0; s <= (int)sides.size(); s++) if (s != cur) for (const auto& f : ColOf(s).flocks) if (!f.retreating && Vector3Distance(f.pos, C.caches.empty() ? me.pos : C.caches[0].pos) < 300) threat = true;
+    bool building = false; for (const auto& n : C.nests) building |= !n.built; for (const auto& s : C.builds) building |= !s.built;
+    int best = -1; float bs = -1e9f;
+    for (int k = 0; k < 3; k++) {
+        int i = C.offer[k]; if (i < 0 || i >= (int)D.size()) continue;
+        const std::string& key = D[i].key; float v = 0;
+        if (key == "full_nets") v = food < 0.8f ? 3 : 1.2f;
+        else if (key == "salvage") v = food < 0.6f ? 2 : 0.6f;
+        else if (key == "feast_day") v = chicks >= 4 && food > 1 ? 2 : -1;
+        else if (key == "hatching_moon") v = eggs >= 3 ? 1.6f : -0.5f;
+        else if (key == "brood_day") v = mates >= 2 && food > 0.8f ? 1.8f : 0.2f;
+        else if (key == "egg_watch") v = C.lastRaider >= 0 ? 2.2f : 0.3f;
+        else if (key == "grudge") v = C.lastRaider >= 0 ? 1.5f : -0.5f;
+        else if (key == "sermon") v = C.fervour < 30 ? 2 : 0.4f;
+        else if (key == "builders_day") v = building ? 1.6f : 0.2f;
+        else if (key == "deep_dive" || key == "tithe") v = C.pearls < 6 ? 1.3f : 0.4f;
+        else if (key == "market_day") v = Count(BStage::Adult, Role::Trader) > 0 ? 1.4f : 0.1f;
+        else if (key == "open_skies") v = C.flocks.empty() ? 0 : 1.1f;
+        else if (key == "call_to_arms") v = threat ? 2.6f : -2;
+        else if (key == "mutiny_watch") v = food < 0.3f && Count(BStage::Adult) > 6 ? 1.2f : -0.5f;
+        else if (key == "offerings") v = 0.5f;
+        else if (key == "day_of_rest") v = 0.8f;
+        else v = 0.3f;
+        if (v > bs) { bs = v; best = k; }
+    }
+    return best;
+}
+
+bool World::PickDecree(int k) {
+    Colony& C = col;
+    if (seasons <= 0 || k < 0 || k > 2 || C.decree >= 0 || C.offer[k] < 0) return false;
+    const auto& D = Decrees();
+    int i = C.offer[k];
+    C.decree = i; C.decreesUsed |= 1u << i;
+    const DecreeFx& f = D[i].fx;
+    C.fervour = std::clamp(C.fervour + (float)f.fervour, 0.0f, 100.0f);
+    if (f.reputation) for (auto& t : towns) if (cur < (int)t.rep.size()) t.rep[cur] = std::clamp(t.rep[cur] + (float)f.reputation, -100.0f, 100.0f);
+    if (f.cacheCost > 0) for (auto& c : C.caches) { int lose = (int)ceilf(c.fish.size() * f.cacheCost); for (int q = 0; q < lose && !c.fish.empty(); q++) c.fish.pop_back(); }
+    if (f.wildJoin > 0 && !C.caches.empty()) for (int q = 0; q < f.wildJoin; q++) {   // (wild birds land and stay)
+        Bird b; b.id = C.nextId++; b.stage = BStage::Adult; b.role = Role::Fisher; b.hp = RoleOf(Role::Fisher).hp; b.fight = 25; b.hunger = 0.8f; b.pos = Vector3Add(C.caches[0].pos, {(float)q, 2, 1}); born.push_back(b);
+    }
+    if (f.visible) for (int s = 0; s <= (int)sides.size(); s++) if (s != cur) { int h = home; WithSide(s, [&] { if (h >= 0 && h < (int)know.isle.size()) know.isle[h] = std::max<uint8_t>(know.isle[h], 2); }); }
+    Say(TextFormat("Today's decree: %s. %s%s%s", D[i].name.c_str(), D[i].effect.c_str(), D[i].tradeoff.empty() ? "" : "; ", D[i].tradeoff.c_str()));
+    return true;
+}
+
+void World::StepDecrees(float dt) {
+    if (seasons <= 0) return;
+    const auto& D = Decrees();
+    int n = (int)D.size(), day = GameDay();
+    int rest = DecreeIndex("day_of_rest");
+    for (int s = 0; s <= (int)sides.size(); s++) {
+        WithSide(s, [&] {
+            Colony& C = col;
+            if (C.dealtDay != day) {   // dawn: yesterday's decree passes; three new ones from the deck (no repeats in a match)
+                C.yesterday = C.decree; C.decree = -1; C.dealtDay = day;
+                std::vector<int> pool; for (int i = 0; i < n && i < 32; i++) if (!((C.decreesUsed >> i) & 1) && i != rest) pool.push_back(i);
+                for (int k = 0; k < 3; k++) {
+                    if (pool.empty()) { C.offer[k] = k == 0 && rest >= 0 ? rest : -1; continue; }
+                    int q = (int)(Rand() * pool.size()) % (int)pool.size(); C.offer[k] = pool[q]; pool.erase(pool.begin() + q);
+                }
+                if (rest >= 0 && C.offer[2] >= 0 && C.offer[0] != rest && C.offer[1] != rest && C.offer[2] != rest && pool.size() < 2) C.offer[2] = rest;
+                if (BotFlown(s) || !HumanOf(s)) { int k = BotDecree(); if (k >= 0) PickDecree(k); }
+                else Say("Dawn: pick today's decree (one of three; the colony panel, or D).");
+            }
+            // a person who hasn't picked by mid-morning rests the day
+            if (C.decree < 0 && time - (day - 1) * DAY > DAY * 0.3f) {
+                int k = -1; for (int q = 0; q < 3; q++) if (C.offer[q] == rest) k = q;
+                if (k >= 0) PickDecree(k); else { C.decree = rest; }
+            }
+            // Salvage: the day's corpses on your grounds come ashore as feed
+            if (C.decree >= 0 && C.decree < n && D[C.decree].fx.salvage && !C.caches.empty()) {
+                C.salvageT += dt;
+                if (C.salvageT >= DAY * 0.05f) { C.salvageT = 0; if ((int)C.caches[0].fish.size() < CacheCap()) C.caches[0].fish.push_back({eco.map && !eco.map->species.empty() ? 0 : -1, 1, 0}); }
+            }
+        });
+    }
+}
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)
 int RunFlightLongTest() {
     int fails = 0;
@@ -211,7 +341,56 @@ int RunFlightLongTest() {
         for (; t0 < World::DAY * 8 && !w->over; t0 += 0.1f) { w->BotGovern(0.1f); w->BotWar(0, 0.1f); w->Step(0.1f, FounderInput{}); }
         check(w->over && fabsf(w->time - 7 * World::DAY) < 2, TextFormat("a two-season bot match ends on day 7 (%s; %d and %d birds)", w->overReason.c_str(), w->Alive(), (int)w->ColOf(1).birds.size()));
     }
-    printf(fails ? "flight-long-test: %d check(s) failed\n" : "flight-long-test: all checks passed\n", fails);
+    // ---- decrees (doc pp. 36-38)
+    {
+        const auto& D = Decrees();
+        std::map<std::string, int> keys; bool uniq = true; for (const auto& d : D) uniq &= ++keys[d.key] == 1;
+        check(D.size() == 24 && uniq && DecreeIndex("day_of_rest") >= 0, TextFormat("the deck holds 24 decrees (%d), each its own", (int)D.size()));
+        auto w = make(4, 17);
+        w->ape.isle = -1; w->kraken.isle = -1;
+        w->time = 0.05f * World::DAY; w->StepDecrees(0.1f);
+        Colony& C = w->col;
+        bool dealt = C.offer[0] >= 0 && C.offer[1] >= 0 && C.offer[2] >= 0 && C.offer[0] != C.offer[1] && C.offer[1] != C.offer[2] && C.offer[0] != C.offer[2] && C.decree < 0;
+        bool botsPicked = true; for (int s = 1; s <= (int)w->sides.size(); s++) botsPicked &= w->ColOf(s).decree >= 0;
+        check(dealt && botsPicked, "at dawn every colony is dealt three different decrees; the bots choose at once, you choose");
+        w->time = 0.4f * World::DAY; w->StepDecrees(0.1f);
+        check(C.decree == DecreeIndex("day_of_rest"), "no choice by mid-morning: a Day of Rest");
+        // a match of picks: never the same decree twice (the Day of Rest aside)
+        std::map<int, int> seen; bool repeat = false;
+        for (int day = 2; day <= 16; day++) { w->time = (day - 1 + 0.05f) * World::DAY; w->StepDecrees(0.1f); if (w->PickDecree(0) && C.decree != DecreeIndex("day_of_rest") && ++seen[C.decree] > 1) repeat = true; }
+        check(!repeat && seen.size() >= 12, TextFormat("sixteen days of decrees, %d different, none repeated", (int)seen.size()));
+        // their effects: catch, after-effects, the one-off costs and gifts, visibility
+        auto force = [&](World& v, const char* key) { Colony& K = v.col; K.yesterday = K.decree; K.decree = -1; K.offer[0] = DecreeIndex(key); K.offer[1] = K.offer[2] = -1; return v.PickDecree(0); };
+        auto v = make(4, 23); v->ape.isle = -1; v->kraken.isle = -1;
+        force(*v, "full_nets"); float fn = v->DecreeNow().catchK, splash = v->DecreeNow().splash;
+        force(*v, "call_to_arms"); bool arms = v->DecreeNow().callToArms && v->DecreeNow().catchK == 0;
+        force(*v, "day_of_rest"); float tired = v->DecreeNow().catchK;
+        check(fn > 1.25f && splash >= 2 && arms && fabsf(tired - 0.8f) < 0.01f, "Full Nets: +30% catch and twice the splash; Call to Arms: nobody fishes, and tomorrow they're tired (-20%)");
+        force(*v, "hatching_moon"); force(*v, "day_of_rest");
+        check(v->DecreeNow().noClutch, "the day after a Hatching Moon: no new clutches");
+        for (int k = 0; k < 20; k++) v->col.caches[0].fish.push_back({0, 2, 0});
+        size_t before = v->col.caches[0].fish.size(); force(*v, "offerings");
+        check(v->col.caches[0].fish.size() == before - (size_t)ceilf(before * 0.1f) && v->DecreeNow().dangersIgnore, TextFormat("Offerings: 10%% of the caches (%d to %d), and the dangers ignore you", (int)before, (int)v->col.caches[0].fish.size()));
+        int birds = (int)v->born.size(); force(*v, "hospitality");
+        check((int)v->born.size() == birds + 2, "Hospitality: wild birds land and join");
+        force(*v, "lighthouse"); bool lit = true; for (int s = 1; s <= (int)v->sides.size(); s++) { int h = v->home; v->WithSide(s, [&] { lit &= v->know.isle[h] == 2; }); }
+        check(lit, "Lighthouse: every other colony knows your island");
+        force(*v, "fog_bank"); Sighting fog = v->TrueSighting(v->home);
+        force(*v, "day_of_rest"); Sighting clear = v->TrueSighting(v->home);
+        check(fog.nests == 0 && fog.birds == 0 && clear.nests > 0, TextFormat("Fog Bank: your island shows nothing to scouts (%d nests seen; %d on a clear day)", fog.nests, clear.nests));
+        force(*v, "feast_day"); float spoilFeast = v->SpoilDays(); force(*v, "day_of_rest");
+        check(spoilFeast < v->SpoilDays() * 0.6f, "Feast Day: the caches spoil twice as fast");
+    }
+    {   // a two-season match: every colony has a decree every day
+        auto w = make(2, 31);
+        w->founderBot = true; w->me.st = FState::Fly; w->me.pos = Vector3Add(w->island.nest, {0, 2, 0});
+        int days = 0, decreed = 0, lastDay = 0;
+        for (float t = 0; t < World::DAY * 7 && !w->over; t += 0.1f) {
+            w->BotGovern(0.1f); w->BotWar(0, 0.1f); w->Step(0.1f, FounderInput{});
+            if (w->GameDay() != lastDay && fmodf(w->time, World::DAY) > World::DAY * 0.5f) { lastDay = w->GameDay(); days++; for (int s = 0; s <= (int)w->sides.size(); s++) decreed += w->ColOf(s).decree >= 0; }
+        }
+        check(decreed == days * ((int)w->sides.size() + 1) && days >= 6, TextFormat("a two-season bot match: a decree for every colony every day (%d of %d)", decreed, days * ((int)w->sides.size() + 1)));
+    }    printf(fails ? "flight-long-test: %d check(s) failed\n" : "flight-long-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }
 }  // namespace fl

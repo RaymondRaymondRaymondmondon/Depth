@@ -129,6 +129,7 @@ float World::DayPhase() const { return EventNow(EV_LONG_NIGHT) ? 0.02f : fmodf(t
 float World::FeedValue(int sp) const { return sp >= 0 && eco.map && sp < (int)eco.map->species.size() ? (float)eco.map->species[sp].size : 1; }
 float World::Thermal(Vector3 p) const {
     // thermals rise off the hill in the afternoon: free altitude
+    if (wholeMap) for (int s = 0; s <= (int)sides.size(); s++) if (DecreeOf(s).thermalHome) { int h = HomeOf(s); if (h >= 0 && h < (int)isles.size() && p.y < 160 && Vector2Distance({p.x, p.z}, {isles[h].c.x, isles[h].c.z}) < isles[h].radius) return 2.0f; }   // (Thermal Day)
     float ph = DayPhase(), k = Smooth(0.42f, 0.5f, ph) * (1 - Smooth(0.68f, 0.76f, ph));
     if (col.HasTier(Tree::Flight, 1) || SeasonNow().thermalsAllDay) k = std::max(k, 0.6f * Smooth(0.3f, 0.36f, ph) * (1 - Smooth(0.8f, 0.86f, ph)));   // (Thermal riding, or summer: lift all day)
     if (volcano.isle >= 0 && p.y < 200) {   // (the volcano's thermals: free altitude all day)
@@ -480,6 +481,7 @@ void World::Step(float realDt, const FounderInput& in) {
     StepTowns(dt);
     if (wholeMap) StepDanger(dt);
     StepSeasons(dt);
+    StepDecrees(dt);
     fogT += dt; fogNow = fogT >= 0.25f;
     if (fogNow) fogT = 0;
     StepColony(dt);   // (the caches spoil, the grounds regrow, the colony lives)

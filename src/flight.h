@@ -96,6 +96,17 @@ struct SeasonFx {   // what a season does to the sea, the wind and the work (fli
 const std::vector<SeasonFx>& Seasons();
 int SeasonDays(int seasons);                    // a long match's length in game days (2: 7, 3: 11, 4: 16)
 const char* SeasonEventName(int e);
+// decrees (doc pp. 36-38): one a day, picked at dawn from three dealt from a deck of 24 (flight_long.json "decrees")
+struct DecreeFx {
+    float catchK = 1, splash = 1, grow = 1, spoil = 1, build = 1, trade = 1, flockSpeed = 1, chill = 1, guano = 1, mateTime = 1, morale = 0, grudge = 0, heal = 1, cacheCost = 0;
+    int fervour = 0, tithe = 0, reputation = 0, wildJoin = 0;
+    bool hatchAll = false, noClutch = false, callToArms = false, pearlDive = false, noConvert = false, scoutsExact = false, scoutsLate = false, noRaids = false, noFormation = false,
+         dangersIgnore = false, extraEgg = false, noMates = false, visible = false, hidden = false, scoutsBlind = false, noDesert = false, thermalHome = false, salvage = false,
+         silentRaids = false, tradersKnown = false, rest = false;
+};
+struct DecreeDef { std::string key, name, effect, tradeoff; DecreeFx fx; DecreeFx tomorrow; };
+const std::vector<DecreeDef>& Decrees();
+int DecreeIndex(const std::string& key);
 float WinterHoldings();
 int RunFlightLongTest();                        // depth.exe --flight-long-test                         // (a four-season match: Winter's islands and nests count this many times)
 struct IsleSpec { IsleType type = IsleType::Islet; Vector3 c{}; int start = -1; std::string name; };
@@ -337,6 +348,8 @@ struct Colony {
     // stage 7: bombs and stimulants at the Works, the ship's bell, the kraken's offerings
     int bombs = 0, blockbusters = 0; float bombT = 0, blockT = 0;
     int stims[STIM_COUNT] = {}; int brewFor = STIM_HASTE; float brewT = 0;
+    // the long match: today's decree, the three offered at dawn, the ones used (no repeats), yesterday's (its after-effects)
+    int decree = -1, yesterday = -1, offer[3] = {-1, -1, -1}, dealtDay = 0, lastRaider = -1; uint32_t decreesUsed = 0; float salvageT = 0, titheFish = 0;
     bool bell = false; float offeredKraken = -1e9f, apeFedT = -1e9f;
     int krakenKill = 0;                       // (the kraken killed: 150 to the score)
     int expandTo = -1;                        // (an island the colony's Founder or Pathfinder is off to found an outpost on)
@@ -487,6 +500,11 @@ struct World {
     void InitSeasons();
     void StepSeasons(float dt);
     float RegrowMul(int zone) const;
+    const DecreeFx& DecreeOf(int side) const;   // today's decree for any side (none: no change); yesterday's after-effects folded in
+    const DecreeFx& DecreeNow() const { return DecreeOf(cur); }
+    void StepDecrees(float dt);                 // dawn: deal three to every colony; bots (and anyone who hasn't picked by mid-morning) choose
+    bool PickDecree(int k);                     // the colony in the fields takes offer k (0-2)
+    int BotDecree() const;                      // (what a bot would pick from its offer)
     std::vector<std::string> lookOf;            // (stage 8) per absolute side: "costume;livery colour;livery hat" (cosmetic; from the hello)
     std::string& LookOf(int s) { if ((int)lookOf.size() <= s) lookOf.resize(s + 1); return lookOf[s]; }
     std::vector<int> outpostIsle;               // (scratch)
