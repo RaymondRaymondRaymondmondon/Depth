@@ -1098,7 +1098,8 @@ int World::LegacyScore(int side, int* part) const {
         if (C.truceBroken < -999 && truceUntil.size() >= N * N) for (size_t t = 0; t < N; t++) if ((int)t != side && truceUntil[side * N + t] >= time) p[5] += (int)K.truce;
     }
     if (part) for (int k = 0; k < 6; k++) part[k] = p[k];
-    return p[0] + p[1] + p[2] + p[3] + p[4] + p[5];
+    int lf = LongFlight() && side >= 0 && side <= (int)sides.size() && ColOf(side).stormCrossed ? (int)StormCrossScore() : 0;   // (the Long Flight: the Storm Wall crossed)
+    return p[0] + p[1] + p[2] + p[3] + p[4] + p[5] + lf;
 }
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)
 int RunFlightLongTest() {

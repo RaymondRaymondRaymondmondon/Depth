@@ -5,6 +5,9 @@
 //      with a choice (the Old Way, the New Broom, the Pilgrimage); dynasties; elders.
 //   2. Evolution: twelve traits in ranks I-III that compound when both parents share them; mutations and rare
 //      births; a species at 20 birds with one trait at III (a second power at 40).
+//   3. The Far Sea: a ring of new islands beyond a fog that lifts at the end of year one (the Archipelago of Thorns,
+//      the Drowned Fleet, the Roc's Peak, the Mirror Lagoon, the Ice Shelf, the Sunken City, two ports and the navy's
+//      frigate), and the Storm Wall beyond it.
 // The calendar (the user's call: the doc's days stretched to fit the colony's growth): a year is the four-season
 // match's 24 days, so the Long Flight is 48 days (or 36 for the shorter one); the Founder's life is a year.
 #include "flight.h"
@@ -251,6 +254,245 @@ void World::Conceive(Bird& e, const Bird& mother, const Nest& n) {
 }
 int World::CleverAt(int side) const { const Colony& C = ColOf(side); float c = 0; for (const auto& b : C.birds) if (b.alive && b.stage == BStage::Adult) c += GeneEffects(b, C).clever; return (int)lroundf(c * 100); }
 
+// ---------------------------------------------------------------- 3. the Far Sea (doc pp. 9-11): the map doubles at the end of year one
+namespace {
+struct FarData {
+    float ring = 700, wall = 450, openDusk = 0.47f, fleetSpeed = 1.5f, fleetEggR = 150, fleetEggEvery = 0.1f, fleetTwigs = 20; int fleetBombs = 2;
+    float rocHunt0 = 0.42f, rocHunt1 = 0.6f, rocRange = 260, rocEvery = 2, rocFlock = 10, rocNestDays = 1, rocHp = 900;
+    float mirrorCatch = 1.5f, mirrorMates = 10, mirrorCloud = 1;
+    float thornTear = 8, thornConv = 4, iceKrill = 4, cityPearls = 2, cityFervour = 5, cityMob = 8, citySinkDays = 7;
+    float frigateRange = 140, frigateEvery = 4, stormScore = 100;
+};
+const FarData& FD2() {
+    static FarData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_longflight.json");
+    const Json& f = j["far_sea"];
+    auto F = [&](const char* k, float& v) { if (f[k].IsNum()) v = f[k].F(v); };
+    F("ring_m", d.ring); F("storm_wall_m", d.wall); F("open_before_dawn_days", d.openDusk); F("fleet_speed", d.fleetSpeed); F("fleet_egg_m", d.fleetEggR); F("fleet_egg_every_days", d.fleetEggEvery); F("fleet_twigs", d.fleetTwigs);
+    if (f["fleet_bombs"].IsNum()) d.fleetBombs = f["fleet_bombs"].I(d.fleetBombs);
+    F("roc_hunt_from", d.rocHunt0); F("roc_hunt_to", d.rocHunt1); F("roc_range_m", d.rocRange); F("roc_every_s", d.rocEvery); F("roc_flock", d.rocFlock); F("roc_nest_days", d.rocNestDays); F("roc_hp", d.rocHp);
+    F("mirror_catch", d.mirrorCatch); F("mirror_mates", d.mirrorMates); F("mirror_cloud_days", d.mirrorCloud);
+    F("thorn_tear", d.thornTear); F("thorn_conv_per_priest", d.thornConv); F("ice_krill", d.iceKrill); F("city_pearls", d.cityPearls); F("city_fervour", d.cityFervour); F("city_mob", d.cityMob); F("city_sink_days", d.citySinkDays);
+    F("frigate_range_m", d.frigateRange); F("frigate_every_s", d.frigateEvery); F("storm_score", d.stormScore);
+    return d;
+}
+float FlatXZ(Vector3 a, Vector3 b) { return sqrtf((a.x - b.x) * (a.x - b.x) + (a.z - b.z) * (a.z - b.z)); }
+}  // namespace
+float FarRing() { return FD2().ring; }
+float StormWallBeyond() { return FD2().wall; }
+float StormCrossScore() { return FD2().stormScore; }
+bool World::FarOpen() const { return LongFlight() && opts.farSea && time >= (YearDays() - FD2().openDusk) * DAY; }
+bool World::IsFar(int isle) const { return isle >= 0 && isle < (int)isles.size() && isles[isle].far; }
+void World::InitFarSea() {
+    far = FarState{};
+    if (!LongFlight() || !opts.farSea || !wholeMap) return;
+    // the old map's middle and reach (the fog lies between it and the Far Sea's ring)
+    Vector3 c{}; int n = 0; float reach = 0;
+    for (const auto& is : isles) if (!is.far) { c = Vector3Add(c, is.c); n++; }
+    if (n) c = Vector3Scale(c, 1.0f / n);
+    for (const auto& is : isles) if (!is.far) reach = std::max(reach, FlatXZ(is.c, c) + is.radius);
+    far.c = c; far.fogR = reach + 120;
+    float ringR = 0; for (const auto& is : isles) if (is.far) ringR = std::max(ringR, FlatXZ(is.c, c) + is.radius);
+    far.wallR = std::max(far.fogR + 300, ringR) + FD2().wall;
+    for (int i = 0; i < (int)isles.size(); i++) {
+        switch (isles[i].type) {
+        case IsleType::RocPeak: if (far.rocIsle < 0) { far.rocIsle = i; far.roc = Vector3Add(isles[i].hill, {0, 6, 0}); far.rocHp = FD2().rocHp; } break;
+        case IsleType::DrownedFleet: if (far.fleet < 0) { far.fleet = i; far.fleetC = isles[i].c; } break;
+        case IsleType::Town: if (isles[i].far && far.frigateTown < 0) { far.frigateTown = i; far.frigate = Vector3Add(isles[i].c, {isles[i].radius + 40, 0, 0}); } break;
+        default: break;
+        }
+    }
+    far.thornConv.assign(sides.size() + 1, 0); far.iceConv.assign(sides.size() + 1, 0);
+}
+void World::SetFleetPose() {
+    if (far.fleet < 0 || far.fleet >= (int)isles.size()) return;
+    Island& is = isles[far.fleet];
+    Vector3 d = Vector3Subtract(far.fleetC, is.c); d.y = 0;
+    if (fabsf(d.x) < 0.01f && fabsf(d.z) < 0.01f) return;
+    is.c = Vector3Add(is.c, d); is.hill = Vector3Add(is.hill, d); is.nest = Vector3Add(is.nest, d); is.x0 += d.x; is.z0 += d.z;
+    for (auto& s : is.sites) s = Vector3Add(s, d);
+    for (auto& t : is.twigPts) t.first = Vector3Add(t.first, d);
+    for (auto& p : is.props) p.c = Vector3Add(p.c, d);
+    for (auto& o : is.outline) { o.x += d.x; o.y += d.z; }
+}
+float World::FarCatchMul(int zone) const {
+    // the Mirror Lagoon: fish that never flee (unless a fight has clouded it)
+    if (zone < 0 || !eco.map || zone >= (int)eco.map->zones.size() || !LongFlight()) return 1;
+    Vector3 zc = eco.map->zones[zone].Center(); int is = IsleAt(zc.x, zc.z, 80);
+    if (is < 0 || is >= (int)isles.size() || isles[is].type != IsleType::MirrorLagoon) return 1;
+    return time < far.mirrorCloudT ? 0.0f : FD2().mirrorCatch;
+}
+void World::StepFarSea(float dt) {
+    if (!LongFlight() || !opts.farSea || !wholeMap) return;
+    const FarData& D = FD2();
+    int N = (int)sides.size() + 1;
+    bool open = FarOpen();
+    if (open && !far.opened) {
+        far.opened = true;
+        for (int s = 0; s < N; s++) { SayTo(s, "THE FAR SEA OPENS: at dusk the fog beyond the map lifts. New islands, new dangers, new neighbours: the race is on."); Chronicle(s, CK_OTHER, "The fog beyond the map lifted: the Far Sea opened."); }
+    }
+    auto pushBack = [&](Vector3& p, Vector3& v, float r) {
+        float d = FlatXZ(p, far.c); if (d <= r) return false;
+        Vector3 u = Vector3Normalize({p.x - far.c.x, 0, p.z - far.c.z});
+        p.x = far.c.x + u.x * r; p.z = far.c.z + u.z * r;
+        float out = v.x * u.x + v.z * u.z; if (out > 0) { v.x -= 2 * out * u.x; v.z -= 2 * out * u.z; }
+        return true;
+    };
+    for (int s = 0; s < N; s++) {
+        Colony& C = ColOf(s); Founder& F = FounderOf(s);
+        // before it opens the fog turns every bird back; after, the Storm Wall grounds all but the Albatross
+        float limit = open ? far.wallR : far.fogR;
+        bool albatross = Founders()[F.def].key == "albatross";
+        if (!(open && albatross)) { if (pushBack(F.pos, F.vel, limit) && fmodf(time, 3.0f) < dt) SayTo(s, open ? "The Storm Wall: nothing flies through it (but an Albatross)." : "The fog beyond the map turns you back (it lifts at the end of the first year)."); }
+        else if (FlatXZ(F.pos, far.c) > far.wallR + 150 && !C.stormCrossed) { C.stormCrossed = true; SayTo(s, "You crossed the Storm Wall: the map's end, and nothing but the score beyond it."); Chronicle(s, CK_TITLE, "The Founder crossed the Storm Wall."); for (int o = 0; o < N; o++) if (o != s) SayTo(o, SideName(s) + "'s Founder has crossed the Storm Wall."); }
+        for (auto& b : C.birds) if (b.alive && b.stage == BStage::Adult) {
+            if (!open) pushBack(b.pos, b.vel, far.fogR);
+            else if (FlatXZ(b.pos, far.c) > far.wallR) { Bird& bb = b; WithSide(s, [&] { BirdDies(bb, "lost in the Storm Wall"); }); }
+        }
+    }
+    if (!open) return;
+    float ph = DayPhase(); bool night = ph < 0.2f || ph > 0.85f, noon = ph > D.rocHunt0 && ph < D.rocHunt1;
+    bool dayTick = fmodf(time, DAY) < dt;
+    // ---- the Roc: sleeps on its peak, hunts at noon (the Far Sea, and the old map too from Summer of year two)
+    if (far.rocIsle >= 0 && far.rocHp > 0 && opts.roc) {
+        Vector3 home = Vector3Add(isles[far.rocIsle].hill, {0, 6, 0});
+        bool wide = Year() == 2 && Season() >= SEASON_SUMMER;
+        far.rocHunting = noon;
+        if (!noon) { far.roc = Vector3Lerp(far.roc, home, std::min(1.0f, dt * 0.2f)); far.rocTarget = -1; }
+        else {
+            // the biggest flock of more than ten in the open within its range
+            int ts = -1, tf = -1, best = (int)D.rocFlock; Vector3 at{};
+            for (int s = 0; s < N; s++) for (const auto& f : ColOf(s).flocks) {
+                int n = 0; Vector3 m{};
+                for (int id : f.members) if (const Bird* b = FindBird(s, id)) { n++; m = Vector3Add(m, b->pos); }
+                if (n <= best) continue;
+                m = Vector3Scale(m, 1.0f / n);
+                if (!wide && FlatXZ(m, far.c) < far.fogR) continue;
+                if (FlatXZ(m, far.roc) > D.rocRange * 3) continue;
+                best = n; ts = s; tf = f.id; at = m;
+            }
+            far.rocTarget = ts >= 0 ? ts * 1000 + tf : -1;
+            Vector3 goal = ts >= 0 ? Vector3Add(at, {0, 12, 0}) : Vector3Add(home, {80 * cosf(time * 0.05f), 40, 80 * sinf(time * 0.05f)});
+            Vector3 dv = Vector3Subtract(goal, far.roc); float dl = Vector3Length(dv);
+            if (dl > 0.1f) far.roc = Vector3Add(far.roc, Vector3Scale(dv, std::min(1.0f, 28 * dt / dl)));
+            far.rocT += dt;
+            if (ts >= 0 && dl < 25 && far.rocT >= D.rocEvery) {
+                far.rocT = 0;
+                if (Flock* f = FindFlock(ts, tf)) for (int id : f->members) if (Bird* b = FindBird(ts, id)) { Bird& bb = *b; WithSide(ts, [&] { BirdDies(bb, "taken by the Roc"); }); SayTo(ts, "The ROC strikes your flock (fly in flocks of nine, or at dawn)."); break; }
+            }
+            // once a hunt it carries off a nest whole from under its path
+            if (time - far.rocNestT > D.rocNestDays * DAY) for (int s = 0; s < N && time - far.rocNestT > D.rocNestDays * DAY; s++) {
+                Colony& C = ColOf(s);
+                for (int ni = 0; ni < (int)C.nests.size(); ni++) {
+                    Nest& n = C.nests[ni];
+                    if (!n.built || FlatXZ(n.pos, far.roc) > 30 || (!wide && !IsFar(n.isle))) continue;
+                    for (auto& b : C.birds) if (b.alive && b.nest == ni && b.stage != BStage::Adult) { Bird& bb = b; WithSide(s, [&] { BirdDies(bb, "carried off with its nest by the Roc"); }); }
+                    n.built = false; n.twigs = 0; n.mate = -1; n.bowl = 0; far.rocNestT = time;
+                    SayTo(s, "The Roc carries off one of your nests whole!"); Chronicle(s, CK_BEAST, "The Roc carried off one of our nests.");
+                    break;
+                }
+            }
+        }
+        // its eggs: a Founder who lands on the peak while it hunts takes one (it hatches a Giant)
+        for (int s = 0; s < N; s++) {
+            Founder& F = FounderOf(s); Colony& C = ColOf(s);
+            if (!noon || C.rocEgg || F.st != FState::Perched || FlatXZ(F.pos, home) > 14 || C.caches.empty()) continue;
+            C.rocEgg = true;
+            Bird g; g.id = C.nextId++; g.stage = BStage::Adult; g.role = Role::Striker; g.rare = RARE_GIANT; g.hp = 120; g.hunger = 1; g.pos = Vector3Add(C.caches[0].pos, {0, 2, 0}); born.push_back(g);
+            SayTo(s, "You take an egg from the Roc's nest: it hatches a Giant (a size-4 bird that fights like a Striker and eats for three).");
+            Chronicle(s, CK_BEAST, "The Founder stole an egg from the Roc's nest; it hatched a Giant.");
+        }
+    }
+    // ---- the Drowned Fleet: drifts toward the loudest colony; the Drowned take eggs at night; boarded by day for its stores
+    if (far.fleet >= 0) {
+        int loud = -1, most = -1; for (int s = 0; s < N; s++) { int a = 0; for (const auto& b : ColOf(s).birds) a += b.alive; if (a > most) { most = a; loud = s; } }
+        if (loud >= 0 && !ColOf(loud).caches.empty()) {
+            Vector3 to = ColOf(loud).caches[0].pos; Vector3 dv = Vector3Subtract(to, far.fleetC); dv.y = 0; float dl = Vector3Length(dv);
+            if (dl > isles[far.fleet].radius + 160) far.fleetC = Vector3Add(far.fleetC, Vector3Scale(dv, D.fleetSpeed * dt / dl));
+        }
+        SetFleetPose();
+        const Island& is = isles[far.fleet];
+        if (night && fmodf(time, D.fleetEggEvery * DAY) < dt) for (int s = 0; s < N; s++) {
+            Colony& C = ColOf(s); bool took = false;
+            for (int ni = 0; ni < (int)C.nests.size() && !took; ni++) {
+                if (!C.nests[ni].built || FlatXZ(C.nests[ni].pos, is.c) > D.fleetEggR) continue;
+                for (auto& b : C.birds) if (b.alive && b.nest == ni && b.stage == BStage::Egg) { Bird& bb = b; WithSide(s, [&] { BirdDies(bb, "taken by the Drowned Fleet's crew"); }); took = true; break; }
+            }
+            if (took) SayTo(s, "The Drowned come off the Fleet in the night and take an egg.");
+        }
+        if (!night) for (int s = 0; s < N; s++) {
+            Founder& F = FounderOf(s); Colony& C = ColOf(s);
+            if (C.fleetBoarded || F.st == FState::Dead || FlatXZ(F.pos, is.c) > is.radius || F.pos.y > 14) continue;
+            C.fleetBoarded = true; C.twigs += (int)D.fleetTwigs; C.bombs += D.fleetBombs;
+            std::string r;
+            if (!far.admiralTaken && RelicCount(s) < RelicsMax()) for (int k = 0; k < RL_COUNT; k++) { bool held = false; for (int o = 0; o < N; o++) held |= (ColOf(o).relics >> k) & 1; if (!held) { C.relics |= 1u << k; far.admiralTaken = true; r = ", and the Admiral's relic: " + Relics()[k].name; break; } }
+            SayTo(s, TextFormat("You board the Drowned Fleet by day: rigging twigs (+%d) and its magazine's powder (+%d bombs)%s.", (int)D.fleetTwigs, D.fleetBombs, r.c_str()));
+        }
+    }
+    // ---- the wild colonies: the thorn-birds (Thorns) and the penguins (the Ice Shelf), converted by priests; the Sunken City's Lost Ones
+    for (int i = 0; i < (int)isles.size(); i++) {
+        const Island& is = isles[i];
+        bool thorns = is.type == IsleType::Thorns, ice = is.type == IsleType::IceShelf, city = is.type == IsleType::SunkenCity, mirror = is.type == IsleType::MirrorLagoon;
+        if (!thorns && !ice && !city && !mirror) continue;
+        int holder = HolderOf(i);
+        if ((thorns || city) && fmodf(time, 1.0f) < dt) for (int s = 0; s < N; s++) {   // (the brambles tear; the Lost Ones keep the spires)
+            if (s == holder) continue;
+            for (auto& b : ColOf(s).birds) {
+                if (!b.alive || b.stage != BStage::Adult || FlatXZ(b.pos, is.c) > is.radius || b.pos.y > HeightAt(b.pos.x, b.pos.z) + 8) continue;
+                if (thorns && b.role != Role::Skirmisher && b.role != Role::Tank) continue;
+                b.hp -= thorns ? D.thornTear : D.cityMob;
+                if (b.hp <= 0) { Bird& bb = b; WithSide(s, [&] { BirdDies(bb, thorns ? "torn by the brambles and the thorn-birds" : "killed by the Lost Ones in the spires"); }); }
+            }
+        }
+        if ((thorns || ice) && dayTick) for (int s = 0; s < N; s++) {   // (priests convert the wild colony a flock at a time)
+            if (s == holder) continue;
+            int priests = 0; for (const auto& b : ColOf(s).birds) priests += b.alive && b.stage == BStage::Adult && b.role == Role::Priest && FlatXZ(b.pos, is.c) < 500;
+            if (!priests) continue;
+            float& conv = thorns ? far.thornConv[s] : far.iceConv[s];
+            conv += priests * D.thornConv * (Founders()[FounderOf(s).def].key == "ibis" ? 3.0f : 1.0f);
+            if (conv < 100) { SayTo(s, TextFormat("Your priests preach to the %s (%.0f%% converted).", thorns ? "thorn-birds" : "penguins", conv)); continue; }
+            conv = 0;
+            Colony& C = ColOf(s); int made = 0;
+            for (const auto& p : is.sites) { if (made >= 5) break; Nest n; n.pos = p; n.isle = i; n.built = true; n.twigs = (float)NestTwigs(); Site st; st.pos = p; st.isle = i; st.nest = (int)C.nests.size(); C.sites.push_back(st); n.site = (int)C.sites.size() - 1; C.nests.push_back(n); made++; }
+            for (int k = 0; k < 4; k++) { Bird w; w.id = C.nextId++; w.stage = BStage::Adult; w.role = thorns ? Role::Skirmisher : Role::Fisher; w.hp = 60; w.hunger = 1; w.pos = Vector3Add(is.c, {(float)k, 6, 0}); born.push_back(w); }
+            for (int o = 0; o < N; o++) SayTo(o, SideName(s) + TextFormat(" has converted the %s: their island is theirs.", thorns ? "thorn-birds" : "penguins"));
+            Chronicle(s, CK_FOUNDING, thorns ? "The thorn-birds of the Archipelago joined the colony." : "The penguins of the Ice Shelf joined the colony.");
+        }
+        if (holder < 0) continue;
+        Colony& H = ColOf(holder);
+        if (dayTick) {
+            if (ice) for (int q = 0; q < (int)D.iceKrill && !H.caches.empty(); q++) H.caches[0].fish.push_back({0, 1, 0});   // (krill in walls)
+            if (mirror) H.wildMates += (int)D.mirrorMates;   // (mates in dozens)
+            if (city) {
+                H.pearls += (int)D.cityPearls; H.fervour = std::min(100.0f, H.fervour + D.cityFervour);   // (the city's shrine: the Sky Temple's power at a quarter)
+                if (!far.cityRelics) { far.cityRelics = true; int got = 0; for (int r = 0; r < RL_COUNT && got < 3 && RelicCount(holder) < RelicsMax(); r++) { bool held = false; for (int o = 0; o < N; o++) held |= (ColOf(o).relics >> r) & 1; if (!held) { H.relics |= 1u << r; got++; } } if (got) SayTo(holder, TextFormat("The Sunken City's vaults give up %d relics.", got)); }
+            }
+        }
+        if (city && fmodf(time, D.citySinkDays * DAY) < dt && time > DAY) {   // (the city sinks a spire a week)
+            for (int s = 0; s < N; s++) { Colony& C = ColOf(s); for (int ni = (int)C.nests.size() - 1; ni >= 0; ni--) if (C.nests[ni].built && C.nests[ni].isle == i) { C.nests[ni].built = false; C.nests[ni].twigs = 0; C.nests[ni].mate = -1; SayTo(s, "A spire of the Sunken City sinks, and a nest with it."); break; } }
+        }
+    }
+    // ---- a fight over the Mirror Lagoon clouds it for a day
+    for (size_t k = far.fxSeen; k < warFx.size(); k++) for (int i = 0; i < (int)isles.size(); i++) if (isles[i].type == IsleType::MirrorLagoon && FlatXZ(warFx[k].p, isles[i].c) < isles[i].radius + 30) far.mirrorCloudT = time + D.mirrorCloud * DAY;
+    far.fxSeen = warFx.size();
+    // ---- the navy's frigate: patrols its port, fires on the pirates and on the frigatebirds
+    if (far.frigateTown >= 0) {
+        const Island& t = isles[far.frigateTown];
+        float a = time * 0.02f; far.frigate = {t.c.x + cosf(a) * (t.radius + 60), 0, t.c.z + sinf(a) * (t.radius + 60)};
+        far.frigateT += dt;
+        if (far.frigateT >= D.frigateEvery) {
+            far.frigateT = 0;
+            if (pirates.on && FlatXZ(pirates.pos, far.frigate) < D.frigateRange * 2) { pirates.hp -= 60; if (pirates.hp <= 0) { pirates.scatterUntil = time + DAY; pirates.hp = 400; for (int s = 0; s < N; s++) SayTo(s, "The navy's frigate scatters the pirates."); } }
+            for (int s = 0; s < N; s++) {
+                if (Founders()[FounderOf(s).def].key != "frigatebird") continue;
+                for (auto& b : ColOf(s).birds) if (b.alive && b.stage == BStage::Adult && FlatXZ(b.pos, far.frigate) < D.frigateRange) { Bird& bb = b; WithSide(s, [&] { BirdDies(bb, "shot by the navy's frigate"); }); SayTo(s, "The navy's frigate fires on your birds: it hunts pirates, frigatebirds included."); break; }
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------- --flight-longflight-test
 int RunFlightLongFlightTest() {
     int fails = 0;
@@ -348,6 +590,37 @@ int RunFlightLongFlightTest() {
         // a bred colony: mothers and nest lines pass genes on through eggs
         Bird mom; mom.genes = II; mom.kin = w->me.def; Nest n; n.line = II; Bird egg; w->Conceive(egg, mom, n);
         check(GeneRank(egg.genes, GT_QUICK) == 3, "an egg of a Quick II mate in a Quick II nest line is Quick III");
+    }    // ---- the Far Sea
+    {
+        auto w = make(8);
+        int nf = 0; for (const auto& is : w->isles) nf += is.far;
+        auto s4 = make(4); int n4 = 0; for (const auto& is : s4->isles) n4 += is.far;
+        check(nf == 8 && n4 == 0 && w->far.fogR < w->far.wallR, TextFormat("the Long Flight's map has a Far Sea of 8 places beyond a fog (%.0f m out; the Storm Wall at %.0f m); a four-season match has none", w->far.fogR, w->far.wallR));
+        Vector3 out = Vector3Add(w->far.c, {w->far.fogR + 200, 40, 0}); w->me.pos = out; w->me.st = FState::Fly; w->time = 5 * World::DAY; w->StepFarSea(0.1f);
+        check(Vector2Distance({w->me.pos.x, w->me.pos.z}, {w->far.c.x, w->far.c.z}) <= w->far.fogR + 1 && !w->FarOpen(), "before it opens the fog turns a bird back");
+        w->time = 23.6f * World::DAY; w->StepFarSea(0.1f);
+        check(w->FarOpen() && w->far.opened, "at dusk of the last day of year one the Far Sea opens");
+        Bird& lost = adult(*w, Role::Fisher, Vector3Add(w->far.c, {w->far.wallR + 50, 20, 0})); int lid = lost.id; w->StepFarSea(0.1f);
+        bool dead = false; for (const auto& b : w->col.birds) if (b.id == lid) dead = !b.alive;
+        check(dead, "past the Storm Wall a bird is lost");
+        // the Mirror Lagoon's fish never flee
+        int mz = -1; for (int z = 0; z < (int)w->eco.map->zones.size() && mz < 0; z++) { Vector3 zc = w->eco.map->zones[z].Center(); int is = w->IsleAt(zc.x, zc.z, 80); if (is >= 0 && w->isles[is].type == IsleType::MirrorLagoon) mz = z; }
+        check(mz >= 0 && w->FarCatchMul(mz) > 1.4f, "the Mirror Lagoon: its fish never flee (+50% to the catch)");
+        // the Roc hunts flocks of more than ten at noon
+        std::vector<int> ids; Vector3 at = Vector3Add(w->far.roc, {20, -10, 0});
+        for (int k = 0; k < 12; k++) ids.push_back(adult(*w, Role::Skirmisher, Vector3Add(at, {(float)k, 0, 0})).id);
+        w->MakeFlock(0, ids, Formation::Chevron, Alt::Mid, Stance::Raid);
+        w->time = 30.28f * World::DAY;
+        for (int q = 0; q < 200; q++) { w->StepFarSea(0.05f); for (int id : ids) if (Bird* b = w->FindBird(0, id)) b->pos = Vector3Add(at, {0, 0, 0}); w->time += 0.05f; }
+        int left = 0; for (int id : ids) left += w->FindBird(0, id) != nullptr;
+        check(left < 12 && w->far.rocHunting, TextFormat("the Roc hunts a flock of twelve at noon (%d left)", left));
+        // its egg
+        w->me.st = FState::Perched; w->me.pos = Vector3Add(w->isles[w->far.rocIsle].hill, {2, 0, 0}); w->StepFarSea(0.05f);
+        bool giant = false; for (const auto& b : w->born) giant |= (b.rare & RARE_GIANT) != 0;
+        check(w->col.rocEgg && giant, "a Founder on the peak while the Roc hunts takes an egg: it hatches a Giant");
+        // the Drowned Fleet drifts toward the loudest colony
+        Vector3 f0 = w->far.fleetC; for (int q = 0; q < 100; q++) w->StepFarSea(1.0f);
+        check(Vector3Distance(f0, w->far.fleetC) > 50, "the Drowned Fleet drifts (toward the loudest colony)");
     }    printf(fails ? "flight-longflight-test: %d check(s) failed\n" : "flight-longflight-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

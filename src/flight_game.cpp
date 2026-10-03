@@ -880,6 +880,26 @@ void DrawDangers(const fl::World& w, const Camera3D& cam, float dt) {
             }
         }
     }
+    // ---- the Long Flight's Far Sea: the fog beyond the map, then the Storm Wall; the Roc; the navy's frigate
+    if (w.LongFlight() && w.opts.farSea && w.far.fogR < 1e8f) {
+        float R = w.FarOpen() ? w.far.wallR : w.far.fogR;
+        Vector3 me = cam.position; float ang = atan2f(me.z - w.far.c.z, me.x - w.far.c.x);
+        if (fabsf(Vector2Distance({me.x, me.z}, {w.far.c.x, w.far.c.z}) - R) < 900) for (int k = -12; k <= 12; k++) {
+            float a = ang + k * 0.03f; Vector3 p{w.far.c.x + cosf(a) * R, 0, w.far.c.z + sinf(a) * R};
+            Color fc = w.FarOpen() ? Color{40, 44, 60, 255} : Color{214, 222, 228, 255};
+            for (int h = 0; h < 3; h++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(R * 0.035f, 40, 12), MatrixRotateY(-a)), MatrixTranslate(p.x, 20 + h * 40.0f + 4 * sinf(S.t * 0.3f + k + h), p.z)), Fade(fc, 0.7f));
+            if (w.FarOpen() && ((int)(S.t * 3 + k) % 37) == 0) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.6f, 80, 0.6f), MatrixTranslate(p.x, 60, p.z)), Color{230, 236, 255, 255}, 3.0f);   // (lightning)
+        }
+    }
+    if (w.LongFlight() && w.FarOpen() && w.far.rocIsle >= 0 && w.far.rocHp > 0 && Vector3Distance(w.far.roc, cam.position) < 1200) {
+        float bt = sinf(S.t * 2.2f);
+        DrawBirdBody(w.Def(), PoseWorld(w.far.roc, S.t * 0.3f, 0, 0.2f, 6.0f), w.far.rocHunting ? 0.5f * bt : 0, 0.3f * bt, w.far.rocHunting ? 0 : 1, 0, 0, 0.9f, Color{92, 70, 50, 255});
+    }
+    if (w.LongFlight() && w.FarOpen() && w.far.frigateTown >= 0 && Vector3Distance(w.far.frigate, cam.position) < 900) {
+        Vector3 f = w.far.frigate; float yaw = w.time * 0.02f;
+        rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(4, 2.4f, 16), MatrixRotateY(-yaw)), MatrixTranslate(f.x, 1, f.z)), Color{60, 50, 44, 255});
+        for (int k = -1; k <= 1; k++) rt::DrawCubeM(MatrixMultiply(MatrixScale(0.35f, 14, 0.35f), MatrixTranslate(f.x + sinf(yaw) * k * 5, 8, f.z + cosf(yaw) * k * 5)), Color{90, 74, 60, 255});
+    }
     // ---- the neutral factions: the pirate band, the fleet's boats, the Grey Wings over their crag
     if (w.pirates.on && w.time >= w.pirates.scatterUntil && Vector3Distance(w.pirates.pos, cam.position) < 500)
         for (int k = 0; k < 8; k++) { float a = S.t * 0.8f + k * 0.785f; Vector3 p = Vector3Add(w.pirates.pos, {cosf(a) * 6, 2 * sinf(S.t + k), sinf(a) * 6}); float bt = sinf(S.t * 8 + k);
@@ -933,6 +953,7 @@ void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
         const fl::Island& is = w.wholeMap ? w.isles[i] : w.island;
         float d = Vector2Distance({cam.position.x, cam.position.z}, {is.c.x, is.c.z}) - is.radius;
         if (d > 1100) continue;   // (beyond the haze)
+        if (is.far && !w.FarOpen()) continue;   // (the Long Flight's Far Sea: behind the fog until year one ends)
         if (i < S.terr.size()) rt::DrawStatic(S.terr[i], MatrixIdentity());
         // trees
         if (d < 450) for (size_t k = 0; k < is.palms.size(); k++) {
@@ -946,12 +967,12 @@ void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
         for (const auto& pr : is.props) {
             // (8 a lamp, 9 ice, 10 stone walls, 11 a kelp mat, 12 a cannon, 13 mangrove roots: the expansion's islands)
             static const Color PC[] = {{226, 218, 200, 255}, {170, 70, 52, 255}, {200, 192, 176, 255}, {132, 100, 66, 255}, {116, 84, 56, 255}, {150, 112, 70, 255}, {78, 64, 52, 255}, {96, 80, 64, 255},
-                                       {255, 236, 170, 255}, {200, 226, 240, 255}, {132, 128, 122, 255}, {104, 102, 44, 255}, {44, 44, 48, 255}, {76, 60, 40, 255}};
+                                       {255, 236, 170, 255}, {200, 226, 240, 255}, {132, 128, 122, 255}, {104, 102, 44, 255}, {44, 44, 48, 255}, {76, 60, 40, 255}, {70, 90, 44, 255}};
             bool ghost = is.type == fl::IsleType::GhostShip;
             float bob = pr.kind == 4 ? 0.12f * sinf(S.t * 1.3f + pr.c.x) : pr.kind == 6 ? 0.25f * sinf(S.t * 0.4f) : pr.kind == 11 ? 0.05f * sinf(S.t * 0.7f) : 0;
             Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(pr.half.x * 2, pr.half.y * 2, pr.half.z * 2), MatrixRotateY(-pr.yaw)), MatrixTranslate(pr.c.x, pr.c.y + bob, pr.c.z));
             if (pr.kind == 8) rt::DrawCubeGlow(m, PC[8], w.DayPhase() < 0.2f || w.DayPhase() > 0.85f ? 2.4f : 0.6f);   // (the lighthouse's lamp, bright at night)
-            else rt::DrawCubeM(m, ghost ? Mix(PC[std::clamp(pr.kind, 0, 13)], Color{120, 140, 130, 255}, 0.5f) : PC[std::clamp(pr.kind, 0, 13)]);
+            else rt::DrawCubeM(m, ghost ? Mix(PC[std::clamp(pr.kind, 0, 14)], Color{120, 140, 130, 255}, 0.5f) : PC[std::clamp(pr.kind, 0, 14)]);
         }
     }
     fl::World& wm = const_cast<fl::World&>(w);

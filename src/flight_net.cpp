@@ -386,7 +386,7 @@ struct In {
     bool bad() const { return r.bad; }
 };
 // positions: the world's box (the Founder is kept within 1400 m of the middle)
-constexpr float BX = 1500, BY0 = -80, BY1 = 280;
+constexpr float BX = 6000, BY0 = -80, BY1 = 280;   // (the Long Flight's Far Sea lies far out)
 template <class A> void P16(A& a, Vector3& p) { a.q16(p.x, -BX, BX); a.q16(p.y, BY0, BY1); a.q16(p.z, -BX, BX); }
 // (what a position reads back as: the filters below judge the quantised one, so a mirror writing again keeps the same)
 float Qv(float v, float lo, float hi) { return lo + std::clamp((int)lroundf((v - lo) / (hi - lo) * 65535), 0, 65535) / 65535.0f * (hi - lo); }
@@ -458,7 +458,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     { int rl = (int)c.relics; a.i(rl); c.relics = (uint32_t)rl; a.i(c.legend); a.b(c.legendAlive); }
     a.i(c.pact); a.i(c.bounty); a.i(c.bountyBy);
     a.f(c.beaconT); a.b(c.rookeryWarm);
-    a.i(c.speciesTrait[0]); a.i(c.speciesTrait[1]); a.s(c.speciesName);
+    a.i(c.speciesTrait[0]); a.i(c.speciesTrait[1]); a.s(c.speciesName); a.b(c.stormCrossed);
     a.i(c.gen); a.i(c.heirId); a.i(c.heirTrait); a.i(c.succChoice); a.i(c.keepPerk); a.i(c.dynastyPick); a.b(c.regent); a.f(c.genStart); a.f(c.successionT); { int rk = (int)c.relicsKept; a.i(rk); c.relicsKept = (uint32_t)rk; } a.s(c.dynasty);
     if (own) a.vec(c.chronicle, [&](ChronLine& l) { a.i(l.day); a.i(l.season); a.i(l.year); a.i(l.kind); a.s(l.text); });   // (the Long Flight: a colony's own Chronicle)
     a.i(c.nestStyle); for (auto& n : c.nests) { a.i(n.style); a.f(n.rainT); }
@@ -573,7 +573,8 @@ template <class A> void Visit(A& a, World& w, bool full) {
     { WreckState& r = w.wreck; a.i(r.isle); a.i(r.hold); a.b(r.bell); }
     { Weather& e = w.weather; a.i(e.kind); a.f(e.t); a.f(e.next); }
     { IsleState& x = w.isx; a.i(x.ghost); a.v3(x.ghostC0); a.i(x.whale); a.f(x.whaleNext); a.f(x.whaleUnderT); a.i(x.dives); a.vec(x.birdConv, [&](float& v) { a.f(v); }); }
-    if constexpr (A::reading) { w.SetWreckPose(); w.SetGhostPose(); }
+    { FarState& x = w.far; a.v3(x.c); a.f(x.fogR); a.f(x.wallR); a.b(x.opened); a.i(x.rocIsle); a.v3(x.roc); a.f(x.rocHp); a.b(x.rocHunting); a.i(x.fleet); a.v3(x.fleetC); a.i(x.frigateTown); a.v3(x.frigate); a.f(x.mirrorCloudT); a.vec(x.thornConv, [&](float& v) { a.f(v); }); a.vec(x.iceConv, [&](float& v) { a.f(v); }); }
+    if constexpr (A::reading) { w.SetWreckPose(); w.SetGhostPose(); w.SetFleetPose(); }
     VisitSea(a, w, w.me.pos);
     if (a.bad()) return;
     // the war's effects, numbered (a mirror appends the ones it hasn't had)

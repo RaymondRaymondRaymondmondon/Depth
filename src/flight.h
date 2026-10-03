@@ -36,12 +36,13 @@ std::string FlightDataDir();                  // data/flight (found like Red Tid
 // middle (their shapes now; their dangers and prizes are stage 7).
 enum class IsleType : uint8_t { Tropical, Stack, Town, Atoll, Islet, KrakenCove, Skull, Volcano, ReefGarden, Wreck,
                                 Iceberg, Lighthouse, Shipwreck, Mangrove, KelpRaft, CliffTown,          // (the expansion's six more starting islands, doc p43)
-                                IronIsland, Whale, SirenRocks, Maelstrom, GhostShip, BirdIsland, COUNT };   // (and six more dangerous ones, pp. 44-45)
+                                IronIsland, Whale, SirenRocks, Maelstrom, GhostShip, BirdIsland,       // (and six more dangerous ones, pp. 44-45)
+                                Thorns, DrownedFleet, RocPeak, MirrorLagoon, IceShelf, SunkenCity, COUNT };   // (the Long Flight's Far Sea)
 const char* IsleTypeName(IsleType t);
 inline bool IsStartType(IsleType t) { return t <= IsleType::Atoll || (t >= IsleType::Iceberg && t <= IsleType::CliffTown); }
 inline bool IsDangerous(IsleType t) { return (t >= IsleType::KrakenCove && t <= IsleType::Wreck) || t >= IsleType::IronIsland; }
 inline IsleType StartTypeOf(int i) { return i <= 0 ? IsleType::Tropical : i < 4 ? (IsleType)i : i < 10 ? (IsleType)((int)IsleType::Iceberg + i - 4) : IsleType::CliffTown; }   // (a lobby's choice 0-9: the four, then the expansion's six)
-inline bool IsDrifting(IsleType t) { return t == IsleType::Wreck || t == IsleType::GhostShip; }   // (no terrain: drawn from its props, moved by the time)
+inline bool IsDrifting(IsleType t) { return t == IsleType::Wreck || t == IsleType::GhostShip || t == IsleType::DrownedFleet; }   // (no terrain: drawn from its props, moved by the time)
 struct Prop { Vector3 c{}, half{}; int kind = 0; float yaw = 0; };   // a box: 0 house, 1 roof, 2 tower, 3 dock, 4 boat, 5 woodpile, 6 hull, 7 mast
 struct Island {
     IsleType type = IsleType::Tropical;
@@ -49,6 +50,7 @@ struct Island {
     Vector3 c{};                                // its middle (y = 0)
     float radius = 90;                          // its land's reach
     int start = -1;                             // a player's starting island (slot), or -1
+    bool far = false;                           // (the Long Flight: an island of the Far Sea, hidden until it opens)
     int n = 0; float cell = 2, x0 = 0, z0 = 0;   // the heightmap's grid (world coordinates)
     std::vector<float> h;                       // metres above the sea (negative: the sea floor)
     std::vector<Vector3> palms;                 // trunk feet
@@ -88,7 +90,8 @@ struct MapOpts {
     uint32_t humanMask = 1;
     float minutes = 0;                          // 0: no limit (solo)
     bool multi = false;                         // no slow motion in a strike (the world can't crawl for one player)
-    int seasons = 0;                            // (the expansion's long match) 0 standard; 2, 3 or 4 seasons (7, 11 or 16 game days)
+    int seasons = 0;                            // (the expansion's long match) 0 standard; 2, 3 or 4 seasons; 6 or 8 the Long Flight
+    bool farSea = true, roc = true;             // (the Long Flight's lobby: the Far Sea, the Roc)
 };
 // ---------------------------------------------------------------- the long match (the expansion, doc pp. 35-51: flight_long.cpp)
 enum SeasonId { SEASON_SPRING = 0, SEASON_SUMMER, SEASON_AUTUMN, SEASON_WINTER, SEASON_COUNT };
@@ -161,7 +164,8 @@ const std::vector<int>& PerkDays();
 PerkDef PerkSum(uint32_t bits);                 // every perk in the bits folded into one (multipliers multiplied, flags or-ed)
 float WinterHoldings();
 int RunFlightLongTest();                        // depth.exe --flight-long-test                         // (a four-season match: Winter's islands and nests count this many times)
-struct IsleSpec { IsleType type = IsleType::Islet; Vector3 c{}; int start = -1; std::string name; };
+struct IsleSpec { IsleType type = IsleType::Islet; Vector3 c{}; int start = -1; std::string name; bool far = false; };
+float FarRing(); float StormWallBeyond(); float StormCrossScore();
 std::vector<IsleSpec> LayoutMap(const MapOpts& o);   // slot 0 at the origin; rotational fairness
 // the Long Flight (the two-hour expansion: flight_longflight.cpp)
 struct ChronLine { int day = 0, season = 0, year = 1, kind = 0; std::string text; };   // a line of a colony's Chronicle
@@ -455,7 +459,8 @@ struct Colony {
     int nestStyle = 0;                        // (the long match: the style new nests are laid in)
     // the Long Flight: generations (the heir, the succession choice, the perk it keeps), the dynasty, the Chronicle
     int gen = 0, heirId = -1, heirTrait = -1, succChoice = 0, keepPerk = -1, dynastyPick = 0, heirAnnounced = -1; bool regent = false;
-    int speciesTrait[2] = {-1, -1}; std::string speciesName;   // (the Long Flight: the colony's species, once 20 birds share a trait at III)
+    int speciesTrait[2] = {-1, -1}; std::string speciesName;
+    bool stormCrossed = false, rocEgg = false, fleetBoarded = false;   // (the Far Sea: the Storm Wall crossed; a Roc's egg taken; the Fleet boarded)   // (the Long Flight: the colony's species, once 20 birds share a trait at III)
     float genStart = 0, successionT = -1e9f; uint32_t relicsKept = 0; std::string dynasty; std::vector<ChronLine> chronicle;
     float beaconT = -1e9f, rookeryFledgeT = -1e9f; bool rookeryWarm = false;   // (the Beacon last lit; the Rookery's chicks fledging together; enough adults about it)
     int tech = -1; float techMastery[TK_COUNT] = {}; std::vector<int> techLog;   // (fishing mastery: the colony's technique, -1 auto; per ground x technique: tries, catches, losses)
@@ -481,6 +486,12 @@ struct Kraken { int isle = -1; int mood = 0; float hp = 4000, hpMax = 4000, mood
 struct Ape { int isle = -1; float sleepT = 0, throwT = 0, rockT = 0; Vector3 pos{}, rockFrom{}, rockTo{}; float lizardT = 0, plantT = 0, plantsBurnt = 0; };
 struct Volcano { int isle = -1; float next = 0, tremorT = 0, ashT = 0; int eruptions = 0; };
 struct WreckState { int isle = -1; Vector3 c0{}; Vector2 vel{}; float sunk = 0; int hold = 30; bool bell = true; bool gone = false; float ratT = 0, ghostT = 0; };
+// the Long Flight's Far Sea (flight_longflight.cpp)
+struct FarState { Vector3 c{}; float fogR = 1e9f, wallR = 1e9f; bool opened = false;
+                  int rocIsle = -1, rocTarget = -1; Vector3 roc{}; float rocHp = 900, rocT = 0, rocNestT = -1e9f; bool rocHunting = false;
+                  int fleet = -1; Vector3 fleetC{}; bool admiralTaken = false, cityRelics = false;
+                  int frigateTown = -1; Vector3 frigate{}; float frigateT = 0, mirrorCloudT = -1; size_t fxSeen = 0;
+                  std::vector<float> thornConv, iceConv; };
 // the expansion's islands' state (flight_isles.cpp)
 struct IsleState { int ghost = -1, whale = -1, dives = 0; Vector3 ghostC0{}; float whaleNext = 0, whaleUnderT = 0, ironT = 0; bool ironStores = false, sirenGift = false, maelRelic = false; bool holdFlooded[6] = {}; std::vector<float> birdConv; std::vector<int> ghostSeason; };
 float IcebergShells(); float SongRange();
@@ -663,6 +674,10 @@ struct World {
     void StepEvolution(float dt);
     void Conceive(Bird& egg, const Bird& mother, const Nest& n);
     int CleverAt(int side) const;               // (percent faster research from Clever birds)
+    FarState far;                               // (the Far Sea)
+    bool FarOpen() const; bool IsFar(int isle) const;
+    void InitFarSea(); void StepFarSea(float dt); void SetFleetPose();
+    float FarCatchMul(int zone) const;          // (the Mirror Lagoon's fish never flee)
     float eventDay2[4] = {-1, -1, -1, -1};      // (the Long Flight: year two's season events)
     void InitIsles(); void StepIsles(float dt); void SetGhostPose();
     bool IsleShields(int isle, int threat) const;   // (the island keeps raiders off its nests: sheer ice, the roots, the Maelstrom's rocks, the beam at night)

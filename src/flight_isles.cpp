@@ -257,6 +257,79 @@ void Island::GenerateMore(IsleType t, uint32_t s) {
         nest = sites[0];
         for (int j = 0; j < 8; j++) shellPts.push_back(at(j * PI / 4 + 0.2f, 54));
     } break;
+    // ---- the Long Flight's Far Sea (doc pp. 9-10)
+    case IsleType::Thorns: {
+        // the Archipelago of Thorns: a chain of twelve small islands, every one a nest site, under bramble
+        grid(170, 2);
+        std::vector<Vector3> islets;
+        for (int k = 0; k < 12; k++) { float u = (k - 5.5f) / 5.5f; islets.push_back({c.x + u * 140, 0, c.z + sinf(u * 2.6f) * 40}); }
+        each([&](float lx, float lz) {
+            float best = -2 - 23 * Sm(20, 60, 1e9f);
+            float dmin = 1e9f; for (const auto& p : islets) dmin = std::min(dmin, sqrtf((lx + c.x - p.x) * (lx + c.x - p.x) + (lz + c.z - p.z) * (lz + c.z - p.z)));
+            best = dmin < 11 ? 4 * (1 - dmin / 11) + 1.2f : -2 - 20 * Sm(11, 45, dmin);
+            return best;
+        });
+        radius = 150; hill = {islets[5].x, Height(islets[5].x, islets[5].z), islets[5].z};
+        for (const auto& p : islets) { addSiteAt({p.x, Height(p.x, p.z), p.z}); props.push_back({{p.x + 3, Height(p.x, p.z) + 0.8f, p.z}, {2.5f, 0.8f, 2.5f}, 14}); }   // (the brambles)
+        nest = sites[0];
+        for (size_t k = 0; k < islets.size(); k += 2) twigPts.push_back({{islets[k].x - 3, Height(islets[k].x, islets[k].z) + 0.2f, islets[k].z}, 4.0f});
+    } break;
+    case IsleType::DrownedFleet: {
+        // a fleet of wrecks from a lost navy, drifting together (no terrain: hulls and masts; World::SetFleetPose moves it)
+        grid(60, 1);
+        for (int k = 0; k < 5; k++) {
+            float a = k * 1.25f, r = k == 0 ? 0 : 26; Vector3 p{c.x + cosf(a) * r, 1.0f, c.z + sinf(a) * r}; float yaw = 0.4f * k;
+            props.push_back({p, {5, 2.5f, 18}, 6, yaw});
+            props.push_back({{p.x, 10, p.z}, {0.4f, 8, 0.4f}, 7});
+        }
+        each([&](float lx, float lz) { for (const auto& pr : props) if (pr.kind == 6) { float dx = lx + c.x - pr.c.x, dz = lz + c.z - pr.c.z, ca = cosf(pr.yaw), sa = sinf(pr.yaw); float u = dx * ca + dz * sa, v = -dx * sa + dz * ca; if (fabsf(u) < 5 && fabsf(v) < 18) return 3.5f; } return -25.0f; });
+        radius = 50; hill = {c.x, 3.5f, c.z};
+        for (const auto& pr : props) if (pr.kind == 6) addSiteAt({pr.c.x, 3.6f, pr.c.z});
+        nest = sites[0];
+        for (const auto& pr : props) if (pr.kind == 7) twigPts.push_back({{pr.c.x + 1, 3.7f, pr.c.z}, 20.0f});   // (rigging twigs without end)
+    } break;
+    case IsleType::RocPeak: {
+        // a mountain island with a single enormous nest at its top
+        grid(170, 3);
+        each([&](float lx, float lz) { float a = atan2f(lz, lx), r = sqrtf(lx * lx + lz * lz) + (Fbm(cosf(a) * 3 + 1, sinf(a) * 3, s) - 0.5f) * 20; if (r >= 120) return -2 - 23 * Sm(120, 165, r); return 2 + 110 * powf(1 - r / 120, 1.6f); });
+        radius = 120; hill = {c.x, Height(c.x, c.z), c.z};
+        props.push_back({{c.x, hill.y + 1.5f, c.z}, {9, 1.5f, 9}, 5});   // (the Roc''s nest)
+        for (int j = 0; j < 10; j++) addSiteAt(at(j * 2 * PI / 10, 70));
+        nest = sites[0];
+        for (int j = 0; j < 6; j++) twigPts.push_back({at(j * 1.05f + 0.4f, 100), 3.0f});
+    } break;
+    case IsleType::MirrorLagoon: {
+        // a lagoon so still it reflects the sky, in a ring of low reef
+        grid(140, 2);
+        each([&](float lx, float lz) { float r = sqrtf(lx * lx + lz * lz) + (Fbm(lx * 0.05f, lz * 0.05f, s) - 0.5f) * 6; float d = fabsf(r - 80); return d < 6 ? 1.2f : r < 80 ? -3.5f : -2 - 23 * Sm(86, 135, r); });
+        radius = 86; hill = at(0, 80);
+        for (int j = 0; j < 16; j++) addSiteAt(at(j * 2 * PI / 16, 80));
+        nest = sites[0];
+        for (int j = 0; j < 8; j++) shellPts.push_back(at(j * PI / 4 + 0.2f, 80));
+    } break;
+    case IsleType::IceShelf: {
+        // a shelf of ice from the north: flat, white, cut by leads
+        grid(160, 2);
+        each([&](float lx, float lz) { float r = sqrtf(lx * lx * 0.4f + lz * lz) + (Fbm(lx * 0.03f, lz * 0.03f, s) - 0.5f) * 20; if (r >= 90) return -8 - 20 * Sm(90, 150, r); return (Fbm(lx * 0.06f, lz * 0.06f, s + 3) > 0.62f) ? -2.0f : 3.0f; });
+        radius = 120; hill = {c.x, 3, c.z};
+        for (int j = 0; j < 14; j++) { float a = j * 2 * PI / 14; Vector3 p{c.x + cosf(a) * 90, 0, c.z + sinf(a) * 40}; p.y = Height(p.x, p.z); if (p.y > 0) addSiteAt(p); }
+        if (sites.empty()) addSiteAt({c.x, 3, c.z});
+        nest = sites[0];
+        for (int j = 0; j < 8; j++) shellPts.push_back(at(j * PI / 4, 60));
+    } break;
+    case IsleType::SunkenCity: {
+        // Atlantis's spires breaking the surface: stone towers from a drowned plaza
+        grid(120, 2);
+        each([&](float lx, float lz) { float r = sqrtf(lx * lx + lz * lz); return r < 70 ? -1.5f - 1.5f * Fbm(lx * 0.1f, lz * 0.1f, s) : -4 - 21 * Sm(70, 115, r); });
+        radius = 70;
+        for (int k = 0; k < 9; k++) {
+            float a = k * 0.7f, r = 10 + 6.0f * k; Vector3 p{c.x + cosf(a) * r, 0, c.z + sinf(a) * r}; float hh = 10 + 4.0f * (k % 4);
+            Prop sp{{p.x, hh * 0.5f - 1, p.z}, {3, hh * 0.5f + 1, 3}, 10}; props.push_back(sp); stamp(sp);
+            props.push_back({{p.x, hh + 1.2f, p.z}, {1.2f, 1.2f, 1.2f}, 8});   // (the spire''s glow)
+            addSiteAt({p.x, hh, p.z});
+        }
+        hill = sites[8]; nest = sites[0];
+    } break;
     default: break;
     }
 }

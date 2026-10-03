@@ -372,7 +372,7 @@ void World::FisherStep(Bird& b, float dt) {
                 for (const auto& s : stocks) if (s.zone == z) { const rt::Species& sp = eco.map->species[s.sp]; if (Catchable(sp) && sp.size <= carry && sp.size >= minSize) total += s.pop; }
                 float owlDay = BD.daylight < 1 && DayPhase() > 0.25f && DayPhase() < 0.75f ? BD.daylight : 1.0f;   // (the Owl by day)
                 TechMod tm = TechMods(b.tk, z, 1); TechLog(z, b.tk, TL_TRY);
-                if (total >= 1 && Rand() < tm.hit * 0.55f * BD.fishHit * owlDay * boom * DecreeNow().catchK * (GreatNow(GE_CALM) ? GreatEvents()[GE_CALM].catchK : 1.0f) * (coop ? 1.5f : 1.0f) * std::clamp(stock * 1.5f, 0.1f, 1.0f)) {
+                if (total >= 1 && Rand() < FarCatchMul(z) * tm.hit * 0.55f * BD.fishHit * owlDay * boom * DecreeNow().catchK * (GreatNow(GE_CALM) ? GreatEvents()[GE_CALM].catchK : 1.0f) * (coop ? 1.5f : 1.0f) * std::clamp(stock * 1.5f, 0.1f, 1.0f)) {
                     float pick = Rand() * total;
                     for (auto& s : stocks) if (s.zone == z) { const rt::Species& sp = eco.map->species[s.sp]; if (!Catchable(sp) || sp.size > carry || sp.size < minSize) continue; pick -= s.pop; if (pick <= 0) { s.pop -= 1; b.carrySp = s.sp; b.carrySize = sp.size; b.task = Task::Idle; TechLog(z, b.tk, TL_CATCH); if (tm.yield > 1 && s.pop >= 1) { s.pop -= 1; b.bonusFish = tm.yield - 1; } break; } }
                 }
@@ -452,7 +452,7 @@ void World::FisherStep(Bird& b, float dt) {
         }
         if (!gone && Dist2(fp, b.pos) < 3 + (tm.reach > 1 ? 9.0f : 0.0f) && fp.y > -treach - 0.3f) {
             const rt::Species& s = eco.map->species[eco.agents[fi].sp];
-            float chance = tm.hit * 0.55f * BD.fishHit * boom * DecreeNow().catchK * (coop ? 1.5f : 1.0f) * (1.15f - 0.1f * s.size);
+            float chance = FarCatchMul(dz) * tm.hit * 0.55f * BD.fishHit * boom * DecreeNow().catchK * (coop ? 1.5f : 1.0f) * (1.15f - 0.1f * s.size);
             if (Rand() < chance) {
                 b.carrySp = eco.agents[fi].sp; b.carrySize = s.size;
                 if (eco.agents[fi].homeZone >= 0 && eco.agents[fi].homeZone < 16) caughtIn[eco.agents[fi].homeZone]++;
