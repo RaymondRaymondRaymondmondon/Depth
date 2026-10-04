@@ -522,7 +522,7 @@ int RunNightSeries(bool forceMemory, int lagMs) {
     host.gameOpts = NightHostOpts(MD_NIGHT_OFF, 1, true, startMin) + (real ? ":test" : ":test:step=0.1");
     const float dt = real ? 1 / 30.0f : 0.1f;
     double t = 0;
-    NightProfile prof[NG]; prof[0].name = "Sailor A"; prof[0].owed = 50; prof[1].name = "Sailor B";
+    NightProfile prof[NG]; prof[0].name = "Sailor A"; prof[0].owed[0] = 50; prof[1].name = "Sailor B";
     std::vector<std::unique_ptr<Night>> mirror;
     int seen[NG] = {}, mirrorOk[NG] = {}, readFails = 0;
     auto pace = [&]() { if (real) std::this_thread::sleep_for(std::chrono::milliseconds(33)); };

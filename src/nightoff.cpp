@@ -255,8 +255,8 @@ void Night::Leave(Player& p, int ending, const std::string& where) {
         if (ending == E_HOSPITAL) { p.money -= 100; }                                                    // (the hospital's bill)
         p.wokeAt = where.empty() ? (ending == E_WALKED ? "in your own bunk on the Nautilus" : "somewhere") : where;
         // the tab is settled at the door (doc p. 19)
-        float paid = std::min(p.money, p.tab); p.money -= paid; p.tab -= paid;
-        if (ending == E_WALKED) Note(p, 8, TextFormat("Walked home at %s%s.", Clock().c_str(), p.drunk < 20 ? ", sober" : ""));
+        if (!p.ferried) { float paid = std::min(p.money, p.tab); p.money -= paid; p.tab -= paid; }   // (the ferry: the tab follows you across)
+        if (ending == E_WALKED && !p.ferried) Note(p, 8, TextFormat("Walked home at %s%s.", Clock().c_str(), p.drunk < 20 ? ", sober" : ""));
         Say(p.name + (p.name == "You" ? " head" : " heads") + " for the door.");
     }
 }

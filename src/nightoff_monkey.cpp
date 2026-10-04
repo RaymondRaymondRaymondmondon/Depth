@@ -9,6 +9,7 @@
 #include "nightoff.h"
 #include "raymath.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 
 namespace no {
@@ -90,6 +91,26 @@ void Night::QuinceTells(Player& p, Patron& c) {
     Note(p, 6, "Dr. Quince named the Monkey's kidney thief: " + who + ".");
 }
 
+bool Night::FerryRunning() const { float m = fmodf(Minutes(), 60); return m < 10 && Hour() >= 20; }
+void Night::FerryFrom(const Night& from, int pid) {
+    const Player& old = from.players[std::clamp(pid, 0, (int)from.players.size() - 1)];
+    Opts o = from.opts; o.players = 1; o.bar = 1 - from.opts.bar; o.seed = from.opts.seed * 2654435761u + 77; o.startMinutes = std::min(470.0f, from.Minutes() + 15);
+    Init(o);
+    Player p = old;   // (everything comes with you: the money, the tab, the meter, the kidneys, the log, the wares)
+    p.id = 0; p.st = State::Active; p.ending = E_NONE; p.wokeAt.clear(); p.ferried = false;
+    p.pos = D().bar.spawn; p.vel = {0, 0}; p.yaw = PI * 0.5f;
+    p.talk = Talk{}; p.flirt = Flirt{}; p.game = GameSeat{}; p.fight = Combat{}; p.in = Input{}; p.leavingT = 0; p.leavingWith = -1; p.carrying = p.carriedBy = -1;
+    p.drunk = std::max(0.0f, p.drunk - 15 * D().soberPerMin);   // (fifteen minutes of sea air)
+    p.letIn = false; p.ropeIn = false; p.fatedThief = -1; p.fateMet = false; p.cartelDue = 0;
+    p.fight.hp = 100 * Toughness(p);
+    players[0] = p;
+    for (auto& c : patrons) c.mem.assign(1, Memory{});
+    Note(players[0], 0, std::string("Stepped off the ferry at ") + D().bar.name + " at " + Clock() + ".");
+    Say(players[0].name + (players[0].name == "You" ? " step" : " steps") + " off the ferry.");
+    // a Wrecked or barred arrival meets the Monkey's rope from the street side
+    if (CurBar() == BAR_MONKEY && RopeStops(players[0])) { players[0].pos = {19.5f, -1.6f}; players[0].ropeIn = true; }
+}
+
 // ---------------------------------------------------------------- --night-test's stage 10c checks (the Brass Monkey)
 int NightMonkeyChecks() {
     int fails = 0;
@@ -150,6 +171,22 @@ int NightMonkeyChecks() {
     { Night rn; Opts orr = o; orr.players = 1; rn.Init(orr); Player& a = rn.players[0]; a.pos = DataOf(BAR_MONKEY).bar.golf; a.money = 100;
       a.in.startGame = GK_GOLF; a.in.gameOpp = -1; rn.Step(0.05f);
       check(a.game.kind == GK_GOLF && a.game.golf.holes == 3, "the roof's putting green has three holes"); }
+    // the ferry: on the hour, 10, and the night carries on at the other bar with your tab and your meter
+    { Night a; Opts oa; oa.seed = 13; oa.events = false; a.Init(oa); Player& p = a.players[0];
+      a.t = (21 - 19) * 60 * SECONDS_PER_GAME_MINUTE + 4 * SECONDS_PER_GAME_MINUTE; p.pos = DataOf(BAR_GULL).bar.door; p.pos.y += 1.0f; p.money = 120; p.tab = 22; p.drunk = 50; p.drinks = 3;
+      bool offered = false; for (const auto& op : a.EventOptions(p)) offered |= op.act == 52;
+      check(offered && a.FerryRunning(), "the ferry runs on the hour, from the door");
+      p.in.evAct = 52; a.Step(0.05f);
+      check(p.st == State::Gone && p.ferried && p.money == 110, "10 to the ferryman");
+      Night b; b.FerryFrom(a, 0); Player& q = b.players[0];
+      check(CurBar() == BAR_MONKEY && b.Minutes() >= a.Minutes() + 14.5f && q.st == State::Active && q.tab == 22 && q.drinks == 3 && fabsf(q.drunk - (p.drunk - 15)) < 0.5f, TextFormat("and the night goes on at the Monkey, fifteen minutes on, the tab following (%.0f), the meter a little lower (%.0f)", q.tab, q.drunk));
+      SetBar(BAR_GULL); }
+    // each bartender remembers on their own: a tab left at the Monkey bars you there, not at the Gull
+    { NightProfile pr; pr.owed[BAR_MONKEY] = 40;
+      Night a; Opts oa; oa.seed = 9; oa.events = false; a.Init(oa); a.ApplyProfile(a.players[0], pr);
+      Night b; Opts ob = oa; ob.bar = BAR_MONKEY; b.Init(ob); b.ApplyProfile(b.players[0], pr);
+      check(!a.players[0].barred && b.players[0].barred && b.players[0].pos.y < 0, "Celeste remembers a tab the Gull never heard of: barred at the Monkey's rope, welcome at the Gull");
+      NightProfile s; check(ParseProfileSummary(ProfileSummary(pr), s) && s.owed[BAR_MONKEY] == 40 && s.owed[BAR_GULL] == 0, "both bartenders' memories travel in the summary"); }
     SetBar(BAR_GULL);
     return fails;
 }

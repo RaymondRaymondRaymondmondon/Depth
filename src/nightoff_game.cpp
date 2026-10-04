@@ -883,6 +883,11 @@ void SceneNightOff(Game& g) {
         NightAudioFrame(n, dt);
         return;
     }
+    if (!S.shot && !S.net && Me().ferried && Me().st == no::State::Gone) {   // (solo: the ferry carries the night across the harbour to the other bar)
+        no::Night old = S.N; S.N.FerryFrom(old, 0); S.N.ApplyBarMemory(S.N.players[0], S.prof);
+        gAM = AudioMemo{}; nog::Reset(); S.walkPh.clear(); S.menu = false; S.wares = false;
+        S.camYaw = PI * 0.5f; S.camAt = {Me().pos.x, 1.55f, Me().pos.y};
+    }
     if (NW().over) { if (!S.shot && !S.profSaved) { S.remembered = NW().ProfileAfter(Me(), S.prof); no::SaveNightProfile(S.prof, "nightoff_profile.txt"); S.profSaved = true; } if (!S.shot) NightAudioFrame(NW(), dt); DrawMorning(g); return; }
     Gather(dt);
     if (!S.shot) {   // (solo: the bots of an empty seat, none; the night steps here)

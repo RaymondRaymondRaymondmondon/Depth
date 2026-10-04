@@ -144,7 +144,7 @@ struct Player {
     int cartelDue = 0; bool watchingSafe = false;
     int cheatsCaught = 0, cheatsDone = 0; int bsSel = 0;   // (the card room)
     // the cartel's wares: which you've had, each one's effect and its catch afterwards (s), the Cocktail's roll, and its odder results
-    std::string toast; float toastT = 0, steadyT = 0; bool letIn = false, ropeIn = false, juniperTold = false;   // (the Monkey's rope: bribed in; came from the street)   // (a private line for this player: why the cartel wouldn't sell, and so on)
+    std::string toast; float toastT = 0, steadyT = 0; bool letIn = false, ropeIn = false, juniperTold = false, ferried = false;   // (the Monkey's rope: bribed in; came from the street)   // (a private line for this player: why the cartel wouldn't sell, and so on)
     uint16_t wares = 0; float wareT[W_COUNT] = {}, wareAfterT[W_COUNT] = {}; int cocktail = 0; float skipT = 0, sirenT = 0, bumpT = 0, barkeepT = 0; bool sureHome = false; uint32_t hallucSeed = 0;
     float priceMul = 1; float owedAtDoor = 0; bool blackEye = false; int kidneysAtStart = 2; int emote = 0; float emoteT = 0;   // (the profile's carry-overs; an emote)
     // the bot's mind (an AI seat, a dropped player, --night-sim): a style, a goal, a path, a pause
@@ -186,7 +186,7 @@ const char* WagerName(int w);
 struct NightProfile {
     std::string name; int nights = 0, best = 0, total = 0; std::vector<std::string> headlines;
     int kidneysLost = 0, kidneysWon = 0, kidneyNights = 0;      // kidneyNights: 2 lost tonight (one night down a kidney), 1: the note comes tomorrow
-    int tabsPaid = 0; float owed = 0; bool shotWindow = false; // the bartender's memory: paid, unpaid, his window
+    int tabsPaid[BAR_COUNT] = {}; float owed[BAR_COUNT] = {}; bool shotWindow[BAR_COUNT] = {};   // each bartender's memory (the Gull's, Celeste's): paid, unpaid, the window
     bool blackEye = false; float hangover = 0; float debt = 0;  // tomorrow's face, head and creditors
     std::vector<std::pair<std::string, int>> feuds, friends;   // regulars (and nights left: three)
 };
@@ -225,6 +225,8 @@ struct Night {
     void StepMonkey(float dt);
     void LibraryRule(Who att);
     void QuinceTells(Player& p, Patron& c);
+    bool FerryRunning() const;                        // the ferry leaves on the hour (the first ten minutes of each)
+    void FerryFrom(const Night& from, int player);    // a solo night carried across the harbour: this night at the other bar, 15 minutes on, with you in it
     bool WaresHere(const Player& p) const;            // a cartel man within reach selling
     std::string BuyWare(Player& p, int w, int slipTo = -1);   // "" if sold; otherwise why not
     void DoseWare(Player& p, int w);
@@ -298,6 +300,7 @@ struct Night {
     void SettleSideBets(int playerId, bool won);
     // the profile (nightoff_profile.cpp)
     void ApplyProfile(Player& p, const NightProfile& pr);
+    void ApplyBarMemory(Player& p, const NightProfile& pr);   // (part of ApplyProfile; again on stepping off the ferry)
     std::vector<std::string> ProfileAfter(const Player& p, NightProfile& pr) const;   // tonight into the profile; the morning's "remembered" lines
     int NearGame(const Player& p, int* machine = nullptr) const;   // the game station within reach (GK_*), or -1
     std::vector<int> Challengers(const Player& p, int kind) const; // patrons who'd play you: the named ones first

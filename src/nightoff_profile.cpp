@@ -19,7 +19,7 @@ NightProfile LoadNightProfile(const std::string& path) {
         if (k == "name") { std::getline(s, pr.name); if (!pr.name.empty() && pr.name[0] == ' ') pr.name.erase(0, 1); }
         else if (k == "nights") s >> pr.nights; else if (k == "best") s >> pr.best; else if (k == "total") s >> pr.total;
         else if (k == "kidneys") s >> pr.kidneysLost >> pr.kidneysWon >> pr.kidneyNights;
-        else if (k == "bar") { int w = 0; s >> pr.tabsPaid >> pr.owed >> w; pr.shotWindow = w != 0; }
+        else if (k == "bar" || k == "bar1") { int b = k == "bar1" ? 1 : 0, w = 0; s >> pr.tabsPaid[b] >> pr.owed[b] >> w; pr.shotWindow[b] = w != 0; }
         else if (k == "carry") { int e = 0; s >> e >> pr.hangover >> pr.debt; pr.blackEye = e != 0; }
         else if (k == "headline") { std::string h; std::getline(s, h); if (!h.empty() && h[0] == ' ') h.erase(0, 1); pr.headlines.push_back(h); }
         else if (k == "feud" || k == "friend") { int n = 0; s >> n; std::string who; std::getline(s, who); if (!who.empty() && who[0] == ' ') who.erase(0, 1); (k == "feud" ? pr.feuds : pr.friends).push_back({who, n}); }
@@ -30,7 +30,7 @@ void SaveNightProfile(const NightProfile& pr, const std::string& path) {
     std::ofstream f(path);
     f << "name " << pr.name << "\nnights " << pr.nights << "\nbest " << pr.best << "\ntotal " << pr.total << "\n";
     f << "kidneys " << pr.kidneysLost << " " << pr.kidneysWon << " " << pr.kidneyNights << "\n";
-    f << "bar " << pr.tabsPaid << " " << pr.owed << " " << (pr.shotWindow ? 1 : 0) << "\n";
+    for (int b = 0; b < BAR_COUNT; b++) f << (b ? "bar1 " : "bar ") << pr.tabsPaid[b] << " " << pr.owed[b] << " " << (pr.shotWindow[b] ? 1 : 0) << "\n";
     f << "carry " << (pr.blackEye ? 1 : 0) << " " << pr.hangover << " " << pr.debt << "\n";
     for (const auto& h : pr.headlines) f << "headline " << h << "\n";
     for (const auto& x : pr.feuds) f << "feud " << x.second << " " << x.first << "\n";
@@ -39,34 +39,44 @@ void SaveNightProfile(const NightProfile& pr, const std::string& path) {
 // a compact one-line form for the host (what the night needs, nothing else)
 std::string ProfileSummary(const NightProfile& pr) {
     std::ostringstream s;
-    s << pr.nights << "|" << pr.kidneyNights << "|" << pr.tabsPaid << "|" << pr.owed << "|" << (pr.shotWindow ? 1 : 0) << "|" << (pr.blackEye ? 1 : 0) << "|" << pr.hangover << "|" << pr.debt << "|";
+    s << pr.nights << "|" << pr.kidneyNights << "|" << pr.tabsPaid[0] << "|" << pr.owed[0] << "|" << (pr.shotWindow[0] ? 1 : 0) << "|" << (pr.blackEye ? 1 : 0) << "|" << pr.hangover << "|" << pr.debt << "|";
     for (const auto& x : pr.feuds) s << x.first << ";"; s << "|";
     for (const auto& x : pr.friends) s << x.first << ";";
+    s << "|" << pr.tabsPaid[1] << "|" << pr.owed[1] << "|" << (pr.shotWindow[1] ? 1 : 0);   // (Celeste's memory)
     return s.str();
 }
 bool ParseProfileSummary(const std::string& str, NightProfile& pr) {
     std::vector<std::string> f; std::string cur; for (char c : str) { if (c == '|') { f.push_back(cur); cur.clear(); } else cur += c; } f.push_back(cur);
     if (f.size() < 10) return false;
     try {
-        pr.nights = std::stoi(f[0]); pr.kidneyNights = std::stoi(f[1]); pr.tabsPaid = std::stoi(f[2]); pr.owed = std::stof(f[3]); pr.shotWindow = f[4] == "1"; pr.blackEye = f[5] == "1"; pr.hangover = std::stof(f[6]); pr.debt = std::stof(f[7]);
+        pr.nights = std::stoi(f[0]); pr.kidneyNights = std::stoi(f[1]); pr.tabsPaid[0] = std::stoi(f[2]); pr.owed[0] = std::stof(f[3]); pr.shotWindow[0] = f[4] == "1"; pr.blackEye = f[5] == "1"; pr.hangover = std::stof(f[6]); pr.debt = std::stof(f[7]);
+        if (f.size() >= 13) { pr.tabsPaid[1] = std::stoi(f[10]); pr.owed[1] = std::stof(f[11]); pr.shotWindow[1] = f[12] == "1"; }
     } catch (...) { return false; }
     auto names = [](const std::string& s, std::vector<std::pair<std::string, int>>& out) { out.clear(); std::string c; for (char ch : s) { if (ch == ';') { if (!c.empty()) out.push_back({c, 3}); c.clear(); } else c += ch; } };
     names(f[8], pr.feuds); names(f[9], pr.friends);
-    pr.owed = std::clamp(pr.owed, 0.0f, 5000.0f); pr.debt = std::clamp(pr.debt, 0.0f, 5000.0f); pr.hangover = std::clamp(pr.hangover, 0.0f, 0.5f);
+    for (float& o : pr.owed) o = std::clamp(o, 0.0f, 5000.0f); pr.debt = std::clamp(pr.debt, 0.0f, 5000.0f); pr.hangover = std::clamp(pr.hangover, 0.0f, 0.5f);
     return true;
 }
 
 // ---------------------------------------------------------------- tonight, from the profile
+// this bar's bartender's memory of you (the Gull's, or Celeste's): the unpaid tab at the door, the window, the regular's price
+void Night::ApplyBarMemory(Player& p, const NightProfile& pr) {
+    const int b = CurBar();
+    p.priceMul = 1; p.owedAtDoor = 0;
+    // the bartender's memory: a cold eye for an unpaid tab (pay double at the door, or you're barred) and for his window; a warm one for a regular who pays
+    if (pr.owed[b] > 0) { p.owedAtDoor = pr.owed[b] * 2; p.barred = true; Say(TextFormat("The bouncer, to %s: \"You owe the Gull %.0f. Double, or you drink water.\"", p.name.c_str(), pr.owed[b])); }
+    if (b == BAR_MONKEY && p.barred) { p.pos = {19.5f, -1.6f}; p.ropeIn = true; Say("Horace steps in front of " + p.name + " at the velvet rope."); }   // (the Monkey: barred means the street)
+    if (pr.shotWindow[b]) { p.priceMul = 1.2f; Say("The bartender looks at " + p.name + ", then at his window. Prices are up for you tonight."); }
+    else if (pr.tabsPaid[b] >= 3) { p.priceMul = 0.9f; Say("The bartender nods at " + p.name + ". \"The usual.\" (A regular's price.)"); }
+}
 void Night::ApplyProfile(Player& p, const NightProfile& pr) {
+    const int b = CurBar();   // (this bar's bartender remembers; the other's memory waits for you there)
     // the kidney: one night down a kidney; the night after, it's back (the Uber note)
     if (pr.kidneyNights >= 2) { p.kidneys = 1; Note(p, 0, "You're a kidney short tonight. Every drink counts double."); }
     p.kidneysAtStart = p.kidneys;
     if (pr.blackEye) { p.blackEye = true; Note(p, 0, "A black eye from last night."); }
     if (pr.hangover > 0) { p.charBuff = -pr.hangover; p.charBuffT = 60 * SECONDS_PER_GAME_MINUTE; Note(p, 0, "Last night's hangover: charisma down for the first hour."); }
-    // the bartender's memory: a cold eye for an unpaid tab (pay double at the door, or you're barred) and for his window; a warm one for a regular who pays
-    if (pr.owed > 0) { p.owedAtDoor = pr.owed * 2; p.barred = true; Say(TextFormat("The bouncer, to %s: \"You owe the Gull %.0f. Double, or you drink water.\"", p.name.c_str(), pr.owed)); }
-    if (pr.shotWindow) { p.priceMul = 1.2f; Say("The bartender looks at " + p.name + ", then at his window. Prices are up for you tonight."); }
-    else if (pr.tabsPaid >= 3) { p.priceMul = 0.9f; Say("The bartender nods at " + p.name + ". \"The usual.\" (A regular's price.)"); }
+    ApplyBarMemory(p, pr);
     // the regulars remember (three nights)
     for (auto& c : patrons) {
         for (const auto& x : pr.feuds) if (c.name == x.first) c.mood = std::min(c.mood, 30.0f);   // (cold tonight; tonight's own insults decide whether it carries on)
@@ -77,6 +87,7 @@ void Night::ApplyProfile(Player& p, const NightProfile& pr) {
 }
 // ---------------------------------------------------------------- tomorrow, from tonight
 std::vector<std::string> Night::ProfileAfter(const Player& p, NightProfile& pr) const {
+    const int b = CurBar();
     std::vector<std::string> L;
     int score = Score(p);
     pr.nights++; pr.total += score; pr.best = std::max(pr.best, score);
@@ -88,12 +99,12 @@ std::vector<std::string> Night::ProfileAfter(const Player& p, NightProfile& pr) 
     else if (p.kidneys > p.kidneysAtStart) { pr.kidneysWon++; pr.kidneyNights = 0; L.push_back("Won a kidney back. The note can stay in its envelope."); }
     // the bartender's memory
     if (p.owedAtDoor > 0 && p.barred) { L.push_back("You never paid the bouncer. The Gull remembers."); }
-    else if (p.owedAtDoor <= 0 && pr.owed > 0) pr.owed = 0;
-    if (p.tab > 0) { pr.owed += p.tab; L.push_back(TextFormat("The bartender will remember the %.0f you didn't pay.", p.tab)); }
-    else if (p.drinks > 0) { pr.tabsPaid++; if (pr.tabsPaid == 3) L.push_back("Three tabs paid: the bartender knows your usual now."); }
+    else if (p.owedAtDoor <= 0 && pr.owed[b] > 0) pr.owed[b] = 0;
+    if (p.tab > 0) { pr.owed[b] += p.tab; L.push_back(TextFormat("The bartender will remember the %.0f you didn't pay.", p.tab)); }
+    else if (p.drinks > 0) { pr.tabsPaid[b]++; if (pr.tabsPaid[b] == 3) L.push_back("Three tabs paid: the bartender knows your usual now."); }
     bool window = false; for (const auto& m : p.log) window |= m.text.find("window") != std::string::npos && (m.text.find("Broke") != std::string::npos || m.text.find("shotgun") != std::string::npos);
     for (const auto& m : p.log) window |= m.text.find("Fired the bartender's shotgun") != std::string::npos;
-    if (window) { pr.shotWindow = true; L.push_back("The bartender will remember his window."); }
+    if (window) { pr.shotWindow[b] = true; L.push_back("The bartender will remember his window."); }
     // tomorrow's face and head
     pr.blackEye = p.fight.knockouts > 0 || p.ending == E_KNOCKED_OUT;
     if (pr.blackEye) L.push_back("A black eye for tomorrow night.");
@@ -129,12 +140,12 @@ int NightProfileChecks() {
         for (auto& c : n.patrons) if (c.name == "Boxer Mags") c.mem[0].fights = 1;
         n.Leave(p, E_CLOSING, ""); n.over = true;
         auto lines = n.ProfileAfter(p, pr);
-        check(pr.kidneyNights == 2 && pr.owed > 0 && pr.blackEye && pr.hangover > 0 && !pr.feuds.empty(), TextFormat("night one remembered: %d lines (a kidney, a tab of %.0f, a black eye, a hangover, a feud)", (int)lines.size(), pr.owed));
+        check(pr.kidneyNights == 2 && pr.owed[0] > 0 && pr.blackEye && pr.hangover > 0 && !pr.feuds.empty(), TextFormat("night one remembered: %d lines (a kidney, a tab of %.0f, a black eye, a hangover, a feud)", (int)lines.size(), pr.owed[0]));
     }
     // the file round-trips
     { std::string path = "nightoff_profile_test.txt"; SaveNightProfile(pr, path); NightProfile q = LoadNightProfile(path); std::remove(path.c_str());
-      check(q.kidneyNights == pr.kidneyNights && q.owed == pr.owed && q.blackEye == pr.blackEye && q.feuds.size() == pr.feuds.size() && q.nights == 1, "the profile file round-trips");
-      NightProfile s; check(ParseProfileSummary(ProfileSummary(pr), s) && s.owed == pr.owed && s.kidneyNights == 2 && s.feuds.size() == pr.feuds.size(), "and so does the summary a guest sends"); }
+      check(q.kidneyNights == pr.kidneyNights && q.owed[0] == pr.owed[0] && q.blackEye == pr.blackEye && q.feuds.size() == pr.feuds.size() && q.nights == 1, "the profile file round-trips");
+      NightProfile s; check(ParseProfileSummary(ProfileSummary(pr), s) && s.owed[0] == pr.owed[0] && s.kidneyNights == 2 && s.feuds.size() == pr.feuds.size(), "and so does the summary a guest sends"); }
     // night two: a kidney short, barred till you pay double, Boxer Mags remembers; pay at the door
     {
         Night n; Opts o; o.seed = 2; o.events = false; n.Init(o); Player& p = n.players[0]; p.money = 200; n.ApplyProfile(p, pr);
@@ -147,7 +158,7 @@ int NightProfileChecks() {
         check(offered && !p.barred && p.owedAtDoor == 0, TextFormat("paying double at the door lifts the bar (%.0f left)", p.money));
         p.roundT = n.t; p.drinks = 2; p.tab = 0; n.Leave(p, E_WALKED, ""); n.over = true;
         auto lines = n.ProfileAfter(p, pr);
-        check(pr.kidneyNights == 1 && pr.owed == 0 && pr.feuds.empty(), "a round clears the feud; the tab's square");
+        check(pr.kidneyNights == 1 && pr.owed[0] == 0 && pr.feuds.empty(), "a round clears the feud; the tab's square");
     }
     // night three: the kidney's back
     {
