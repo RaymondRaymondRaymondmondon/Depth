@@ -36,6 +36,7 @@ static Data Load() {
     const Json& s = b["spots"];
     B.bartender = V2(s["bartender"]); B.serve = V2(s["serve"]); B.hatch = V2(s["kitchen_hatch"]); B.door = V2(s["front_door"]); B.spawn = V2(s["spawn"]);
     B.dartboard = V2(s["dartboard"]); B.fortune = V2(s["fortune"]); B.mirror = V2(s["mirror"]); B.jukebox = V2(s["jukebox"]);
+    B.scratch = s["scratch"].a.size() == 2 ? V2(s["scratch"]) : Vector2{0.5f, 11.8f}; B.golf = s["golf"].a.size() == 2 ? V2(s["golf"]) : Vector2{12, 38};
     for (const Json& n : b["nav"]["nodes"].a) B.nav.push_back(V2(n));
     B.navLinks.assign(B.nav.size(), {});
     for (const Json& l : b["nav"]["links"].a) { int a = l[0].I(-1), c = l[1].I(-1); if (a >= 0 && c >= 0 && a < (int)B.nav.size() && c < (int)B.nav.size()) { B.navLinks[a].push_back(c); B.navLinks[c].push_back(a); } }
@@ -273,6 +274,9 @@ void Night::StepPlayer(Player& p, float dt) {
         if (Vector2Distance(c.pos, p.pos) > 3.5f || c.gone || !c.inside) EndTalk(p);
         else if (p.talk.over && (p.talk.overT -= dt) <= 0) EndTalk(p);
     }
+    // the bar games
+    if (in.startGame >= 0) { std::string why; if (!StartGame(p, in.startGame, in.gameMachine, in.gameOpp, in.gameStake, &why) && !why.empty() && p.id == 0) Say(why); in.startGame = -1; }
+    if (in.gameAct) { GameAction(p); in.gameAct = 0; }
     // the menu and the door
     if (in.order >= 0) { std::string why; if (!Order(p, in.order, &why) && !why.empty() && p.id == 0) Say(why); in.order = -1; }
     if (in.leave && NearDoor(p)) Leave(p, E_WALKED, "");
@@ -289,6 +293,7 @@ void Night::Step(float dt) {
     if (Hour() >= 25) bar.mood = std::max(0.0f, bar.mood - dt * 0.02f);
     StepPatrons(dt);
     for (auto& p : players) StepPlayer(p, dt);
+    StepGames(dt);
     // 3 a.m., or every night over
     bool anyone = false; for (const auto& p : players) anyone |= p.st != State::Gone && p.st != State::PassedOut;
     if (Minutes() >= NIGHT_MINUTES) { for (auto& p : players) if (p.st != State::Gone && p.st != State::PassedOut) Leave(p, E_CLOSING, "on the pavement outside the Gull at 3 a.m., swept out with the glass"); anyone = false; }
@@ -320,6 +325,7 @@ std::string Night::MorningLine(const Player& p) const {
 }
 
 // ---------------------------------------------------------------- the check (stage 1's gate: walk in, drink, stumble, pass out)
+int NightGamesChecks();
 int RunNightTest() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
@@ -404,6 +410,8 @@ int RunNightTest() {
             check(subs > 60 && subs < 140, TextFormat("wrecked, the wrong words come out about half the time (%d of 200)", subs));
         }
     }
+    // ---- stage 3: the bar games in the night
+    fails += NightGamesChecks();
     printf(fails ? "A Night Off: %d check(s) FAILED\n" : "A Night Off: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

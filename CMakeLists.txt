@@ -43,6 +43,9 @@ src/flight_long.cpp
     src/mouthful_skins.cpp
     src/nightoff.cpp
     src/nightoff_patrons.cpp
+    src/nightoff_games.cpp
+    src/nightoff_tables.cpp
+    src/nightoff_gamesui.cpp
     src/nightoff_game.cpp
     src/data.cpp
     src/ui.cpp

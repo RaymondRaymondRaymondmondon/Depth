@@ -132,7 +132,7 @@ void Night::StepPatrons(float dt) {
         if (h >= 22 && h < 25) c.mood = std::min(100.0f, c.mood + dt * 0.03f);
         if (h >= 25) c.mood = std::max(0.0f, c.mood - dt * 0.03f);
         // leaving at their hour (unless talking to someone)
-        if (!c.leaving && h >= c.leaveH && c.talkingTo < 0) {
+        if (!c.leaving && h >= c.leaveH && c.talkingTo < 0 && c.playing < 0) {
             c.leaving = true;
             if (c.seat >= 0) { int key = SeatKey(c.seatKind, c.seat); if (key >= 0 && key < (int)seatTaken.size()) seatTaken[key] = -1; c.seat = -1; }
             c.sitting = false; c.seatKind = "leave"; c.goal = d.bar.nav[0]; c.path = NavPath(c.pos, c.goal);

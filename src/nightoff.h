@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include "nightoff_games.h"
 
 namespace no {
 
@@ -34,7 +35,7 @@ struct BarData {
     const std::vector<Vector2>* Seats(const std::string& kind) const;
     std::vector<Room> rooms; std::vector<Wall> walls; std::vector<Box> boxes;
     std::vector<Vector2> stools; std::vector<Vector3> lamps;
-    Vector2 bartender{}, serve{}, hatch{}, door{}, spawn{}, dartboard{}, fortune{}, mirror{}, jukebox{};
+    Vector2 bartender{}, serve{}, hatch{}, door{}, spawn{}, dartboard{}, fortune{}, mirror{}, jukebox{}, scratch{}, golf{};
 };
 // the patrons (doc pp. 8-13): types, traits, the regulars, the generator's parts; the dialogue (p. 26)
 enum PatronType { T_TALKER, T_FLIRT, T_BROODER, T_HUSTLER, T_REGULAR, T_GAMBLER, T_SAILOR, T_ODDBALL, T_STAFF, T_COUNT };
@@ -78,6 +79,10 @@ struct Input {
     int talkTo = -1;                                  // start a conversation with a patron
     int say = -1;                                     // a conversation's option: 0 ask, 1 agree, 2 joke, 3 challenge, 4 listen, 5 buy them a drink, 6 walk away
     bool leave = false;                               // confirm walking home
+    // the bar games (nightoff_games.cpp): start one at a station, then act in it
+    int startGame = -1, gameMachine = 0, gameOpp = -1, gameStake = 0;   // GK_*; the table or machine; a patron id (-1 alone, -2 the bartender); the stake
+    int gameAct = 0;                                  // 1 throw / shoot / pull / reveal / read, 2 place the cue ball, 3 leave, 4 again, 5 buy another
+    Vector2 gameAim{}; float gamePower = 0, gameEnglish = 0;   // darts: where it landed (mm); pool: the cue ball (m) or the shot's angle in .x; golf: angle in .x
 };
 struct Talk {                                         // the conversation mini-game (doc p. 10, p. 40)
     int patron = -1; int exchanges = 0, wins = 0, losses = 0, target = 4;
@@ -94,7 +99,7 @@ struct Player {
     bool hiccup = false;
     float swayPh = 0, stumbleT = 0, stumbleDir = 0, vomitT = 0, lurch = 0;   // the drunk walk: a curve, stumbles, a lurch
     int drinks = 0; float peakDrunk = 0, spent = 0;
-    Talk talk; std::vector<std::string> items, known;   // items given; secrets learned (patron names whose secret you know)
+    Talk talk; GameSeat game; std::vector<std::string> items, known;   // items given; secrets learned (patron names whose secret you know)
     Input in;
     std::vector<Moment> log;
 };
@@ -111,7 +116,7 @@ struct Patron {
     bool inside = false, gone = false, leaving = false;
     Vector2 pos{}, vel{}; float yaw = 0, walkPh = 0;
     std::vector<int> path; Vector2 goal{}; std::string seatKind; int seat = -1; float nextGoalT = 0; bool sitting = false;
-    float drunk = 0, drinkT = 0; int talkingTo = -1;
+    float drunk = 0, drinkT = 0; int talkingTo = -1, playing = -1;   // playing: a game with that player
     Look look; std::vector<Memory> mem;               // a memory per player
     bool Has(int trait) const { return trait >= 0 && ((traits >> trait) & 1); }
 };
@@ -163,6 +168,15 @@ struct Night {
     void EndTalk(Player& p);
     float Difficulty(const Patron& c, int option) const;
     float Noise() const;                              // 0..1 the room's noise
+    // the bar games (nightoff_games.cpp)
+    bool bartenderDarts = false;                      // (he plays one game a night)
+    int NearGame(const Player& p, int* machine = nullptr) const;   // the game station within reach (GK_*), or -1
+    std::vector<int> Challengers(const Player& p, int kind) const; // patrons who'd play you: the named ones first
+    bool StartGame(Player& p, int kind, int machine, int opponent, int stake, std::string* why = nullptr);
+    void GameAction(Player& p);                       // applies p.in.gameAct
+    void StepGames(float dt);
+    void EndGame(Player& p);
+    Vector2 GameSpot(int kind, int machine) const;    // where the opponent stands
     std::string Headline() const;
     std::string MorningLine(const Player& p) const;
 };

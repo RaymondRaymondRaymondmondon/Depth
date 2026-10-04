@@ -4,6 +4,7 @@
 // bartender and his menu, and the morning-after screen. The rules are nightoff.cpp (headless).
 #include "game.h"
 #include "nightoff.h"
+#include "nightoff_gamesui.h"
 #include "figure3d.h"
 #include "redtide_render.h"
 #include "input.h"
@@ -258,9 +259,9 @@ void Gather(float dt) {
     no::Input& in = p.in;
     in.moveX = in.moveZ = 0; in.run = false;
     if (IsKeyPressed(KEY_H)) S.help = !S.help;
-    bool canMove = p.st == no::State::Active && !S.menu && !S.shot && p.talk.patron < 0;
+    bool canMove = p.st == no::State::Active && !S.menu && !S.shot && p.talk.patron < 0 && !nog::Blocking(p);
     if (p.talk.patron >= 0 && IsKeyPressed(KEY_ESCAPE)) in.say = 6;
-    Vector2 md = MouseLook(!S.shot && !S.menu && !S.N.over && p.talk.patron < 0);
+    Vector2 md = MouseLook(!S.shot && !S.menu && !S.N.over && p.talk.patron < 0 && !nog::Blocking(p));
     S.camYaw += md.x * 0.0025f; S.camPitch = std::clamp(S.camPitch - md.y * 0.002f, -0.9f, 0.35f);
     float wheel = GetMouseWheelMove(); S.camDist = std::clamp(S.camDist - wheel * 0.4f, 1.6f, 6.0f);
     if (canMove) {
@@ -271,10 +272,12 @@ void Gather(float dt) {
         in.moveX = w.x; in.moveZ = w.y; in.run = IsKeyDown(KEY_LEFT_SHIFT);
     }
     // E: the menu at the bar or the hatch; walk home at the door
-    if (IsKeyPressed(KEY_E) && p.st == no::State::Active) {
+    if (IsKeyPressed(KEY_E) && p.st == no::State::Active && !nog::Blocking(p)) {
+        int mach = 0, gk = S.N.NearGame(p, &mach);
         if (S.menu) S.menu = false;
         else if (S.N.NearServe(p) || S.N.NearHatch(p)) S.menu = true;
         else if (S.N.NearDoor(p)) in.leave = true;
+        else if (gk >= 0 && p.talk.patron < 0) { if (gk <= no::GK_GOLF) nog::OpenMenu(gk, mach); else { in.startGame = gk; in.gameMachine = mach; in.gameOpp = -1; in.gameStake = 0; } }
         else if (p.talk.patron < 0) { int near = S.N.NearestPatron(p, 1.8f); if (near >= 0) in.talkTo = near; }
     }
     if (S.menu && (IsKeyPressed(KEY_ESCAPE) || !(S.N.NearServe(p) || S.N.NearHatch(p)))) S.menu = false;
@@ -345,10 +348,10 @@ void DrawHud() {
         }
     }
     // the prompts
-    if (p.st == no::State::Active && !S.menu && p.talk.patron < 0) {
-        int near = n.NearestPatron(p, 1.8f);
+    if (p.st == no::State::Active && !S.menu && p.talk.patron < 0 && !nog::Blocking(p)) {
+        int near = n.NearestPatron(p, 1.8f), gk = n.NearGame(p);
         std::string talkTo = near >= 0 ? "E: talk to " + n.patrons[near].name : "";
-        const char* prompt = n.NearServe(p) ? "E: order at the bar" : n.NearHatch(p) ? "E: order food" : n.NearDoor(p) ? "E: walk home (ends your night)" : near >= 0 ? talkTo.c_str() : nullptr;
+        const char* prompt = n.NearServe(p) ? "E: order at the bar" : n.NearHatch(p) ? "E: order food" : n.NearDoor(p) ? "E: walk home (ends your night)" : gk >= 0 ? nog::Prompt(n, p, gk) : near >= 0 ? talkTo.c_str() : nullptr;
         if (prompt) DrawTextCenteredBold(prompt, SCREEN_W / 2.0f, SCREEN_H - 90, 18, brass);
     }
     if (p.st == no::State::Vomiting) DrawTextCenteredBold("...", SCREEN_W / 2.0f, SCREEN_H / 2.0f + 40, 30, Color{180, 220, 120, 255});
@@ -379,9 +382,11 @@ void DrawHud() {
     if (S.help) {
         Rectangle r{18, 44, 330, 108};
         DrawRectangleRounded(r, 0.06f, 6, Fade(Color{20, 12, 8, 255}, 0.7f));
-        const char* L[] = {"WASD: walk (Shift: hurry)   Mouse: look", "E: order at the bar or the hatch; at the door, go home", "Every drink: charisma down, toughness up", "H: hide this"};
+        const char* L[] = {"WASD: walk (Shift: hurry)   Mouse: look", "E: the bar, the hatch, a game, a patron; the door: home", "Every drink: charisma down, toughness up", "H: hide this"};
         for (int i = 0; i < 4; i++) Txt(L[i], r.x + 12, r.y + 10 + i * 23, 14, i < 2 ? ink : dim);
     }
+    // the bar games: the opponent-and-stake menu, or the game being played
+    nog::Frame(n, p, S.shot ? 1 / 60.0f : GetFrameTime());
 }
 void DrawMorning(Game& g) {
     no::Night& n = S.N;
@@ -409,7 +414,7 @@ void StartNightOff(Game& g, int crew) {
     no::Opts o; o.players = 1; o.seed = (uint32_t)GetRandomValue(1, 1 << 30);
     S.N.Init(o);
     S.N.players[0].crew = std::clamp(crew, 0, 5);
-    S.me = 0; S.active = true; S.shot = false; S.menu = false; S.help = true; S.t = 0; S.walkPh.clear();
+    S.me = 0; S.active = true; S.shot = false; S.menu = false; S.help = true; S.t = 0; S.walkPh.clear(); nog::Reset();
     S.camYaw = PI * 0.5f; S.camPitch = -0.28f; S.camDist = 3.2f; S.camAt = {Me().pos.x, 1.55f, Me().pos.y};
     g.scene = Scene::NightOff;
 }
@@ -425,6 +430,7 @@ void SceneNightOff(Game& g) {
     DrawHud();
 }
 void NightOffMenuTick(float) {}
+bool NightOffOwnsEsc() { if (!S.active || S.N.over) return false; const no::Player& p = Me(); return S.menu || p.talk.patron >= 0 || nog::Blocking(p); }
 // --shots: 0 walking in at 7, 1 at the bar ordering (the menu), 2 hammered at midnight in the games room, 3 the snug,
 // 4 passed out on the floor, 5 the morning paper
 void DebugNightOffShot(Game& g, int which) {
@@ -442,6 +448,26 @@ void DebugNightOffShot(Game& g, int which) {
         at(18, 5.5f, PI * 0.5f, PI * 0.42f, 25); S.camPitch = -0.22f;
         if (which == 7) { int who = -1; for (const auto& c : n.patrons) if (c.inside && !c.gone && c.name == "Old Marlow") who = c.id; if (who < 0) for (const auto& c : n.patrons) if (c.inside && !c.gone && c.type == no::T_TALKER) who = c.id;
             if (who >= 0) { no::Patron& c = n.patrons[who]; p.pos = Vector2Add(c.pos, {cosf(c.yaw) * 1.1f, sinf(c.yaw) * 1.1f}); S.camYaw = atan2f(c.pos.y - p.pos.y, c.pos.x - p.pos.x) - 0.3f; S.camAt = {p.pos.x, 1.55f, p.pos.y}; n.StartTalk(p, who); n.TalkChoose(p, 0); } }
+    }
+    if (which >= 8 && which <= 14) {   // the bar games: 8 darts, 9 pool, 10 golf (the windmill), 11 slots, 12 a scratch-off, 13 the fortune teller, 14 the darts menu
+        for (int i = 0; i < (int)(3 * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f); i++) n.Step(0.1f);
+        static const int KIND[7] = {no::GK_DARTS, no::GK_POOL, no::GK_GOLF, no::GK_SLOTS, no::GK_SCRATCH, no::GK_FORTUNE, no::GK_DARTS};
+        static const Vector2 AT[7] = {{2.6f, 7.5f}, {3.3f, 5.0f}, {12, 38}, {1.5f, 13.5f}, {0.6f, 11.8f}, {36.6f, 5.8f}, {2.6f, 7.5f}};
+        int kind = KIND[which - 8]; at(AT[which - 8].x, AT[which - 8].y, PI, PI, which == 10 ? 30 : 12);
+        if (which == 14) nog::OpenMenu(kind, 0);
+        else {
+            int mach = 0; n.NearGame(p, &mach);
+            auto ch = n.Challengers(p, kind); int opp = (kind <= no::GK_GOLF && !ch.empty()) ? ch[0] : -1;
+            n.StartGame(p, kind, mach, opp, opp >= 0 ? 20 : 0);
+            no::GameSeat& gs = p.game; no::GRng r; r.s = 4242;
+            if (kind == no::GK_DARTS) { for (int k = 0; k < 5; k++) { Vector2 a = gs.darts.turn == 0 ? gs.darts.BotAim() : gs.darts.BotAim(); gs.darts.Throw({a.x + r.N() * 24, a.y + r.N() * 24}); } gs.botT = 0; }
+            if (kind == no::GK_POOL) { for (int k = 0; k < 3; k++) { if (gs.pool.ballInHand) { gs.pool.t.b[0].p = no::pool::BotPlace(gs.pool, r); gs.pool.ballInHand = false; } gs.pool.Play(no::pool::BotShot(gs.pool, 1, r)); } gs.pool.turn = 0; gs.pool.ballInHand = false; gs.replayT = 0; gs.botT = 0; }
+            if (kind == no::GK_GOLF) { for (int k = 0; k < 6 && gs.golf.hole < 1; k++) { float a, pw; no::golf::BotShot(gs.golf, 1, r, a, pw); gs.golf.Shoot(a, pw); } gs.golf.turn = 0; gs.replayT = 0; gs.botT = 0; gs.golf.sim.t = 0.4f; }
+            if (kind == no::GK_SLOTS) { p.in.gameAct = 1; n.GameAction(p); p.in.gameAct = 0; gs.spinT = 0; }
+            if (kind == no::GK_SCRATCH) { p.in.gameAct = 5; n.GameAction(p); p.in.gameAct = 0; nog::DebugPrepare(kind); }
+            if (kind == no::GK_FORTUNE) { p.in.gameAct = 1; n.GameAction(p); p.in.gameAct = 0; nog::DebugPrepare(kind); }
+            gs.captionT = 0;
+        }
     }
     if (which == 5) { p.drinks = 7; p.peakDrunk = 88; n.Leave(p, no::E_PASSED_OUT, ""); n.over = true; }
     for (int i = 0; i < 30; i++) StepCamera(1 / 60.0f);

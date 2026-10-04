@@ -25,7 +25,31 @@ Build order is the doc's p. 29 (nine stages).
 - Checks: `--night-test` (the dead-night crowd, sitting, the talk flow, drunk substitutions), `--patron-check`.
   Shots `night_crowd`, `night_talk`.
 
+## Stage 3: the bar games (done)
+- `nightoff_games.h/.cpp` (headless rules, physics and bots), `nightoff_tables.cpp` (the games in the night: stations,
+  challengers, `StartGame`, `GameAction` from Input, the opponents' turns, settling up), `nightoff_gamesui.cpp` (the
+  screens), data `nightoff_games.json` (the meter's aim curve, opponents with skills and tells, stakes, the machines'
+  weights, scratch-off odds, the 22-card tarot).
+- Darts: 501 straight out (Around the Clock in the rules too); a reticle that drifts with the meter, released on a timing
+  bar; Red Haddock hustles, Captain Vane plays for 100, the bartender plays one game a night for your tab.
+- Pool: 8-ball on real 2D physics (cushions, pockets, English as follow/draw); a wobbling cue line, a power bar, an
+  English dial, ball in hand; past 60 the cue sometimes misses the ball. Sly Pennick hustles (and loses the first game
+  on purpose, then offers double or nothing); Bosun Grieve is easy.
+- Mini golf: nine holes in the yard (the windmill, a dogleg, the drain, the sleeping dog, the loop, the bank, the
+  gauntlet, the fish tank); a swaying line and a power bar; closes at 2 a.m. Finnegan hustles. The bot finds its way
+  round walls with a distance field per hole.
+- Slots: three machines, two rigged (84% and 76%) and one honest (115%: the fortune teller will tell you which);
+  three kidneys pays 1,000 and a kidney; a wrecked player pulls until broke.
+- Scratch-offs from the dispenser or Pip's coat (luckier; one in fifty is a map to the safe), scratched with the
+  cursor, messier when drunk.
+- The fortune teller: three cards, every reading true tonight (a kidney thief in the room by name, a thief due through
+  the door, the hustler who'll lose once on purpose, who leaves when, the honest wheel, last call, the rich patron).
+- `depth.exe --game-check <darts|pool|golf|slots|all> [games]`: a bot against each hustler at 0, 40 and 80 drunk.
+  Last run: darts 58/39/6, pool 51/41/4, golf 56/36/9 (targets 55/35/10); slots 84/115/76%.
+- `--night-test` plays each game through Input in a live night. Shots `night_game_*`.
+- Not yet: cheating and side bets (stage 8), rain on holes 4 and 7 (events, stage 7), superstitious patrons acting on
+  their readings.
+
 ## Next
-3. Games: darts, pool, then golf, slots, scratch-offs, the fortune teller.
 4. Fights and weapons, mess and damage.  5. Flirting and the morning after.  6. Multiplayer (six), modes.
 7. Events, the rest of the regulars.  8. Poker and bullshit, cheating, side bets.  9. Sound, profile, internet play.

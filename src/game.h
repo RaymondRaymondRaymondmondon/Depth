@@ -883,6 +883,7 @@ void StartNightOff(Game& g, int crew = 0);
 void LeaveNightOff(Game& g);
 void NightOffMenuTick(float dt);
 void DebugNightOffShot(Game& g, int which);
+bool NightOffOwnsEsc();        // a conversation, a game or the menu at the bar takes Esc before the game menu does
 void SceneMouthful(Game& g);  // Mouthful, arcade game 8: eat and grow on the reef shelf (mouthful_game.cpp)
 void StartMouthful(Game& g, int bots = 11, float minutes = 15, int botLevel = 0);   // solo: you and up to 11 bots (botLevel 0 a mix of Minnow/Hunter/Shark)
 void LeaveMouthful(Game& g);

@@ -25,6 +25,7 @@
 #include "mouthful.h"
 #include "mouthful_net.h"
 #include "nightoff.h"
+#include "nightoff_games.h"
 #include "flight_costumes.h"
 #include "study.h"
 #include "course.h"
@@ -232,6 +233,10 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"night_hammered", [](Game& g) { DebugNightOffShot(g, 2); }}, {"night_snug", [](Game& g) { DebugNightOffShot(g, 3); }},
         {"night_passedout", [](Game& g) { DebugNightOffShot(g, 4); }}, {"night_morning", [](Game& g) { DebugNightOffShot(g, 5); }},
         {"night_crowd", [](Game& g) { DebugNightOffShot(g, 6); }}, {"night_talk", [](Game& g) { DebugNightOffShot(g, 7); }},
+        {"night_game_darts", [](Game& g) { DebugNightOffShot(g, 8); }}, {"night_game_pool", [](Game& g) { DebugNightOffShot(g, 9); }},
+        {"night_game_golf", [](Game& g) { DebugNightOffShot(g, 10); }}, {"night_game_slots", [](Game& g) { DebugNightOffShot(g, 11); }},
+        {"night_game_scratch", [](Game& g) { DebugNightOffShot(g, 12); }}, {"night_game_fortune", [](Game& g) { DebugNightOffShot(g, 13); }},
+        {"night_game_menu", [](Game& g) { DebugNightOffShot(g, 14); }},
         {"mouthful_wardrobe", [](Game& g) { DebugMouthfulWardrobe(); g.scene = Scene::Arcade; DebugArcadeReel(206); }},
         {"arcade_mouthful", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(6); }},
         {"flight_dawn", [](Game& g) { DebugFlightShot(g, 0); }},
@@ -804,6 +809,7 @@ int main(int argc, char** argv) {
     // A Night Off (arcade game 6)
     if (argc >= 2 && strcmp(argv[1], "--night-test") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunNightTest(); }
     if (argc >= 2 && strcmp(argv[1], "--patron-check") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunPatronCheck(); }
+    if (argc >= 2 && strcmp(argv[1], "--game-check") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunGameCheck(argc >= 3 ? argv[2] : "all", argc >= 4 ? atoi(argv[3]) : 200); }
     if (argc >= 2 && strcmp(argv[1], "--mouthful-round") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulRound(argc > 2 ? atoi(argv[2]) : 11, argc > 3 ? (float)atof(argv[3]) : 15.0f, argc > 4 ? (uint32_t)atoi(argv[4]) : 1u, argc > 5 ? atoi(argv[5]) : 1, argc > 6 ? atoi(argv[6]) : 0); }
     if (argc >= 5 && strcmp(argv[1], "--mouthful-duel") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulDuel(argv[2], argv[3], (float)atof(argv[4]), argc > 5 ? atoi(argv[5]) : 40); }
     if (argc >= 2 && strcmp(argv[1], "--flight-society-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSocietyTest(); }
@@ -1004,7 +1010,7 @@ int main(int argc, char** argv) {
         while (!WindowShouldClose() && !GameMenuWantsQuit()) {
             if (IsKeyPressed(KEY_F11)) { ToggleBorderlessWindowed(); GameSettings().fullscreen = !GameSettings().fullscreen; SaveSettings(); } // F11: fill the screen (the frame is letterboxed to fit)
             // the game menu (Esc): the game is paused while it is open (the Periscope's dossier keeps Esc for closing itself)
-            if (!GameMenuActive() && ActPressed(A_MENU) && !(g.scene == Scene::Periscope && g.dossier >= 0)) GameMenuOpen();
+            if (!GameMenuActive() && ActPressed(A_MENU) && !(g.scene == Scene::Periscope && g.dossier >= 0) && !(g.scene == Scene::NightOff && NightOffOwnsEsc())) GameMenuOpen();
             if (GameMenuActive()) {
                 BeginFrame();
                 GameMenuFrame(g);

@@ -1,0 +1,63 @@
+{
+  "_source": "A Night Off design doc pp. 17-18 (Bar games: where, players, how it plays, what drink does, stakes and stories) and p. 30 (--game-check: a bot against each hustler at 0, 40 and 80 drunk; targets sober 55%, drunk 35%, wrecked 10%). Skills multiply the thrower's error: lower is better; a sober player is 1.0. The aim curve is the meter's effect on everyone's error (Merry is steadier: the courage bonus).",
+  "aim_curve": [[0, 1.0], [19, 1.0], [20, 0.9], [39, 0.92], [40, 1.3], [60, 1.9], [80, 2.7], [100, 3.6]],
+  "darts": {
+    "where": "the games room's dartboard",
+    "sigma_mm": 26,
+    "stakes": [5, 10, 20, 50],
+    "story_180": "threw a 180",
+    "opponents": [
+      {"name": "Red Haddock", "skill": 1.08, "hustler": true, "tell": "Throws left-handed when nervous: watch his hands before the big dart"},
+      {"name": "Captain Vane", "skill": 1.2, "stake": 100, "tell": "Shouts before he throws; a bad loser"},
+      {"name": "the bartender", "skill": 0.62, "once": true, "tell": "Plays one game a night, for your tab"}
+    ]
+  },
+  "pool": {
+    "where": "the games room's two tables",
+    "sigma_rad": 0.012,
+    "power_noise": 0.07,
+    "stakes": [10, 25, 50, 100],
+    "miss_from": 60,
+    "opponents": [
+      {"name": "Sly Pennick", "skill": 1.05, "hustler": true, "sandbag": true, "tell": "Scratches his ear before a bluff; misses the first game on purpose"},
+      {"name": "Bosun Grieve", "skill": 1.9, "teaches": true, "tell": "Teaches pool for a pint; talks you through the shot"}
+    ]
+  },
+  "golf": {
+    "where": "the yard, nine holes (closes at 2 a.m.)",
+    "sigma_rad": 0.035,
+    "power_noise": 0.08,
+    "stakes": [2, 5, 10],
+    "closes": 26.0,
+    "opponents": [
+      {"name": "Finnegan", "skill": 1.12, "hustler": true, "tell": "Whistles before he nudges his ball"},
+      {"name": "The Twins", "skill": 1.6, "tell": "Argue over every putt"}
+    ]
+  },
+  "slots": {
+    "where": "the games room, three machines",
+    "cost": 2,
+    "symbols": ["fish", "anchor", "gull", "kidney", "boot", "bottle"],
+    "pays": {"kidney_pair": 50, "triple": 200, "kidney_line": 1000},
+    "_weights": "per reel, in symbol order; machine 2 is the honest one (the bartender knows which)",
+    "machines": [
+      {"weights": [17, 12, 10, 3, 30, 28]},
+      {"weights": [20, 12, 10, 3, 28, 27]},
+      {"weights": [16, 12, 10, 3, 31, 28]}
+    ],
+    "honest": 1
+  },
+  "scratch": {
+    "cost": 5,
+    "prizes": [0, 10, 50, 500],
+    "dispenser": [0, 0.15, 0.02, 0.001],
+    "pip": [0, 0.2, 0.04, 0.003],
+    "pip_map": 0.02,
+    "symbols": ["shell", "pearl", "anchor", "crown"]
+  },
+  "fortune": {
+    "cost": 10,
+    "_deck": "Depth's tarot: 22 cards (doc p. 18 names the Diver, the Helm, the Kraken, the Drowned and the Lantern)",
+    "deck": ["The Diver", "The Helm", "The Kraken", "The Drowned", "The Lantern", "The Anchor", "The Gull", "The Pearl", "The Tide", "The Wreck", "The Siren", "The Bell", "The Net", "The Lighthouse", "The Whale", "The Storm", "The Bottle", "The Knot", "The Compass", "The Eel", "The Harbour", "The Deep"]
+  }
+}
