@@ -213,6 +213,33 @@ Build order is the doc's p. 29 (nine stages).
   kidney short on night two, and has it back (the Uber note) on night three; both profiles count three nights. Passes.
 - Shots `night_emote`, `night_morning_kidney` (now with the remembered lines). Shots never read the real profile.
 
+## Stage 10: the doc's second half (pp. 30-42)
+- **10a, the cartel's wares** (`nightoff_wares.cpp`, `data/nightoff/nightoff_wares.json`): eight doses from the quiet
+  man's men while the cartel is in (and in the Monkey's cellar after 11): Sea Salt, Lamp Oil, Barnacle, Kelp Smoke,
+  Angler's Light, Deep Pressure, the Siren, the Cocktail (six outcomes: the best night of your life, flight, bartender
+  for ten minutes, the goat, the morning with or without a kidney). One of each a night, none above 80 drunk, searched
+  and fined during an inspection, and the Siren or the Cocktail can be slipped into a friend's drink. Effects go through
+  `WareCharisma`/`WareToughness`/`PlayerAim`; Angler's Light shows people who aren't there (`HallucAt`). The ledger
+  panel opens from F1 (act 60); buys are acts 61-68, slips 71-78. Shots `night_wares`, `night_angler`.
+- **10b, the fortune deck** (doc p. 42): the doc's 22 cards; a reading is who you'll meet, what you'll do, how it ends,
+  built from the night's real schedule (events to come, the thief in, the safe, a hustler, the lock-in, the cartel);
+  a second reading is a lie; the Stitch and the Bathtub together send the named thief to make you an offer
+  (`StepFate`). Each card has an inked emblem (`TarotIcon`); Angler's Light makes them change as you look.
+- **10c, the Brass Monkey** (doc pp. 30-34): the data is per bar (`SetBar`, `DataOf`, `Opts::bar`;
+  `nightoff_bar_monkey.json` on the Gull's footprint with its own rooms, palette and furniture,
+  `nightoff_patrons_monkey.json` with 14 regulars and Celeste's five cocktails, prices x1.5). Five travellers are at one
+  bar a night (`TravellerHere`; `gTravelRolls` is off for the earlier stages' checks). House rules in
+  `nightoff_monkey.cpp`: Horace's rope (Wrecked or barred stays on the street; act 51, a bribe of 30), the library (a
+  punch there is an instant bar), Celeste forgives nothing (mood capped 10 over its low), the croupier (cheating x0.55,
+  his bow tie), Sergeant Mallory (a fight near him calls the inspection), Dr. Quince (a drink buys the thief's name),
+  Juniper Vale (the police are crossing), Madame Ostrova's seance at midnight (the marlin gives a true reading in the
+  library), the cartel in the cellar after 11, golf on the roof (three holes), Monkey wording for the headlines and the
+  bartender's lines. Both bartenders remember you separately in the profile (`owed[2]`, `tabsPaid[2]`,
+  `shotWindow[2]`). The ferry (act 52) runs on the hour for 10; the tab follows you; solo nights cross to the other bar
+  (`FerryFrom`), online it ends your night. The lobby (and solo) picks the bar. Shots `night_monkey_*`.
+  `--patron-check` covers both bars; `DEPTH_BAR=1 depth.exe --night-sim ...` plays bot nights at the Monkey.
+- Simpler than the doc: the billiards room plays eight-ball on both tables (no snooker or carom rules yet); the Monkey
+  has darts and scratch-offs like the Gull; the high-stakes table is the card room's ordinary one.
+
 ## Next
-10. The doc's remaining content (pp. 30-42): the Brass Monkey, seasonal nights, the cartel's wares, skins and the
-    spin, the fortune deck.
+10d. Seasonal nights. 10e. Skins and the token spin. Then Scuffle.
