@@ -1131,7 +1131,7 @@ int RunFlightLongTest() {
         check(nearZ >= 0 && farZ >= 0 && w->RegrowMul(nearZ) < 1 && w->RegrowMul(farZ) > 1, TextFormat("summer thins the grounds near the shores (x%.1f) and fattens the blue (x%.1f)", w->RegrowMul(nearZ), w->RegrowMul(farZ)));
         w->time = 14.5f * World::DAY; float autumnWind = w->SeasonNow().windK; w->time = 1.5f * World::DAY; float springWind = w->SeasonNow().windK;
         w->time = 20.5f * World::DAY;
-        check(autumnWind > 1.4f && springWind < 0.8f && w->SeasonNow().stamina > 1.2f && w->SeasonNow().fishDepth >= 1, "spring's wind is light and autumn's a gale; winter costs breath and sends the fish deep");
+        check(autumnWind > 1.4f && springWind < 0.8f && w->SeasonNow().stamina > 1.2f && w->SeasonNow().fishDepth > 0, "spring's wind is light and autumn's a gale; winter costs breath and sends the fish deep");
     }
     {   // the events, each once on its day
         auto w = make(4, 7);

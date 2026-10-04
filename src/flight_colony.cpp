@@ -720,7 +720,7 @@ void World::StepBird(Bird& b, float dt) {
     const Economy& E = Econ();
     // hunger: a day to empty (chicks twice as fast); chicks and mates eat what's laid in the nest
     if (b.stage != BStage::Egg) {
-        b.hunger -= dt / DAY * (b.stage == BStage::Chick ? E.chickDrain : 1.0f) * (FervourBand() >= 4 ? 1.2f : 1.0f) * ((b.rare & RARE_GIANT) ? GiantHunger() : 1.0f) * (StormNow() || EventNow(EV_LONG_NIGHT) ? 0.5f : 1.0f);   // (a Giant eats for three; huddled out of a storm or asleep through the Long Night, half)   // (a colony at Zeal eats 20% more)
+        b.hunger -= dt / DAY * (b.stage == BStage::Chick ? E.chickDrain : 1.0f) * (FervourBand() >= 4 ? 1.2f : 1.0f) * ((b.rare & RARE_GIANT) ? GiantHunger() : 1.0f) * (EventNow(EV_LONG_NIGHT) ? 0.25f : StormNow() ? 0.5f : 1.0f);   // (a Giant eats for three; huddled out of a storm, half; asleep through the Long Night, a quarter)   // (a colony at Zeal eats 20% more)
         if ((b.stage == BStage::Chick || b.stage == BStage::Mate) && b.nest >= 0 && b.hunger < 0.85f) {
             Nest& n = col.nests[b.nest];
             float cap = b.stage == BStage::Chick ? E.feedChick : E.feedAdult;

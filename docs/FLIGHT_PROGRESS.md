@@ -797,3 +797,13 @@ The long-match page (Tab, page 4) now has sub-pages: The year, Powers (the neutr
 - Speciated colonies aren't saved to the profile.
 - The Great War stays a Council decision.
 - The Reading is skippable.
+
+## Winter famine (2026-10-04)
+- The long match's population crashed every winter (173 to 84, and 155 to 60 at the end). The trace (`DEPTH_LFTRACE=1`)
+  showed catch running under the mouths all match and falling to almost nothing on the Long Night (event 3: a whole
+  day dark between two nights). Changes: winter regrows at 1.0 (was 0.8) and sends the fish 0.5 m deeper (was 1.0);
+  a colony asleep through the Long Night eats a quarter (was half; a storm still half).
+- `--flight-long 48 6 5 1` after: 112 birds after the first winter (was 100), 89 at the end (was 34), a wonder (the
+  Great Rookery, day 46), one colony speciated (the Broadback Alchemist), the Reckoning took 12% (the doc: 10-20%).
+  Starvation is still the main killer (525 in a match): the next lever is the bots' growth (they court on today's
+  catch, not the grounds' yield).

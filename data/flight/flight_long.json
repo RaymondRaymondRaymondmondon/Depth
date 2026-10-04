@@ -17,7 +17,7 @@
      "event": "The Migration", "event_what": "Every wild bird on the map flies through: mates are free for a day, and so is conversion"},
     {"name": "Winter", "first": 18, "last": 24,
      "sea": "Fish go deep (Deep Dive pays); the lagoons freeze on northern maps", "wind": "Cold winds; stamina costs rise", "rewards": "Holding what you have; the deciding war; the score (Winter's holdings count double)",
-     "regrow_near": 0.8, "regrow_far": 0.8, "wind_k": 1.2, "storm_k": 1.0, "stamina": 1.3, "fish_depth": 1.0,
+     "regrow_near": 1.0, "regrow_far": 1.0, "wind_k": 1.2, "storm_k": 1.0, "stamina": 1.3, "fish_depth": 0.5,
      "event": "The Long Night", "event_what": "One game day of darkness: Watchers and Shadow colonies own it"}
   ],
   "_decrees_source": "Doc pp. 36-38: at dawn every game day of a long match the player picks one decree from three offered, drawn from a deck of 24 with no repeats in a match. It lasts the day. Each decree's numbers are its effect and its trade-off; 'tomorrow' numbers apply the day after.",
