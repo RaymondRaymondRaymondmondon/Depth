@@ -790,6 +790,7 @@ int gRoomWant = RR_SALON;
 #include "sound_trawl.inl"
 #include "sound_flight.inl"
 #include "sound_mouthful.inl"
+#include "sound_nightoff.inl"
 float gTestBusOpen = 0;   // --audio-test: open the music and ambience buses with no scene playing
 
 // ---------------------------------------------------------------- registered cues
@@ -997,6 +998,7 @@ void Render(float* out, int frames) {
         TwUpdate(blockT);
         FlUpdate(blockT);
         MfUpdate(blockT);
+        NoUpdate(blockT);
         if (gHub.on) {
             gHub.tickT += blockT;
             while (gHub.tickT >= HubTickDur()) { gHub.tickT -= HubTickDur(); HubTick(); gHub.tick++; }
@@ -1014,6 +1016,7 @@ void Render(float* out, int frames) {
         gFlowF.Set(2, (gUnderwater ? 350 : 600) + 500 * gFlowS + 150 * sinf(gClock * 0.7f), 1.2f);
         gSlideF.Set(1, 900, 0.7f); gSlideF2.Set(0, 3500, 0.7f);
         float uwCut = gUnderwater ? 2600.0f : 18000.0f;
+        if (gNo.s > 0.01f && gNo.want.drunk > 40) uwCut = std::min(uwCut, 18000.0f * powf(0.1f, std::clamp((gNo.want.drunk - 40) / 60, 0.0f, 1.0f)));   // (A Night Off: drink muffles the room; the jukebox stays clear)
         gUwL.Set(0, uwCut, 0.707f); gUwR.Set(0, uwCut, 0.707f);
         for (auto& v : gV) {
             if (!v.on || v.delay > 0) continue;
@@ -1028,7 +1031,7 @@ void Render(float* out, int frames) {
             v.env0 = EnvAt(v, v.t); v.env1 = EnvAt(v, v.t + blockT);
         }
         float voiceDuck = 1 - 0.37f * gVoiceS;   // a voice ducks everything else 4 dB
-        float roomS = std::max({gHub.s, gExp.s, gRt.s, gTw.s, gFl.s, gMf.s, gTestBusOpen});  // aboard, on an expedition, in the arcade games: the generated rooms
+        float roomS = std::max({gHub.s, gExp.s, gRt.s, gTw.s, gFl.s, gMf.s, gNo.s, gTestBusOpen});  // aboard, on an expedition, in the arcade games: the generated rooms
         float musicLevel = std::max(gScene, roomS) * (1 - 0.29f * gDuck); // combat impacts duck the music 3 dB
         float busG[5] = {gVol.sfx * voiceDuck, gVol.music * musicLevel * voiceDuck, gVol.ambience * std::max(gScene, roomS) * voiceDuck, gVol.sfx, gVol.sfx};
         for (int i = 0; i < n; i++) {
@@ -1091,6 +1094,7 @@ void Render(float* out, int frames) {
             if (gTw.s > 0.002f) { float e = TwBedSample(gClock + i * dtS, base + i) * gVol.ambience * gTw.s * voiceDuck; mL += e; mR += e * 0.92f; send += e * 0.3f; }
             if (gFl.s > 0.002f) { float e = FlBedSample(gClock + i * dtS, base + i) * gVol.ambience * gFl.s * voiceDuck; mL += e * 0.94f; mR += e; send += e * 0.3f; }
             if (gMf.s > 0.002f) { float e = MfBedSample(gClock + i * dtS, base + i) * gVol.ambience * gMf.s * voiceDuck; mL += e; mR += e * 0.95f; send += e * 0.35f; }
+            if (gNo.s > 0.002f) { float e = NoBedSample(gClock + i * dtS, base + i) * gVol.ambience * voiceDuck; mL += e; mR += e * 0.96f; send += e * 0.3f; }
             if (gExp.s > 0.002f) { float e = ExpBedSample(gClock + i * dtS, base + i) * gVol.ambience * gExp.s * voiceDuck; mL += e; mR += e * 0.92f; send += e * 0.3f; }
             // the music (heard through the deck from the Study)
             mL += gDeckL.Run(musL); mR += gDeckR.Run(musR);
@@ -1159,6 +1163,9 @@ void TrawlCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCue
 void AudioFlight(const FlAudio& a) { gFl.want = a; }
 void AudioMouthful(const MfAudio& a) { gMf.want = a; if (a.on) gRoomWant = a.band >= 3 ? RR_OPENSEA : RR_OPENSEA; }
 void MouthfulCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) MfCueImpl(kind, vol, pan, pitch); }
+void AudioNightOff(const NoAudio& a) { gNo.want = a; if (a.on) gRoomWant = RR_SALON; }
+void NightOffCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) NoCueImpl(kind, vol, pan, pitch); }
+void NightOffVoice(float pitch, float rhythm, int syllables, float vol, float pan, bool laugh) { if (gReady && !gCueSuppressed) NoVoiceImpl(pitch, rhythm, syllables, vol, pan, laugh); }
 void FlightCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) FlCueImpl(kind, vol * (1 - 0.6f * gFl.uwS), pan, pitch); }
 void FlightSong(uint32_t seed, float pitch, float vol, float pan) { if (gReady && !gCueSuppressed) FlSongImpl(seed, pitch, vol, pan); }
 float AudioBeat() { return gBeat; }
@@ -1521,6 +1528,38 @@ bool AudioSelfTest(const char* wavPath) {
         for (int k = 0; k < MFC_COUNT; k++) { float pk = solo([&] { MfCueImpl(k, 1, 0, 1); }); if (pk < 0.01f || pk > 0.97f) { printf("  mouthful effect %d is %s (peak %.3f)\n", k, pk < 0.01f ? "silent" : "clipping", pk); mute++; } }
         gTestBusOpen = 0;
         printf("mouthful: 8 states, %d effects: %d silent or clipping\n", (int)MFC_COUNT, mute);
+        if (mute) ok = false;
+    }
+    // A Night Off: early and quiet, the peak, a fight, rain, the sad song at 2 a.m. wrecked, the wake, the morning
+    {
+        auto noPass = [&](NoAudio st, const char* label, float secs) {
+            for (auto& v : gV) v.on = false;
+            gNo = NoState{}; gNo.want = st; gNo.s = 1; gNoBedsReady = false; gRoomWant = RR_SALON;
+            int N = (int)(SR * secs);
+            std::vector<float> b(N * 2);
+            for (int at = 0; at < N; at += BLOCK) Render(&b[at * 2], std::min(BLOCK, N - at));
+            double sum = 0; float pk = 0; int bad = 0; for (float x : b) { if (!std::isfinite(x)) bad++; else { sum += x * x; pk = std::max(pk, fabsf(x)); } }
+            float db = 20 * log10f(std::max(1e-6f, sqrtf((float)(sum / b.size()))));
+            bool pass = !bad && db > -52.0f && pk < 0.97f;
+            printf("night off %-10s rms %5.1f dB  peak %.2f%s\n", label, db, pk, pass ? "" : "  FAIL");
+            if (!pass) ok = false;
+            if (wavPath) all.insert(all.end(), b.begin(), b.end());
+        };
+        NoAudio st;
+        st = NoAudio{}; st.on = true; st.crowd = 6; st.hour = 19.5f; st.song = 0; noPass(st, "early", 8);
+        st = NoAudio{}; st.on = true; st.crowd = 40; st.hour = 23; st.song = 2; st.drunk = 30; noPass(st, "peak", 8);
+        st = NoAudio{}; st.on = true; st.crowd = 30; st.hour = 22; st.song = 4; st.raining = true; noPass(st, "rain", 8);
+        st = NoAudio{}; st.on = true; st.crowd = 12; st.hour = 26.2f; st.song = 5; st.singAlong = true; st.drunk = 85; noPass(st, "2am", 8);
+        st = NoAudio{}; st.on = true; st.crowd = 20; st.hour = 20; st.song = -1; st.wake = true; noPass(st, "wake", 8);
+        st = NoAudio{}; st.on = true; st.crowd = 25; st.hour = 21; st.song = 1; noPass(st, "waltz", 6);
+        st = NoAudio{}; st.on = true; st.crowd = 25; st.hour = 21; st.song = 3; noPass(st, "torch", 6);
+        st = NoAudio{}; st.on = true; st.over = 1; noPass(st, "morning", 6);
+        gNo = NoState{}; gNoBeds.clear(); gNoBedsReady = false; gTestBusOpen = 1;
+        int mute = 0;
+        for (int k = 0; k < NOC_COUNT; k++) { float pk = solo([&] { NoCueImpl(k, 1, 0, 1); }); if (pk < 0.01f || pk > 0.97f) { printf("  night off effect %d is %s (peak %.3f)\n", k, pk < 0.01f ? "silent" : "clipping", pk); mute++; } }
+        { float pk = solo([&] { NoVoiceImpl(1, 1, 6, 1, 0, false); }); if (pk < 0.01f || pk > 0.97f) { printf("  night off voice is %s\n", pk < 0.01f ? "silent" : "clipping"); mute++; } }
+        gTestBusOpen = 0;
+        printf("night off: 8 states, %d effects and the voice: %d silent or clipping\n", (int)NOC_COUNT, mute);
         if (mute) ok = false;
     }
     // the salon: the waltz and its bed, mourning, and each station's motif; then every registered cue on its own    gLevel = -1; gSceneTarget = 0; gScene = 0;

@@ -11,6 +11,7 @@
 #include "redtide_render.h"
 #include "input.h"
 #include "sound.h"
+#include <set>
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -602,9 +603,120 @@ void DrawMorning(Game& g) {
     if (Button({SCREEN_W / 2.0f - 120, SCREEN_H - 80.0f, 240, 40}, S.net ? "Back to the lobby" : "Back to the arcade", true, 16)) { LeaveNightOff(g); }
 }
 
+// ---------------------------------------------------------------- the sound (doc pp. 26-28): the state every frame, and what changed as cues
+struct AudioMemo {
+    std::set<long long> pops; std::vector<uint8_t> props; int marks = 0, big = 0, shot = 0, inPocket = 0, drinks = -1, pulls = 0, pokerHand = 0, pokerStreet = -1, bsCall = -2, sayN = 0, golfHole = -1;
+    bool paid = false, reading = false, stumble = false, holed = false; float stepT = 0, millT = 0; std::vector<bool> ev; int st = -1; float myStack = -1;
+};
+AudioMemo gAM;
+void NightAudioFrame(const no::Night& n, float dt) {
+    const no::Player& p = Me();
+    auto rel = [&](Vector2 at, float& pan, float& vol) {   // pan and loudness from where the camera is
+        Vector3 r{-sinf(S.camYaw), 0, cosf(S.camYaw)}; Vector3 d = Vector3Subtract({at.x, 1.5f, at.y}, S.cam.position);
+        float L = Vector3Length(d); pan = L > 0.01f ? std::clamp(Vector3DotProduct(d, r) / L, -1.0f, 1.0f) * 0.8f : 0; vol = 1 / (1 + L / 7);
+    };
+    NoAudio a; a.on = true;
+    for (const auto& c : n.patrons) a.crowd += c.inside && !c.gone;
+    a.hour = n.Hour(); a.drunk = p.drunk; a.raining = n.raining;
+    std::string room = no::RoomAt(p.pos); a.outside = room == "The yard" || room == "the street" || room == "The alley";
+    a.dogInside = n.dog.owner >= 0; a.cartel = n.EventOn("cartel"); a.wake = n.EventOn("wake");
+    // the jukebox: a song a slot of nine game minutes, from the night's seed (so every guest hears the same); the sad one after midnight
+    { int slot = (int)(n.Minutes() / 9); uint32_t h = (uint32_t)slot * 2654435761u ^ n.opts.seed; h ^= h >> 13; h *= 0x5bd1e995u; h ^= h >> 15;
+      if (n.EventOn("band")) a.song = 2; else if (a.wake || n.EventOn("cartel")) a.song = -1; else if (h % 6 == 0) a.song = -1;
+      else if (n.Hour() >= 24 && h % 3 == 0) { a.song = 5; a.singAlong = a.crowd > 4; } else a.song = (int)(h % 5);
+      float pan, vol; rel(no::D().bar.jukebox, pan, vol); a.songPan = pan * 0.6f; a.songNear = std::clamp(0.35f + vol * 1.4f, 0.3f, 1.0f); }
+    a.blackout = p.st == no::State::PassedOut; a.over = n.over ? 1 : 0;
+    AudioNightOff(a);
+    if (n.over) return;
+    float pan = 0, vol = 1;
+    // the fight's words become sounds
+    std::set<long long> seen;
+    for (const auto& pp : n.pops) {
+        long long key = (long long)(pp.pos.x * 10) * 1000003LL + (long long)(pp.pos.z * 10) * 1009LL + (long long)pp.text.size() * 7 + pp.text[0];
+        seen.insert(key);
+        if (gAM.pops.count(key) || pp.t < 1.1f) continue;
+        rel({pp.pos.x, pp.pos.z}, pan, vol);
+        const std::string& w = pp.text;
+        if (w == "CRASH!") NightOffCue(NOC_WINDOW, vol, pan);
+        else if (w == "Smash!") NightOffCue(NOC_SMASH, vol, pan);
+        else if (w == "Crack!") NightOffCue(NOC_CRASH, vol, pan);
+        else if (w == "BLAM!") NightOffCue(NOC_SHOTGUN, 1, pan);
+        else if (w == "*munch*" || w == "GRR!") NightOffCue(NOC_DOG, vol, pan);
+        else if (w == "Whack!" || w == "Thud!" || w == "Pow!" || w == "Oof!" || w == "Bonk!" || w == "WALLOP!" || w == "K.O." || w == "Crack!") { NightOffCue(NOC_PUNCH, vol, pan, w == "WALLOP!" || w == "K.O." ? 0.7f : 1); if (p.drunk >= 80) NightOffCue(NOC_WHISTLE_SLIDE, vol * 0.7f, pan); }
+    }
+    gAM.pops = seen;
+    // breakages
+    if (gAM.props.size() != n.props.size()) gAM.props.assign(n.props.size(), 0);
+    for (size_t i = 0; i < n.props.size(); i++) { uint8_t s = n.props[i].state; if (s == no::PS_BROKEN && gAM.props[i] != no::PS_BROKEN && gAM.props[i] != 0) { rel({n.props[i].pos.x, n.props[i].pos.z}, pan, vol); const std::string& k = n.props[i].kind; NightOffCue(k == "window" ? NOC_WINDOW : (k == "glass" || k == "bottle") ? NOC_SMASH : NOC_CRASH, vol, pan); } gAM.props[i] = s ? s : 9; if (s == 0) gAM.props[i] = 9; }
+    // your night: drinks, steps, stumbles, hiccups
+    if (gAM.drinks >= 0 && p.drinks > gAM.drinks) { NightOffCue(NOC_CLINK, 0.8f, 0.2f); NightOffCue(NOC_GULP, 0.6f, 0); }
+    gAM.drinks = p.drinks;
+    float spd = Vector2Length(p.vel);
+    if (spd > 0.4f && p.st == no::State::Active) { gAM.stepT -= dt; if (gAM.stepT <= 0) { gAM.stepT = 0.42f * 3 / std::max(1.0f, spd); NightOffCue(NOC_STEP, p.drunk > 60 ? 0.5f : 0.3f, 0, p.drunk > 60 ? 0.8f : 1.0f); } }
+    bool stum = p.stumbleT > 0; if (stum && !gAM.stumble) NightOffCue(NOC_STUMBLE, 0.7f, 0); gAM.stumble = stum;
+    if (p.drunk > 45 && p.st == no::State::Active && GetRandomValue(0, 10000) < (int)(dt * 150)) NightOffCue(NOC_HICCUP, 0.5f, 0);
+    if (room == "The toilets" && GetRandomValue(0, 10000) < (int)(dt * 300)) NightOffCue(NOC_TAP, 0.3f, -0.3f);
+    if ((int)p.st != gAM.st && p.st == no::State::Gone) NightOffCue(NOC_DOOR, 0.7f, 0);
+    gAM.st = (int)p.st;
+    // the games
+    const no::GameSeat& g = p.game;
+    if (g.kind == no::GK_DARTS) { int m = (int)g.darts.marks.size(); if (m > gAM.marks || (m == 1 && gAM.marks == 3)) NightOffCue(NOC_DART, 0.8f, -0.2f); gAM.marks = m; int b = g.darts.big[0] + g.darts.big[1]; if (b > gAM.big) NightOffCue(NOC_CHEER, 0.9f, 0); gAM.big = b; } else { gAM.marks = 0; gAM.big = 0; }
+    if (g.kind == no::GK_POOL) {
+        if (g.shotSerial != gAM.shot) { NightOffCue(NOC_POOL_CLICK, 0.9f, 0); gAM.inPocket = 0; }
+        gAM.shot = g.shotSerial;
+        if (g.replayT > 0 && !g.pool.t.frames.empty()) { int f = std::clamp((int)(g.replayLen - g.replayT * 60), 0, (int)g.pool.t.frames.size() - 1); int in = 0; for (const auto& b : g.pool.t.frames[f]) in += b.x < -5; if (in > gAM.inPocket) NightOffCue(NOC_POCKET, 0.8f, 0); gAM.inPocket = in; }
+    }
+    if (g.kind == no::GK_GOLF) {
+        if (g.golf.hole == 1) { gAM.millT -= dt; if (gAM.millT <= 0) { gAM.millT = 1.5f; NightOffCue(NOC_WINDMILL, 0.4f, 0.1f); } }
+        bool holed = g.golf.lastHoled && g.golf.lastHole == 8; if (holed && !gAM.holed && g.replayT <= 0.1f) NightOffCue(NOC_SPLASH, 0.9f, 0); gAM.holed = holed;
+        if (g.shotSerial != gAM.shot) { NightOffCue(NOC_POOL_CLICK, 0.5f, 0, 0.6f); gAM.shot = g.shotSerial; }
+    }
+    if (g.kind == no::GK_SLOTS) { if (g.pulls > gAM.pulls) { NightOffCue(NOC_REELS, 0.8f, 0); if (g.pull.pays >= 200) NightOffCue(NOC_JACKPOT, 0.9f, 0); } gAM.pulls = g.pulls; } else gAM.pulls = 0;
+    if (g.kind == no::GK_SCRATCH || g.kind == no::GK_PIP) { if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && g.haveTicket && !g.paid && GetRandomValue(0, 100) < 20) NightOffCue(NOC_SCRATCH, 0.4f, 0); if (g.paid && !gAM.paid && g.ticket.prize > 0) NightOffCue(NOC_CHEER, 0.5f, 0); gAM.paid = g.paid; }
+    if (g.kind == no::GK_FORTUNE) { if (g.haveReading && !gAM.reading) NightOffCue(NOC_CARD, 0.8f, 0, 1.0f); gAM.reading = g.haveReading; } else gAM.reading = false;
+    if (g.kind == no::GK_POKER) {
+        const no::cards::Poker& P = g.machine == 1 ? n.cartelHand : n.poker;
+        if (P.hand != gAM.pokerHand) NightOffCue(NOC_SHUFFLE, 0.8f, 0);
+        if (P.street != gAM.pokerStreet && P.street >= 1 && P.street <= 3) NightOffCue(NOC_CARD, 0.6f, 0, 0.7f);
+        gAM.pokerHand = P.hand; gAM.pokerStreet = P.street;
+        float st = -1; for (const auto& s : P.seats) if (s.kind == 0 && s.idx == p.id) st = (float)s.stack;
+        if (gAM.myStack >= 0 && st >= 0 && st != gAM.myStack) NightOffCue(NOC_CHIPS, 0.7f, 0);
+        gAM.myStack = st;
+    } else gAM.myStack = -1;
+    if (g.kind == no::GK_BULLSHIT) { if (n.bs.callSeat != gAM.bsCall && n.bs.callSeat >= 0) NightOffCue(NOC_SLAP, 0.9f, 0); gAM.bsCall = n.bs.callSeat; }
+    // the events are heard as they walk in
+    if (gAM.ev.size() != n.events.size()) gAM.ev.assign(n.events.size(), false);
+    for (size_t i = 0; i < n.events.size(); i++) {
+        const auto& e = n.events[i];
+        if (e.started && !gAM.ev[i]) {
+            std::string what = e.people.empty() ? (n.lockIn ? "lock-in" : "goat") : (e.people[0] < (int)n.patrons.size() ? n.patrons[e.people[0]].secret : "");
+            if (what.find("bachelor party") != std::string::npos || what.find("rival") != std::string::npos) NightOffCue(NOC_PARTY_CHEER, 0.8f, -0.4f);
+            else if (what.find("bachelorette") != std::string::npos) NightOffCue(NOC_WHISTLES, 0.8f, -0.4f);
+            else if (what.find("biker") != std::string::npos) NightOffCue(NOC_ENGINES, 0.9f, 0.3f);
+            else if (what.find("police") != std::string::npos) { NightOffCue(NOC_KNOCK, 0.9f, -0.5f); NightOffCue(NOC_POLICE_WHISTLE, 0.7f, -0.5f); }
+            else if (what.find("robbery") != std::string::npos) NightOffCue(NOC_KITCHEN_DOOR, 1, 0.4f);
+            else if (what.find("wake") != std::string::npos) NightOffCue(NOC_ORGAN, 0.8f, 0);
+            else if (what.find("band") != std::string::npos) NightOffCue(NOC_TUNING, 0.8f, 0);
+            else if (what == "lock-in") NightOffCue(NOC_BOLT, 1, -0.5f);
+            else if (what == "goat") NightOffCue(NOC_GOAT, 0.9f, 0);
+        }
+        gAM.ev[i] = e.started;
+    }
+    if (n.goatOn && GetRandomValue(0, 10000) < (int)(dt * 200)) { rel(n.goatPos, pan, vol); NightOffCue(NOC_GOAT, vol, pan); }
+    // the room's talk: a quoted line is spoken (a formant voice; the speaker's name sets the pitch)
+    if ((int)n.say.size() < gAM.sayN) gAM.sayN = 0;
+    for (int i = gAM.sayN; i < (int)n.say.size(); i++) {
+        const std::string& s = n.say[i]; size_t q = s.find('"'); if (q == std::string::npos) continue;
+        uint32_t h = 2166136261u; for (size_t k = 0; k < q; k++) h = (h ^ (uint8_t)s[k]) * 16777619u;
+        NightOffVoice(0.7f + (h % 100) / 80.0f, 0.9f + (h % 7) / 10.0f, 3 + (int)std::min<size_t>(9, (s.size() - q) / 8), 0.6f, ((h >> 8) % 100) / 100.0f - 0.5f, s.find("HA") != std::string::npos);
+    }
+    gAM.sayN = (int)n.say.size();
+}
+
 }  // namespace
 
 void StartNightOff(Game& g, int crew, int mode, int crowd) {
+    gAM = AudioMemo{};
     std::string why;
     if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
     S.net = nullptr; S.live = nullptr; S.N.mirror = false;
@@ -648,7 +760,7 @@ void SceneNightOff(Game& g) {
         no::Night& n = NW();
         if (n.players.empty() || S.me >= (int)n.players.size()) { ClearBackground(Color{20, 14, 10, 255}); DrawTextCenteredBold("Ashore, to the Sodden Gull...", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 24, Color{240, 210, 150, 255}); return; }
         if (!S.helloSent) { Writer o; no::OrderHello(o, S.netName, S.netCrew); N.Act(o); S.helloSent = true; S.camAt = {Me().pos.x, 1.55f, Me().pos.y}; }
-        if (n.over) { DrawMorning(g); return; }
+        if (n.over) { NightAudioFrame(n, dt); DrawMorning(g); return; }
         Gather(dt);
         S.t += dt;
         Render(dt);
@@ -656,9 +768,10 @@ void SceneNightOff(Game& g) {
         // everything we did this frame goes to the host as an Input (the stick, the presses, the clicks in the panels)
         Writer iw; no::WriteInput(Me().in, iw); N.Act(iw);
         Me().in = no::Input{};
+        NightAudioFrame(n, dt);
         return;
     }
-    if (NW().over) { DrawMorning(g); return; }
+    if (NW().over) { if (!S.shot) NightAudioFrame(NW(), dt); DrawMorning(g); return; }
     Gather(dt);
     if (!S.shot) {   // (solo: the bots of an empty seat, none; the night steps here)
         NW().Step(dt);
@@ -666,6 +779,7 @@ void SceneNightOff(Game& g) {
     S.t += dt;
     Render(dt);
     DrawHud();
+    if (!S.shot) NightAudioFrame(NW(), dt);
 }
 void NightOffMenuTick(float dt) {
     // (the game menu is open: a networked night goes on underneath, and our sailor stands still)

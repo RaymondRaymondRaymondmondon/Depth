@@ -177,4 +177,21 @@ struct MfAudio {
 enum MfCue { MFC_SNAP, MFC_CRUNCH, MFC_GULP, MFC_CHOMP, MFC_DASH, MFC_INK, MFC_FRENZY, MFC_CLAW, MFC_SLAM, MFC_INTAKE, MFC_POP,
              MFC_HOOK, MFC_NET, MFC_LEVIATHAN, MFC_FANFARE, MFC_CRASH, MFC_RESPAWN, MFC_FORK, MFC_SWIM, MFC_COUNT };
 void AudioMouthful(const MfAudio& a);
+// ---------------------------------------------------------------- A Night Off (doc pp. 26-28)
+// Set every frame by the Night Off scene (nightoff_game.cpp NightAudioFrame); main.cpp turns it off elsewhere.
+struct NoAudio {
+    bool on = false;
+    int crowd = 0; float hour = 19;  // the murmur follows the crowd and thins after 2 a.m.
+    float drunk = 0;                 // the mix low-passes above 40, rings above 60
+    bool raining = false, outside = false, dogInside = false, cartel = false, wake = false;
+    int song = -1; float songPan = 0, songNear = 1; bool singAlong = false;   // the jukebox (-1: quiet, the ghost piano); the bar singing the sad one
+    bool blackout = false; int over = 0;   // silence, then the morning's birds and the hungover waltz
+};
+enum NoCue { NOC_CLINK, NOC_GULP, NOC_SCRAPE, NOC_TILL, NOC_PEN, NOC_STEP, NOC_HICCUP, NOC_STUMBLE, NOC_GLASS_DROP, NOC_TAP,
+             NOC_DART, NOC_CHEER, NOC_CHALK, NOC_POOL_CLICK, NOC_POCKET, NOC_WINDMILL, NOC_SPLASH, NOC_REELS, NOC_JACKPOT, NOC_SCRATCH, NOC_CARD, NOC_CHIPS, NOC_SHUFFLE, NOC_SLAP,
+             NOC_PUNCH, NOC_WHISTLE_SLIDE, NOC_SMASH, NOC_CUE_CRACK, NOC_CRASH, NOC_WINDOW, NOC_SHOTGUN,
+             NOC_PARTY_CHEER, NOC_WHISTLES, NOC_ENGINES, NOC_KNOCK, NOC_POLICE_WHISTLE, NOC_KITCHEN_DOOR, NOC_BOLT, NOC_ORGAN, NOC_TUNING, NOC_GOAT, NOC_DOG, NOC_DOOR, NOC_BIRDS, NOC_COUNT };
+void AudioNightOff(const NoAudio& a);
+void NightOffCue(int kind, float vol, float pan, float pitch = 1);
+void NightOffVoice(float pitch, float rhythm, int syllables, float vol, float pan, bool laugh);   // a patron's gibberish line (a formant voice)
 void MouthfulCue(int kind, float vol, float pan, float pitch = 1);   // (the Long Flight: a colony's song)   // pitch: the species' voice for calls, a bigger bird lower
