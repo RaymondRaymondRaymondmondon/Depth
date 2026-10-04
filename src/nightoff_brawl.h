@@ -65,6 +65,7 @@ struct Brawl {
     float bill = 0; std::vector<std::string> broke; std::string room; Vector2 at{}; int kos = 0, size = 0;
 };
 struct Pop { Vector3 pos{}; std::string text; float t = 0; Color col{255, 255, 255, 255}; };   // a floating "Whack!" over a hit
-struct Dog { Vector2 pos{}, vel{}; float yaw = 0, walkPh = 0; int owner = -1, fed[6] = {0, 0, 0, 0, 0, 0}; Combat fight; Who biting{}; float biteT = 0; bool sleeping = true; };
+struct Dog { Vector2 pos{}, vel{}; float yaw = 0, walkPh = 0; int owner = -1, fed[6] = {0, 0, 0, 0, 0, 0}; Combat fight; Who biting{}; float biteT = 0; bool sleeping = true;
+    int follow = -1; float followT = 0; std::string name; };   // (doc p. 42: fed once it follows for 5 minutes, twice all night, three times it fights for you; named by its first feeder)
 
 } // namespace no

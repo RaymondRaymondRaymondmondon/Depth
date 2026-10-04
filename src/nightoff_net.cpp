@@ -24,6 +24,7 @@ void WriteInput(const Input& in, Writer& w) {
     I(in.order); I(in.talkTo); I(in.say); I(in.startGame); I(in.gameMachine); I(in.gameOpp); I(in.gameStake); I(in.gameAct);
     w.F32(in.gameAim.x); w.F32(in.gameAim.y); w.F32(in.gamePower); w.F32(in.gameEnglish);
     I(in.attack); I(in.flirtWith); I(in.flirtSay); I(in.offer); I(in.spike); I(in.wager); I(in.evAct); I(in.evArg); I(in.emote);
+    w.Str(in.nameDog.substr(0, 20));
 }
 bool ReadInput(Reader& r, Input& in) {
     in.moveX = r.F32(); in.moveZ = r.F32(); in.faceYaw = r.F32();
@@ -33,7 +34,7 @@ bool ReadInput(Reader& r, Input& in) {
     auto I = [&]() { uint32_t z = r.VarU(); return (int)((z >> 1) ^ (0u - (z & 1))); };
     in.order = I(); in.talkTo = I(); in.say = I(); in.startGame = I(); in.gameMachine = I(); in.gameOpp = I(); in.gameStake = I(); in.gameAct = I();
     in.gameAim.x = r.F32(); in.gameAim.y = r.F32(); in.gamePower = r.F32(); in.gameEnglish = r.F32();
-    in.attack = I(); in.flirtWith = I(); in.flirtSay = I(); in.offer = I(); in.spike = I(); in.wager = I(); in.evAct = I(); in.evArg = I(); in.emote = I();
+    in.attack = I(); in.flirtWith = I(); in.flirtSay = I(); in.offer = I(); in.spike = I(); in.wager = I(); in.evAct = I(); in.evArg = I(); in.emote = I(); in.nameDog = r.Str();
     if (r.bad || !std::isfinite(in.moveX) || !std::isfinite(in.moveZ) || !std::isfinite(in.faceYaw) || !std::isfinite(in.gameAim.x) || !std::isfinite(in.gameAim.y) || !std::isfinite(in.gamePower) || !std::isfinite(in.gameEnglish)) return false;
     in.moveX = std::clamp(in.moveX, -1.0f, 1.0f); in.moveZ = std::clamp(in.moveZ, -1.0f, 1.0f);
     in.gamePower = std::clamp(in.gamePower, 0.0f, 8.0f); in.gameEnglish = std::clamp(in.gameEnglish, -1.0f, 1.0f);
@@ -46,6 +47,7 @@ static void Merge(Input& q, const Input& in) {
     q.moveX = in.moveX; q.moveZ = in.moveZ; q.faceYaw = in.faceYaw; q.run = in.run; q.block = in.block; q.cheat = in.cheat;
     if (in.evAct) { q.evAct = in.evAct; q.evArg = in.evArg; }
     if (in.emote) q.emote = in.emote;
+    if (!in.nameDog.empty()) q.nameDog = in.nameDog;
     q.use |= in.use; q.leave |= in.leave; q.dodge |= in.dodge; q.pickUp |= in.pickUp; q.smash |= in.smash; q.feedDog |= in.feedDog; q.grabGun |= in.grabGun;
     q.askTrouble |= in.askTrouble; q.fortuneYes |= in.fortuneYes; q.buyRound |= in.buyRound; q.carry |= in.carry; q.drawFace |= in.drawFace;
     auto ev = [](int& a, int b, int none) { if (b != none) a = b; };
@@ -179,7 +181,7 @@ template <class A> void Visit(A& a, Night& n, int viewer) {
       a.vec(B.seats, [&](cards::BsSeat& s) { a.i(s.kind); a.i(s.idx); a.s(s.name); a.b(s.liar); a.b(s.honest); a.f(s.drunk); bool mine = s.kind == 0 && s.idx == viewer;
           if (mine) a.vec(s.hand, [&](cards::Card& c) { VisitCard(a, c); }); else { int hn = (int)s.hand.size(); a.i(hn); if constexpr (A::reading) s.hand.assign(std::clamp(hn, 0, 52), cards::Card{}); } }); }
     a.vec(n.sideBets, [&](Night::SideBet& b) { a.i(b.bettor); a.i(b.on); a.i(b.stake); a.b(b.forWin); });
-    { Dog& d = n.dog; P2(a, d.pos); a.f(d.yaw); a.f(d.walkPh); a.i(d.owner); a.b(d.sleeping); for (int& f : d.fed) a.i(f); }
+    { Dog& d = n.dog; P2(a, d.pos); a.f(d.yaw); a.f(d.walkPh); a.i(d.owner); a.b(d.sleeping); for (int& f : d.fed) a.i(f); a.i(d.follow); a.f(d.followT); a.s(d.name); }
     // the morning: the host's headline, stories and scoreboards (a guest draws them as they are)
     if (n.over) {
         if constexpr (!A::reading) if (!n.mirror) {

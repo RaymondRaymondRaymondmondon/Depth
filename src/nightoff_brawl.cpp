@@ -371,7 +371,25 @@ void Night::PlayerFightInput(Player& p, float dt) {
     if (in.feedDog && Vector2Distance(p.pos, dog.pos) < 1.6f && p.money >= 5) {
         p.money -= 5; dog.fed[std::clamp(p.id, 0, 5)]++; dog.sleeping = false;
         AddPop(dog.pos, 0.9f, "*munch*", {240, 220, 160, 255});
-        if (dog.fed[p.id] >= FD().dogFeeds && dog.owner != p.id) { int best = 0; for (int i = 0; i < 6; i++) if (dog.fed[i] > dog.fed[best]) best = i; if (best == p.id) { dog.owner = p.id; Note(p, 5, "Made friends with the alley dog."); Say("The alley dog follows you in, tail going."); } }
+        int fedN = dog.fed[p.id];
+        if (fedN == 1 && dog.owner < 0 && (dog.follow < 0 || dog.followT < 1e8f)) { dog.follow = p.id; dog.followT = 5 * SECONDS_PER_GAME_MINUTE; Say("The alley dog trots after " + p.name + ", for now."); }
+        if (fedN == 2 && dog.owner < 0) { dog.follow = p.id; dog.followT = 1e9f; Say("The alley dog has decided " + p.name + " is its person tonight."); }
+        if (fedN >= FD().dogFeeds && dog.owner != p.id) {
+            int best = 0; for (int i = 0; i < 6; i++) if (dog.fed[i] > dog.fed[best]) best = i;
+            if (best == p.id) {
+                if (dog.owner >= 0 && dog.owner < (int)players.size()) {   // (feeding it more than its owner steals it: a feud)
+                    Player& was = players[dog.owner];
+                    Note(was, 5, p.name + " stole " + (dog.name.empty() ? std::string("the dog") : dog.name) + " with more chips. This means war.");
+                    Note(p, 5, "Stole " + (dog.name.empty() ? std::string("the alley dog") : dog.name) + " from " + was.name + ".");
+                    Flag("dog_stolen", p.name); Say(p.name + " has stolen " + was.name + "'s dog. The room takes sides.");
+                }
+                dog.owner = p.id; dog.follow = p.id; dog.followT = 1e9f; Note(p, 5, "Made friends with the alley dog."); Say("The alley dog follows you in, tail going.");
+            }
+        }
+    }
+    if (!in.nameDog.empty()) {   // (the first feeder names it)
+        if (dog.name.empty() && dog.fed[std::clamp(p.id, 0, 5)] > 0) { std::string nm = in.nameDog.substr(0, 20); dog.name = nm; Note(p, 0, "Named the alley dog " + nm + "."); Say("The alley dog is called " + nm + " now. It seems to agree."); }
+        in.nameDog.clear();
     }
     in.attack = 0; in.pickUp = false; in.smash = false; in.dodge = false; in.feedDog = false;
 }
@@ -500,6 +518,14 @@ void Night::StepBrawls(float dt) {
             Attack(me, mv);
             C.aiT = 0.4f + Rand() * 0.9f + c.drunk / 200;
         }
+    }
+    // a dog fed once or twice follows (five minutes, or all night); fed three times it's yours and fights for you
+    if (dog.owner < 0 && dog.follow >= 0 && dog.follow < (int)players.size() && (dog.followT -= dt) > 0) {
+        Player& o = players[dog.follow];
+        Vector2 goal = Vector2Add(o.pos, {-cosf(o.yaw) * 0.9f, -sinf(o.yaw) * 0.9f});
+        Vector2 to = Vector2Subtract(goal, dog.pos); float L = Vector2Length(to);
+        if (L > 0.4f) { dog.vel = Vector2Lerp(dog.vel, Vector2Scale(to, std::min(4.5f, L * 2) / L), std::min(1.0f, dt * 6)); dog.yaw = atan2f(dog.vel.y, dog.vel.x); } else dog.vel = Vector2Scale(dog.vel, 0.8f);
+        dog.pos = Vector2Add(dog.pos, Vector2Scale(dog.vel, dt)); Collide(dog.pos, 0.2f); dog.walkPh += Vector2Length(dog.vel) * dt * 3;
     }
     // the dog fights for whoever fed it most: bites and holds the nearest of the other side
     if (dog.owner >= 0 && dog.owner < (int)players.size()) {

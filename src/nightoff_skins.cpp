@@ -110,6 +110,16 @@ int NightSkinChecks() {
     { NightProfile s; s.skins = 3; s.skin = 1; s.tokens = 33; s.bestHeadline = "SAILOR WINS"; NightProfile t; check(ParseProfileSummary(ProfileSummary(s), t) && t.skin == 1 && t.bestHeadline == "SAILOR WINS", "the skin goes to the host in the hello");
       std::string path = "nightoff_skins_test.txt"; SaveNightProfile(s, path); NightProfile u = LoadNightProfile(path); std::remove(path.c_str());
       check(u.skins == 3 && u.skin == 1 && u.tokens == 33, "tokens and skins are saved in the profile"); }
+    // the dog (doc p. 42): once it follows for five minutes, twice all night, three times it's yours; named by its first feeder; stolen with more chips, a feud
+    { Night n; Opts o; o.seed = 4; o.events = false; o.players = 2; n.Init(o); Player& a = n.players[0]; Player& b = n.players[1];
+      auto feed = [&](Player& p) { p.pos = Vector2Add(n.dog.pos, {0.6f, 0}); p.money = 100; p.in.feedDog = true; n.Step(0.02f); };
+      feed(a); check(n.dog.follow == 0 && n.dog.followT > 0 && n.dog.followT < 1e8f, "fed once: the dog follows for five minutes");
+      a.in.nameDog = "Biscuit"; n.Step(0.02f); check(n.dog.name == "Biscuit", "and the first to feed it names it");
+      feed(a); check(n.dog.followT > 1e8f, "fed twice: all night");
+      feed(a); check(n.dog.owner == 0, "three times: it's yours");
+      for (int k = 0; k < 4; k++) feed(b);
+      bool feud = false; for (const auto& m : a.log) feud |= m.text.find("stole") != std::string::npos;
+      check(n.dog.owner == 1 && feud, "and a friend who feeds it more steals it: a feud"); }
     return fails;
 }
 

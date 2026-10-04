@@ -46,6 +46,7 @@
     {"when": "season_festival",   "text": "FIREWORKS OVER THE HARBOUR; THE WHOLE DOCK LOOKS UP AT ONCE"},
     {"when": "season_storm",      "text": "STORM LOCKS IN THE HARBOUR; THE MARGUERITE'S STORY TOLD AGAIN BY CANDLELIGHT"},
     {"when": "season_wake",       "text": "THE WHOLE DOCK MOURNS AT THE GULL; EVERY SECRET TOLD, NOT ONE PUNCH THROWN"},
+    {"when": "dog_stolen",        "text": "ALLEY DOG CHANGES HANDS OVER A BAG OF CHIPS; {who} UNREPENTANT"},
     {"when": "goat",         "text": "A GOAT WALKS INTO A BAR AND EATS EVERY SCRATCH-OFF; NOBODY ASKS WHOSE"},
     {"when": "window_body",  "text": "{who} LEAVES THE GULL BY THE WINDOW; THE DOOR WAS RIGHT THERE"},
     {"when": "arrested",     "text": "NAUTILUS CREW HELPS POLICE WITH THEIR ENQUIRIES; POLICE REGRET IT"},

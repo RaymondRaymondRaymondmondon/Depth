@@ -26,6 +26,7 @@ struct NightScene {
     no::NightProfile prof; bool profSaved = false; std::vector<std::string> remembered;   // (the profile: tomorrow's carry-overs)
     bool chatting = false; std::string chatBuf;
     bool wares = false;           // (the quiet man's list is open)
+    bool dogNaming = false; std::string dogBuf;   // (naming the alley dog)
     int me = 0;
     float camYaw = PI * 0.5f, camPitch = -0.28f, camDist = 3.2f;
     Vector3 camAt{};          // the camera's lagging focus
@@ -488,6 +489,14 @@ void Gather(float dt) {
     no::Input& in = p.in;
     in.moveX = in.moveZ = 0; in.run = false; in.faceYaw = S.camYaw; in.cheat = IsKeyDown(KEY_V);
     if (S.chatting) { MouseLook(false); return; }   // (typing a line: the keys are words, not moves)
+    if (S.dogNaming) {   // (typing the dog's name)
+        MouseLook(false); int ch; while ((ch = GetCharPressed()) > 0) if (ch >= 32 && ch < 127 && S.dogBuf.size() < 20) S.dogBuf += (char)ch;
+        if (IsKeyPressed(KEY_BACKSPACE) && !S.dogBuf.empty()) S.dogBuf.pop_back();
+        if (IsKeyPressed(KEY_ENTER)) { if (!S.dogBuf.empty()) in.nameDog = S.dogBuf; S.dogNaming = false; S.dogBuf.clear(); }
+        if (IsKeyPressed(KEY_ESCAPE)) { S.dogNaming = false; S.dogBuf.clear(); }
+        return;
+    }
+    if (IsKeyPressed(KEY_N) && NW().dog.name.empty() && NW().dog.fed[std::clamp(p.id, 0, 5)] > 0 && Vector2Distance(p.pos, NW().dog.pos) < 4) { S.dogNaming = true; S.dogBuf.clear(); while (GetCharPressed() > 0) {} return; }
     if (IsKeyPressed(KEY_H)) S.help = !S.help;
     bool canMove = p.st == no::State::Active && !S.menu && !S.wares && !S.shot && !S.chatting && p.talk.patron < 0 && p.flirt.patron < 0 && p.leavingT <= 0 && !nog::Blocking(p);
     if (p.talk.patron >= 0 && IsKeyPressed(KEY_ESCAPE)) in.say = 6;
@@ -722,6 +731,9 @@ void DrawHud() {
     if (p.st == no::State::Active && !S.menu && p.talk.patron < 0 && !nog::Blocking(p) && p.fight.held < 0) {
         int k = n.NearestProp(p.pos, 1.6f, true);
         if (k >= 0 && n.props[k].weapon >= 0 && n.NearGame(p) < 0 && n.NearestPatron(p, 1.8f) < 0) DrawTextCentered(TextFormat("R: pick up %s", no::FD().weapons[n.props[k].weapon].name.c_str()), SCREEN_W / 2.0f, SCREEN_H - 64, 15, dim);
+        if (S.dogNaming) { DrawRectangle(SCREEN_W / 2 - 200, SCREEN_H - 120, 400, 30, Fade(BLACK, 0.7f)); DrawTextCenteredBold(("Name the dog: " + S.dogBuf + "_").c_str(), SCREEN_W / 2.0f, SCREEN_H - 114.0f, 17, Color{255, 230, 170, 255}); }
+        else if (n.dog.name.empty() && n.dog.fed[std::clamp(p.id, 0, 5)] > 0 && Vector2Distance(p.pos, n.dog.pos) < 4) DrawTextCentered("N: name the dog", SCREEN_W / 2.0f, SCREEN_H - 114.0f, 14, dim);
+        if (!n.dog.name.empty() && Vector2Distance(p.pos, n.dog.pos) < 8) { Vector3 w{n.dog.pos.x, 0.9f, n.dog.pos.y}; Vector3 toC = Vector3Subtract(w, S.cam.position), fw = Vector3Subtract(S.cam.target, S.cam.position); if (Vector3DotProduct(toC, fw) > 0) { Vector2 s = GetWorldToScreen(w, S.cam); DrawTextCenteredBold(n.dog.name.c_str(), s.x, s.y, 13, Color{240, 220, 170, 255}); } }
         if (Vector2Distance(p.pos, n.dog.pos) < 1.6f && n.dog.owner != p.id) DrawTextCenteredBold(TextFormat("E: share your chips with the dog (5)  [%d of %d]", n.dog.fed[std::clamp(p.id, 0, 5)], no::FD().dogFeeds), SCREEN_W / 2.0f, SCREEN_H - 90, 18, brass);
     }
     if (p.fight.held >= 0 && n.props[p.fight.held].kind == "bottle" && p.pos.x > 12 && p.pos.x < 21.5f && p.pos.y > 7.6f && p.pos.y < 9.2f) DrawTextCentered("C: smash it on the bar", SCREEN_W / 2.0f, SCREEN_H - 64, 15, Color{255, 170, 130, 255});
@@ -991,7 +1003,7 @@ void NightOffMenuTick(float dt) {
     if (!S.active || !S.net) return;
     no::Input in; Writer w; no::WriteInput(in, w); S.net->Act(w);
     S.net->Update(GetTime(), dt);
-}bool NightOffOwnsEsc() { if (!S.active || NW().over) return false; const no::Player& p = Me(); return S.menu || p.talk.patron >= 0 || p.flirt.patron >= 0 || nog::Blocking(p); }
+}bool NightOffOwnsEsc() { if (!S.active || NW().over) return false; const no::Player& p = Me(); return S.menu || S.wares || S.dogNaming || S.chatting || p.talk.patron >= 0 || p.flirt.patron >= 0 || nog::Blocking(p); }
 // --shots: 0 walking in at 7, 1 at the bar ordering (the menu), 2 hammered at midnight in the games room, 3 the snug,
 // 4 passed out on the floor, 5 the morning paper
 void DebugNightOffShot(Game& g, int which) {

@@ -116,6 +116,7 @@ struct Input {
     bool buyRound = false, carry = false, drawFace = false; int spike = -1; int wager = -1;
     int evAct = 0, evArg = -1;
     bool cheat = false;
+    std::string nameDog;                              // (the first to feed the alley dog names it)
     int emote = 0;                                    // 1 toast, 2 point, 3 laugh, 4 shrug, 5 fists up, 6 fall over (doc p. 25)                               // held: cheat at whatever you're playing (a weighted dart, a moved ball, a marked deck...)                        // an event's action (Night::EventOptions: a dare, the book, a bribe, the robbers, the cartel...)
     // the bar games (nightoff_games.cpp): start one at a station, then act in it
     int startGame = -1, gameMachine = 0, gameOpp = -1, gameStake = 0;   // GK_*; the table or machine; a patron id (-1 alone, -2 the bartender); the stake
