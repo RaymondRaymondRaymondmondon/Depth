@@ -473,7 +473,7 @@ void DrawJoin() {
     Rectangle p{340, 170, 600, 330};
     DrawScreenPanel(p);
     DrawTextCenteredBold("JOIN A TABLE", p.x + p.width / 2, p.y + 22, 28, SCREEN_INK);
-    DrawWrapped("Type the host's 6-letter code (same network), or their address for a friend elsewhere (for example 203.0.113.7). Over the internet the host must forward UDP port 47778 until Depth is on Steam.",
+    DrawWrapped("Type the host's 6-letter code (same network), or their address. Over ZeroTier, type the host's ZeroTier address (10.x.x.x): no port forwarding needed. Over the open internet the host must forward UDP port 47778.",
                 {p.x + 40, p.y + 70, p.width - 80, 80}, 16, SCREEN_DIM);
     bool enter = TextField({p.x + 60, p.y + 170, p.width - 120, 50}, gJoinText, gJoinFocus, 40, "code or address");
     bool go = Button({p.x + p.width / 2 - 90, p.y + 245, 180, 46}, "Join", !gJoinText.empty(), 20) || (enter && !gJoinText.empty());
@@ -535,7 +535,7 @@ void DrawLobby() {
         static std::string ips; static double ipsAt = -10;
         if (GetTime() - ipsAt > 5) { ipsAt = GetTime(); ips.clear(); for (auto& ip : net::LocalIPv4()) ips += (ips.empty() ? "" : ",  ") + ip; }
         Txt("Your address: " + (ips.empty() ? std::string("?") : ips), p.x + 250, p.y + 52, 15, SCREEN_DIM);
-        DrawWrapped("On this network friends Browse or type the code. Elsewhere they need your public address (forward UDP 47778).", {p.x + 250, p.y + 70, p.width - 280, 34}, 13, Fade(SCREEN_DIM, 0.8f));
+        DrawWrapped("On this network (or the same ZeroTier network) friends Browse, type the code or type your address. Over the open internet: your public address, with UDP 47778 forwarded.", {p.x + 250, p.y + 70, p.width - 280, 34}, 13, Fade(SCREEN_DIM, 0.8f));
     }
     float y = p.y + 110;
     int maxP = Info(gSess.game).maxPlayers;
