@@ -39,6 +39,8 @@ static GamesData LoadGames() {
     for (const Json& x : sc["pip"].a) d.pip.push_back(x.F(0));
     d.pipMap = sc["pip_map"].F(0.02f); for (const Json& s : sc["symbols"].a) d.scratchSymbols.push_back(s.Str0());
     d.fortuneCost = j["fortune"]["cost"].I(10); for (const Json& s : j["fortune"]["deck"].a) d.deck.push_back(s.Str0());
+    for (const Json& s : j["fortune"]["lies"].a) d.lies.push_back(s.Str0());
+    for (const auto& kv : j["fortune"]["event_cards"].o) d.eventCards.push_back({kv.first, kv.second.Str0()});
     return d;
 }
 const GamesData& GD() { static GamesData d = LoadGames(); return d; }
@@ -468,40 +470,69 @@ Ticket Buy(bool pip, GRng& r) {
     return t;
 }
 }
+int GamesData::Card(const std::string& name) const { for (int i = 0; i < (int)deck.size(); i++) if (deck[i] == name) return i; return 0; }
 namespace fortune {
+// the reading (doc p. 42): three cards, who you'll meet, what you'll do, how it ends, from the night's actual schedule
+// (the events still to come, which thief is in, who'll flirt with you), so it's true. The Stitch and the Bathtub
+// together mean a thief will make an offer (and the thief comes to find you); the Key, that the safe will open tonight;
+// the Dog, feed it; the Morning third, that you'll walk home. A second reading is a lie she tells for fun.
 Reading Read(const Night& n, const Player& p, GRng& r) {
     const Data& d = D(); const GamesData& g = GD();
-    struct Truth { int card; std::string text; };
-    std::vector<Truth> T, minor;   // (the weighty truths come up more often; at most three of the small ones are in the deck)
-    auto card = [&](const char* name) { for (int i = 0; i < (int)g.deck.size(); i++) if (g.deck[i] == name) return i; return 0; };
+    struct Truth { int card; std::string text; float w; int thief = -1; };
+    std::vector<Truth> who, what, end;
     float h = n.Hour();
     auto clock = [](float hr) { int H = (int)hr, M = (int)((hr - H) * 60); int h12 = ((H % 12) == 0) ? 12 : H % 12; return std::string(TextFormat("%d:%02d %s", h12, M, (H % 24) < 12 ? "a.m." : "p.m.")); };
-    for (const auto& c : n.patrons) {
-        if (c.gone) continue;
-        if (c.thief && c.inside) for (int w = 0; w < 3; w++) T.push_back({card("The Drowned"), "A smile with a cooler sits in this room tonight. Its name is " + c.name + "."});
-        if (c.thief && !c.inside && c.arriveH > h) T.push_back({card("The Lantern"), "A smile with a cooler comes through the door by " + clock(c.arriveH + 0.25f)});
-        if (c.type == T_HUSTLER && c.inside) T.push_back({card("The Eel"), c.name + " will lose to you once, on purpose. Not twice."});
-        if (c.reg >= 0 && c.inside && c.leaveH < 27 && c.leaveH > h + 0.5f) minor.push_back({card("The Gull"), c.name + " flies before " + clock(c.leaveH + 0.2f)});
-        if (c.rich && (c.inside || c.arriveH > h)) T.push_back({card("The Pearl"), "There is money tonight in " + c.name + "'s purse, and a mansion behind it."});
-        if (c.Has(d.Trait("in love with the bartender")) && c.inside) T.push_back({card("The Siren"), c.name + " loves the man behind the bar. Don't come between them."});
-    }
-    for (int k = 0; k < 3 && !minor.empty(); k++) { int i = r.I((int)minor.size()); T.push_back(minor[i]); minor.erase(minor.begin() + i); }
-    static const char* ORD[3] = {"first", "second", "third"};
-    T.push_back({card("The Bell"), std::string("Of the three wheels by the wall, the ") + ORD[std::clamp(g.slotHonest, 0, 2)] + " turns honest."});
-    T.push_back({card("The Helm"), std::string("The man behind the bar thinks you are ") + n.MoodName(n.bar.mood) + "."});
-    if (h < d.lastCallHour) T.push_back({card("The Bottle"), "The bottles double at " + clock(d.lastCallHour) + " Drink before, or don't."});
-    if (p.kidneys < 2) T.push_back({card("The Deep"), "Something of yours is missing, and the slot machines remember it."});
     Reading R;
-    for (int k = 0; k < 3 && !T.empty(); k++) {
-        int i = r.I((int)T.size()); R.card[k] = T[i].card; R.text[k] = T[i].text;
-        std::string said = T[i].text; T.erase(std::remove_if(T.begin(), T.end(), [&](const Truth& x) { return x.text == said; }), T.end());
+    if (p.fortuneReads >= 1) {   // a second reading: a lie, for fun
+        R.lie = true;
+        for (int k = 0; k < 3; k++) { R.card[k] = r.I((int)g.deck.size()); R.text[k] = g.lies.empty() ? "..." : g.lies[r.I((int)g.lies.size())]; }
+        for (int k = 1; k < 3; k++) for (int j = 0; j < k; j++) if (R.card[k] == R.card[j]) { R.card[k] = (R.card[k] + 5) % std::max(1, (int)g.deck.size()); j = -1; }
+        return R;
     }
-    // (three different cards: if two truths share a card, the later one is drawn as the next free card)
+    // who you'll meet: a thief (the Siren), the events still to come (each has its card), a flirt, the dog
+    int thief = -1;
+    for (const auto& c : n.patrons) {
+        if (c.gone || !c.thief) continue;
+        if (c.inside) { who.push_back({g.Card("The Siren"), "A smile with a cooler sits in this room tonight. Its name is " + c.name + ".", 3, c.id}); thief = c.id; }
+        else if (c.arriveH > h && c.arriveH < 26.5f) { who.push_back({g.Card("The Siren"), "A smile with a cooler comes through the door by " + clock(c.arriveH + 0.25f) + " Its name is " + c.name + ".", 3, c.id}); if (thief < 0) thief = c.id; }
+    }
+    for (const auto& e : n.events) {
+        if (e.started || e.startH < h || e.startH > 27) continue;
+        std::string key = n.EventKey(e.def), card;
+        for (const auto& kv : g.eventCards) if (kv.first == key) card = kv.second;
+        if (!card.empty()) who.push_back({g.Card(card), n.EventName(e.def) + " comes in by " + clock(e.startH + 0.2f), 2.5f});
+    }
+    for (const auto& c : n.patrons) if (c.inside && !c.gone && !c.thief && c.reg >= 0 && (c.type == T_FLIRT || c.Has(d.Trait("flirty")))) { who.push_back({g.Card("The Gull"), c.name + " will look your way before the night is out.", 1}); break; }
+    if (n.dog.owner < 0) who.push_back({g.Card("The Dog"), "A dog in the alley is waiting for someone. Feed it, and it will wait for you.", 1});
+    // what you'll do: a thief's offer (the Stitch), the safe (the Key), a hustler (the Coin), a knife, a secret, a dance, the bottles
+    if (thief >= 0) what.push_back({g.Card("The Stitch"), "Someone will offer to take you home. Look at their hands.", 3, thief});
+    bool marlow = false; for (const auto& c : n.patrons) marlow |= !c.gone && c.name == "Old Marlow" && (c.inside || c.arriveH > h);
+    if (!n.safeOpened && marlow) what.push_back({g.Card("The Key"), "The safe upstairs is open to whoever has listened to Old Marlow.", 2});
+    for (const auto& c : n.patrons) if (c.inside && !c.gone && c.type == T_HUSTLER) { what.push_back({g.Card("The Coin"), "You'll beat " + c.name + " once, because they let you. Not twice.", 1.5f}); break; }
+    for (const auto& c : n.patrons) if (c.inside && !c.gone && c.Has(d.Trait("carries a knife"))) { what.push_back({g.Card("The Knife"), c.name + " carries a blade. Don't be the one who finds out.", 1.5f}); break; }
+    for (const auto& c : n.patrons) if (c.inside && !c.gone && c.reg >= 0 && !c.secret.empty() && std::find(p.known.begin(), p.known.end(), c.name) == p.known.end()) { what.push_back({g.Card("The Periscope"), c.name + " has a secret worth listening for.", 1}); break; }
+    for (const auto& e : n.events) if (n.EventKey(e.def) == "band" && !e.done) { what.push_back({g.Card("The Diver"), "You'll dance tonight, whether you meant to or not.", 1.5f}); break; }
+    if (h < d.lastCallHour) what.push_back({g.Card("The Bottle"), "The bottles double at " + clock(d.lastCallHour) + " Drink before, or don't.", 0.7f});
+    // how it ends: the Bathtub (with the Stitch), the lock-in, the cartel's ledger, a missing kidney, the Morning
+    if (thief >= 0) end.push_back({g.Card("The Bathtub"), "A bathtub of ice and a note, unless somebody stops you at the door.", 3, thief});
+    for (const auto& e : n.events) if (!e.done && n.EventKey(e.def) == "lockin") { end.push_back({g.Card("The Lantern"), "The door locks behind you at " + clock(std::max(h, e.startH)), 2}); break; }
+    if (p.debt > 0) end.push_back({g.Card("The Abyss"), "They'll come for what you owe, and they'll find you.", 2.5f});
+    if (p.kidneys < 2) end.push_back({g.Card("The Drowned"), "Something of yours is missing, and the slot machines remember it.", 2});
+    if (p.drunk < 40 && p.kidneys >= 2 && p.debt <= 0) end.push_back({g.Card("The Morning"), "You'll walk home on your own feet, and remember most of it.", 1.2f});
+    end.push_back({g.Card("The Helm"), std::string("The man behind the bar thinks you are ") + n.MoodName(n.bar.mood) + ". It ends where he says.", 0.5f});
+    if (who.empty()) who.push_back({g.Card("The Gull"), "Nobody new. The same faces, and one of them is yours.", 1});
+    if (what.empty()) what.push_back({g.Card("The Bottle"), "You'll drink. She doesn't need the cards for that.", 1});
+    auto pick = [&](std::vector<Truth>& v) { float tot = 0; for (auto& x : v) tot += x.w; float u = r.U() * tot; for (auto& x : v) { u -= x.w; if (u <= 0) return x; } return v.back(); };
+    Truth a = pick(who), b = pick(what), c = pick(end);
+    // the Stitch and the Bathtub come as a pair (a thief's offer is how it ends)
+    if (b.card == g.Card("The Stitch")) for (auto& x : end) if (x.card == g.Card("The Bathtub")) c = x;
+    if (c.card == g.Card("The Bathtub")) for (auto& x : what) if (x.card == g.Card("The Stitch")) b = x;
+    if (b.card == g.Card("The Stitch") && c.card == g.Card("The Bathtub")) R.fated = b.thief;
+    R.card[0] = a.card; R.text[0] = a.text; R.card[1] = b.card; R.text[1] = b.text; R.card[2] = c.card; R.text[2] = c.text;
     for (int k = 1; k < 3; k++) for (int j = 0; j < k; j++) if (R.card[k] == R.card[j]) { R.card[k] = (R.card[k] + 7 + k) % std::max(1, (int)g.deck.size()); j = -1; }
     return R;
 }
 }
-
 // ================================================================ --game-check
 static int PlayDarts(float sk0, float sk1, GRng& r, int first) {
     darts::Match m; m.Start(false, first);

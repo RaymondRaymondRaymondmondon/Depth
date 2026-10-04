@@ -30,7 +30,8 @@ struct GamesData {
     int slotCost = 2; std::vector<std::string> slotSymbols; std::vector<std::vector<float>> slotWeights; int slotHonest = 1;
     int payPair = 50, payTriple = 200, payLine = 1000;
     int scratchCost = 5; std::vector<int> prizes; std::vector<float> dispenser, pip; float pipMap = 0.02f; std::vector<std::string> scratchSymbols;
-    int fortuneCost = 10; std::vector<std::string> deck;
+    int fortuneCost = 10; std::vector<std::string> deck, lies; std::vector<std::pair<std::string, std::string>> eventCards;   // (event key, card)
+    int Card(const std::string& name) const;
 };
 const GamesData& GD();
 float AimMul(float drunk);                                       // the meter's effect on a thrower's error
@@ -121,7 +122,7 @@ Ticket Buy(bool pip, GRng& r);
 struct Night;
 struct Player;
 namespace fortune {
-struct Reading { int card[3]{}; std::string text[3]; };
+struct Reading { int card[3]{}; std::string text[3]; bool lie = false; int fated = -1; };   // (fated: the thief the Stitch and the Bathtub promise)
 Reading Read(const Night& n, const Player& p, GRng& r);           // three cards and what they mean tonight (true things)
 }
 

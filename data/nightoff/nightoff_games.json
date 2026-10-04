@@ -57,7 +57,9 @@
   },
   "fortune": {
     "cost": 10,
-    "_deck": "Depth's tarot: 22 cards (doc p. 18 names the Diver, the Helm, the Kraken, the Drowned and the Lantern)",
-    "deck": ["The Diver", "The Helm", "The Kraken", "The Drowned", "The Lantern", "The Anchor", "The Gull", "The Pearl", "The Tide", "The Wreck", "The Siren", "The Bell", "The Net", "The Lighthouse", "The Whale", "The Storm", "The Bottle", "The Knot", "The Compass", "The Eel", "The Harbour", "The Deep"]
+    "_deck": "The fortune deck, 22 cards (doc p. 42). A reading is three: who you'll meet, what you'll do, how it ends; generated from the night's real schedule, so it's true. A second reading is a lie she tells for fun.",
+    "deck": ["The Diver", "The Helm", "The Periscope", "The Lantern", "The Kraken", "The Drowned", "The Siren", "The Island", "The Cave", "The Weeds", "The Sunken City", "The Abyss", "The Bottle", "The Coin", "The Knife", "The Key", "The Dog", "The Goat", "The Gull", "The Stitch", "The Bathtub", "The Morning"],
+    "event_cards": {"bachelor": "The Island", "bachelorette": "The Island", "bikers": "The Cave", "band": "The Weeds", "police": "The Sunken City", "cartel": "The Abyss", "robbery": "The Kraken", "wake": "The Drowned", "rivals": "The Helm", "lockin": "The Lantern", "goat": "The Goat"},
+    "lies": ["A tall stranger will buy you a drink and ask nothing in return.", "The slot machines are all honest tonight.", "The bartender is secretly fond of you.", "A whale will come in at midnight. Be kind to it.", "Your luck at darts is the best it will ever be.", "The goat is your friend. Trust the goat.", "Nobody here owes anybody money.", "You will be home by ten."]
   }
 }

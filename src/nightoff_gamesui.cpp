@@ -513,6 +513,35 @@ void Dance(no::Night& n, no::Player& p) {
     DrawTextCentered("Space on the beat", r.x + r.width / 2, r.y + 165, 14, DIM);
     if (gDance.t > LEAD + 16 * BEAT + 0.4f) { p.in.gameAct = 1; p.in.gamePower = gDance.hits / 16.0f; gDance.t = -1; }
 }
+// an emblem for each of the deck's 22 cards, in ink on the card's parchment
+void TarotIcon(const std::string& nm, Vector2 c, float s, Color k) {
+    auto L = [&](float x0, float y0, float x1, float y1, float w = 3) { DrawLineEx({c.x + x0 * s, c.y + y0 * s}, {c.x + x1 * s, c.y + y1 * s}, w, k); };
+    auto C = [&](float x, float y, float r, bool fill = false) { if (fill) DrawCircleV({c.x + x * s, c.y + y * s}, r * s, k); else DrawRing({c.x + x * s, c.y + y * s}, r * s - 1.5f, r * s + 1.5f, 0, 360, 36, k); };
+    auto R = [&](float x, float y, float w, float h) { DrawRectangleLinesEx({c.x + x * s, c.y + y * s, w * s, h * s}, 3, k); };
+    if (nm == "The Diver") { C(0, 0, 0.8f); C(0, 0.05f, 0.35f); L(-0.8f, 0.9f, 0.8f, 0.9f); }
+    else if (nm == "The Helm") { C(0, 0, 0.7f); C(0, 0, 0.15f, true); for (int i = 0; i < 8; i++) { float a = i * PI / 4; L(cosf(a) * 0.15f, sinf(a) * 0.15f, cosf(a) * 0.95f, sinf(a) * 0.95f); } }
+    else if (nm == "The Periscope") { L(-0.2f, 0.9f, -0.2f, -0.6f, 6); L(-0.2f, -0.6f, 0.4f, -0.6f, 6); R(0.35f, -0.75f, 0.2f, 0.3f); L(-0.9f, 0.4f, 0.9f, 0.4f); }
+    else if (nm == "The Lantern") { R(-0.35f, -0.4f, 0.7f, 0.9f); C(0, 0.05f, 0.18f, true); L(0, -0.4f, 0, -0.75f); C(0, -0.82f, 0.08f); }
+    else if (nm == "The Kraken") { C(0, -0.35f, 0.4f); for (int i = 0; i < 5; i++) { float x = -0.6f + i * 0.3f; L(x * 0.5f, 0, x, 0.5f); L(x, 0.5f, x * 1.3f, 0.85f); } }
+    else if (nm == "The Drowned") { C(0, -0.2f, 0.5f); C(-0.18f, -0.25f, 0.1f, true); C(0.18f, -0.25f, 0.1f, true); for (int i = 0; i < 3; i++) L(-0.8f, 0.5f + i * 0.18f, 0.8f, 0.5f + i * 0.18f, 2); }
+    else if (nm == "The Siren") { C(0, -0.55f, 0.22f); L(0, -0.3f, 0.1f, 0.2f); L(0.1f, 0.2f, -0.2f, 0.6f); L(-0.2f, 0.6f, 0.2f, 0.85f); L(0.2f, 0.85f, -0.1f, 0.9f); }
+    else if (nm == "The Island") { DrawRing({c.x, c.y + 0.6f * s}, 0.7f * s - 1.5f, 0.7f * s + 1.5f, 180, 360, 24, k); L(0.1f, -0.1f, 0.2f, -0.8f); L(0.2f, -0.8f, -0.3f, -0.6f); L(0.2f, -0.8f, 0.6f, -0.55f); L(-0.9f, 0.6f, 0.9f, 0.6f); }
+    else if (nm == "The Cave") { DrawRing({c.x, c.y + 0.5f * s}, 0.75f * s - 1.5f, 0.75f * s + 1.5f, 180, 360, 24, k); DrawRing({c.x, c.y + 0.5f * s}, 0.35f * s - 1.5f, 0.35f * s + 1.5f, 180, 360, 24, k); L(-0.9f, 0.5f, 0.9f, 0.5f); }
+    else if (nm == "The Weeds") { for (int i = 0; i < 4; i++) { float x = -0.6f + i * 0.4f; for (int j = 0; j < 6; j++) L(x + 0.12f * sinf(j * 1.3f), 0.8f - j * 0.27f, x + 0.12f * sinf((j + 1) * 1.3f), 0.8f - (j + 1) * 0.27f); } }
+    else if (nm == "The Sunken City") { for (int i = 0; i < 4; i++) R(-0.75f + i * 0.4f, -0.4f + (i % 2) * 0.2f, 0.18f, 1.1f - (i % 2) * 0.2f); L(-0.9f, -0.5f, 0.6f, -0.6f); }
+    else if (nm == "The Abyss") { for (int i = 1; i <= 4; i++) C(0, 0, 0.22f * i); C(0, 0, 0.12f, true); }
+    else if (nm == "The Bottle") { R(-0.3f, -0.1f, 0.6f, 0.9f); R(-0.1f, -0.7f, 0.2f, 0.6f); L(-0.3f, 0.3f, 0.3f, 0.3f); }
+    else if (nm == "The Coin") { C(0, 0, 0.7f); C(0, 0, 0.5f); L(0, -0.3f, 0, 0.3f); L(-0.15f, -0.15f, 0.15f, -0.15f); L(-0.15f, 0.15f, 0.15f, 0.15f); }
+    else if (nm == "The Knife") { L(-0.6f, 0.6f, 0.5f, -0.5f, 6); L(0.5f, -0.5f, 0.75f, -0.8f, 3); L(-0.75f, 0.45f, -0.45f, 0.75f, 5); }
+    else if (nm == "The Key") { C(-0.45f, -0.45f, 0.3f); L(-0.25f, -0.25f, 0.6f, 0.6f, 5); L(0.35f, 0.35f, 0.55f, 0.15f); L(0.5f, 0.5f, 0.7f, 0.3f); }
+    else if (nm == "The Dog") { C(0, 0, 0.45f); L(-0.35f, -0.3f, -0.6f, 0.3f, 5); L(0.35f, -0.3f, 0.6f, 0.3f, 5); C(0, 0.2f, 0.1f, true); C(-0.15f, -0.08f, 0.06f, true); C(0.15f, -0.08f, 0.06f, true); }
+    else if (nm == "The Goat") { C(0, 0.15f, 0.38f); L(-0.2f, -0.2f, -0.6f, -0.8f, 4); L(0.2f, -0.2f, 0.6f, -0.8f, 4); L(0, 0.5f, 0, 0.85f, 3); }
+    else if (nm == "The Gull") { L(-0.8f, -0.1f, -0.35f, -0.35f); L(-0.35f, -0.35f, 0, 0); L(0, 0, 0.35f, -0.35f); L(0.35f, -0.35f, 0.8f, -0.1f); L(-0.9f, 0.6f, 0.9f, 0.6f, 2); }
+    else if (nm == "The Stitch") { L(-0.8f, 0, 0.8f, 0, 3); for (int i = 0; i < 6; i++) { float x = -0.65f + i * 0.26f; L(x - 0.08f, -0.2f, x + 0.08f, 0.2f, 3); } }
+    else if (nm == "The Bathtub") { L(-0.8f, -0.1f, 0.8f, -0.1f); DrawRing({c.x, c.y - 0.1f * s}, 0.8f * s - 1.5f, 0.8f * s + 1.5f, 0, 180, 24, k); L(-0.5f, 0.6f, -0.6f, 0.85f); L(0.5f, 0.6f, 0.6f, 0.85f); R(-0.25f, -0.45f, 0.3f, 0.3f); }
+    else if (nm == "The Morning") { DrawRing({c.x, c.y + 0.3f * s}, 0.45f * s - 1.5f, 0.45f * s + 1.5f, 180, 360, 24, k); for (int i = 0; i < 7; i++) { float a = PI + i * PI / 6; L(cosf(a) * 0.6f, 0.3f + sinf(a) * 0.6f, cosf(a) * 0.85f, 0.3f + sinf(a) * 0.85f); } L(-0.9f, 0.3f, 0.9f, 0.3f); }
+    else C(0, 0, 0.5f);
+}
 void Fortune(no::Night& n, no::Player& p) {
     no::GameSeat& g = p.game; const auto& d = no::GD();
     Rectangle r{SCREEN_W / 2.0f - 420, 70, 840, 560}; GPanel(r);
@@ -526,10 +555,13 @@ void Fortune(no::Night& n, no::Player& p) {
         bool up = g.haveReading && U.revealT > 0.6f + k * 1.2f;
         if (!up) { DrawRectangleRounded(c, 0.08f, 6, Color{60, 30, 70, 255}); DrawRectangleRoundedLinesEx(c, 0.08f, 6, 3, BRASS); DrawCircleLines((int)(c.x + c.width / 2), (int)(c.y + c.height / 2), 40, BRASS); continue; }
         DrawRectangleRounded(c, 0.08f, 6, Color{236, 224, 196, 255}); DrawRectangleRoundedLinesEx(c, 0.08f, 6, 3, Color{120, 80, 40, 255});
-        const std::string& nm = d.deck[std::clamp(g.reading.card[k], 0, (int)d.deck.size() - 1)];
+        int ci = g.reading.card[k];
+        if (p.wareT[no::W_ANGLER] > 0) ci = (ci + (int)(GetTime() * 1.7) + k * 5) % std::max(1, (int)d.deck.size());   // (Angler's Light: the cards change when you look at them)
+        const std::string& nm = d.deck[std::clamp(ci, 0, (int)d.deck.size() - 1)];
         DrawTextCenteredBold(nm, c.x + c.width / 2, c.y + 16, 17, Color{80, 30, 40, 255});
-        DrawCircleV({c.x + c.width / 2, c.y + 130}, 44, Color{60, 80, 120, 255});
-        DrawTextCenteredBold(TextFormat("%c", nm.size() > 4 ? nm[4] : '?'), c.x + c.width / 2, c.y + 110, 40, Color{236, 224, 196, 255});
+        TarotIcon(nm, {c.x + c.width / 2, c.y + 135}, 62, Color{70, 40, 50, 255});
+        static const char* POS[3] = {"who you'll meet", "what you'll do", "how it ends"};
+        DrawTextCentered(POS[k], c.x + c.width / 2, c.y + c.height - 26, 13, Color{120, 80, 60, 255});
         DrawWrapped(g.reading.text[k], {c.x - 20, c.y + c.height + 12, c.width + 40, 80}, 14, INK);
     }
     if (g.haveReading && p.visionsT > 0) DrawTextCentered("(The absinthe lets you see what she sees: the marks over everyone's heads.)", r.x + r.width / 2, r.y + 440, 14, Color{200, 190, 255, 255});

@@ -44,6 +44,8 @@ static const EventsData& ED() {
 static int DefIndex(const char* key) { const auto& e = ED().ev; for (int i = 0; i < (int)e.size(); i++) if (e[i].key == key) return i; return -1; }
 static const EventDef& Def(const Night::EventRun& r) { return ED().ev[std::clamp(r.def, 0, (int)ED().ev.size() - 1)]; }
 int Night::EventIndex(const char* key) const { int d = DefIndex(key); for (int i = 0; i < (int)events.size(); i++) if (events[i].def == d) return i; return -1; }
+std::string Night::EventKey(int def) const { return def >= 0 && def < (int)ED().ev.size() ? ED().ev[def].key : std::string(); }
+std::string Night::EventName(int def) const { return def >= 0 && def < (int)ED().ev.size() ? ED().ev[def].name : std::string(); }
 bool Night::EventOn(const char* key) const { int i = EventIndex(key); return i >= 0 && events[i].started && !events[i].done; }
 
 // ---------------------------------------------------------------- the schedule

@@ -124,7 +124,7 @@ struct Player {
     Talk talk; GameSeat game; Combat fight; Flirt flirt; bool barred = false; std::vector<std::string> items, known;
     int gamesWon = 0, fightsWon = 0, fightsWonSober = 0, eventsSurvived = 0;   // (the morning's scoreboard)
     std::string homeWith, homeKind, card; bool homeBad = false; float leavingT = 0; int leavingWith = -1;   // going home: with whom, how it went; a bad night's 30 s at the door
-    bool fortuneAsked = false;
+    bool fortuneAsked = false; int fortuneReads = 0, fatedThief = -1; bool fateMet = false;   // (readings tonight; the thief the cards promised, and whether they've come)
     // the events (nightoff_events.cpp)
     int dare = -1, daresDone = 0; bool adopted = false, jacket = false, bribed = false, checked = false, promised = false, helpingRobbers = false, gaveRobbers = false;
     float debt = 0, roundT = -1e9f, damageCaused = 0, lastFightT = -1e9f;
@@ -255,6 +255,9 @@ struct Night {
     void StartEvent(int i);
     void EndEvent(int i, const std::string& outcome = "");
     int EventIndex(const char* key) const;            // the scheduled run of that event, or -1
+    std::string EventKey(int def) const;              // an event def's key and name (the fortune deck reads them)
+    std::string EventName(int def) const;
+    void StepFate(Player& p);                          // the cards' promises keep themselves (the Stitch and the Bathtub: the thief comes)
     bool EventOn(const char* key) const;               // that event is under way
     int ForceEvent(const char* key, float hour);       // (tests and shots: schedule one now)
     std::vector<EvOption> EventOptions(const Player& p) const;

@@ -118,7 +118,7 @@ template <class A> void VisitSeat(A& a, GameSeat& g) {
     F2(a, g.shotBall.p); a.b(g.shotBall.holed); a.f(g.shotSim.t); F2(a, g.shotSim.dog); a.b(g.shotRain);
     for (int& k : g.pull.reel) a.i(k); a.i(g.pull.pays); a.b(g.pull.kidney); a.i(g.pulls); a.f(g.spinT); a.f(g.autoT);
     a.i(g.ticket.prize); a.b(g.ticket.map); for (int& k : g.ticket.sym) a.i(k); a.b(g.haveTicket); a.b(g.paid);
-    for (int k = 0; k < 3; k++) { a.i(g.reading.card[k]); a.s(g.reading.text[k]); } a.b(g.haveReading);
+    for (int k = 0; k < 3; k++) { a.i(g.reading.card[k]); a.s(g.reading.text[k]); } a.b(g.reading.lie); a.b(g.haveReading);
 }
 template <class A> void VisitPlayer(A& a, Player& p, bool own, bool over) {
     a.s(p.name); a.i(p.crew); a.i(p.crew2); a.b(p.bot);
@@ -130,6 +130,7 @@ template <class A> void VisitPlayer(A& a, Player& p, bool own, bool over) {
     VisitCombat(a, p.fight);
     a.f(p.leavingT); a.i(p.leavingWith); a.i(p.carrying); a.i(p.carriedBy); a.b(p.faceDrawn);
     a.s(p.toast); a.f(p.toastT); { int wv = p.wares; a.i(wv); p.wares = (uint16_t)wv; } for (int w = 0; w < W_COUNT; w++) { a.f(p.wareT[w]); a.f(p.wareAfterT[w]); } a.i(p.cocktail); a.f(p.skipT); a.f(p.barkeepT); a.b(p.sureHome); a.u(p.hallucSeed);
+    a.i(p.fortuneReads); a.i(p.fatedThief); a.b(p.fateMet);
     a.f(p.priceMul); a.f(p.owedAtDoor); a.b(p.blackEye); a.i(p.kidneysAtStart); a.i(p.emote); a.f(p.emoteT);
     a.s(p.homeWith); a.s(p.homeKind); a.b(p.homeBad); a.s(p.card); a.i(p.gamesWon); a.i(p.fightsWon); a.i(p.fightsWonSober);
     a.i(p.dare); a.i(p.daresDone); a.b(p.adopted); a.b(p.jacket); a.b(p.bribed); a.b(p.checked); a.b(p.promised); a.b(p.helpingRobbers); a.b(p.gaveRobbers);

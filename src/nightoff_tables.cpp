@@ -234,7 +234,9 @@ void Night::GameAction(Player& p) {
         case GK_FORTUNE:
             if (act == 1) {
                 if (p.money < d.fortuneCost) { g.caption = "\"Ten, love. The cards don't read for free.\""; g.captionT = 3; break; }
-                p.money -= d.fortuneCost; g.reading = fortune::Read(*this, p, g.rng); g.haveReading = true;
+                p.money -= d.fortuneCost; g.reading = fortune::Read(*this, p, g.rng); g.haveReading = true; p.fortuneReads++;
+                if (g.reading.fated >= 0 && p.fatedThief < 0) p.fatedThief = g.reading.fated;
+                if (g.reading.lie) { g.caption = "She deals again, and her mouth twitches. (A second reading is for her own amusement.)"; g.captionT = 6; }
                 if (!p.fortuneAsked && Hour() >= 22 && g.rng.U() < 0.25f) { p.fortuneAsked = true; g.caption = "She gathers the cards and doesn't look up: \"Walk me home, sailor?\""; g.captionT = 8; }
                 Note(p, 6, "Had a fortune read in the snug.");
             }
@@ -373,7 +375,7 @@ int NightGamesChecks() {
     check(n.NearGame(p) == GK_FORTUNE, "the fortune teller's table");
     bool named = false, allTrue = true;
     for (int k = 0; k < 12; k++) {
-        p.money = 200; p.in.startGame = GK_FORTUNE; n.Step(0.05f); p.in.gameAct = 1; n.Step(0.05f);
+        p.money = 200; p.fortuneReads = 0; p.in.startGame = GK_FORTUNE; n.Step(0.05f); p.in.gameAct = 1; n.Step(0.05f);
         for (int c = 0; c < 3; c++) {
             const std::string& s = p.game.reading.text[c];
             if (s.find("cooler sits in this room") != std::string::npos) {
@@ -384,6 +386,21 @@ int NightGamesChecks() {
         p.in.gameAct = 3; n.Step(0.05f);
     }
     check(named && allTrue, "a smile with a cooler names a real kidney thief in the room");
+    // the doc's deck (22 cards) and its promises: a second reading is a lie; the Stitch and the Bathtub bring the thief to you
+    check(GD().deck.size() == 22 && GD().deck[GD().Card("The Bathtub")] == "The Bathtub", "the fortune deck has the doc's 22 cards");
+    { p.money = 200; p.fortuneReads = 1; p.in.startGame = GK_FORTUNE; n.Step(0.05f); p.in.gameAct = 1; n.Step(0.05f); check(p.game.reading.lie, "a second reading is a lie she tells for fun"); p.in.gameAct = 3; n.Step(0.05f); }
+    { bool pair = false, came = false;
+      for (int s = 0; s < 40 && !came; s++) {
+        Night m; Opts o; o.seed = 300 + s; o.events = true; m.Init(o); m.t = 3 * 60 * SECONDS_PER_GAME_MINUTE; for (int k = 0; k < 30; k++) m.StepPatrons(0.5f);
+        Player& q = m.players[0]; q.pos = D().bar.fortune; q.pos.x += 0.8f; q.money = 100;
+        q.in.startGame = GK_FORTUNE; m.Step(0.05f); q.in.gameAct = 1; m.Step(0.05f);
+        if (q.game.reading.fated < 0) continue;
+        pair = true; q.in.gameAct = 3; m.Step(0.05f);
+        q.pos = {18, 5.5f};
+        for (int k = 0; k < 3000 && q.flirt.patron < 0; k++) { m.Step(0.05f); if (q.st != State::Active) break; }
+        came = q.flirt.patron == q.fatedThief && m.patrons[q.fatedThief].thief;
+      }
+      check(pair && came, "the Stitch and the Bathtub: the thief they name comes to make you an offer"); }
     // the bartender plays one game a night, for your tab
     p.pos = {2.6f, 7.5f}; p.tab = 40; n.bartenderDarts = false;
     p.in.startGame = GK_DARTS; p.in.gameOpp = -2; n.Step(0.05f);
@@ -394,4 +411,21 @@ int NightGamesChecks() {
     return fails;
 }
 
+} // namespace no
+
+namespace no {
+void Night::StepFate(Player& p) {
+    if (p.fatedThief < 0 || p.fateMet || p.fatedThief >= (int)patrons.size()) return;
+    Patron& c = patrons[p.fatedThief];
+    if (c.gone) { p.fateMet = true; return; }
+    if (!c.inside || c.talkingTo >= 0 || c.playing >= 0 || c.fight.brawl >= 0 || c.leaving) return;
+    if (p.st != State::Active || p.talk.patron >= 0 || p.flirt.patron >= 0 || p.game.kind >= 0 || p.fight.brawl >= 0 || p.leavingT > 0) return;
+    if (Vector2Distance(c.pos, p.pos) > 2.0f) {
+        if (Vector2Distance(c.goal, p.pos) > 1.5f) { c.goal = p.pos; c.path = NavPath(c.pos, p.pos); c.nextGoalT = t + 8; c.sitting = false; }
+        return;
+    }
+    p.fateMet = true;
+    StartFlirt(p, c.id);
+    if (p.flirt.patron == c.id) Say(c.name + " sits down beside " + p.name + ", just as the cards said.");
+}
 } // namespace no

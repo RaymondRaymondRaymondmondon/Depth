@@ -246,7 +246,7 @@ void Night::StepPlayer(Player& p, float dt) {
     auto dec = [&](float& x) { x = std::max(0.0f, x - dt); };
     dec(p.charBuffT); dec(p.toughBuffT); dec(p.honestT); dec(p.visionsT); dec(p.shakesT); dec(p.stumbleT); dec(p.toastT); dec(p.barkeepT);
     if (p.st == State::Gone || p.st == State::PassedOut) return;
-    StepWares(p, dt);
+    StepWares(p, dt); StepFate(p);
     if (p.skipT > 0 || p.st == State::Gone || p.st == State::PassedOut) return;   // (Deep Pressure's lost minutes; the Cocktail's mornings)
     if (p.st == State::Down) { p.vel = {0, 0}; return; }   // (knocked out: StepBrawls counts the 30 s)
     // time sobers you: 1 a game minute (about 15 a real minute)
