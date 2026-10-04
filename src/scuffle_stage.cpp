@@ -86,7 +86,7 @@ Stage StageFromText(const std::vector<std::string>& lines, const char* name) {
     Stage s; s.name = name ? name : "Untitled";
     std::vector<std::string> rows, meta;
     // (a meta line is "@n ..." or "key=value" with a lowercase key; a row may hold '=' for the Salon's bar)
-    auto isMeta = [](const std::string& l) { if (l.empty()) return false; if (l[0] == '@') return true; size_t e = l.find('='); if (e == std::string::npos) return false; std::string k = l.substr(0, e); return k == "name" || k == "world" || k == "wrap" || k == "author" || k == "finale"; };
+    auto isMeta = [](const std::string& l) { if (l.empty()) return false; if (l[0] == '@' || l[0] == '+') return true; size_t e = l.find('='); if (e == std::string::npos) return false; std::string k = l.substr(0, e); return k == "name" || k == "world" || k == "wrap" || k == "author" || k == "finale"; };
     for (const auto& l : lines) { if (isMeta(l)) meta.push_back(l); else rows.push_back(l); }
     s.h = (int)rows.size(); s.w = 0; for (const auto& r : rows) s.w = std::max(s.w, (int)r.size());
     s.t.assign(std::max(1, s.w * s.h), T_EMPTY);
@@ -121,6 +121,15 @@ Stage StageFromText(const std::vector<std::string>& lines, const char* name) {
     s.crateCols.assign(crates.begin(), crates.end());
     for (const auto& m : meta) {
         std::istringstream in(m); std::string tok;
+        if (m[0] == '+' && m.size() > 1 && PieceLetter(m[1]) >= 0) {   // (a piece by its rectangle: +<letter> x= y= w= h= and its numbers)
+            Piece p; p.kind = (uint8_t)PieceLetter(m[1]); Defaults(p);
+            in >> tok;
+            while (in >> tok) { size_t e = tok.find('='); if (e == std::string::npos) continue; std::string k = tok.substr(0, e); float v = (float)atof(tok.c_str() + e + 1);
+                if (k == "x") p.x = (int)v; else if (k == "y") p.y = (int)v; else if (k == "w") p.w = std::max(1, (int)v); else if (k == "h") p.h = std::max(1, (int)v);
+                else if (k == "dx") p.dx = (int)v; else if (k == "dy") p.dy = (int)v; else if (k == "travel") p.travel = v; else if (k == "period") p.period = p.kind == PK_STREAM ? std::max(0.0f, v) : std::max(0.2f, v); else if (k == "phase") p.phase = v; else if (k == "on") p.on = v; else if (k == "power") p.power = v; else if (k == "start") p.start = v; }
+            s.pieces.push_back(p);
+            continue;
+        }
         if (m[0] == '@') {
             in >> tok; int n = atoi(tok.c_str() + 1) - 1; if (n < 0 || n >= (int)s.pieces.size()) continue;
             Piece& p = s.pieces[n];
@@ -139,13 +148,13 @@ std::vector<std::string> StageToText(const Stage& s) {
     std::vector<std::string> rows(s.h, std::string(s.w, '.'));
     static const char TC[T_COUNT] = {'.', '#', 'w', 'i', 'g', '-', 'e', '<', '>', 'c', 'x', 'u', '~', 'b', '='};
     for (int y = 0; y < s.h; y++) for (int x = 0; x < s.w; x++) rows[s.h - 1 - y][x] = TC[std::min<int>(s.t[y * s.w + x], T_COUNT - 1)];
-    for (const auto& p : s.pieces) for (int yy = p.y; yy < p.y + p.h; yy++) for (int xx = p.x; xx < p.x + p.w; xx++) if (xx >= 0 && yy >= 0 && xx < s.w && yy < s.h) rows[s.h - 1 - yy][xx] = LetterOf(p.kind);
     for (int c : s.crateCols) for (int ry = 0; ry < s.h; ry++) if (rows[ry][c] == '.') { rows[ry][c] = 'C'; break; }
     for (const auto& sp : s.spawns) { int x = (int)floorf(sp.x / TILE), y = (int)floorf(sp.y / TILE + 0.01f); if (x >= 0 && y >= 0 && x < s.w && y < s.h) rows[s.h - 1 - y][x] = 'S'; }
     out = rows;
     out.push_back("name=" + s.name); out.push_back(std::string("world=") + WORLD_KEY[std::clamp(s.world, 0, WD_COUNT - 1)]);
     if (s.wrap) out.push_back("wrap=1"); if (s.finale) out.push_back("finale=1"); if (!s.author.empty()) out.push_back("author=" + s.author);
-    for (int i = 0; i < (int)s.pieces.size(); i++) { const Piece& p = s.pieces[i]; out.push_back(TextFormat("@%d dx=%d dy=%d travel=%g period=%g phase=%g on=%g power=%g%s", i + 1, p.dx, p.dy, p.travel, p.period, p.phase, p.on, p.power, p.start > 0 ? TextFormat(" start=%g", p.start) : "")); }
+    // the pieces, each on its own line by its rectangle (so a current or a pocket can lie over tiles)
+    for (const auto& p : s.pieces) out.push_back(TextFormat("+%c x=%d y=%d w=%d h=%d dx=%d dy=%d travel=%g period=%g phase=%g on=%g power=%g%s", LetterOf(p.kind), p.x, p.y, p.w, p.h, p.dx, p.dy, p.travel, p.period, p.phase, p.on, p.power, p.start > 0 ? TextFormat(" start=%g", p.start) : ""));
     return out;
 }
 

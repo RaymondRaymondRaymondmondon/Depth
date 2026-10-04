@@ -153,20 +153,27 @@ std::vector<Stage> BuildNautilus() {
     return v;
 }
 int RunScuffleBuildPacks() {
-    std::vector<Stage> v = BuildNautilus();
-    std::string path = rt::DataDir() + "/../scuffle/stages/nautilus.txt";
-    std::ofstream f(path);
-    f << "; Scuffle: the Nautilus world's built-in stages (doc pp. 9, 18), in the editor's text form. Written by depth.exe --scuffle-build-packs;\n";
-    f << "; each stage: a '== name' line, the rows (top first), then name/world/... and '@n' piece lines. Open any of them in the editor.\n";
-    int bad = 0;
-    for (const auto& s : v) {
-        Reach r = CheckReachable(s);
-        if (!r.ok) { bad++; printf("  UNREACHABLE  %s: %s\n", s.name.c_str(), r.why.c_str()); }
-        f << "== " << s.name << "\n";
-        for (const auto& l : StageToText(s)) f << l << "\n";
+    static const char* KEY[WD_COUNT] = {"nautilus", "cave", "reef", "atlantis", "void", "salon"};
+    int badAll = 0;
+    for (int wd = 0; wd < WD_COUNT; wd++) {
+        if (getenv("DEPTH_WORLD") && atoi(getenv("DEPTH_WORLD")) != wd) continue;
+        std::vector<Stage> v = BuildWorld(wd);
+        std::string path = rt::DataDir() + "/../scuffle/stages/" + KEY[wd] + ".txt";
+        std::ofstream f(path);
+        f << "; Scuffle: " << WorldName(wd) << "'s built-in stages (doc pp. 9-11, 18) and its three finales, in the editor's text form. Written by depth.exe --scuffle-build-packs;\n";
+        f << "; each stage: a '== name' line, the rows (top first), then name/world/... and '@n' piece lines. Open any of them in the editor.\n";
+        int bad = 0, fin = 0;
+        for (const auto& s : v) {
+            Reach r = CheckReachable(s);
+            if (!r.ok) { bad++; printf("  UNREACHABLE  %s: %s\n", s.name.c_str(), r.why.c_str()); }
+            fin += s.finale;
+            f << "== " << s.name << "\n";
+            for (const auto& l : StageToText(s)) f << l << "\n";
+        }
+        printf("scuffle-build-packs: %s: %d stages and %d finales written to %s (%d fail the reachability check)\n", WorldName(wd), (int)v.size() - fin, fin, path.c_str(), bad);
+        badAll += bad;
     }
-    printf("scuffle-build-packs: %d Nautilus stages written to %s (%d fail the reachability check)\n", (int)v.size(), path.c_str(), bad);
-    return bad ? 1 : 0;
+    return badAll ? 1 : 0;
 }
 
 int RunScuffleVerify(const std::string& arg) {
@@ -196,7 +203,7 @@ static void Run(World& w, float s, std::function<void(World&)> fn = nullptr) { i
 int ScuffleStageChecks() {
     SF3 = 0;
     printf("Scuffle: stage 3 (stages as text and codes, the reachability check, the Nautilus pieces and its forty stages)\n");
-    std::vector<Stage> naut = LoadWorldPack(WD_NAUTILUS);
+    std::vector<Stage> naut; for (const auto& s : LoadWorldPack(WD_NAUTILUS)) if (!s.finale) naut.push_back(s);
     C3(naut.size() == 40, TextFormat("the Nautilus pack: %d stages from data/scuffle/stages/nautilus.txt", (int)naut.size()));
     bool sigs = false; int found = 0; for (const auto& s : naut) found += s.name == "The Engine Room" || s.name == "The Torpedo Tubes" || s.name == "The Salon Window"; sigs = found == 3;
     C3(sigs, "with its signature stages: the Engine Room, the Torpedo Tubes, the Salon Window");

@@ -80,6 +80,8 @@ struct Reach { bool ok = false; int spawns = 0, pairsFailed = 0, nodes = 0; std:
 Reach CheckReachable(const Stage& s);
 std::vector<Stage> LoadWorldPack(int world);               // the built-in stages (data/scuffle/stages/<world>.txt)
 std::vector<Stage> BuildNautilus();                        // (the builder behind nautilus.txt; --scuffle-build-packs writes it)
+std::vector<Stage> BuildWorld(int world);                  // a world's forty and its three finales (scuffle_build.cpp)
+Stage GenerateStage(int world, uint32_t seed, bool finale = false, int* tries = nullptr);   // the generator (doc p. 11): checked with the real movement code
 int RunScuffleBuildPacks();
 int RunScuffleVerify(const std::string& codeOrAll);       // --scuffle-verify <code> | --scuffle-verify-all
 Stage StoneStage();                                        // stage 1's one stone stage (the doc's gate)
@@ -217,12 +219,15 @@ struct Match {
     std::vector<std::string> log;                          // (the round's story lines)
     uint32_t evSeen = 0;
     std::vector<Stage> custom;                             // (a playlist of the group's own: the editor's "play now", a pasted pack)
+    int world = -1;                                        // (the lobby's world: -1 all six; WD_COUNT the generator, endless)
+    std::vector<Stage> finales;                            // (the match point's stages: the playlist's worlds' finales)
     void Start(int nPlayers, int roundsToWin, uint32_t seed, int arsenal = AR_CLASSIC);
     void NewRound();
     void Step();                                           // one fixed step: the phases, and the world while fighting
     bool Over() const { return phase == P_OVER; }
 };
-std::vector<Stage> StagePlaylist();                        // stage 2: the stone stages
+std::vector<Stage> StagePlaylist(int world = -1);           // a world's forty (-1: all six worlds); the stone stages if no pack is found
+std::vector<Stage> FinalePlaylist(int world = -1);
 
 int RunScuffleTest();                                      // --scuffle-test
 int RunScuffleDeterminism(uint32_t seed);                  // --scuffle-determinism <seed>

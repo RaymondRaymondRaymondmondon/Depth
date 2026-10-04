@@ -14,8 +14,19 @@
 
 namespace sf {
 
-std::vector<Stage> StagePlaylist() {
-    std::vector<Stage> v = LoadWorldPack(WD_NAUTILUS);     // (the Nautilus world; the other five come with stage 5)
+static std::vector<Stage> Pack(int world) {
+    static std::vector<Stage> cache[WD_COUNT]; static bool loaded[WD_COUNT] = {};
+    if (!loaded[world]) { cache[world] = LoadWorldPack(world); loaded[world] = true; }
+    return cache[world];
+}
+std::vector<Stage> FinalePlaylist(int world) {
+    std::vector<Stage> v;
+    for (int w = 0; w < WD_COUNT; w++) if (world < 0 || world >= WD_COUNT || w == world) for (const auto& s : Pack(w)) if (s.finale) v.push_back(s);
+    return v;
+}
+std::vector<Stage> StagePlaylist(int world) {
+    std::vector<Stage> v;
+    for (int w = 0; w < WD_COUNT; w++) if (world < 0 || world >= WD_COUNT || w == world) for (const auto& s : Pack(w)) if (!s.finale) v.push_back(s);
     if (!v.empty()) return v;
     v.push_back(StoneStage());
     v.push_back(StageFromText({
@@ -64,7 +75,8 @@ std::vector<Stage> StagePlaylist() {
 void Match::Start(int nPlayers, int roundsToWin, uint32_t s, int ars) {
     players = std::clamp(nPlayers, 1, MAX_STICKS); toWin = std::max(1, roundsToWin); seed = s ? s : 1; arsenal = ars;
     wins.assign(players, 0); score.assign(players, 0); roundKills.assign(players, 0);
-    playlist = custom.empty() ? StagePlaylist() : custom; round = 0; draws = 0; champion = -1; log.clear();
+    playlist = custom.empty() ? StagePlaylist(world) : custom; round = 0; draws = 0; champion = -1; log.clear();
+    finales = custom.empty() ? FinalePlaylist(world) : std::vector<Stage>{};
     // the rotation: shuffled by the seed (no stage twice until the list runs out)
     uint32_t r = seed;
     for (int i = (int)playlist.size() - 1; i > 0; i--) { r = r * 1664525u + 1013904223u; int j = (int)((r >> 8) % (uint32_t)(i + 1)); std::swap(playlist[i], playlist[j]); }
@@ -74,8 +86,15 @@ void Match::NewRound() {
     round++;
     bool matchPoint = false; for (int x : wins) matchPoint |= x >= toWin - 1;
     stageIdx = (round - 1) % std::max(1, (int)playlist.size());
-    w.Init(playlist[stageIdx], players, seed * 2654435761u + round * 7919u);
-    w.arsenal = arsenal; w.finale = matchPoint && toWin > 1;
+    bool fin = matchPoint && toWin > 1;
+    uint32_t rs = seed * 2654435761u + round * 7919u;
+    if (world == WD_COUNT && custom.empty()) {   // (endless: a fresh stage from the generator each round, any world)
+        Stage g = GenerateStage((int)(rs % WD_COUNT), rs, fin);
+        w.Init(g, players, rs);
+    }
+    else if (fin && !finales.empty()) w.Init(finales[(rs >> 8) % finales.size()], players, rs);   // (match point: a finale stage, the wall at 30 s)
+    else w.Init(playlist[stageIdx], players, rs);
+    w.arsenal = arsenal; w.finale = fin;
     phase = P_COUNT; phaseT = 1.0f; roundWinner = -1;
     std::fill(roundKills.begin(), roundKills.end(), 0);
     evSeen = w.eventBase;
