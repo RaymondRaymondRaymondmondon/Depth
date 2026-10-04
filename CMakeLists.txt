@@ -37,6 +37,7 @@ src/flight_long.cpp
     src/flight_longflight.cpp
     src/mouthful.cpp
     src/mouthful_tools.cpp
+    src/mouthful_game.cpp
     src/data.cpp
     src/ui.cpp
     src/render.cpp

@@ -1,0 +1,52 @@
+Mouthful — Arcade Game 8 Design Document
+The token shop (10 skins)
+Skin
+Reef Camo
+Deep Glow
+Tiger Stripe
+Pearl
+Red Tide
+Brass Plated
+Ghost
+Goldfish
+The Captain
+Cost
+50
+80
+80
+100
+100
+120
+150
+150
+200
+Look
+Coral mottle; hides a little better in the reef
+(visually only)
+Bioluminescent dots
+Iridescent white
+The blood-red palette
+Rivets and verdigris, the Nautilus look
+Translucent, the Drowned's palette
+Orange, bowl-shaped eyes
+A tiny bicorne on every form
+Gold and gems; the crown fits it perfectly
+The Crown Jewels 250
+The crate (40 skins)
+One token, one crate (a clam that opens). Duplicates are a pearl of no value. Odds:
+Common (15, 4% each), Rare (10, 2.5%), super Rare (10, 1.2%), Special 3%
+(5, 0.6%).
+Tier
+Common (15)
+Rare (10)
+Skins
+Sardine Silver, Sandy, Kelp Green, Sunset, Lagoon,
+Mud, Clownfish Orange, Zebra, Spotted, Rusty,
+Slate, Bubblegum, Neon Sign, Camo Net, Grandpa
+(a monocle)
+Sushi (rice on the back), Toy (a wind-up key), Lava,
+Ice, Disco Ball, Pirate (eyepatch and a parrot that is
+also a fish), Cardboard Box, Lego-ish Blocks (brick-
+textured), Carp Flag (streamers), Haunted (a chain
+and a moan)
+Page 17 of 22

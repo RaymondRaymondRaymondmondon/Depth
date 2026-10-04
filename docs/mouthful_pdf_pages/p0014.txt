@@ -1,0 +1,53 @@
+Mouthful — Arcade Game 8 Design Document
+Modes
+Mode
+Mouthful (default)
+Blobfish Only
+One Path
+Trench Rush
+Food Chain
+King of the Reef
+Solo Tank
+Strategy
+Rule
+As designed
+Everyone's a blobfish; the first to tier 6 wins;
+nobody has abilities and everyone is sad
+The lobby picks one path for everyone (Shark
+Night, Crab Day)
+The round starts at tier 4 in the trench; 8 minutes;
+the leviathan is awake
+Teams of 3 share a path and a score; killing a
+teammate's prey feeds the team
+No respawn for the king: lose the crown and you're
+out; last crown standing
+One player, bots, and a longer round for learning
+the paths
+The paths are built as a rock-paper-scissors-and-then-some; the arena's bands are where
+each one wants to fight. This is the meta the balance pass aims for.
+Who beats whom (equal mass)
+Path
+Eel
+Cephalopod
+Beats
+Pufferfish (dash in, bite
+the belly, dash out before
+the spines matter),
+Blobfish
+Eel, Shark (ink and
+camouflage: a shark can't
+frenzy what it can't see)
+Loses to
+Cephalopod (ink ruins a
+dash), Crustacean on the
+floor (the claw out-ranges the
+lunge)
+Crustacean (ink doesn't stop
+a claw slam), Hammerhead
+(electroreception)
+Why
+Burst at range,
+thin HP
+Control, no
+sustain
+Page 14 of 22

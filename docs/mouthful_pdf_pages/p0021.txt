@@ -1,0 +1,42 @@
+Mouthful — Arcade Game 8 Design Document
+Stage Work
+3
+4
+5
+6
+Tests
+Multiplayer and bots: 12 in a round,
+respawn, the leaderboard, the crown
+The other four paths with every form;
+abilities; tells
+NPC dangers: reef and apex sharks, the
+leviathan, the boat, the orca pod, red tide,
+the whale fall, dusk
+Modes, skins, crate, sound, internet play,
+balance pass
+Six players finish a 15-minute round
+on LAN
+--mouthful-duel shows the
+counters table
+A king dies to the leviathan in testing
+All targets met or logged
+--mouthful-duel <formA> <formB> <mass> fights two forms at equal mass with
+scripted ability use; asserts the counters table within 55-65%.
+--mouthful-round <bots> runs a bot-only round and reports: time to first
+king, crowns changed, deaths by cause, tier reached per path, whether the leviathan
+ate anyone.
+--eco-sim mouthful <minutes> for the arena's web.
+Balance targets
+• A competent player reaches tier 4 in 3 minutes, tier 6 in 7, and the crown in 11 if nobody
+stops them.
+Equal-mass duels follow the counters table at 55-65%; mirror matches are 50 ± 3.
+• The crown changes hands 3-6 times in a 12-player round.
+• Deaths by cause at the end of a round: players 60%, NPC predators 25%, the boat and
+hazards 10%, the leviathan 5%.
+• The Blobfish King is reached about once in 40 rounds by players who try.
+Open questions for the designer
+Should a dead king's crown drop as an item to be picked up, or pass directly to the
+killer as written?
+Should paths be lockable in the lobby (a player always starts on their path) or always
+chosen at the first fork?
+Page 21 of 22

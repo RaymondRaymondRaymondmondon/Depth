@@ -1,0 +1,106 @@
+Mouthful — Arcade Game 8 Design Document
+Form
+OCtOPUS
+Cuttlefish
+Giant Pacific
+Octopus
+Colossal Squid
+Tier
+4
+4
+6
+6
+Speed
+0.9
+1.1
+0.9
+1.2
+1.0
+0.9
+1.2
+1.0
+Bite
+1.0
+0.9
+1.2
+1.3
+Ability
+Ink (bigger, 8 m, 4 s)
+Dazzle: a flash that
+reverses an enemy's
+controls for 2 s (8 s)
+Ink Wall: a 15 m curtain for 6
+s; nothing sees through it
+Hook Tentacles: a 12 m
+reach that pulls a target to
+the beak (7 s)
+Passive
+Camouflage: invisible while
+still forl s or more; a grab
+bite holds for 1 s
+Hover: no stamina cost to
+hold position
+Eight Arms: can grab two
+targets at once (hold 1.5 s
+each)
+Trench-born: full sight in the
+dark
+3. The Shark path: health
+The straight line: more HP, more bite, no tricks. The passive makes blood work for you.
+Form
+Dogfish
+Bull Shark
+Hammerhead
+Great White
+Tiger Shark
+Tier
+2
+4
+4
+6
+6
+Speed HP
+1.0
+1.0
+1.1
+1.0
+1.0
+1.4
+1.6
+1.4
+2.0
+1.7
+Bite
+1.1
+1.3
+1.2
+1.6
+1.4
+Ability
+Frenzy: +40% bite for 3 s
+(8 s cooldown)
+Ram: a charge that knocks
+back 5 m and stuns 1 s (7
+s)
+Pin: hold a target against
+the floor or wall 2 s (7 s)
+Breach: a vertical charge
+from below that deals
+mass (10 s)
+Frenzy (longer, +60% for 5
+s)
+Passive
+Blood sense: see blood trails
+30m
+Thick skin: -20% damage
+taken
+Electroreception: see buried
+and hidden fish within 15 m
+Apex: NPC sharks ignore you
+Iron stomach: eating armored
+prey costs no teeth; eats
+anything
+4. The Crustacean path: the floor and the claw
+Grounded: you walk, you can't swim up, you jump. Your claw reaches farther than anyone's
+bite, and your shell is a wall.
+Page 7 of 22

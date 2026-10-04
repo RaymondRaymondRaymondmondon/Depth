@@ -1,0 +1,65 @@
+Mouthful — Arcade Game 8 Design Document
+Blood and the web
+Every bite bleeds into the ecosystem engine's scent grid; a fight that lasts 20 s draws the
+NPC sharks in the band; a kill is a corpse that the scavengers (and the Giant Isopod
+player) want. A player who kills a lot in one place is hunted by things that aren't players,
+which keeps kings moving.
+Dangers that aren't players
+The arena hunts back. The NPC predators are the ecosystem's; the boat, the currents, and
+the events are the designer's.
+Danger
+Reef sharks (NPC,
+tier 5)
+Apex sharks (NPC,
+tier 7: a great white, a
+tiger, a hammerhead)
+The Leviathan (NPC,
+tier 9)
+The orca pod (NPC,
+tier 7, event)
+Where
+The reef and wall
+The blue
+The trench's
+hollow
+Passes through the
+blue once a round
+Behavior
+Patrol; come to
+blood; eat tiers 1-4;
+calm within IO m of
+the cleaning station
+Follow blood from
+far; eat tiers 1-6; a
+king can fight one (a
+long fight)
+Sleeps; wakes to
+blood or noise in the
+trench; eats
+anything, including
+the king, in one bite;
+sleeps again after
+eating
+Hunts the three
+largest things on the
+leaderboard for 90
+s, then leaves
+How to use it
+Lead a pursuer into
+their patrol; a Great
+White player is
+ignored by them
+Kings hunt them for
+mass; everyone else
+leaves the blue when
+the music changes
+It's why the crown
+can't be held in the
+trench forever; a king
+lured to the hollow
+by a fleeing fish is
+the round's best play
+Shrink below the top
+three by hiding; or let
+it eat the king
+Page 11 of 22

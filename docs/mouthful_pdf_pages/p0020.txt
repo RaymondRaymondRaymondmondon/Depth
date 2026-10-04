@@ -1,0 +1,42 @@
+Mouthful — Arcade Game 8 Design Document
+• The crown: a brass fanfare when it's taken; a slow drum while it's held; a crash when
+the king dies.
+• Music: a bright reef theme that darkens by band and tempo-shifts with your tier; dusk
+brings the night layer; high tide brings a countdown; the blobfish has its own four-note
+theme, in a minor key, that plays whenever one is on screen.
+Build order, data, tests, and open questions
+Data files
+File
+mouthful _ tiers .json
+mouthful _ paths . json
+mouthful _ arena . json
+mouthful _ sea . json
+mouthful _ scoring. j son
+mouthful_bots . j son
+mouthful _ skins . json
+Build order
+Stage Work
+Holds
+Mass thresholds, lengths, base speeds, bite
+cooldowns, decay
+Six paths, every form: stats, ability, passive, body
+plan, palette
+Bands, cover, currents, the boat's schedule, events,
+the cleaning station
+The 25 species and diet matrix (Red Tide's format),
+NPC predators, the leviathan's script
+Score, modes, token payouts
+Bot behaviors by level
+Shop, crate, odds
+1
+2
+A fry in the shallows: 3D swimming, boost,
+bite, swallow, mass, tiers 1-3; prey on Red
+Tide's engine
+The arena: all five bands, cover, currents,
+the wall; the first fork and two paths
+(Shark, Eel)
+Eating minnows feels good for five
+minutes
+A fry grows to tier 6 alone
+Page 20 of 22

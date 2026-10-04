@@ -1,0 +1,55 @@
+Mouthful — Arcade Game 8 Design Document
+Path
+Shark
+Crustacean
+Pufferfish
+Blobfish
+Where to be
+Beats
+Crustacean in open
+water (it can't follow),
+Cephalopod when it can
+see
+Eel, Cephalopod on the
+floor; anything that
+comes down to it
+Shark, bots, anything
+that bites a lot
+Nothing
+Loses to
+Pufferfish (every bite costs),
+Eel in corridors
+Anything that doesn't; Shark
+in the blue
+Eel (hit and run),
+Cephalopod's toxin-free
+control, being ignored
+Everything
+Why
+HP and bite, no
+tricks
+Range and
+armor, no
+mobility
+Payback, no
+offense
+It's a blobfish
+• Tiers 1-2: the shallows and the reef's edges; eat schools; take the first fork by where
+you want to live.
+• Tier 3-4: the reef; crustaceans hold the floor and the wall ledges; eels hunt the
+corridors; cephalopods hunt the eel holes' neighbors; sharks start going to the blue;
+pufferfish graze and get left alone.
+• Tier 5-6: the blue for sharks and eels (tuna); the wall for everyone else; the whale fall at
+minute 11 pulls everyone to the trench.
+• Tier 7-8: the trench to finish growing, then out of it, because the leviathan.
+The king's problem
+A king decays 1% a minute, is visible to everyone, and is worth 300 plus their mass. Kings
+that hide shrink; kings that hunt bleed. The intended king play is a circuit: the blue for
+tuna, the reef edge for a mid-tier kill, back to the blue, never the trench after the crown.
+The intended regicide is three tier-5s with abilities, or one fleeing fish and a patient
+leviathan.
+Reading the other paths
+Every form has a silhouette and a tell: eels' bodies coil before a dash; squid go pale before
+ink; sharks' pectorals drop before a ram; crabs raise a claw; puffers have a visible intake
+before inflating; the blobfish has no tell because it does nothing. A player who reads tells
+Page 15 of 22

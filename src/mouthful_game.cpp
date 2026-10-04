@@ -1,0 +1,564 @@
+// Mouthful's scene (arcade game 8): a mouth swum in third person through the reef shelf, drawn with Red Tide's inked
+// renderer under water (design doc, "Presentation": Depth's inked low-poly, bright in the shallows and reef, dim in the
+// blue, dark in the trench). The rules are mouthful.cpp (headless); this file feeds a person's input to their mouth and
+// draws the round: the seabed, the coral, the web's fish, the mouths, the HUD, the fork, the crown and the results.
+#include "game.h"
+#include "mouthful.h"
+#include "redtide_render.h"
+#include "input.h"
+#include "sound.h"
+#include "raymath.h"
+#include <algorithm>
+#include <cmath>
+
+namespace {
+
+struct MouthfulScene {
+    bool active = false, shot = false;
+    mf::World W;
+    float aimYaw = 0, aimPitch = 0, camYaw = 0, camPitch = -0.15f, camDist = 2;
+    float t = 0;
+    bool help = true, board = false;
+    Camera3D cam{};
+    bool ready = false;
+    std::vector<Model> floor;           // the seabed in chunks
+    Model coral{}, kelp{}, props{};
+    int me = 0;                         // the mouth this screen swims
+    int forkClick = -1;                 // (a card clicked on the fork; applied with the next input)
+    mf::Opts opts;
+};
+MouthfulScene S;
+
+Color Mix(Color a, Color b, float k) { k = std::clamp(k, 0.0f, 1.0f); return {(unsigned char)(a.r + (b.r - a.r) * k), (unsigned char)(a.g + (b.g - a.g) * k), (unsigned char)(a.b + (b.b - a.b) * k), 255}; }
+Color Shade(Color c, float k) { return {(unsigned char)std::clamp(c.r * k, 0.0f, 255.0f), (unsigned char)std::clamp(c.g * k, 0.0f, 255.0f), (unsigned char)std::clamp(c.b * k, 0.0f, 255.0f), c.a}; }
+float Hash(float x, float z) { float h = sinf(x * 12.9898f + z * 78.233f) * 43758.5453f; return h - floorf(h); }
+float Smooth01(float t) { return t * t * (3 - 2 * t); }
+float Noise(float x, float z) {   // smooth value noise (patches without the grid showing)
+    float xi = floorf(x), zi = floorf(z), fx = Smooth01(x - xi), fz = Smooth01(z - zi);
+    float a = Hash(xi, zi), b = Hash(xi + 1, zi), c = Hash(xi, zi + 1), d = Hash(xi + 1, zi + 1);
+    return (a + (b - a) * fx) * (1 - fz) + (c + (d - c) * fx) * fz;
+}
+void TwoSided(rt::MeshBuilder& mb, Vector3 a, Vector3 b, Vector3 c, Color col) { mb.Tri(a, b, c, col); mb.Tri(a, c, b, col); }
+
+// ---------------------------------------------------------------- models
+Color FloorColour(float x, float z, float y) {
+    // sand in the shallows (seagrass in patches), the reef's coral rubble in warm mottles, the wall's dark rock, the
+    // blue's pale silt, the trench's basalt; the brine pool a black mirror
+    const Color sand{232, 218, 172, 255}, grass{98, 150, 84, 255}, rubble{200, 170, 140, 255}, rock{88, 92, 100, 255}, silt{176, 176, 160, 255}, basalt{46, 44, 52, 255};
+    float n = Noise(x / 9, z / 9) * 0.7f + Noise(x / 3.5f + 7, z / 3.5f) * 0.3f, j = Noise(x * 0.8f, z * 0.8f) * 0.1f - 0.05f;
+    Color c;
+    int band = mf::BandAt({x, y + 1, z});
+    if (x < -170) { c = Mix(sand, grass, std::clamp((0.32f - n) * 6, 0.0f, 1.0f)); if (Vector2Distance({x, z}, {-255, 70}) < 26) c = Mix(c, Color{210, 236, 220, 255}, 0.4f); }
+    else if (x < -42) { static const Color R[] = {{226, 120, 112, 255}, {236, 172, 92, 255}, {180, 120, 190, 255}, {110, 190, 168, 255}}; float m2 = Noise(x / 2.5f + 3, z / 2.5f); c = Mix(rubble, R[(int)(Noise(x / 6 + 11, z / 6) * 4) % 4], std::clamp((m2 - 0.45f) * 4, 0.0f, 1.0f)); }
+    else if (band == mf::B_TRENCH || y < -150) c = Mix(rock, basalt, std::clamp((-y - 120) / 120, 0.0f, 1.0f));
+    else if (x < -6) c = rock;
+    else c = silt;
+    if (Vector2Distance({x, z}, {mf::BRINE.x, mf::BRINE.z}) < mf::BRINE_R) c = {20, 24, 30, 255};
+    return Shade(c, 1 + j);
+}
+void BuildFloor() {
+    const float step = 2.5f;
+    const int chunks = 8;
+    float cw = (mf::X1 - mf::X0) / chunks;
+    for (int ch = 0; ch < chunks; ch++) {
+        rt::MeshBuilder mb;
+        float x0 = mf::X0 + ch * cw, x1 = x0 + cw;
+        // the trench needs finer steps where the canyon walls are
+        float st = x0 > 100 ? 3.0f : step;
+        for (float z = mf::Z0 - 30; z < mf::Z1 + 30; z += st) for (float x = x0; x < x1 - 0.01f; x += st) {
+            float xb = std::min(x + st, x1);
+            Vector3 a{x, mf::FloorY(x, z), z}, b{xb, mf::FloorY(xb, z), z}, c{xb, mf::FloorY(xb, z + st), z + st}, d{x, mf::FloorY(x, z + st), z + st};
+            Color ca = FloorColour(a.x, a.z, a.y), cb = FloorColour(b.x, b.z, b.y), cc = FloorColour(c.x, c.z, c.y), cd = FloorColour(d.x, d.z, d.y);
+            mb.Tri(a, c, b, ca, cc, cb, {0, 0}, {0, 0}, {0, 0}); mb.Tri(a, d, c, ca, cd, cc, {0, 0}, {0, 0}, {0, 0});
+        }
+        // the arena's rim: a wall of rock where the reef's world ends
+        S.floor.push_back(LoadModelFromMesh(mb.Build()));
+    }
+}
+void BuildCoral() {
+    rt::MeshBuilder mb;
+    static const Color CC[] = {{232, 112, 104, 255}, {240, 176, 80, 255}, {176, 112, 196, 255}, {96, 196, 176, 255}, {236, 214, 196, 255}, {226, 90, 140, 255}};
+    int k = 0;
+    for (const auto& c : mf::Corals()) {
+        Color col = CC[k++ % 6];
+        // a head: a trunk of stacked lumps, branches, a brain-coral cap
+        float h = c.h, r = c.r;
+        mb.Lathe(h, 5, 8, [r](float u) { return r * (0.75f + 0.35f * sinf(u * 9)) * (1.05f - 0.3f * u); }, [r](float u) { return r * (0.75f + 0.35f * sinf(u * 9 + 1)) * (1.05f - 0.3f * u); },
+                 col, Shade(col, 0.7f), {c.pos.x, c.pos.y + h * 0.5f - 0.3f, c.pos.z});
+        for (int b = 0; b < 4; b++) {
+            float a = b * 1.57f + k, bh = h * (0.5f + 0.15f * b);
+            Vector3 p0{c.pos.x + cosf(a) * r * 0.6f, c.pos.y + bh, c.pos.z + sinf(a) * r * 0.6f};
+            mb.Tube({p0, Vector3Add(p0, {cosf(a) * r * 0.7f, r * 0.9f, sinf(a) * r * 0.7f}), Vector3Add(p0, {cosf(a) * r * 0.9f, r * 1.6f, sinf(a) * r * 0.9f})}, r * 0.22f, r * 0.08f, 5, col, Mix(col, WHITE, 0.4f), 0);
+        }
+    }
+    // the eel holes: dark mouths with a ring of rubble; the wall caves: deep recesses
+    for (const auto& h : mf::Holes()) {
+        Color d{18, 16, 20, 255};
+        if (h.maxTier >= 5) { mb.Box(h.pos, {h.r * 0.6f, h.r, h.r * 1.1f}, d); continue; }
+        mb.Lathe(h.r * 0.5f, 2, 8, [&](float u) { (void)u; return h.r * 0.75f; }, [&](float u) { (void)u; return h.r * 0.75f; }, d, d, {h.pos.x, h.pos.y - 0.2f, h.pos.z});
+        for (int k2 = 0; k2 < 6; k2++) { float a = k2 * 1.05f; mb.Octa({h.pos.x + cosf(a) * h.r, h.pos.y - 0.1f, h.pos.z + sinf(a) * h.r}, 0.25f, {150, 130, 110, 255}); }
+    }
+    S.coral = LoadModelFromMesh(mb.Build());
+}
+void BuildKelp() {
+    // the kelp curtain at the top of the wall, seagrass in the shallows
+    rt::MeshBuilder mb;
+    for (int i = 0; i < 160; i++) {
+        float z = mf::Z0 + 4 + i * ((mf::Z1 - mf::Z0 - 8) / 160.0f) + Hash((float)i, 3) * 1.5f, x = -46 + Hash((float)i, 5) * 8;
+        float y0 = mf::FloorY(x, z), h = 18 + Hash((float)i, 7) * 18;
+        Color g = Mix(Color{70, 110, 50, 255}, Color{120, 140, 60, 255}, Hash((float)i, 9));
+        Vector3 prev{x, y0, z};
+        for (int s = 1; s <= 8; s++) {
+            float u = s / 8.0f;
+            Vector3 p{x + sinf(u * 3 + i) * 0.8f, y0 + h * u, z + cosf(u * 2 + i) * 0.4f};
+            if (p.y > -1) break;
+            float w = 0.6f;
+            TwoSided(mb, Vector3Add(prev, {0, 0, -w}), Vector3Add(p, {0, 0, -w}), Vector3Add(p, {0, 0, w}), g);
+            TwoSided(mb, Vector3Add(prev, {0, 0, -w}), Vector3Add(p, {0, 0, w}), Vector3Add(prev, {0, 0, w}), g);
+            prev = p;
+        }
+    }
+    for (int i = 0; i < 900; i++) {
+        float x = -298 + Hash((float)i, 11) * 125, z = mf::Z0 + Hash((float)i, 13) * (mf::Z1 - mf::Z0);
+        if (Noise(x / 9, z / 9) * 0.7f + Noise(x / 3.5f + 7, z / 3.5f) * 0.3f >= 0.3f) continue;   // (only on the patches the floor paints green)
+        float y0 = mf::FloorY(x, z), h = 0.6f + Hash((float)i, 15) * 1.2f;
+        Color g{84, 150, 76, 255};
+        TwoSided(mb, {x - 0.06f, y0, z}, {x + 0.06f, y0, z}, {x + 0.1f, y0 + h, z + 0.15f}, g);
+    }
+    S.kelp = LoadModelFromMesh(mb.Build());
+}
+void BuildProps() {
+    // the pier's pilings in the shallows, a wreck on the reef, the cleaning station's rock, vents and the brine pool's rim
+    rt::MeshBuilder mb;
+    Color wood{96, 80, 60, 255}, hull{70, 60, 52, 255};
+    for (int i = 0; i < 10; i++) for (int s = 0; s < 2; s++) {
+        float x = -270 + i * 6.0f, z = -40 + s * 5.0f, y0 = mf::FloorY(x, z);
+        mb.Tube({{x, y0 - 0.5f, z}, {x, 1.5f, z}}, 0.35f, 0.3f, 6, wood, Shade(wood, 1.2f), 0);
+    }
+    { // the wreck: a broken hull on its side
+        Vector3 c{-110, mf::FloorY(-110, -70) + 1.5f, -70};
+        mb.Lathe(16, 8, 10, [](float u) { return 2.6f * sinf(std::max(0.1f, u) * PI) + 0.4f; }, [](float u) { return 2.0f * sinf(std::max(0.1f, u) * PI) + 0.3f; }, hull, Shade(hull, 0.7f), c);
+        mb.Tube({Vector3Add(c, {0, 2, 2}), Vector3Add(c, {3, 9, 1})}, 0.3f, 0.2f, 5, wood, wood, 0);
+    }
+    { // the cleaning station: a flat-topped rock
+        Vector3 c = mf::CLEANING; c.y = mf::FloorY(c.x, c.z);
+        mb.Lathe(3, 3, 9, [](float u) { return 4.5f - u * 1.5f; }, [](float u) { return 4.5f - u * 1.5f; }, {150, 140, 130, 255}, {110, 100, 96, 255}, Vector3Add(c, {0, 1.2f, 0}));
+    }
+    for (int i = 0; i < 6; i++) {   // vents in the trench
+        float x = 150 + Hash((float)i, 21) * 130, z = -50 + Hash((float)i, 23) * 100, y0 = mf::FloorY(x, z);
+        mb.Cone({x, y0 - 1, z}, {x, y0 + 5 + Hash((float)i, 25) * 4, z}, 1.6f, 7, {60, 52, 50, 255});
+    }
+    S.props = LoadModelFromMesh(mb.Build());
+}
+void FreeModels() {
+    if (!S.ready) return;
+    for (Model& m : S.floor) UnloadModel(m);
+    S.floor.clear();
+    UnloadModel(S.coral); UnloadModel(S.kelp); UnloadModel(S.props);
+    S.ready = false;
+}
+void EnsureModels() {
+    if (S.ready || !IsWindowReady()) return;
+    BuildFloor(); BuildCoral(); BuildKelp(); BuildProps();
+    S.ready = true;
+}
+
+// ---------------------------------------------------------------- input
+mf::Mouth& Me() { return S.W.mouths[std::clamp(S.me, 0, (int)S.W.mouths.size() - 1)]; }
+void Gather(float dt) {
+    mf::Mouth& m = Me();
+    mf::Input in;
+    if (IsKeyPressed(KEY_H)) S.help = !S.help;
+    S.board = IsKeyDown(KEY_TAB);
+    Vector2 md = MouseLook(!S.shot && m.alive && !S.W.over && !m.pendingFork);
+    S.aimYaw += md.x * 0.0026f;
+    S.aimPitch = std::clamp(S.aimPitch - md.y * 0.0026f, -1.35f, 1.35f);
+    if (IsKeyDown(KEY_A)) S.aimYaw -= dt * 1.4f;
+    if (IsKeyDown(KEY_D)) S.aimYaw += dt * 1.4f;
+    if (IsKeyDown(KEY_SPACE)) S.aimPitch = std::min(1.35f, S.aimPitch + dt * 1.3f);
+    if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_C)) S.aimPitch = std::max(-1.35f, S.aimPitch - dt * 1.3f);
+    in.yaw = S.aimYaw; in.pitch = S.aimPitch;
+    in.swim = IsKeyDown(KEY_W);
+    in.brake = IsKeyDown(KEY_S);
+    in.boost = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+    in.bite = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+    in.ability = IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) || IsKeyPressed(KEY_E) || IsKeyPressed(KEY_Q);
+    if (m.pendingFork) for (int k = 0; k < (int)m.forkOpts.size() && k < 9; k++) if (IsKeyPressed(KEY_ONE + k)) in.fork = k;
+    if (S.forkClick >= 0) { if (m.pendingFork) in.fork = S.forkClick; S.forkClick = -1; }
+    // a walker jumps with Space
+    const mf::FormDef& F = S.W.FormOf(m);
+    if (F.walker && IsKeyPressed(KEY_SPACE)) in.pitch = 1.2f;
+    if (S.shot) { in = mf::Input{}; in.yaw = S.aimYaw; in.pitch = S.aimPitch; }
+    m.in = in;
+}
+
+// ---------------------------------------------------------------- drawing
+float CreatureYaw(Vector3 f) { return atan2f(f.x, f.z); }
+void DrawMouth(const mf::World& w, const mf::Mouth& m, bool mine) {
+    if (!m.alive) return;
+    const mf::FormDef& F = w.FormOf(m);
+    const rt::CreatureModel& cm = rt::Creature("mouthful_reef", F.art);
+    float L = w.Length(m);
+    Vector3 f{cosf(m.pitch) * cosf(m.yaw), sinf(m.pitch), cosf(m.pitch) * sinf(m.yaw)};
+    float spd = Vector3Length(m.vel);
+    float inten = std::clamp(0.4f + spd / std::max(1.0f, w.Speed(m)), 0.3f, 1.8f);
+    if (m.dashT > 0 || m.boosting) inten = 1.8f;
+    Color tint = WHITE;
+    if (m.hurtT > 0) tint = {255, 150, 140, 255};
+    if (m.immuneT > 0) tint = Mix(WHITE, Color{255, 250, 200, 255}, 0.5f + 0.5f * sinf(S.t * 10));   // (the immunity glow)
+    if (m.morphT > 0) tint = Mix(tint, Color{180, 255, 240, 255}, m.morphT);                        // (a fork's shimmer)
+    if (m.tellT > 0) tint = Mix(tint, Color{255, 255, 255, 255}, 0.5f);                             // (the tell)
+    if (m.buriedT >= 2 || m.ambush) tint = Mix(tint, Color{120, 110, 90, 255}, 0.6f);
+    if (F.ps == mf::PS_CAMO && m.stillT > 1) tint = Mix(tint, Color{150, 140, 120, 255}, 0.7f);
+    float scale = L / std::max(0.05f, cm.length);
+    if (F.ab == mf::AB_INFLATE && m.abT > 0) scale *= 1.0f;   // (Length already doubles it)
+    float phase = S.t * cm.freq * (0.5f + inten * 0.5f) + m.id * 1.7f;
+    rt::DrawCreature(cm, m.pos, CreatureYaw(f), std::clamp(m.pitch, -1.2f, 1.2f), scale, phase, inten, tint);
+    if (m.immuneT > 0) for (int k = 0; k < 6; k++) { float a = k * 1.047f + S.t * 2.5f, r = L * 0.8f + 0.06f; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.025f, 0.025f, 0.025f), MatrixTranslate(m.pos.x + cosf(a) * r, m.pos.y + sinf(a * 2) * r * 0.3f, m.pos.z + sinf(a) * r)), {255, 240, 170, 255}, 1.0f); }
+    if (m.king) {   // the crown: a gold glow over the king, seen by everyone
+        Vector3 c = Vector3Add(m.pos, {0, L * 0.45f + 0.2f, 0});
+        for (int k = 0; k < 5; k++) { float a = k * 1.2566f + S.t; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(L * 0.06f, L * 0.12f, L * 0.06f), MatrixTranslate(c.x + cosf(a) * L * 0.12f, c.y, c.z + sinf(a) * L * 0.12f)), {255, 214, 90, 255}, 1.6f); }
+    }
+    (void)mine;
+}
+void DrawWorld(const mf::World& w, const Camera3D& cam) {
+    for (size_t i = 0; i < S.floor.size(); i++) rt::DrawStatic(S.floor[i], MatrixIdentity());
+    rt::DrawStatic(S.coral, MatrixIdentity());
+    rt::DrawStatic(S.kelp, MatrixIdentity());
+    rt::DrawStatic(S.props, MatrixIdentity());
+    // the surface seen from below: a bright skin of light
+    rt::DrawCubeGlow(MatrixMultiply(MatrixScale(900, 0.2f, 600), MatrixTranslate(0, 0.15f, 0)), {150, 214, 222, 255}, 0.5f);
+    // the brine pool's sheen and the vents' glow in the trench
+    rt::DrawCubeGlow(MatrixMultiply(MatrixScale(mf::BRINE_R * 1.7f, 0.1f, mf::BRINE_R * 1.7f), MatrixTranslate(mf::BRINE.x, mf::FloorY(mf::BRINE.x, mf::BRINE.z) + 0.6f, mf::BRINE.z)), {40, 70, 90, 255}, 0.4f);
+    for (int i = 0; i < 6; i++) {   // the vents' glow
+        float x = 150 + Hash((float)i, 21) * 130, z = -50 + Hash((float)i, 23) * 100, y0 = mf::FloorY(x, z) + 5.5f + Hash((float)i, 25) * 4;
+        if (Vector3Distance({x, y0, z}, cam.position) < 120) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.2f, 0.6f, 1.2f), MatrixTranslate(x, y0, z)), {255, 140, 70, 255}, 1.6f);
+    }
+    if (cam.position.y < -110) for (int k = 0; k < 90; k++) {   // bioluminescent motes drifting round the eye
+        float a = k * 2.399f, r = 4 + (k % 9) * 2.2f, y = ((k * 37) % 23 - 11) * 1.1f;
+        Vector3 q{cam.position.x + cosf(a + S.t * 0.05f) * r, cam.position.y + y + sinf(S.t * 0.3f + k) * 0.5f, cam.position.z + sinf(a + S.t * 0.05f) * r};
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.05f, 0.05f, 0.05f), MatrixTranslate(q.x, q.y, q.z)), k % 3 ? Color{90, 220, 230, 255} : Color{140, 255, 170, 255}, 1.2f);
+    }
+    // plankton: a fry's food, a shimmer of green motes
+    for (const auto& p : w.plankton) {
+        if (Vector3Distance(p.pos, cam.position) > 80) continue;
+        for (int k = 0; k < 26; k++) {
+            float a = k * 2.399f, r = p.r * sqrtf((k + 0.5f) / 26), y = (Hash((float)k, p.r) - 0.5f) * p.r;
+            Vector3 q{p.pos.x + cosf(a + S.t * 0.2f) * r, p.pos.y + y, p.pos.z + sinf(a + S.t * 0.2f) * r};
+            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.08f, 0.08f), MatrixTranslate(q.x, q.y, q.z)), {170, 236, 170, 255}, 0.9f);
+        }
+    }
+    // ink and toxin clouds
+    for (const auto& c : w.clouds) {
+        float k = std::clamp(c.t, 0.0f, 1.0f);
+        Color col = c.kind == 0 ? Color{18, 14, 30, 255} : Color{150, 190, 60, 255};
+        for (int j = 0; j < 9; j++) { float a = j * 0.7f; Vector3 q{c.pos.x + cosf(a) * c.r * 0.45f, c.pos.y + sinf(a * 1.7f) * c.r * 0.3f, c.pos.z + sinf(a) * c.r * 0.45f}; float s = c.r * 0.7f * k; rt::DrawWorldCube(q, {s, s, s}, col); }
+    }
+    // the web's fish (near enough to see) and the leviathan
+    for (int i = 0; i < (int)w.eco.agents.size(); i++) {
+        const rt::Agent& a = w.eco.agents[i];
+        if (!a.alive || a.diver >= 0) continue;
+        float d = Vector3Distance(a.pos, cam.position);
+        const rt::Species& sp = w.eco.map->species[a.sp];
+        if (d > (i == w.leviathan ? 160.0f : sp.size >= 5 ? 110.0f : 70.0f)) continue;
+        const rt::CreatureModel& cm = rt::Creature("mouthful_reef", sp.name);
+        float spd = Vector3Length(a.vel);
+        Vector3 v = spd > 0.02f ? a.vel : Vector3{sinf(a.rng * 0.001f), 0, cosf(a.rng * 0.001f)};
+        float yaw = atan2f(v.x, v.z), pitch = spd > 0.05f ? std::clamp(asinf(std::clamp(v.y / std::max(spd, 1e-3f), -1.0f, 1.0f)), -0.6f, 0.6f) : 0;
+        float inten = std::clamp(0.35f + spd / std::max(0.5f, sp.speed), 0.2f, 1.6f);
+        Color tint = a.wound > 0.3f ? Color{255, (unsigned char)(255 - a.wound * 120), (unsigned char)(255 - a.wound * 120), 255} : WHITE;
+        if (i == w.leviathan && w.levAwakeT <= 0) tint = Shade(tint, 0.7f);
+        rt::DrawCreature(cm, a.pos, yaw, pitch, 1.0f, S.t * cm.freq * (0.6f + inten * 0.6f) + (a.rng % 1000) * 0.01f, inten, tint);
+    }
+    // the corpses: a pale drifting body
+    for (const auto& c : w.eco.corpses) if (c.active && Vector3Distance(c.pos, cam.position) < 50) rt::DrawWorldCube(c.pos, {0.25f, 0.12f, 0.4f}, {200, 190, 180, 255});
+    for (const auto& m : w.mouths) DrawMouth(w, m, m.id == S.me);
+}
+
+// ---------------------------------------------------------------- the light under water
+void Light(rt::SceneLight& L, const Camera3D& cam, float dusk) {
+    float depth = std::max(0.0f, -cam.position.y);
+    int band = mf::BandAt(cam.position);
+    Color shallow{70, 176, 186, 255}, blue{26, 92, 140, 255}, deep{10, 26, 46, 255}, trench{8, 16, 32, 255};
+    Color fog = depth < 15 ? Mix(shallow, blue, depth / 60) : depth < 120 ? Mix(Mix(shallow, blue, 0.25f), deep, (depth - 15) / 105) : Mix(deep, trench, std::min(1.0f, (depth - 120) / 120));
+    if (band == mf::B_SHALLOWS) fog = Mix(fog, Color{90, 190, 186, 255}, 0.4f);
+    fog = Mix(fog, Color{14, 20, 40, 255}, dusk * 0.6f);
+    L.fog = fog;
+    L.fogDensity = band == mf::B_TRENCH ? 0.05f : band == mf::B_BLUE ? 0.022f : 0.026f;
+    L.water = 1; L.surf = 3;
+    L.absorb = depth < 45 ? Vector3{0.045f, 0.020f, 0.016f} : Vector3{0.075f, 0.030f, 0.024f};   // (the reef keeps its colour)
+    L.depthDark = 0.010f; L.surfaceY = 0;
+    L.causticK = depth < 40 ? 0.9f * (1 - depth / 40) : 0;
+    L.bloom = 0.35f; L.lens = 0; L.inkFade = 1;
+    L.outline = 0.6f; L.outlineTint = {(unsigned char)(fog.r * 0.35f), (unsigned char)(fog.g * 0.35f), (unsigned char)(fog.b * 0.35f), 255};
+    L.stipple = 0; L.grain = 0.35f;
+    L.aoK = 0.45f; L.aoRadius = 0.5f; L.filmic = 0.5f; L.exposure = 1.1f; L.saturation = 1.15f;
+    float sun = std::clamp(expf(-depth * 0.025f), 0.1f, 1.0f) * (1 - 0.6f * dusk);
+    L.moonDir = Vector3Normalize({0.2f, -1.0f, 0.15f});
+    L.moon = {200, 236, 240, 255}; L.moonK = 0.85f * sun;
+    L.ambK = 0.55f; L.skyAmb = Mix(fog, WHITE, 0.4f); L.seaAmb = Shade(fog, 0.6f);
+    L.fill = Shade(fog, 0.6f); L.rim = Mix(fog, WHITE, 0.3f);
+    // in the dark: a faint glow round your own eyes (the trench is lit only by what lives there)
+    L.lampPos = cam.position; L.lampDir = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
+    L.lampRange = depth > 110 ? 30 : 1; L.key = depth > 110 ? Color{110, 170, 190, 255} : Color{0, 0, 0, 255};
+    if (depth > 110) { L.fill = {30, 54, 70, 255}; L.rim = {60, 120, 140, 255}; L.ambK = 0.8f; }
+    L.time = S.t;
+    // shafts from the surface on a fixed grid round the eye
+    if (depth < 60) {
+        float cell = 11;
+        int cx = (int)floorf(cam.position.x / cell), cz = (int)floorf(cam.position.z / cell);
+        Color sc{220, 250, 240, 255};
+        for (int dz = -1; dz <= 1 && L.nShafts < rt::SceneLight::MAX_SHAFTS; dz++) for (int dx = -1; dx <= 1 && L.nShafts < rt::SceneLight::MAX_SHAFTS; dx++) {
+            uint32_t h = (uint32_t)(cx + dx) * 73856093u ^ (uint32_t)(cz + dz) * 19349663u;
+            if ((h >> 7) % 3 == 0) continue;
+            float ox = ((h >> 11) % 100) / 100.0f, oz = ((h >> 17) % 100) / 100.0f;
+            L.AddShaft({(cx + dx + ox) * cell, 0, (cz + dz + oz) * cell}, Vector3Normalize({0.2f, -1.0f, 0.15f}), 0.7f + 0.6f * ox, 40, sc, 0.18f * sun);
+        }
+    }
+}
+void Render(float dt) {
+    mf::World& w = S.W;
+    mf::Mouth& m = Me();
+    EnsureModels();
+    // the camera: behind the mouth along the aim; it pulls back as you grow (a king sees the reef, a fry the next rock)
+    float k = std::min(1.0f, dt * 6);
+    S.camYaw += atan2f(sinf(S.aimYaw - S.camYaw), cosf(S.aimYaw - S.camYaw)) * k;
+    S.camPitch += (S.aimPitch * 0.85f - S.camPitch) * k;
+    float L = w.Length(m);
+    float want = 0.7f + L * 3.0f + (m.boosting ? L * 0.6f : 0);
+    S.camDist += (want - S.camDist) * std::min(1.0f, dt * 2);
+    Vector3 look{cosf(S.camPitch) * cosf(S.camYaw), sinf(S.camPitch), cosf(S.camPitch) * sinf(S.camYaw)};
+    Vector3 focus = m.alive ? m.pos : Vector3{-250, -4, 0};
+    Vector3 eye = Vector3Add(Vector3Subtract(focus, Vector3Scale(look, S.camDist)), {0, 0.25f + L * 0.5f, 0});
+    eye.y = std::clamp(eye.y, mf::FloorY(eye.x, eye.z) + 0.4f, -0.25f);
+    S.cam.position = eye;
+    S.cam.target = Vector3Add(focus, Vector3Scale(look, 2 + L));
+    S.cam.up = {0, 1, 0};
+    S.cam.fovy = 64 + (m.boosting ? 6 : 0);
+    S.cam.projection = CAMERA_PERSPECTIVE;
+    float dusk = std::clamp((w.time - w.roundLen * 2 / 3) / 30, 0.0f, 1.0f);
+    rt::SceneLight Lt;
+    Light(Lt, S.cam, dusk);
+    rt::ApplyGameQuality();
+    rt::RenderBegin(S.cam, Lt);
+    DrawWorld(w, S.cam);
+    rt::RenderEnd();
+}
+
+// ---------------------------------------------------------------- the HUD
+void Bar(float x, float y, float wd, float h, float k, Color c) {
+    DrawRectangleRounded({x, y, wd, h}, 0.5f, 6, Fade(Color{4, 20, 28, 255}, 0.75f));
+    if (k > 0) DrawRectangleRounded({x + 2, y + 2, std::max(2.0f, (wd - 4) * std::clamp(k, 0.0f, 1.0f)), h - 4}, 0.5f, 6, c);
+}
+void DrawHud(mf::World& w) {
+    const mf::Data& d = mf::D();
+    mf::Mouth& m = Me();
+    const mf::FormDef& F = w.FormOf(m);
+    Color ink{236, 250, 246, 255}, dim{170, 210, 210, 255}, gold{255, 214, 110, 255};
+    // the clock and where you are
+    int left = std::max(0, (int)(w.roundLen - w.time));
+    bool high = w.time > w.roundLen - 60;
+    DrawTextCenteredBold(TextFormat("%d:%02d%s", left / 60, left % 60, high ? "  HIGH TIDE" : w.time > w.roundLen * 2 / 3 ? "  dusk" : ""), SCREEN_W / 2.0f, 12, 24, high ? gold : ink);
+    if (m.alive) Txt(TextFormat("%s, %.0f m", mf::BandName(mf::BandAt(m.pos)), -m.pos.y), 18, 14, 16, dim);
+    // the leaderboard (the top six and you), the crown beside the king
+    {
+        auto b = w.Board();
+        float x = SCREEN_W - 270, y = 12;
+        DrawRectangleRounded({x - 10, y - 4, 268, 24.0f * std::min(7, (int)b.size()) + 30}, 0.08f, 6, Fade(Color{4, 20, 28, 255}, 0.6f));
+        TxtBold("The food chain", x, y, 16, gold); y += 22;
+        int shown = 0;
+        for (int r = 0; r < (int)b.size(); r++) {
+            const mf::Mouth& o = w.mouths[b[r]];
+            if (shown >= 6 && o.id != S.me) continue;
+            Color c = o.id == S.me ? Color{255, 236, 160, 255} : o.alive ? ink : Color{150, 160, 160, 255};
+            Txt(TextFormat("%d. %s%s", r + 1, o.king ? "\xE2\x99\x94 " : "", o.name.c_str()), x, y, 15, c);
+            Txt(TextFormat("t%d  %d", o.tier, (int)mf::ScoreOf(w, o)), x + 180, y, 15, c);
+            y += 22; shown++;
+        }
+    }
+    // the kill feed
+    {
+        float y = 210;
+        int n = 0;
+        for (int i = (int)w.feed.size() - 1; i >= 0 && n < 6; i--) {
+            const auto& f = w.feed[i];
+            float age = w.time - f.t;
+            if (age > 9) break;
+            Color c = f.c; c.a = (unsigned char)(255 * std::clamp(1 - (age - 7) / 2, 0.0f, 1.0f));
+            int wd = MeasureTxt(f.text, 15);
+            Txt(f.text, SCREEN_W - 20 - wd, y, 15, c);
+            y += 20; n++;
+        }
+    }
+    if (!m.alive) {
+        DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.35f));
+        DrawTextCenteredBold("Gulp.", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 60, 40, Color{255, 190, 170, 255});
+        DrawTextCentered(TextFormat("%s. Back as a fry in %.0f s.", m.lastCause == "player" ? "Something bigger found you" : m.lastCause == "leviathan" ? "The Leviathan" : m.lastCause == "npc" ? "A shark" : m.lastCause.c_str(), std::max(0.0f, m.respawnT)), SCREEN_W / 2.0f, SCREEN_H / 2.0f, 18, ink);
+        return;
+    }
+    // the reticle, and what's in front: swallow, fight, or flee
+    {
+        float cx = SCREEN_W / 2.0f, cy = SCREEN_H / 2.0f;
+        DrawCircleLines((int)cx, (int)cy, 7, Fade(ink, 0.7f));
+        // the ability's ring
+        if (F.ab != mf::AB_NONE) {
+            float k = F.cd > 0 ? 1 - std::clamp(m.abCd / F.cd, 0.0f, 1.0f) : 1;
+            DrawRing({cx, cy}, 13, 16, -90, -90 + 360 * k, 32, k >= 1 ? Color{140, 240, 210, 220} : Color{140, 200, 200, 120});
+        }
+        Vector3 f{cosf(m.pitch) * cosf(m.yaw), sinf(m.pitch), cosf(m.pitch) * sinf(m.yaw)};
+        int bestM = -1, bestA = -1; float bd = 18 + w.Length(m) * 3;
+        for (const auto& o : w.mouths) { if (!o.alive || o.id == m.id) continue; Vector3 dv = Vector3Subtract(o.pos, m.pos); float L = Vector3Length(dv); if (L < bd && Vector3DotProduct(Vector3Scale(dv, 1 / std::max(0.01f, L)), f) > 0.9f) { bd = L; bestM = o.id; } }
+        for (int i = 0; i < (int)w.eco.agents.size(); i++) { const auto& a = w.eco.agents[i]; if (!a.alive || a.diver >= 0) continue; if (fabsf(a.pos.x - m.pos.x) > bd || fabsf(a.pos.z - m.pos.z) > bd) continue; Vector3 dv = Vector3Subtract(a.pos, m.pos); float L = Vector3Length(dv); if (L < bd && Vector3DotProduct(Vector3Scale(dv, 1 / std::max(0.01f, L)), f) > 0.95f) { bd = L; bestA = i; bestM = -1; } }
+        float tm = -1; std::string tn;
+        if (bestM >= 0) { tm = w.mouths[bestM].mass; tn = w.mouths[bestM].name + " (" + w.FormOf(w.mouths[bestM]).name + ")"; }
+        else if (bestA >= 0) { tm = w.MassOfAgent(bestA); tn = w.eco.map->species[w.eco.agents[bestA].sp].name; }
+        if (tm >= 0) {
+            bool swallow = bestM >= 0 ? mf::SwallowOk(w, m, w.mouths[bestM]) : tm < d.swallowBelow * m.mass;
+            bool fight = !swallow && tm < m.mass;
+            const char* verdict = swallow ? "SWALLOW" : fight ? "FIGHT" : "FLEE";
+            Color vc = swallow ? Color{140, 240, 150, 255} : fight ? Color{255, 220, 120, 255} : Color{255, 120, 110, 255};
+            DrawTextCenteredBold(verdict, cx, cy + 22, 16, vc);
+            DrawTextCentered(TextFormat("%s, %.0f mass", tn.c_str(), tm), cx, cy + 40, 13, dim);
+            if (bestM >= 0 && w.mouths[bestM].immuneT > 0) DrawTextCentered("(glowing: a bite marks you for the sharks)", cx, cy + 56, 12, Color{255, 220, 170, 255});
+        }
+    }
+    // the mass bar with the tier marks, the form, stamina, the ability
+    {
+        float x = SCREEN_W / 2.0f - 300, y = SCREEN_H - 92, wd = 600;
+        int t = m.tier;
+        float m0 = d.tiers[t].mass, m1 = t < 8 ? d.tiers[t + 1].mass : d.tiers[8].mass * 2;
+        Bar(x, y, wd, 20, (m.mass - m0) / std::max(1.0f, m1 - m0), m.king ? gold : Color{120, 220, 200, 255});
+        { std::string s = TextFormat("Tier %d  %s  -  %.0f mass%s", t, F.name.c_str(), m.mass, t < 8 ? TextFormat(" (tier %d at %.0f)", t + 1, m1) : "");
+          DrawTextCenteredBold(s, SCREEN_W / 2.0f + 1, y + 3, 15, Color{0, 0, 0, 200}); DrawTextCenteredBold(s, SCREEN_W / 2.0f, y + 2, 15, ink); }
+        Bar(x, y + 26, 200, 10, m.stamina, m.boosting ? Color{255, 230, 140, 255} : Color{200, 230, 240, 255});
+        Txt("stamina (Shift)", x + 206, y + 23, 12, dim);
+        if (F.ab != mf::AB_NONE) Txt(TextFormat("RMB/E: %s%s", F.abilityText.c_str(), m.abCd > 0 ? TextFormat("  (%.0f s)", ceilf(m.abCd)) : ""), x, y + 42, 13, m.abCd > 0 ? dim : Color{160, 250, 220, 255});
+        if (F.ps != mf::PS_NONE) Txt(F.passiveText, x, y + 60, 12, dim);
+        if (m.immuneT > 0) DrawTextCenteredBold(TextFormat("Glowing: nothing can hurt you for %.0f s", m.immuneT), SCREEN_W / 2.0f, y - 26, 15, Color{255, 236, 170, 255});
+        if (m.hidden) DrawTextCenteredBold("Hidden in a hole: only your size can reach you", SCREEN_W / 2.0f, y - 46, 14, Color{200, 230, 255, 255});
+        if (m.blindT > 0) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Color{10, 6, 20, 255}, 0.6f));
+        if (m.reverseT > 0) DrawTextCenteredBold("DAZZLED: your controls are reversed", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 80, 18, Color{255, 200, 255, 255});
+        if (m.poisonT > 0 || m.bleedT > 0) DrawTextCentered(m.poisonT > 0 ? "poisoned" : "bleeding", SCREEN_W / 2.0f, y - 64, 14, Color{220, 255, 140, 255});
+        if (m.markT > 0) DrawTextCentered("the sharks have your scent", SCREEN_W / 2.0f, y - 82, 13, Color{255, 170, 150, 255});
+    }
+    // the fork: the choices as cards (1-6 or a click); the first is picked if you wait
+    if (m.pendingFork) {
+        int n = (int)m.forkOpts.size();
+        float cw = n > 3 ? 200 : 260, gap = 12, total = n * cw + (n - 1) * gap;
+        float x = SCREEN_W / 2.0f - total / 2, y = SCREEN_H / 2.0f - 170;
+        DrawTextCenteredBold(m.pendingFork == 2 ? "THE FIRST FORK: choose a path for this life" : TextFormat("FORK %d: choose your %s form", m.pendingFork / 2, m.pendingFork == 4 ? "second" : "final"), SCREEN_W / 2.0f, y - 40, 22, gold);
+        DrawTextCentered(TextFormat("(keys 1-%d or click; the first in %.0f s)", n, std::max(0.0f, m.forkT)), SCREEN_W / 2.0f, y - 14, 14, dim);
+        for (int k = 0; k < n; k++) {
+            const mf::FormDef& G = d.forms[m.forkOpts[k]];
+            Rectangle r{x + k * (cw + gap), y, cw, 230};
+            bool hov = CheckCollisionPointRec(GetMousePosition(), r);
+            DrawRectangleRounded(r, 0.08f, 6, Fade(hov ? Color{24, 70, 78, 255} : Color{8, 30, 36, 255}, 0.92f));
+            DrawRectangleRoundedLinesEx(r, 0.08f, 6, 2, hov ? gold : Color{120, 170, 160, 255});
+            DrawRectangle((int)r.x + 12, (int)r.y + 12, 26, 26, G.base); DrawRectangle((int)r.x + 22, (int)r.y + 22, 16, 16, G.accent);
+            TxtBold(TextFormat("%d. %s", k + 1, G.name.c_str()), r.x + 46, r.y + 14, 17, ink);
+            Txt(m.pendingFork == 2 ? TextFormat("the %s path", mf::PathName(G.path)) : "", r.x + 46, r.y + 36, 13, dim);
+            Txt(TextFormat("speed %.1f  HP %.1f  bite %.1f", G.speed, G.hp, G.bite), r.x + 12, r.y + 60, 13, Color{200, 240, 230, 255});
+            DrawWrapped(G.abilityText.empty() ? "No ability." : G.abilityText, {r.x + 12, r.y + 84, cw - 24, 70}, 13, Color{160, 250, 220, 255});
+            DrawWrapped(G.passiveText.empty() ? "" : G.passiveText, {r.x + 12, r.y + 156, cw - 24, 64}, 12, dim);
+            if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) S.forkClick = k;
+        }
+    }
+    if (S.help) {
+        Rectangle r{18, 44, 330, 158};
+        DrawRectangleRounded(r, 0.06f, 6, Fade(Color{4, 20, 28, 255}, 0.7f));
+        const char* L[] = {"Mouse: steer   W: swim   S: stop", "Shift: boost (stamina)   Space/Ctrl: up/down", "Left click: bite   Right click or E: ability", "Smaller than 60% of you: swallowed whole.", "60-100%: a fight.  Bigger: flee.", "Tab: the whole food chain   H: hide this"};
+        for (int i = 0; i < 6; i++) Txt(L[i], r.x + 12, r.y + 10 + i * 24, 14, i < 3 ? ink : dim);
+    }
+    if (S.board) {
+        auto b = w.Board();
+        Rectangle r{SCREEN_W / 2.0f - 330, 90, 660, 40.0f + 26 * b.size()};
+        DrawRectangleRounded(r, 0.04f, 6, Fade(Color{4, 20, 28, 255}, 0.9f));
+        for (int i = 0; i < (int)b.size(); i++) {
+            const mf::Mouth& o = w.mouths[b[i]];
+            float y = r.y + 16 + i * 26;
+            Color c = o.id == S.me ? gold : ink;
+            Txt(TextFormat("%d. %s%s", i + 1, o.name.c_str(), o.king ? "  (KING)" : ""), r.x + 20, y, 16, c);
+            Txt(TextFormat("%s, tier %d", w.FormOf(o).name.c_str(), o.tier), r.x + 250, y, 16, c);
+            Txt(TextFormat("%d kills  %d deaths  %d", o.kills, o.deaths, (int)mf::ScoreOf(w, o)), r.x + 460, y, 16, c);
+        }
+    }
+}
+void DrawResults(Game& g, mf::World& w) {
+    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.55f));
+    auto b = w.Board();
+    Rectangle r{SCREEN_W / 2.0f - 380, 90, 760, 150.0f + 28 * b.size()};
+    DrawRectangleRounded(r, 0.05f, 6, Fade(Color{6, 24, 32, 255}, 0.94f));
+    DrawRectangleRoundedLinesEx(r, 0.05f, 6, 2, Color{214, 180, 110, 255});
+    DrawTextCenteredBold(w.winner == S.me ? "You were the biggest mouth in the water." : (w.winner >= 0 ? w.mouths[w.winner].name : std::string("Nobody")) + " wins the round.", SCREEN_W / 2.0f, r.y + 16, 26, Color{255, 226, 150, 255});
+    float y = r.y + 60;
+    for (int i = 0; i < (int)b.size(); i++) {
+        const mf::Mouth& o = w.mouths[b[i]];
+        Color c = o.id == S.me ? Color{255, 230, 140, 255} : Color{236, 246, 240, 255};
+        Txt(TextFormat("%d. %s", i + 1, o.name.c_str()), r.x + 24, y, 16, c);
+        Txt(TextFormat("best tier %d", o.bestTier), r.x + 260, y, 16, c);
+        Txt(TextFormat("%d kills, %d deaths, crown %.0f s", o.kills, o.deaths, o.crownT), r.x + 380, y, 16, c);
+        Txt(TextFormat("%d", (int)mf::ScoreOf(w, o)), r.x + 680, y, 16, c);
+        y += 28;
+    }
+    if (Button({SCREEN_W / 2.0f - 120, r.y + r.height - 50, 240, 38}, "Back to the arcade", true, 16)) ::LeaveMouthful(g);
+}
+
+}  // namespace
+
+void LeaveMouthful(Game& g) { S.active = false; FreeModels(); g.scene = Scene::Arcade; }
+void StartMouthful(Game& g, int bots, float minutes, int botLevel) {
+    std::string why;
+    if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
+    S.opts = mf::Opts{}; S.opts.humans = 1; S.opts.bots = std::clamp(bots, 0, 11); S.opts.minutes = minutes; S.opts.botLevel = botLevel; S.opts.seed = (uint32_t)GetRandomValue(1, 1 << 30);
+    S.W.Init(S.opts);
+    S.me = 0; S.active = true; S.shot = false; S.help = true; S.t = 0;
+    S.aimYaw = S.W.mouths[0].yaw; S.aimPitch = 0; S.camYaw = S.aimYaw; S.camPitch = 0; S.camDist = 1;
+    g.scene = Scene::Mouthful;
+}
+void SceneMouthful(Game& g) {
+    if (!S.active) { StartMouthful(g, 11, 15, 0); if (!S.active) return; }
+    float dt = S.shot ? 1 / 60.0f : std::min(GetFrameTime(), 1 / 30.0f);
+    Gather(dt);
+    if (!S.shot) S.W.Step(dt);
+    S.t += dt;
+    Render(dt);
+    DrawHud(S.W);
+    if (S.W.over) DrawResults(g, S.W);
+}
+void MouthfulMenuTick(float) {}
+// --shots: 0 a fry in the shallows among minnows, 1 the reef, 2 the wall, 3 the blue with tuna and a shark, 4 the trench
+// and the leviathan, 5 the first fork, 6 a king with the crown, 7 the results, 8 a line-up of forms
+void DebugMouthfulShot(Game& g, int which) {
+    StartMouthful(g, 11, 15, 2);
+    S.shot = true; S.help = which == 0;
+    mf::World& w = S.W;
+    mf::Mouth& m = Me();
+    m.immuneT = which == 0 ? 6 : 0;
+    auto place = [&](Vector3 p, float yaw, float pitch, float mass, const char* form) {
+        m.pos = p; m.yaw = yaw; m.pitch = pitch; m.mass = mass; m.tier = w.TierOfMass(mass);
+        if (form) { int f = mf::FormIndex(form); if (f >= 0) { m.form = f; m.path = mf::D().forms[f].path; } }
+        S.aimYaw = S.camYaw = yaw; S.aimPitch = S.camPitch = pitch;
+        if (m.agent >= 0) w.eco.agents[m.agent].pos = p;
+    };
+    auto gather = [&](const char* sp, int n, Vector3 c, float r) {   // bring some of the web into view
+        int idx = w.eco.map->SpeciesIndex(sp), k = 0;
+        for (auto& a : w.eco.agents) if (a.alive && a.sp == idx && k < n) { a.pos = {c.x + cosf(k * 2.4f) * r * (0.4f + 0.6f * (k % 3) / 2.0f), c.y + sinf(k * 1.3f) * r * 0.3f, c.z + sinf(k * 2.4f) * r * (0.4f + 0.6f * (k % 3) / 2.0f)}; a.pos.y = std::max(a.pos.y, mf::FloorY(a.pos.x, a.pos.z) + 0.5f); a.vel = {0.3f, 0, 0.1f}; k++; }
+    };
+    for (int i = 0; i < 40; i++) w.Step(1 / 20.0f);   // (the web settles)
+    if (which == 0) { place({-250, -3, 10}, 0.2f, -0.05f, 18, nullptr); gather("Minnow", 20, {-246, -3.5f, 11}, 4); }
+    if (which == 1) { place({-120, -14, 20}, 0.3f, -0.15f, 140, "reef_squid"); gather("Sardine", 30, {-112, -13, 23}, 6); gather("Snapper", 4, {-110, -17, 18}, 5); }
+    if (which == 2) { place({-34, -60, 0}, 0.0f, -0.25f, 400, "conger"); gather("Mackerel", 12, {-20, -62, 4}, 8); }
+    if (which == 3) { place({40, -30, 0}, 0.0f, 0.0f, 900, "bull"); gather("Tuna", 10, {58, -30, 3}, 10); gather("Great White", 1, {75, -26, -8}, 1); }
+    if (which == 4) { place({200, -230, 0}, 0.4f, -0.4f, 2600, "great_white_p"); }
+    if (which == 5) { place({-230, -4, 0}, 0.2f, 0, 35, nullptr); m.pendingFork = 0; w.GrowCheck(m); }
+    if (which == 6) { place({60, -40, 10}, 0.5f, -0.1f, 5200, "tiger_p"); w.GrowCheck(m); w.king = m.id; m.king = true; gather("Tuna", 8, {75, -40, 18}, 10); }
+    if (which == 7) { for (auto& o : w.mouths) { o.massEaten = 200 + o.id * 300.0f; o.kills = o.id % 4; o.bestTier = 2 + o.id % 6; } w.time = w.roundLen; w.over = true; w.winner = w.Leader(); place({-200, -6, 0}, 0, 0, 300, "dogfish"); }
+    if (which == 8) {
+        // a line-up: one mouth of every path's forms, side by side in the blue
+        place({20, -40, -14}, PI * 0.5f, 0, 600, "bull");
+        int k = 0;
+        for (auto& o : w.mouths) { if (o.id == m.id) continue; int fi = 1 + (k * 3) % ((int)mf::D().forms.size() - 1); o.form = fi; o.path = mf::D().forms[fi].path; o.mass = 300; o.tier = w.TierOfMass(o.mass); o.pos = {12.0f + (k % 6) * 3.2f, -40 + (k / 6) * 2.5f, 0}; o.yaw = PI; o.pitch = 0; o.vel = {0, 0, 0}; o.immuneT = 0; o.alive = true; k++; }
+    }
+    for (auto& o : w.mouths) if (o.agent >= 0) w.eco.agents[o.agent].pos = o.pos;
+    S.camDist = 0.7f + w.Length(m) * 3.0f;
+}

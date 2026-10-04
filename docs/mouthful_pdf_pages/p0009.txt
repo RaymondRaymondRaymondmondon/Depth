@@ -1,0 +1,81 @@
+Mouthful — Arcade Game 8 Design Document
+Form
+Titan Puffer
+Stonefish
+Tier
+6
+6
+Speed
+0.7
+0.6
+2.0
+1.6
+Bite
+1.0
+1.5
+Bite
+0.8
+0.8
+0.8
+0.8
+Ability
+Detonate: inflate and burst:
+20% mass to everything in
+8 m, and you drop a tier (12
+s)
+Ambush: become part of
+the floor; the first bite from
+ambush deals 40% mass
+(10 s)
+Passive
+Untouchable: nothing under
+tier 7 can swallow you
+Venom spines: 10% damage
+to any biter, plus 5 s poison
+6. The Blobfish path: nothing
+Form
+Blobfish
+Bigger Blobfish
+Enormous
+Blobfish
+The Blobfish King
+Tier
+2
+4
+6
+8
+Speed HP
+0.7
+0.7
+0.7
+0.7
+0.9
+0.9
+0.9
+0.9
+Ability
+None
+None
+None
+None
+Passive
+None; it looks sad
+Still none
+A quiet dignity
+The crown fits badly; a reaching tier 8 as a
+blobfish is the game's hardest achievement,
+worth 500 tokens and a skin nobody else can
+get
+The blobfish's only edge is social: nobody takes it seriously, bots rate it as low-priority
+prey, and a blobfish at tier 6 is almost always left alone until it isn't.
+Movement and combat
+Swimming
+• Third person behind the fish; mouse or stick steers in full 3D; W swims, shift boosts
+(stamina), space and ctrl pitch up and down for those who want them. Boost is the
+chase and the escape; stamina is 4 s at base and refills in 6.
+• Base speeds by tier: 4 m/s at tier 1 rising to 7 at tier 5 and falling to 6 at tier 8 (big things
+turn slowly). Path multipliers apply. Turning radius grows with tier: a tier 7 can't follow a
+tier 3 through a coral corridor.
+• Crustaceans walk at their listed speed, jump with space, and fall at 3 m/s; they can grip
+walls on the wall's ledges.
+Page g of 22

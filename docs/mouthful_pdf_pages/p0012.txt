@@ -1,0 +1,72 @@
+Mouthful — Arcade Game 8 Design Document
+Danger
+The boat
+Currents
+Red tide (event)
+The whale fall (event,
+once)
+Night
+The eel garden
+Where
+Shallows and blue,
+on a schedule
+shown by its
+shadow
+Shallows (east),
+the upwelling, the
+trench's downdraft
+Shallows and reef,
+60s
+The trench floor
+Every round has a
+dusk at IO minutes
+A patch of the reef
+floor
+Behavior
+Nets (tiers 1-3 are
+hauled up and die),
+hooks (bait that
+holds for 3 s and
+takes 20% mass),
+the chum line (free
+mass and sharks)
+Push, lift, pull
+A bloom that blinds
+everyone in it and
+kills prey schools
+(free corpses)
+300 mass of feast;
+every tier 5+ bot
+and apex shark
+comes
+Light drops; bait
+rises; ambushers'
+sight advantage
+grows
+Bites anything tier
+1-2 that passes
+within 1 m
+How to use it
+Boost under the net's
+edge; bite the hook's
+line to free a friend;
+chum is a trap for
+whoever's second to
+it
+Escape routes and
+ambush lanes
+Cephalopods love it;
+pufferfish hate it
+(inflate does nothing
+in the dark)
+The round's melee;
+the leviathan wakes
+if it goes on too long
+The shark and
+cephalopod paths'
+hour
+A fry's first lesson
+NPC predators are real agents in the food web with hunger and territory; they don't scale
+with the leaderboard, so the top of the chain is dangerous because the trench is, not
+because the game is adjusting.
+Page 12 of 22

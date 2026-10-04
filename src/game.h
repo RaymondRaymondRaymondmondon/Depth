@@ -35,7 +35,7 @@ const Color Bad     = {225, 70, 70, 255};
 const Color Stress  = {170, 120, 230, 255};
 }  // namespace Pal
 
-enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade, RedTide, Trawl, Flight };
+enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade, RedTide, Trawl, Flight, Mouthful };
 
 // Workshop upgrades. Each has levels 0..UPGRADE_MAX.
 enum Upgrade { UP_REFLECTOR, UP_BUNKS, UP_SONAR, UP_INFIRMARY, UP_CARGO, UP_COUNT };
@@ -878,6 +878,11 @@ void LeaveTrawlMatch(Game& g);                                                 /
 void TrawlMenuTick(float dt);                                                  // (the game menu is open) a networked Trawl keeps talking   // crew 1-6 (the rest are bots), botSkill 0 Green, 1 Able, 2 Old Hand   // firstPerson: the 3D version (trawl_view3d.cpp); V switches in game
 void DebugTrawlShot(Game& g, int which);   // --shots: 0 the deck, 1 the engine room, 2 the wheelhouse, 3 a squall
 void SceneFlight(Game& g);    // The Flight, arcade game 7: the Founder flown over the tropical island (flight_game.cpp)
+void SceneMouthful(Game& g);  // Mouthful, arcade game 8: eat and grow on the reef shelf (mouthful_game.cpp)
+void StartMouthful(Game& g, int bots = 11, float minutes = 15, int botLevel = 0);   // solo: you and up to 11 bots (botLevel 0 a mix of Minnow/Hunter/Shark)
+void LeaveMouthful(Game& g);
+void MouthfulMenuTick(float dt);
+void DebugMouthfulShot(Game& g, int which);
 void StartFlight(Game& g, const char* founder = "taloned", int isleType = 0, int arrangement = 0, int players = 4, int seasons = 0);   // seasons: the long match (2-4), 0 standard   // a whole map: your island type (0 tropical, 1 stack, 2 town, 3 atoll), the arrangement, 2-6 starting islands
 const char* FlightIsleTypeName(int t);
 bool ResumeFlight(Game& g);                      // (the Long Flight: the save made at the last season's break)

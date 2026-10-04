@@ -1,0 +1,32 @@
+Mouthful — Arcade Game 8 Design Document
+Mouthful — Arcade Game 8 Design
+Document
+Oct 2, 2026 • @PhillipArgall
+Overview
+Mouthful is a 3D eat-and-grow arena in the Deep Arcade: every player starts as a fry at
+the bottom of the food chain and eats their way up it, choosing a path at each fork, until
+they're the biggest mouth in the water or something bigger finds them. Up to 12 mouths
+share one reef (players plus bots), the round never stops, death sends you back to a fry,
+and the crown goes to whoever holds the top of the chain longest.
+What it takes from Fish IO and the .io grow games: one round that runs continuously; eat
+what's smaller, flee what's bigger; a mass bar and a leaderboard; growth that unlocks
+forms with abilities; a crown for the king. What it adds: a true 3D ocean with depth as a
+dimension (the shallows, the reef wall, the open blue, the trench), Depth's living food web
+as the prey and the predators, six evolution paths with real trade-offs, and the fact that
+choosing wrong is funny (you can choose the blobfish).
+Design pillars
+1. Everything is food or a mouth. You, the bots, the players, the fish, and the things in the
+trench are all one chain. Size decides who eats whom; abilities decide who gets to use
+their size.
+2. Depth is strategy. Shallow water is safe and poor; the open blue is rich and watched;
+the trench is where the largest things live and where the largest things are made.
+Where you swim is the first choice.
+3. Paths, not stats. The six paths are different games: dash hunters, ink tricksters,
+armored sharks, floor-bound snipers, walking hazards, and the blobfish. Each fork is a
+commitment you feel immediately.
+4. Death is five seconds. YOU respawn as a fry with a small head start and your path
+memory; the round is long enough to climb back and short enough that nobody holds
+the crown by sitting still.
+5. Silly and lethal. Fish with faces, abilities with punchlines, and a leviathan in the trench
+that eats kings.
+Page 1 of 22

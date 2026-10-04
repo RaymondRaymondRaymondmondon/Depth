@@ -1,0 +1,81 @@
+Mouthful — Arcade Game 8 Design Document
+Session. A round is 15 minutes (lobby: 10 | 15 / 20).2-12 players; empty slots are bots that
+play real paths. Score pays arcade tokens; tokens buy skins or spin the crate.
+Tone. Depth's inked low-poly in bright water: the same ocean as Red Tide seen from the
+fish's side. Deaths are a gulp and a puff of scales. The blobfish is treated with respect by
+nobody.
+The arena
+One map, about 600 m across and 300 m deep, shaped like a reef shelf that drops into a
+trench. Depth is the arena's structure: each band has its own prey, its own predators, its
+own cover, and its own reason to be there.
+Band
+The
+Shallows
+The Reef
+The Wall
+The Blue
+Depth
+0-15 m
+10-40 m
+40-120 m
+20-120 m,
+open
+water off
+the wall
+What's there
+Sunlit sand, seagrass, a
+lagoon, mangrove
+roots, a pier with its
+pilings
+Coral heads, corridors,
+eel holes, a cleaning
+station, a wreck
+A vertical drop with
+caves, sponges, a kelp
+curtain at the top, an
+overhang at the
+bottom
+Nothing but light,
+schools of bait, tuna,
+and the shapes that
+follow them
+Who lives there
+Fry spawn here;
+tiers 1-2; small
+prey everywhere
+(minnows, shrimp,
+snails); the boat's
+shadow passes
+Tiers 2-4; the
+busiest band;
+schools to eat,
+holes to hide in
+Tiers 3-6;
+ambushers in the
+caves; crustacean
+paths own the
+ledges
+Tiers 4—7; no
+cover; the NPC
+apex sharks patrol
+Why go
+Safe growth; the
+first fork;
+nowhere to hide
+from a tier-3 that
+comes in
+The fastest
+growth in the
+game, and the
+most fights
+Cover and
+verticality: dive
+down it to
+escape, climb it
+to hunt
+The richest
+eating and the
+most exposure;
+where kings are
+made and lost
+Page 2 of 22

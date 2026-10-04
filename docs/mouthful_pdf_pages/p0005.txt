@@ -1,0 +1,61 @@
+Mouthful — Arcade Game 8 Design Document
+Tier
+4
+5
+6
+7
+8
+King
+Mass
+250-549
+550-1,099
+1,100-
+2,199
+2,200-
+4,499
+Length
+3.5 m
+10m
+Can eat
+Tiers 1-3, snapper, tuna
+(fight)
+Tiers 1-4, barracuda,
+trench fish
+Tiers 1-5, NPC reef
+sharks
+Tiers 1-6, apex sharks
+(fight)
+Anything but the
+leviathan
+Eaten by
+Tier 5+
+Tier 6+, NPC sharks
+Tier 7+, the apex sharks
+Tier 8, the leviathan
+The leviathan, and three
+tier-7s together
+Fork
+Fork 2: the path's
+second form
+Fork 3: the path's
+final form
+The crown
+Eating rules
+• You can bite anything; you can swallow (kill and gain its mass) anything with less than
+60% of your mass. Between 60% and 100% is a fight (bites take 10% of the target's
+mass per hit until one flees or is below 60%). Above 100% is a flee.
+• Swallowing takes al s animation during which you're slow; a tier-5 swallowing a tuna is
+a tier-6's moment.
+• Prey mass is as listed; a player's mass is their bar, so eating a tier-4 at 400 mass is 400
+mass, the fastest growth in the game, which is why players hunt players.
+• Mass decays 1% per minute above tier 3 (big fish are hungry) and not at all below. A
+king who stops eating shrinks.
+Forks
+• Fork 1 (tier 2): pick one of six paths: Eel, Cephalopod, Shark, Crustacean, Pufferfish,
+Blobfish. The choice is permanent for this life.
+• Fork 2 (tier 4): the path's second form (two options each, except the blobfish).
+• Fork 3 (tier 6): the path's final form (two options each, except the blobfish).
+Dying resets you to a fry, but the game remembers your path: your next tier-2 fork
+offers the same path first (a free re-pick), and a path streak (three lives on one path)
+gives that path's forms +5% to their main stat.
+Page 5 of 22

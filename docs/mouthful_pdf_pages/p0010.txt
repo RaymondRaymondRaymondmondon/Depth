@@ -1,0 +1,31 @@
+Mouthful — Arcade Game 8 Design Document
+• Currents push; the upwelling is a free climb and a trap.
+• The camera pulls back as you grow, so a king sees the whole reef and a fry sees the
+next rock.
+Biting
+• Left click bites in a cone in front of the mouth. Bite size scales with tier. A bite on
+something swallowable swallows it (1 s). A bite on something larger does the fight
+damage (10% of its mass per hit x your bite stat x their HP stat as a divisor).
+• Bite cooldown 0.8 s at tier 1, 1.5 sat tier 8. Sharks bite faster in Frenzy; crustaceans claw
+at range instead.
+• Hits on the tail do half; hits on the belly or gills do (the weak point; the camera tells
+you where it is).
+• Being bitten knocks you back and drops 5% of your boost stamina.
+Abilities
+One per form, on the right mouse button, with the cooldowns listed; a ring on the reticle
+shows it. Abilities are the whole difference between paths and are tuned so that the same
+mass loses to a better-used ability about 60% of the time.
+Fleeing
+Anything above your mass is a flee. The game's honest advice: dive into cover you fit and
+they don't, use the ability, or boost toward the nearest bigger thing and hope it prefers
+them. A fish that reaches cover its pursuer can't enter is safe; a fish in open water against
+a faster path is food.
+Death and respawn
+At O HP or on being swallowed you die: a gulp, your mass goes to the eater, your
+position goes on the kill feed.
+• Respawn in 5 s as a fry in the shallows with a 10 s immunity glow (a bitten glowing fry
+marks the biter for the sharks), 15 starting mass (so the first tier-2 is a few minnows
+away), and your path memory.
+• The leaderboard keeps your round score; dying costs you nothing you've already
+scored, only the mass you were carrying, which is the .io deal.
+Page 10 of 22

@@ -1,0 +1,32 @@
+Mouthful — Arcade Game 8 Design Document
+Simulation and networking
+• The host runs the ecosystem (Red Tide's engine: 25 species, about 400 active agents),
+the NPC predators, the boat, events, and the bots.
+• Host-authoritative through the shared arcade layer: local prediction for the player's
+swimming; bites resolved on the host with 150 ms of lag compensation; 20 Hz
+snapshots with interest management by distance and the band's visibility.
+12 players is the design cap; join-in-progress is supported (fry spawn with the head
+start).
+Bots
+Bots play the paths with three levels: Minnow (eats prey, flees everything bigger), Hunter
+(hunts players a tier below, uses abilities, avoids the trench), Shark (reads tells, baits
+abilities, goes for the king). Bots fill empty slots and never outnumber players in the top
+three of the leaderboard (a Shark bot that would take the crown throttles itself unless the
+mode says otherwise).
+Save
+The arcade profile stores rounds, best tier per path, crowns, skins, and the Blobfish King
+flag.
+Sound design
+• Bands have beds: surf and gulls in the shallows, the snapping-shrimp crackle of the
+reef, a wide quiet in the blue, the vents' hiss and the pressure drone in the trench.
+• Growth is heard: your own swim gets heavier with tier; a tier-8's tail is a slow whoosh
+and the fry you pass flutter away.
+• Bites: a snap for a miss, a wet crunch for a hit, a gulp for a swallow (bigger with the
+mass), and the chomp of the king.
+• Abilities each have a voice: the dash's whip, the ink's blurt, the frenzy's thrum, the
+claw's snap and the slam's thud, the puffer's intake and squeak, the detonation's pop,
+the stonefish's silence (the one ability with no sound; its tell is visual only).
+• Danger: the apex sharks have a two-note motif that enters when one's within 40 m; the
+orca pod's clicks; the leviathan's single deep note when it wakes, which everyone in the
+trench hears and acts on; the boat's engine and the net's hiss.
+Page 19 of 22

@@ -1,0 +1,34 @@
+Mouthful — Arcade Game 8 Design Document
+Tier
+Super Rare (10)
+Special (5)
+Skins
+Dragon (scales and horns), Robot Fish (the
+Clockwork look), Skeleton, Galaxy, Lantern Fish (a
+working lamp on every form), Shark Suit (every
+path looks like a shark; the panic is real), Kraken Ink
+(your ink is purple and your skin matches), Gold
+Statue, The Submarine (a tiny Nautilus hull),
+Wearing a Smaller Fish (a hat that is a fish)
+The Blobfish King (only from reaching it; sad and
+radiant), The Leviathan's Tooth (a scar and a glow;
+given to the first to deal 10% to the leviathan), The
+Chef (a toque and a knife; every swallow is a chop
+sound), The Sun God's Mask, The Matriarch (orca
+patches on anything, even the crab)
+Skins are data ( mouthful _ skins . json ) and share the arcade token with the other games;
+the Shark Suit and the Blobfish King are the two skins players will talk about.
+Presentation, technology, and bots
+Look
+• Depth's inked low-poly underwater, bright in the shallows and reef, dim in the blue,
+dark in the trench with bioluminescence. Red Tide's renderer, fog, caustics, and marine
+snow.
+• Every form isa CreatureBui1der body plan from Red Tide's art workbook (fusiform,
+anguilliform, cephalopod, shark, crab, puffer, and a blob) with path palettes; growing a
+tier scales the mesh and swaps the form at forks with a 1 s morph (a shimmer and a
+new silhouette).
+• Faces: every form has eyes that track prey and a mouth state; the blobfish's expression
+never changes.
+• The camera pulls back with tier; the reticle shows bite cone, ability ring, and the weak-
+point marker on a target.
+Page 18 of 22

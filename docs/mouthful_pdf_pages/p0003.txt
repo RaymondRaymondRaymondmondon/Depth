@@ -1,0 +1,76 @@
+Mouthful — Arcade Game 8 Design Document
+Band
+The
+Trench
+Depth
+120-300 m
+What's there
+Dark, vents, a brine
+pool, bioluminescence,
+the leviathan's hollow
+Who lives there
+Tiers 5-8 and the
+NPC leviathan; the
+only place to
+reach tier 8
+Why go
+The crown is won
+here and the
+leviathan eats
+whoever gets
+greedy
+The living web
+The arena runs Red Tide's ecosystem engine: about 25 prey and predator species with
+diets, blood, sound, and population. Prey schools move with the day (dawn and dusk bring
+bait up to the shallows and reef; night sends it down); predators follow blood; grounds
+that are overeaten empty out and refill. Players are species in the web: your kills bleed,
+your fights are noise, and the NPC sharks come to both. A round's ecology is the same for
+everyone and different every round.
+Prey (free food)
+prey
+Plankton cloud
+Minnow, shrimp,
+snail
+Sardine school
+Crab, urchin, clam
+Mackerel, snapper,
+squid
+Tuna, barracuda
+Rattail, anglerfish,
+hatchetfish
+Giant isopod, vent
+crab
+Band
+Everywhere
+Shallows, reef
+Reef, blue
+Reef floor, wall
+Reef, blue
+Blue
+Trench
+Trench floor
+Mass
+1 per second
+inside it
+2-4
+3 each, 40 in a
+school
+6-10
+12-25
+40-60
+8-20
+15-30
+Note
+A fry's first meal; a tier-5 can't
+be bothered
+Schools scatter from a charge
+The grow engine for tiers 2-3
+Crustacean path food; others
+break teeth (-5 mass per bite)
+Tier 3-4 food; squid ink when
+bitten
+Tier 4-5 food; they bite back
+Trench food; anglerfish lure fry
+(they look like plankton)
+Armored; crustacean food
+Page 3 of 22

@@ -1,0 +1,102 @@
+Mouthful — Arcade Game 8 Design Document
+Form
+Mantis
+Shrimp
+Spiny
+Lobster
+Coconut
+Crab
+King Crab
+Giant
+Isopod
+Tier
+2
+4
+4
+6
+6
+Speed
+(walk)
+1.0
+0.8
+0.9
+0.8
+0.7
+0.9
+1.3
+1.4
+1.8
+2.2
+Claw
+1.3 (range
+1.2 (range
+1.5 (range
+1.6 (range
+1.2 (range
+Ability
+Punch: a 4 m snap that
+stuns 1 s (5 s cooldown)
+Tail Flip: a 6 m backward
+jump (4 s)
+Jump: a 5 m leap in any
+direction, including up a
+wall face (5 s)
+Claw Slam: a 6 m
+shockwave along the floor
+that knocks swimmers up
+Roll: curl up: immune for 3
+s, can't move (IO s)
+Passive
+Burrow: bury in sand or silt
+(invisible, 2 s to dig)
+Spines: melee attackers
+take 5% of their bite back
+Crusher: eats armored
+prey freely; climbs walls
+Fortress: -40% damage
+from the front
+Scavenger: corpses give
+double mass; the brine
+pool is water to you
+Crustaceans can't enter open water: they walk the shallows, the reef floor, the wall's
+ledges (jumping ledge to ledge), and the trench floor. The blue is closed to them, and so
+are its tuna. They are the only path that holds a position.
+5. The Pufferfish path: defense and payback
+A fish nobody wants to bite. Slow, round, and expensive to attack.
+Form
+Puffer
+Porcupinefish
+Boxfish
+Tier
+2
+4
+4
+speed HP
+0.8
+0.8
+0.9
+1.2
+1.4
+1.3
+Bite
+0.8
+0.9
+0.9
+Ability
+Inflate: double size for 3 s;
+can't be swallowed by
+anything under tier 5; 10%
+mass damage to any biter
+(6 s cooldown)
+Inflate (4 s, 15% damage)
+Toxin Cloud: a 6 m Cloud
+that costs anyone inside
+3% mass per s for 4 s (9 s)
+Passive
+Spines: 3% mass damage to
+any biter at all times
+Barbed: a bite on you leaves
+a spine: the biter bleeds 2%
+per s for 3 s
+Armor plates: -30% damage
+Page 8 of 22

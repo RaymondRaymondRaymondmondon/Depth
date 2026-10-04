@@ -1,0 +1,37 @@
+Mouthful — Arcade Game 8 Design Document
+Match structure
+The round
+• 15 minutes by default. Everyone spawns as a fry in the shallows at 0:00; the orca pod
+passes at a random minute between 5 and IO; dusk at 10:00; the whale fall at 11:00; the
+final minute is high tide: mass decay stops, the leviathan sleeps, and the leaderboard is
+pinned on screen.
+• Players join late as fry with a mass head start equal to the lowest living player's mass
+(capped at tier 3).
+• Bots fill to 12 and play real paths with three difficulty levels; they're named like fish
+("Gary", "Brinefloat", "The Admiral") and have the same kill feed as players.
+Scoring
+Score
+Mass eaten (total over the round)
+Player kills
+Crown held
+King killed
+Highest tier reached
+Apex shark killed
+Survived the orca pod while in the top
+three
+Round won (highest score at high tide)
+Blobfish King
+Points
+1 per 10
+50 each, +25 per tier the victim was above
+you
+10 per second
+300
+50 per tier past 4
+200; the leviathan 1,000 (nobody has)
+100
+200
+500, and the skin
+The leaderboard shows score and current tier; the crown shows who's king. Tokens pay on
+score and firsts.
+Page 13 of 22

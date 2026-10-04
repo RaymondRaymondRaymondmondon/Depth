@@ -48,6 +48,7 @@ static void RunScene(Game& g) {
         case Scene::RedTide:    SceneRedTide(g); break;
         case Scene::Trawl:      SceneTrawl(g); break;
         case Scene::Flight:     SceneFlight(g); break;
+        case Scene::Mouthful:   SceneMouthful(g); break;
         case Scene::Hub:        SceneHub(g); break;
         case Scene::Helm:       SceneHelm(g); break;
         case Scene::Crew:       SceneCrew(g); break;
@@ -215,6 +216,11 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"costumes_wardrobe_trawl", [](Game& g) { DebugWardrobe(g, 2); }},
         {"costumes_wardrobe_redtide", [](Game& g) { DebugWardrobe(g, 3); }},
         {"arcade_trawl", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(1); }},
+        {"mouthful_fry", [](Game& g) { DebugMouthfulShot(g, 0); }}, {"mouthful_reef", [](Game& g) { DebugMouthfulShot(g, 1); }},
+        {"mouthful_wall", [](Game& g) { DebugMouthfulShot(g, 2); }}, {"mouthful_blue", [](Game& g) { DebugMouthfulShot(g, 3); }},
+        {"mouthful_trench", [](Game& g) { DebugMouthfulShot(g, 4); }}, {"mouthful_fork", [](Game& g) { DebugMouthfulShot(g, 5); }},
+        {"mouthful_king", [](Game& g) { DebugMouthfulShot(g, 6); }}, {"mouthful_results", [](Game& g) { DebugMouthfulShot(g, 7); }},
+        {"mouthful_lineup", [](Game& g) { DebugMouthfulShot(g, 8); }},
         {"flight_dawn", [](Game& g) { DebugFlightShot(g, 0); }},
         {"flight_strike", [](Game& g) { DebugFlightShot(g, 1); }},
         {"flight_nest", [](Game& g) { DebugFlightShot(g, 2); }},
@@ -986,6 +992,7 @@ int main(int argc, char** argv) {
                 if (g.scene == Scene::Trawl) TrawlMenuTick(GetFrameTime());   // (a crew at sea doesn't stop for one hand's menu)
                 if (g.scene == Scene::RedTide) RedTideMenuTick(GetFrameTime());   // (nor does the tide)
                 if (g.scene == Scene::Flight) FlightMenuTick(GetFrameTime());     // (nor the other colonies)
+                if (g.scene == Scene::Mouthful) MouthfulMenuTick(GetFrameTime()); // (nor the reef)
                 MouseLookFrameEnd();                                          // (the menu needs the pointer)
                 ArcadeVoiceFrame(GetFrameTime());                             // (voices carry on while the menu's open)
                 DrawVoiceHud();
@@ -999,7 +1006,7 @@ int main(int argc, char** argv) {
             MouseLookFrameEnd();   // a scene that stopped asking for mouse look gets its pointer back
             {   // aboard the Nautilus (the salon and its station screens) the waltz and the ship's bed play
                 bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon && g.scene != Scene::Study
-                              && !(g.scene == Scene::RedTide && RedTideAudioActive()) && g.scene != Scene::Trawl && g.scene != Scene::Flight;
+                              && !(g.scene == Scene::RedTide && RedTideAudioActive()) && g.scene != Scene::Trawl && g.scene != Scene::Flight && g.scene != Scene::Mouthful;
                 AudioHub(aboard, g.scene == Scene::Hub ? -1 : (int)g.scene, g.mourning);
                 AudioStudy(g.scene == Scene::Study);   // below the hatch: the Study's own soundscape instead
                 if (g.scene != Scene::Dungeon) AudioExpedition(ExpAudio{});   // (the Dungeon scene sets it every frame)

@@ -1,0 +1,56 @@
+Mouthful — Arcade Game 8 Design Document
+prey
+Whale fall
+Cover and hazards
+Band
+Trench, one per
+round
+Mass
+300 total
+Note
+A feast that draws every tier 5+
+to one spot: the round's set
+piece
+• Hiding. Eel holes (tiers 1-2), coral corridors (up to tier 3), wall caves (up to tier 5), the
+kelp curtain (anyone, until it's shredded), silt (crustaceans bury), ink.
+• Currents. A surface current runs the shallows east; an upwelling off the wall lifts
+anything in it 2 m/s; the trench has a slow downdraft that costs stamina to fight.
+• Light. The shallows and reef are lit; the blue dims with depth; the trench is dark except
+for bioluminescence and whatever you bring. Dark means short sight for everyone,
+which favors ambush paths.
+• The pier and the boat. A fishing boat crosses the shallows and blue on a schedule: a
+net (drags anything tier 1-3 to the surface, which is death), a hook (bait that's a trap),
+and a chum line (free mass and a shark magnet).
+• The cleaning station on the reef: fish there don't bite each other (a IO m truce zone;
+attacking inside it marks you for the NPC sharks).
+• The brine pool in the trench: IO damage per second to anything in it; crustaceans float
+on it.
+Growing
+YOU have mass. Eating adds it; being bitten takes it; crossing a threshold grows you a tier,
+and tiers 2, 4, and 6 are forks where you pick a path. Size is what you can eat and what can
+eat you.
+Tiers
+Tier
+1 Fry
+2
+3
+Mass
+0-29
+100-249
+Length
+IO cm
+25 cm
+50 cm
+Can eat
+Plankton, minnows,
+shrimp
+Tier I, sardines, snails
+Tiers 1-2, crabs,
+mackerel, squid
+Eaten by
+Everything
+Tier 3+
+Tier 4+
+Fork
+Fork I: choose a path
+Page 4 of 22

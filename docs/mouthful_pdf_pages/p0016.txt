@@ -1,0 +1,15 @@
+Mouthful — Arcade Game 8 Design Document
+wins the equal-mass fights the design says they should.
+The blobfish, honestly
+A blobfish wins by being ignored: bots rate it as low-value, players laugh, and a blobfish
+that reaches the whale fall at tier 5 and eats the corpses nobody wants can be an
+Enormous Blobfish by high tide. The Blobfish King is reached about once in forty rounds
+by the people who try, which is the right number for a skin nobody else can get.
+Progression and cosmetics
+Tokens buy skins that apply to every form on a path (a skin is a palette and a pattern, plus
+a hat for the forms that can wear one) and nothing else. Same structure as the other
+arcade games: a token shop and a crate.
+Tokens
+10 per round, 1 per 100 score, 20 for a round won, 30 for a first crown on a path, 500 for the
+Blobfish King.
+Page 16 of 22

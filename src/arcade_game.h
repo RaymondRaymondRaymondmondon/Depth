@@ -12,7 +12,7 @@
 namespace arcade {
 
 // the reels of the cabinet, in order (the beacon carries the name, not the number)
-enum GameId : uint8_t { G_FLATS_DUEL, G_TRAWL, G_SCUTTLE, G_FATHOMS, G_RED_TIDE, G_FLIGHT, G_COUNT, G_TEST_DRIFT = 250 };
+enum GameId : uint8_t { G_FLATS_DUEL, G_TRAWL, G_SCUTTLE, G_FATHOMS, G_RED_TIDE, G_FLIGHT, G_MOUTHFUL, G_COUNT, G_TEST_DRIFT = 250 };
 
 struct GameInfo {
     const char* name;

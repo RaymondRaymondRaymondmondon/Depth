@@ -1,0 +1,83 @@
+Mouthful — Arcade Game 8 Design Document
+The crown
+The first player to tier 8 is King and wears the crown: +10% to everything, visible to all on
+the leaderboard and in the water (a glow), and a target: killing the king is worth their mass
+plus 500 and the crown passes. The crown is scored by time held.
+The six paths
+Each path is three forks deep: the path at tier 2, a second form at tier 4 (two options), a
+final form at tier 6 (two options). Stats are multipliers on the tier's base (speed, HP, bite).
+Every form has one ability on a cooldown and one passive. The blobfish has none of this
+and is proud.
+1. The Eel path (reptile and eel): dashes
+Long bodies that close distance. The hunt is a chase; the ability is the catch.
+Form
+Moray
+Sea Snake
+Conger
+Marine
+Crocodile
+Oarfish King
+Tier
+2
+4
+4
+6
+6
+Speed
+1.1
+1.2
+1.0
+1.0
+1.4
+Bite Ability
+0.9
+0.8
+1.1
+1.3
+0.9
+1.1
+1.0
+1.2
+1.4
+1.0
+Dash: a 6 m burst in 0.3 s (4 s
+cooldown)
+Dash (5 m, 3 s)
+Lunge: a IO m dash that bites
+at the end (5 s)
+Death Roll: a dash-grab that
+holds for 2 s and takes 15%
+mass (8 s)
+Ribbon Dash: three chained
+8m dashes (6 s)
+2. The Cephalopod path (squid and octopus): ink
+Soft, clever, and gone when you look. Ink blinds; the passive hides.
+Form
+Reef Squid
+Tier
+2
+Speed HP
+1.2
+0.8
+Bite
+0.9
+Ability
+Ink: a 5 m CIOUd that blinds
+for 3 s (6 s cooldown); you
+see through your own ink
+Passive
+Hole-dweller: hides in any
+eel hole up to tier 3
+Venom: bites poison for 3 s
+(2% mass per s); surfaces to
+breathe every 60 s (a tell)
+Drag: a bite on a smaller fish
+pulls it 3 m toward you
+Armored back: hits from
+above do half
+Omen: nearby bots flee you;
+players see a ripple
+Passive
+Jet: speed +30% for I s after
+Ink
+Page 6 of 22
