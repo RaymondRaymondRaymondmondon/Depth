@@ -889,7 +889,8 @@ extern int gScuffleTrinket, gScuffleRules, gScuffleMode;   // (gScuffleMode: sf:
 const char* ScuffleTrinketChoice(int t);
 const char* ScuffleRulesChoice(int r);
 uint32_t ScuffleRulesMask(int r);
-bool ScuffleLockerPage();                         // (stage 9) the shop, the crate, what you wear (true: Back)
+bool ScuffleLockerPage(Game& g);                  // (stage 9) the shop, the crate, what you wear, the replays (true: Back)
+void StartScuffleReplay(Game& g, const std::string& path);   // (stage 9) watch a saved round
 void DebugScuffleLocker(int tab);
 void DebugArcadeScuffleLocker(Game& g, int tab);
 void StartScuffleEditor(Game& g);   // the level editor (doc p. 17): paint, check, share by code, play now

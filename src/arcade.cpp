@@ -1147,7 +1147,7 @@ void SceneArcade(Game& g) {
     if (gWardrobe >= 0) { if (skins::WardrobePage(gWardrobe)) gWardrobe = -1; return; }
     if (gFlGallery >= 0) { DrawFlightCostumeGallery(gFlGallery); return; }
     if (gFlWardrobe) { if (FlightWardrobePage(gFlSel)) gFlWardrobe = false; return; }
-    if (gSfLocker) { if (ScuffleLockerPage()) gSfLocker = false; return; }
+    if (gSfLocker) { if (ScuffleLockerPage(g)) gSfLocker = false; return; }
     if (gMfWardrobe) { if (MouthfulWardrobePage()) gMfWardrobe = false; return; }
     if (gNoCloakShot) { gNoCloak = true; gNoCloakShot = false; }
     if (gNoCloak) { if (NightCloakroomPage()) gNoCloak = false; return; }

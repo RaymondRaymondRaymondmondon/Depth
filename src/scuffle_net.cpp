@@ -383,6 +383,63 @@ uint32_t ScuffleDataHash() {
 }
 
 // ---------------------------------------------------------------- checks
+// ---------------------------------------------------------------- replays (stage 9)
+void ReplayBegin(Replay& r, Match& m, const std::vector<std::string>& names, const std::string& title) {
+    r = Replay{}; r.names = names; r.title = title;
+    std::vector<std::string> nm = names; Writer w; PackMatch(m, nm, 0, 0, w); r.start = w.b;
+}
+void ReplayRecord(Replay& r, const Match& m) {
+    std::vector<Input> v(m.w.sticks.size());
+    for (size_t i = 0; i < v.size(); i++) v[i] = m.w.sticks[i].in;
+    r.steps.push_back(std::move(v));
+}
+bool ReplayStart(const Replay& r, Match& out, std::vector<std::string>* names) {
+    if (r.start.empty()) return false;
+    Reader rd(r.start); std::vector<std::string> nm; Match m;
+    if (!ReadMatch(rd, m, nm)) return false;
+    out = m; if (names) *names = nm; return true;
+}
+void ReplayStep(const Replay& r, size_t i, Match& m) {
+    if (m.phase == Match::P_WIN || m.phase == Match::P_OVER) { m.w.Step(); return; }   // (a replay is one round: past its end the world just runs on, never a new round)
+    if (i < r.steps.size()) for (size_t k = 0; k < r.steps[i].size() && k < m.w.sticks.size(); k++) m.w.sticks[k].in = r.steps[i][k];
+    m.Step();
+}
+// the file: "SCR1", the title, the score and the kill, the packed start, then the inputs (exact floats: a replay must
+// re-simulate bit for bit), compressed
+bool SaveReplay(const std::string& path, const Replay& r) {
+    Writer in;
+    in.U32((uint32_t)r.steps.size()); in.U8(r.steps.empty() ? 0 : (uint32_t)r.steps[0].size());
+    for (const auto& st : r.steps) for (const Input& x : st) { in.F32(x.moveX); in.F32(x.moveY); in.F32(x.aim.x); in.F32(x.aim.y); in.U8((x.jump ? 1 : 0) | (x.fire ? 2 : 0) | (x.taunt ? 4 : 0) | (x.gear ? 8 : 0) | (std::clamp(x.pick, 0, 3) << 4)); }
+    int cz = 0; unsigned char* z = CompressData(in.b.data(), (int)in.b.size(), &cz);
+    if (!z) return false;
+    Writer w; w.U32(0x31524353); w.Str(r.title); w.F32(r.score); w.F32(r.killAt.x); w.F32(r.killAt.y); w.F32(r.killT);
+    w.U32((uint32_t)r.names.size()); for (const auto& n : r.names) w.Str(n);
+    w.U32((uint32_t)r.start.size()); w.Bytes(r.start.data(), r.start.size());
+    w.U32((uint32_t)in.b.size()); w.U32((uint32_t)cz); w.Bytes(z, (size_t)cz); MemFree(z);
+    FILE* f = fopen(path.c_str(), "wb"); if (!f) return false;
+    bool ok = fwrite(w.b.data(), 1, w.b.size(), f) == w.b.size(); fclose(f); return ok;
+}
+bool LoadReplay(const std::string& path, Replay& r) {
+    FILE* f = fopen(path.c_str(), "rb"); if (!f) return false;
+    std::vector<uint8_t> b; { uint8_t buf[65536]; size_t n; while ((n = fread(buf, 1, sizeof buf, f)) > 0) b.insert(b.end(), buf, buf + n); } fclose(f);
+    Reader rd(b); r = Replay{};
+    if (rd.U32() != 0x31524353) return false;
+    r.title = rd.Str(); r.score = rd.F32(); r.killAt.x = rd.F32(); r.killAt.y = rd.F32(); r.killT = rd.F32();
+    uint32_t nn = rd.U32(); if (nn > MAX_STICKS) return false; for (uint32_t i = 0; i < nn; i++) r.names.push_back(rd.Str());
+    uint32_t sn = rd.U32(); if (rd.bad || sn > (1u << 24) || rd.i + sn > rd.n) return false; r.start.assign(rd.p + rd.i, rd.p + rd.i + sn); rd.i += sn;
+    uint32_t rawN = rd.U32(), cz = rd.U32(); if (rd.bad || cz > rd.n - rd.i || rawN > (1u << 27)) return false;
+    int outN = 0; unsigned char* raw = DecompressData(rd.p + rd.i, (int)cz, &outN); if (!raw) return false;
+    bool ok = (uint32_t)outN == rawN;
+    if (ok) {
+        Reader in(raw, (size_t)outN); uint32_t steps = in.U32(); int sticks = (int)in.U8();
+        if (sticks > MAX_STICKS || (size_t)steps * sticks * 17 > (size_t)outN) ok = false;
+        for (uint32_t s = 0; ok && s < steps; s++) { std::vector<Input> v(sticks); for (auto& x : v) { x.moveX = in.F32(); x.moveY = in.F32(); x.aim.x = in.F32(); x.aim.y = in.F32(); int fl = (int)in.U8(); x.jump = fl & 1; x.fire = fl & 2; x.taunt = fl & 4; x.gear = fl & 8; x.pick = (fl >> 4) & 3; } r.steps.push_back(std::move(v)); }
+        ok = ok && !in.bad;
+    }
+    MemFree(raw);
+    return ok;
+}
+
 int RunScuffleNetTest() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
@@ -402,6 +459,16 @@ int RunScuffleNetTest() {
     { Writer a; WriteMatch(M, names, 2, 55, a); Reader r(a.b); int v = -1; uint32_t ack = 0; bool ok = ReadMatch(r, mir, mn, &v, &ack); check(ok && v == 2 && ack == 55 && mn.size() == 4 && mn[1] == "Ann" && mir.w.sticks.size() == M.w.sticks.size(), TextFormat("a guest builds the mirror from a snapshot (%d sticks, %d items)", (int)mir.w.sticks.size(), (int)mir.w.items.size())); }
     { Writer a; WriteMatch(M, names, 2, 55, a); Writer b; WriteMatch(mir, mn, 2, 55, b); check(a.b == b.b, TextFormat("the mirror writes back byte for byte (%d bytes)", (int)a.b.size())); }
     { Writer a; PackMatch(M, names, 2, 55, a); Reader r(a.b); Match g; std::vector<std::string> gn; check(ReadMatch(r, g, gn) && g.w.Hash() == M.w.Hash(), TextFormat("a packed snapshot reads to the same world (%.1f KB)", a.b.size() / 1024.0f)); }
+    {   // stage 9: a replay re-simulates its round exactly (from the packed start and the inputs, and from a file)
+        Match R; R.Start(4, 3, 555); uint32_t rr2[4] = {9, 8, 7, 6}; Replay rep; ReplayBegin(rep, R, {"a", "b", "c", "d"}, "test");
+        for (int f = 0; f < 120 * 20 && R.phase != Match::P_WIN; f++) { for (int i = 0; i < 4; i++) BotInput(R.w, i, R.w.sticks[i].in, rr2[i], 2); ReplayRecord(rep, R); R.Step(); }
+        Match P; bool ok = ReplayStart(rep, P); for (size_t i = 0; ok && i < rep.steps.size(); i++) ReplayStep(rep, i, P);
+        check(ok && P.w.Hash() == R.w.Hash(), TextFormat("a replay re-simulates 20 s of four bots exactly (%d steps)", (int)rep.steps.size()));
+        Replay back; bool io = SaveReplay("scuffle_replay_test.scr", rep) && LoadReplay("scuffle_replay_test.scr", back);
+        long sz = 0; if (FILE* f = fopen("scuffle_replay_test.scr", "rb")) { fseek(f, 0, SEEK_END); sz = ftell(f); fclose(f); } remove("scuffle_replay_test.scr");
+        Match Q; bool ok2 = io && ReplayStart(back, Q); for (size_t i = 0; ok2 && i < back.steps.size(); i++) ReplayStep(back, i, Q);
+        check(ok2 && Q.w.Hash() == R.w.Hash() && back.title == "test", TextFormat("and from its file (%.0f KB)", sz / 1024.0f));
+    }
     for (int md : {MD_KING, MD_EGG, MD_HUNT, MD_TEAMS, MD_GAUNTLET, MD_BOSS}) {   // (stage 7: each mode's state travels; a mirror steps on as the host does)
         Match X; X.mode = md; X.friendlyFire = md != MD_TEAMS; X.Start(md == MD_GAUNTLET ? 2 : 4, 3, 99);
         uint32_t r2[4] = {5, 6, 7, 8}; int n = X.players;

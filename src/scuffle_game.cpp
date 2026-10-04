@@ -22,7 +22,10 @@ struct ScuffleScene {
     int players = 4, skill = 2, toWin = 5, arsenal = sf::AR_CLASSIC; int lastRound = 0;
     std::vector<uint32_t> botRng;
     float acc = 0, t = 0, wallMsgT = 0, modeMsgT = 0; std::string modeMsg;
-    uint64_t paidKey = 0; int paid = 0;   // (stage 9: the match's tokens, paid once)
+    uint64_t paidKey = 0; int paid = 0;
+    // stage 9: replays: this round as it's played, the match's best three, and the viewer (the live match waits)
+    sf::Replay rec; std::vector<sf::Replay> best; bool recEnded = false, savedBest = false; std::string savedMsg;
+    bool viewing = false, fileView = false; sf::Replay view; sf::Match live; std::vector<std::string> liveNames; size_t vIdx = 0; float vAcc = 0;   // (stage 9: the match's tokens, paid once)
     bool boardDone = false; std::vector<std::string> board; int boardMine = -1;   // (the Gauntlet's local leaderboard, scuffle_gauntlet.txt)
     Vector2 cam{}; float zoom = 60;
     std::vector<Blot> blots; uint32_t evSeen = 0;
@@ -443,6 +446,7 @@ DrawTextCentered(sf::ModeName(M.mode), SCREEN_W / 2.0f, 74, 13, ColorAlpha(NameI
     if (S.wallMsgT > 0) DrawTextCenteredBold(WallLine(M.w.stage.world), SCREEN_W / 2.0f, 90, 26, DarkWorld(M.w.stage.world) ? Color{230, 210, 160, 255} : Color{40, 70, 110, 255});
     if (M.phase == sf::Match::P_COUNT) DrawTextCenteredBold("FIGHT!", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 56, Color{40, 30, 26, (unsigned char)(255 * std::clamp(1.4f - M.phaseT, 0.0f, 1.0f))});
     if (M.phase == sf::Match::P_WIN) DrawTextCenteredBold(M.roundWinner >= 0 ? TextFormat("%s %s the round", StickName(M.roundWinner), M.roundWinner == S.me && !S.net ? "take" : "takes") : M.roundWinner == -2 && !M.log.empty() ? M.log.back().c_str() : M.mode == sf::MD_BOSS && !M.log.empty() ? M.log.back().c_str() : "A draw: everyone at once", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 34, M.roundWinner >= 0 ? StickColor(M.roundWinner) : INK);
+    if (M.phase == sf::Match::P_WIN && !S.net && !S.shot && !S.rec.steps.empty()) DrawTextCentered("R: watch it again", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 80, 16, NameInk());
     if (M.phase == sf::Match::P_OVER && M.mode == sf::MD_BOSS) {   // the run's end: the bosses beaten, or the one that won
         DrawRectangle(0, 0, SCREEN_W, SCREEN_H, ColorAlpha(PAPER, 0.85f));
         DrawTextCenteredBold(M.gFailed ? TextFormat("%s wins", sf::BossName(M.w.boss.kind)) : M.toWin > 1 ? "Every boss beaten!" : TextFormat("%s is beaten!", sf::BossName(M.w.boss.kind)), SCREEN_W / 2.0f, 120, 40, INK);
@@ -470,6 +474,59 @@ DrawTextCentered(sf::ModeName(M.mode), SCREEN_W / 2.0f, 74, 13, ColorAlpha(NameI
 
 int gScuffleTrinket = -1, gScuffleRules = 0, gScuffleMode = 0;   // (the arcade's picks: your trinket (-1: the game picks); the rules: 0 none, 1 Random each round, 2+ one mutator)
 uint32_t ScuffleRulesMask(int r) { return r >= 2 ? 1u << (r - 2) : 0; }
+// ---------------------------------------------------------------- replays (stage 9): record each round; R at its end watches the last 10 s
+static void RecBegin() { sf::ReplayBegin(S.rec, S.M, S.names, TextFormat("Round %d, %s", S.M.round, S.M.w.stage.name.c_str())); S.recEnded = false; }
+static void RecEnd() {
+    // the round's score (its kills, more for a close finish), and where the last death fell: the slow-motion's mark
+    if (S.recEnded) return; S.recEnded = true;
+    const auto& E = S.M.w.events; int kills = 0; for (const auto& e : E) if (e.kind == sf::EV_DIE) { kills++; S.rec.killAt = e.at; }
+    S.rec.killT = kills ? (float)S.rec.steps.size() : -1; S.rec.score = kills + (S.M.w.t < 15 ? 1.0f : 0.0f) + (S.M.roundWinner == 0 ? 0.5f : 0.0f);
+    S.best.push_back(S.rec); std::sort(S.best.begin(), S.best.end(), [](const sf::Replay& a, const sf::Replay& b) { return a.score > b.score; }); if (S.best.size() > 3) S.best.resize(3);
+}
+static void SaveBest() {
+    if (S.savedBest || S.best.empty()) return; S.savedBest = true;
+    MakeDirectory("scuffle_replays");
+    time_t now = time(nullptr); char stamp[32]; strftime(stamp, sizeof stamp, "%Y%m%d_%H%M%S", localtime(&now));
+    int n = 0; for (size_t i = 0; i < S.best.size(); i++) if (sf::SaveReplay(TextFormat("scuffle_replays/%s_%d.scr", stamp, (int)i + 1), S.best[i])) n++;
+    S.savedMsg = TextFormat("The match's best %d round%s saved (the locker plays them)", n, n == 1 ? "" : "s");
+}
+static void ViewStart(const sf::Replay& r, bool lastTen) {
+    S.view = r; S.live = S.M; S.liveNames = S.names;
+    std::vector<std::string> nm; if (!sf::ReplayStart(S.view, S.M, &nm)) { S.M = S.live; return; }
+    if (!S.view.names.empty()) S.names = S.view.names;
+    size_t from = lastTen && S.view.steps.size() > 1200 ? S.view.steps.size() - 1200 : 0;
+    for (S.vIdx = 0; S.vIdx < from; S.vIdx++) sf::ReplayStep(S.view, S.vIdx, S.M);
+    S.players = S.M.players; S.toWin = S.M.toWin; S.vAcc = 0; S.viewing = true; S.blots.clear(); S.evSeen = S.M.w.eventBase + (uint32_t)S.M.w.events.size();
+}
+static void ViewEnd(Game& g) {
+    S.viewing = false; S.blots.clear();
+    if (S.fileView) { S.active = false; S.fileView = false; g.scene = Scene::Arcade; return; }
+    S.M = S.live; S.names = S.liveNames; S.players = S.M.players; S.toWin = S.M.toWin; S.evSeen = S.M.w.eventBase + (uint32_t)S.M.w.events.size();
+}
+static void ViewFrame(Game& g, float dt) {
+    // real time, then a third of it over the last two seconds of a round that ended in a kill, the camera on the kill
+    size_t n = S.view.steps.size();
+    bool slow = S.view.killT >= 0 && S.vIdx + 240 > n && S.vIdx < n + 60;
+    S.vAcc += dt * (slow ? 0.33f : 1.0f);
+    while (S.vAcc >= sf::STEP && S.vIdx < n + 90) { S.vAcc -= sf::STEP; sf::ReplayStep(S.view, S.vIdx, S.M); S.vIdx++; }
+    ReadEvents();
+    StepCamera(dt);
+    if (slow) { S.cam = Vector2Lerp(S.cam, S.view.killAt, std::min(1.0f, dt * 3)); S.zoom += (95 - S.zoom) * std::min(1.0f, dt * 2); }
+    DrawWorld(dt);
+    DrawRectangle(0, 0, SCREEN_W, 34, ColorAlpha(INK, 0.75f)); DrawRectangle(0, SCREEN_H - 34, SCREEN_W, 34, ColorAlpha(INK, 0.75f));
+    DrawTextCenteredBold(TextFormat("REPLAY   %s%s", S.view.title.c_str(), slow ? "   (slow motion)" : ""), SCREEN_W / 2.0f, 7, 18, Color{240, 220, 170, 255});
+    DrawTextCentered("Space, R or Esc: skip", SCREEN_W / 2.0f, SCREEN_H - 26.0f, 14, Color{220, 210, 190, 255});
+    if (fmodf(S.t, 1.0f) < 0.6f) DrawCircleV({24, 17}, 7, Color{220, 40, 30, 255});
+    if (S.vIdx >= n + 90 || IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_R) || IsKeyPressed(KEY_ESCAPE)) ViewEnd(g);
+}
+void StartScuffleReplay(Game& g, const std::string& path) {
+    sf::Replay r; if (!sf::LoadReplay(path, r)) return;
+    S = ScuffleScene{}; S.active = true; S.fileView = true; gEventBanner = 0;
+    uint32_t h = 99; for (int i = 0; i < 700; i++) { h = h * 1664525u + 1013904223u; float x = (float)((h >> 8) % SCREEN_W); h = h * 1664525u + 1013904223u; S.grain.push_back({x, (float)((h >> 8) % SCREEN_H)}); }
+    ViewStart(r, false); if (!S.viewing) { S.active = false; return; }
+    S.cam = {S.M.w.stage.Width() / 2, S.M.w.stage.Height() / 2}; S.zoom = 60;
+    g.scene = Scene::Scuffle;
+}
 void StartScuffle(Game& g, int bots, int skill, int toWin, int world) {
     S = ScuffleScene{};
     gEventBanner = 0; gEventKind = -1;   // (no banner left over from the last match)
@@ -482,6 +539,7 @@ void StartScuffle(Game& g, int bots, int skill, int toWin, int world) {
     for (int i = 0; i < S.players; i++) S.botRng[i] = 1234567u + i * 7919u + (uint32_t)GetRandomValue(0, 1 << 20);
     uint32_t h = 99; for (int i = 0; i < 700; i++) { h = h * 1664525u + 1013904223u; float x = (float)((h >> 8) % SCREEN_W); h = h * 1664525u + 1013904223u; S.grain.push_back({x, (float)((h >> 8) % SCREEN_H)}); }
     S.cam = {S.M.w.stage.Width() / 2, S.M.w.stage.Height() / 2}; S.zoom = 60; S.lastRound = S.M.round;
+    RecBegin();
     g.scene = Scene::Scuffle;
 }
 // ---------------------------------------------------------------- a networked match (stage 4)
@@ -595,6 +653,8 @@ void SceneScuffle(Game& g) {
     if (!S.active) { StartScuffle(g, 3, 2, 5); }
     if (S.shot) dt = 1 / 60.0f;
     S.t += dt; S.wallMsgT = std::max(0.0f, S.wallMsgT - dt); S.modeMsgT = std::max(0.0f, S.modeMsgT - dt);
+    if (S.viewing) { ViewFrame(g, dt); return; }
+    if (S.M.phase == sf::Match::P_WIN && !S.shot && !EditorPlaying() && IsKeyPressed(KEY_R) && !S.rec.steps.empty()) { ViewStart(S.rec, true); return; }
     // the inputs (you and the bots), then the fixed steps (the match runs the rounds)
     if (!S.shot && !S.M.Over()) {
         S.acc += dt;
@@ -602,8 +662,10 @@ void SceneScuffle(Game& g) {
             S.acc -= sf::STEP;
             Gather(S.M.w.sticks[0].in, S.M.w.sticks[0]);
             for (int i = 1; i < S.players; i++) sf::BotInput(S.M.w, i, S.M.w.sticks[i].in, S.botRng[i], S.skill);
+            if (S.M.phase == sf::Match::P_COUNT || S.M.phase == sf::Match::P_FIGHT) sf::ReplayRecord(S.rec, S.M);
             S.M.Step();
-            if (S.M.round != S.lastRound) { S.lastRound = S.M.round; S.blots.clear(); S.evSeen = S.M.w.eventBase; }
+            if (S.M.phase == sf::Match::P_WIN || S.M.phase == sf::Match::P_OVER) RecEnd();
+            if (S.M.round != S.lastRound) { S.lastRound = S.M.round; S.blots.clear(); S.evSeen = S.M.w.eventBase; RecBegin(); }
         }
     }
     ReadEvents();
@@ -614,7 +676,8 @@ void SceneScuffle(Game& g) {
     if (S.M.Over() && EditorPlaying()) {
         if (Button({SCREEN_W / 2.0f - 100, SCREEN_H / 2.0f + 160, 200, 40}, "Back to the editor", true, 16)) EditorBackFromPlay();
     } else if (S.M.Over()) {
-        PayOut();
+        PayOut(); SaveBest();
+        if (!S.savedMsg.empty()) DrawTextCentered(S.savedMsg, SCREEN_W / 2.0f, SCREEN_H / 2.0f + 214, 14, NameInk());
         DrawTextCenteredBold(TextFormat("+%d tokens for the locker (%d in all)", S.paid, sf::MyLocker().tokens), SCREEN_W / 2.0f, SCREEN_H / 2.0f + 128, 16, Color{170, 110, 30, 255});
         if (Button({SCREEN_W / 2.0f - 230, SCREEN_H / 2.0f + 160, 200, 40}, "Again", true, 16)) { int b = S.players - 1, sk = S.skill, tw = S.toWin, wd = S.M.world; StartScuffle(g, b, sk, tw, wd); }
         if (Button({SCREEN_W / 2.0f + 30, SCREEN_H / 2.0f + 160, 200, 40}, "Back to the arcade", true, 16)) { S.active = false; g.scene = Scene::Arcade; }
@@ -657,6 +720,15 @@ void DebugScuffleShot(Game& g, int which) {
         w.fireT.assign(w.stage.t.size(), 0); for (int x = 20; x < 24; x++) w.fireT[6 * w.stage.w + x] = 0.5f;
         if (which == 6) { w.mut = 1u << sf::MU_BLACKOUT; int pt = w.AddThing(sf::TH_POTATO, {}, {}, 2.5f, -1); w.things[pt].on = 3; w.things[pt].p = w.sticks[3].pt[sf::J_HAND_R].p; gEventBanner = 2; gEventKind = sf::RE_GRAVITY_FLIP; }
         S.cam = {w.stage.Width() / 2, w.stage.Height() / 2}; S.zoom = 30; for (int i = 0; i < 120; i++) StepCamera(1 / 60.0f);
+        return;
+    }
+    if (which == 90) {   // the replay viewer: a bot round recorded, watched from its end, caught in the slow motion on the kill
+        S.shot = false; uint32_t r[8] = {11, 22, 33, 44, 55, 66, 77, 88};
+        for (int f = 0; f < 120 * 60 && S.M.phase != sf::Match::P_WIN; f++) { for (int i = 0; i < S.players; i++) sf::BotInput(S.M.w, i, S.M.w.sticks[i].in, r[i], 2); sf::ReplayRecord(S.rec, S.M); S.M.Step(); }
+        RecEnd(); ViewStart(S.rec, true);
+        size_t n = S.view.steps.size(); while (S.vIdx + 150 < n) { sf::ReplayStep(S.view, S.vIdx, S.M); S.vIdx++; }
+        S.evSeen = S.M.w.eventBase > 64 ? S.M.w.eventBase : 0; S.shot = true;
+        for (int i = 0; i < 90; i++) StepCamera(1 / 60.0f);
         return;
     }
     if (which >= 80 && which < 85) {   // the wardrobe on parade (80 + page): eight sticks, each in the next skin and hat; page 4 knocks two hats off
@@ -750,7 +822,7 @@ void LockerStick(Vector2 feetScreen, float zoom, int skin, int hat) {
     S.cam = cam; S.zoom = z; S.names = names;
 }
 }
-bool ScuffleLockerPage() {
+bool ScuffleLockerPage(Game& g) {
     sf::Locker& L = sf::MyLocker();
     float dt = GetFrameTime(); S.t += dt;
     Color bg{226, 214, 186, 255}, ink{40, 30, 24, 255}, dim{110, 96, 80, 255}, gold{170, 110, 30, 255};
@@ -818,6 +890,16 @@ bool ScuffleLockerPage() {
         }
     }
     DrawTextCentered("Tokens: 3 a match, +1 a round won, +5 for the match. Nothing here changes a stat.", 250, SCREEN_H - 150.0f, 13, dim);
+    {   // the replays: each match's best three rounds, newest first (re-simulated from their inputs)
+        static std::vector<std::string> files; static float scanT = 0;
+        if ((scanT -= dt) <= 0) { scanT = 2; files.clear(); if (DirectoryExists("scuffle_replays")) { FilePathList l = LoadDirectoryFilesEx("scuffle_replays", ".scr", false); for (unsigned i = 0; i < l.count; i++) files.push_back(l.paths[i]); UnloadDirectoryFiles(l); } std::sort(files.rbegin(), files.rend()); }
+        DrawTextCenteredBold(TextFormat("Replays (%d)", (int)files.size()), 250, SCREEN_H - 128.0f, 16, gold);
+        for (int i = 0; i < (int)files.size() && i < 3; i++) {
+            std::string nm = GetFileNameWithoutExt(files[i].c_str());
+            if (Button({40 + i * 140.0f, SCREEN_H - 104.0f, 132, 28}, nm.size() > 9 ? ("Watch " + nm.substr(4, 4) + nm.substr(nm.size() - 2)).c_str() : "Watch", true, 12)) { StartScuffleReplay(g, files[i]); return true; }
+        }
+        if (files.empty()) DrawTextCentered("A match's best three rounds are kept here.", 250, SCREEN_H - 100.0f, 13, dim);
+    }
     if (gLkMsgT > 0) { gLkMsgT -= dt; DrawTextCenteredBold(gLkMsg, SCREEN_W / 2.0f, SCREEN_H - 60.0f, 16, Color{170, 50, 30, 255}); }
     return Button({30, 18, 120, 34}, "Back", true, 15);
 }

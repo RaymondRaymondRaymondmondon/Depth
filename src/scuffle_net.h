@@ -44,6 +44,18 @@ Match* ScuffleHostMatch(arcade::GameHost* h);
 const std::vector<std::string>* ScuffleHostNames(arcade::GameHost* h);
 std::string ScuffleHostOpts(int toWin, int arsenal, int skill, int world = -1, uint32_t mutators = 0, bool randomMutator = false, int mode = 0);   // (world: -1 all six, WD_COUNT endless from the generator)
 uint32_t ScuffleDataHash();
+// stage 9: replays (doc p. 21): a round's start (a packed snapshot) and every stick's input for every step after it;
+// played back by re-simulating, so a whole round is a few hundred kilobytes. Files go to scuffle_replays/ (gitignored).
+struct Replay {
+    std::vector<uint8_t> start; std::vector<std::string> names; std::vector<std::vector<Input>> steps;
+    std::string title; float score = 0; Vector2 killAt{}; float killT = -1;   // (the round's best moment: where and when the last kill was)
+};
+void ReplayBegin(Replay& r, Match& m, const std::vector<std::string>& names, const std::string& title);
+void ReplayRecord(Replay& r, const Match& m);                 // (call with every stick's input set, just before Match::Step)
+bool ReplayStart(const Replay& r, Match& out, std::vector<std::string>* names = nullptr);   // (the match as the round began)
+void ReplayStep(const Replay& r, size_t i, Match& m);        // (step i: the inputs, then Match::Step)
+bool SaveReplay(const std::string& path, const Replay& r);
+bool LoadReplay(const std::string& path, Replay& r);
 int RunScuffleNetTest();                                    // --scuffle-net-test
 int RunScuffleNetLoop(int lagMs, bool mem);                 // --net-loop scuffle [lagMs] [mem]: the doc's gate, eight players
 }
