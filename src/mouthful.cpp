@@ -292,6 +292,10 @@ int World::AddMouth(const std::string& name, bool bot, int level, int seat) {
     Mouth m; m.id = (int)mouths.size(); m.name = name; m.bot = bot; m.botLevel = std::clamp(level, 1, 3); m.seat = seat;
     m.agent = eco.AddDiver(m.id, {-250, -5, 0});
     m.thinkT = Rand() * 0.2f;
+    if (bot && Rand() < 0.35f) {   // (some bots wear a skin or two from the crate's commons and rares)
+        std::vector<const SkinDef*> pool; for (const auto& s : Skins()) if (s.tier >= 1 && s.tier <= 2) pool.push_back(&s);
+        for (int p = 0; p < P_COUNT && !pool.empty(); p++) { if (p) m.look += ";"; if (Rand() < 0.6f) m.look += pool[(int)(Rand() * pool.size()) % pool.size()]->id; }
+    }
     mouths.push_back(m);
     Respawn(mouths.back(), true);
     return m.id;
@@ -585,6 +589,7 @@ void World::Bite(Mouth& m, bool free) {
     float dmgHp = a.hpMax * frac;
     float gained = pm * frac * 0.5f;
     eco.Damage(bestA, dmgHp, m.agent, true);
+    if (bestA == leviathan && a.hp < a.hpMax * 0.9f && !m.levTooth) { m.levTooth = true; Say(m.name + " has drawn a tenth of the Leviathan's blood.", Color{255, 150, 130, 255}); }
     eco.AddBlood(a.pos, 1.5f);
     if (BandAt(a.pos) == B_TRENCH) levNoise += 1;
     Feed(m, gained, false);

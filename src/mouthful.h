@@ -208,6 +208,33 @@ struct World {
 float ScoreOf(const World& w, const Mouth& m);     // the round score so far (mass eaten, kills, the crown, tiers)
 bool SwallowOk(const World& w, const Mouth& by, const Mouth& t);
 
+// ---------------------------------------------------------------- cosmetics (doc pp. 16-18; mouthful_skins.cpp)
+struct SkinDef {
+    std::string id, name, note, hat, pattern, special;
+    int tier = 1, price = 0; bool earned = false;       // tier: 0 the shop, 1 common, 2 rare, 3 super rare, 4 special
+    Color tint{255, 255, 255, 255}, glow{0, 0, 0, 255}; bool hasTint = false, hasGlow = false;
+};
+const std::vector<SkinDef>& Skins();
+const SkinDef* FindSkin(const std::string& id);
+const char* SkinTierName(int tier);
+int CratePrice();
+struct Wardrobe {
+    int tokens = 0, crates = 0, rounds = 0, crowns = 0; bool blobKing = false; uint32_t crownPaths = 0;
+    std::vector<std::string> owned; std::string worn[P_COUNT]; int bestTier[P_COUNT] = {};
+    bool Owns(const std::string& id) const;
+};
+extern bool gWardrobeNoSave;
+Wardrobe& MyWardrobe();
+void LoadWardrobe(); void SaveWardrobe();
+bool BuySkin(const std::string& id, std::string* why = nullptr);
+bool BuyCrate(std::string* why = nullptr);
+struct CrateRoll { bool ok = false; std::string id; int tier = 0; bool duplicate = false; };
+CrateRoll OpenCrate(uint32_t seed);
+bool WearSkin(int path, const std::string& id);
+std::string LookString();                          // the worn skins, one per path, for the hello
+const SkinDef* WornSkin(const std::string& look, int path);
+int RoundTokens(const World& w, int me, bool award);   // what a round pays (and, with award, pays it and keeps the profile)
+int RunMouthfulSkinsTest();                        // --mouthful-skins-test
 int DeathKind(const std::string& cause);           // 0 players, 1 NPC predators, 2 the boat and hazards, 3 the leviathan
 
 // tools (main.cpp)

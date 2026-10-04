@@ -225,6 +225,9 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"mouthful_boat", [](Game& g) { DebugMouthfulShot(g, 10); }}, {"mouthful_orcas", [](Game& g) { DebugMouthfulShot(g, 11); }},
         {"mouthful_redtide", [](Game& g) { DebugMouthfulShot(g, 12); }}, {"mouthful_whalefall", [](Game& g) { DebugMouthfulShot(g, 13); }},
         {"mouthful_dusk", [](Game& g) { DebugMouthfulShot(g, 14); }},
+        {"mouthful_skins", [](Game& g) { DebugMouthfulShot(g, 15); }},
+        {"mouthful_wardrobe", [](Game& g) { DebugMouthfulWardrobe(); g.scene = Scene::Arcade; DebugArcadeReel(206); }},
+        {"arcade_mouthful", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(6); }},
         {"flight_dawn", [](Game& g) { DebugFlightShot(g, 0); }},
         {"flight_strike", [](Game& g) { DebugFlightShot(g, 1); }},
         {"flight_nest", [](Game& g) { DebugFlightShot(g, 2); }},
@@ -791,6 +794,7 @@ int main(int argc, char** argv) {
     // Mouthful (arcade game 8): the rules, a bot-only round, a duel of two forms
     if (argc >= 2 && strcmp(argv[1], "--mouthful-test") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulTest(); }
     if (argc >= 2 && strcmp(argv[1], "--mouthful-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulNetTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--mouthful-skins-test") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulSkinsTest(); }
     if (argc >= 2 && strcmp(argv[1], "--mouthful-round") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulRound(argc > 2 ? atoi(argv[2]) : 11, argc > 3 ? (float)atof(argv[3]) : 15.0f, argc > 4 ? (uint32_t)atoi(argv[4]) : 1u, argc > 5 ? atoi(argv[5]) : 1, argc > 6 ? atoi(argv[6]) : 0); }
     if (argc >= 5 && strcmp(argv[1], "--mouthful-duel") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulDuel(argv[2], argv[3], (float)atof(argv[4]), argc > 5 ? atoi(argv[5]) : 40); }
     if (argc >= 2 && strcmp(argv[1], "--flight-society-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSocietyTest(); }

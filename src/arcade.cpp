@@ -2,6 +2,7 @@
 //  The Deep Arcade: the cabinet's screen (the reels, Host / Join / Browse), the lobby and the Scuttle table.
 //  The session and the rules live in arcade_session.* and scuttle.* (no raylib); this file only draws and clicks.
 // ============================================================================
+#include "mouthful.h"
 #include "game.h"
 #include "arcade_session.h"
 #include "scuttle.h"
@@ -11,6 +12,7 @@
 #include "voice.h"
 #include "input.h"
 static int gWardrobe = -1;
+static bool gMfWardrobe = false; static int gMfMode = 0, gMfPath = 2;   // Mouthful's wardrobe page; the mode (and One Path's path) picked on its reel
 static bool gFlWardrobe = false; static int gFlGallery = -1;   // the Flight's Roost wardrobe; a costume gallery page (--shots)   // the skins page over the arcade (skins::TRAWL), -1 none
 #include "sound.h"
 #include <algorithm>
@@ -306,8 +308,29 @@ void DrawReels(Game& g) {
         };
         picker(c.x - 130, c.y + 52, TextFormat("%d bots", mfBots), mfBots, 0, 11);
         picker(c.x + 130, c.y + 52, TextFormat("%.0f minutes", LENS[mfLen]), mfLen, 0, 2);
-        picker(c.x, c.y + 84, LEVELS[mfLevel], mfLevel, 0, 3);
-        if (Button({c.x - 110, c.y + 236, 220, 36}, "Swim (solo)", true, 15)) { StartMouthful(g, mfBots, LENS[mfLen], mfLevel); return; }
+        // the mode (and One Path's path), on a plate to the left of the drum
+        DrawRectangleRounded({28, 236, 268, 200}, 0.08f, 6, Fade(Color{8, 30, 34, 255}, 0.85f));
+        DrawRectangleRoundedLinesEx({28, 236, 268, 200}, 0.08f, 6, 2, Pal::BrassDk);
+        DrawTextCenteredBold("The mode", 162, 246, 18, Color{230, 200, 150, 255});
+        auto cyc = [&](float y, int& v, int n, const char* text) {
+            Rectangle l{40, y, 24, 22}, r{260, y, 24, 22};
+            DrawTextCenteredBold(text, 162, y + 1, 16, Color{180, 230, 220, 255});
+            DrawTextCenteredBold("<", l.x + 12, l.y, 18, Pal::Brass); DrawTextCenteredBold(">", r.x + 12, r.y, 18, Pal::Brass);
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = (v + n - 1) % n; PlayCue("ui.click"); }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = (v + 1) % n; PlayCue("ui.click"); }
+        };
+        cyc(276, gMfMode, mf::M_COUNT, mf::ModeName(gMfMode));
+        if (gMfMode == mf::M_ONE_PATH) { int pv = gMfPath; cyc(306, pv, mf::P_COUNT, mf::PathName(pv)); gMfPath = pv; }
+        DrawWrapped(mf::ModeRule(gMfMode), {40, 336, 244, 60}, 13, SCREEN_DIM);
+        {   // (the bots' level on the mode plate, below the mode)
+            Rectangle l{40, 400, 24, 22}, r{260, 400, 24, 22};
+            DrawTextCenteredBold(LEVELS[mfLevel], 162, 401, 15, Color{230, 200, 150, 255});
+            DrawTextCenteredBold("<", l.x + 12, l.y, 18, Pal::Brass); DrawTextCenteredBold(">", r.x + 12, r.y, 18, Pal::Brass);
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { mfLevel = (mfLevel + 3) % 4; PlayCue("ui.click"); }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { mfLevel = (mfLevel + 1) % 4; PlayCue("ui.click"); }
+        }
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Swim (solo)", true, 15)) { StartMouthfulMode(g, mfBots, LENS[mfLen], mfLevel, gMfMode, gMfPath); return; }
+        if (Button({c.x + 120, c.y + 236, 170, 36}, TextFormat("Wardrobe (%d)", mf::MyWardrobe().tokens), true, 14)) { gMfWardrobe = true; return; }
         DrawTextCentered("Mouse steers, W swims, Shift boosts, left click bites, right click is your form's ability", c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (selGame == G_RED_TIDE) {
@@ -546,8 +569,10 @@ void DrawLobby() {
         };
         bool ch = pick(p.x + 195, p.y + p.height - 140, TextFormat("%d-minute round", LENS[mfLen]), mfLen, 3);
         ch |= pick(p.x + 505, p.y + p.height - 140, LEVELS[mfLevel], mfLevel, 4);
-        gSess.gameOpts = MouthfulOpts(LENS[mfLen], mfLevel, 12);
-        if (ch) gSess.Chat(TextFormat("The round: %d minutes, %s filling the water to twelve", LENS[mfLen], LEVELS[mfLevel]));
+        ch |= pick(p.x + 195, p.y + p.height - 108, mf::ModeName(gMfMode), gMfMode, mf::M_COUNT);
+        if (gMfMode == mf::M_ONE_PATH) ch |= pick(p.x + 505, p.y + p.height - 108, mf::PathName(gMfPath), gMfPath, mf::P_COUNT);
+        gSess.gameOpts = MouthfulOpts(LENS[mfLen], mfLevel, 12, gMfMode, gMfPath);
+        if (ch) gSess.Chat(TextFormat("The round: %s, %d minutes, %s filling the water to twelve", mf::ModeName(gMfMode), LENS[mfLen], LEVELS[mfLevel]));
     }
     if (host) {
         std::string why;
@@ -999,6 +1024,7 @@ void SceneArcade(Game& g) {
     if (gWardrobe >= 0) { if (skins::WardrobePage(gWardrobe)) gWardrobe = -1; return; }
     if (gFlGallery >= 0) { DrawFlightCostumeGallery(gFlGallery); return; }
     if (gFlWardrobe) { if (FlightWardrobePage(gFlSel)) gFlWardrobe = false; return; }
+    if (gMfWardrobe) { if (MouthfulWardrobePage()) gMfWardrobe = false; return; }
     // the lobby's small noises: someone sits down, someone speaks
     static int lastSeats = 0; static size_t lastChat = 0;
     gSess.Update(GetTime(), GetFrameTime());
@@ -1048,7 +1074,7 @@ void SceneArcade(Game& g) {
 }
 
 // --shots: turn the drum to a reel (0 Flats Duel ... 4 Red Tide) on the front page
-void DebugArcadeReel(int reel) { gMode = MODE_MENU; gSel = reel; gDrum = (float)reel; gRtCustomOpen = reel == 104; if (reel == 104) { gSel = 4; gDrum = 4; SetRedTideCustom("q1.50h1.25c30f0l1o1"); } }   // (104: the Custom rules panel)
+void DebugArcadeReel(int reel) { gMfWardrobe = reel == 206; if (reel == 206) reel = 6; gMode = MODE_MENU; gSel = reel; gDrum = (float)reel; gRtCustomOpen = reel == 104; if (reel == 104) { gSel = 4; gDrum = 4; SetRedTideCustom("q1.50h1.25c30f0l1o1"); } }   // (104: the Custom rules panel)
 
 // the shots (no network needed): 0 the lobby, 1 the table mid-heat, 2 the match over, 3 the rules
 void DebugArcadeShot(int which) {

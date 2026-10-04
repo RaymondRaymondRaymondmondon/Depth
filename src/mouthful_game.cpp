@@ -201,10 +201,48 @@ void Gather(float dt) {
 
 // ---------------------------------------------------------------- drawing
 float CreatureYaw(Vector3 f) { return atan2f(f.x, f.z); }
+Color Mul(Color a, Color b) { return {(unsigned char)(a.r * b.r / 255), (unsigned char)(a.g * b.g / 255), (unsigned char)(a.b * b.b / 255), 255}; }
+void DrawSkinExtras(const mf::SkinDef& sk, Vector3 pos, Vector3 f, float L, float t) {
+    // a skin's pattern, glow and hat, placed along the body: the head forward, the back up
+    Vector3 up{0, 1, 0}, side = Vector3Normalize(Vector3CrossProduct(f, up));
+    if (Vector3Length(side) < 0.1f) side = {1, 0, 0};
+    up = Vector3Normalize(Vector3CrossProduct(side, f));
+    auto at = [&](float along, float upK, float sideK) { return Vector3Add(pos, Vector3Add(Vector3Scale(f, along * L), Vector3Add(Vector3Scale(up, upK * L), Vector3Scale(side, sideK * L)))); };
+    auto box = [&](Vector3 c, float s, Color col) { rt::DrawWorldCube(c, {s, s, s}, col); };
+    auto glow = [&](Vector3 c, float s, Color col, float k) { rt::DrawCubeGlow(MatrixMultiply(MatrixScale(s, s, s), MatrixTranslate(c.x, c.y, c.z)), col, k); };
+    const std::string& p = sk.pattern;
+    if (p == "stripes") for (int k = 0; k < 4; k++) box(at(0.25f - k * 0.16f, 0.12f, 0), L * 0.06f, {30, 30, 34, 255});
+    if (p == "spots" || p == "mottle") for (int k = 0; k < 6; k++) box(at(0.2f - k * 0.08f, 0.1f + 0.04f * (k % 2), (k % 3 - 1) * 0.08f), L * 0.04f, p == "spots" ? Color{40, 34, 30, 255} : Color{120, 90, 60, 255});
+    if (p == "orca") { box(at(0.22f, 0.06f, 0.1f), L * 0.07f, {240, 240, 236, 255}); box(at(0.22f, 0.06f, -0.1f), L * 0.07f, {240, 240, 236, 255}); box(at(-0.05f, -0.1f, 0), L * 0.09f, {240, 240, 236, 255}); }
+    if (p == "scales" || p == "blocks") for (int k = 0; k < 5; k++) box(at(0.15f - k * 0.1f, 0.13f, 0), L * 0.05f, p == "blocks" ? Color{250, 210, 60, 255} : Color{50, 120, 70, 255});
+    if (sk.hasGlow) for (int k = 0; k < 7; k++) glow(at(0.3f - k * 0.09f, 0.05f + 0.06f * sinf(k * 2.1f), 0.12f * cosf(k * 1.7f)), L * 0.025f + 0.01f, sk.glow, 1.2f + 0.4f * sinf(t * 3 + k));
+    const std::string& h = sk.hat;
+    if (h == "bicorne") { Vector3 c = at(0.28f, 0.2f, 0); rt::DrawWorldCube(c, {L * 0.1f, L * 0.08f, L * 0.32f}, {24, 22, 26, 255}); box(Vector3Add(c, Vector3Scale(up, L * 0.04f)), L * 0.03f, {220, 180, 80, 255}); }
+    if (h == "crown") for (int k = 0; k < 5; k++) { float a = k * 1.2566f; glow(Vector3Add(at(0.25f, 0.2f, 0), Vector3Add(Vector3Scale(side, cosf(a) * L * 0.06f), Vector3Scale(f, sinf(a) * L * 0.06f))), L * 0.035f, {255, 214, 90, 255}, 1.2f); }
+    if (h == "toque") { Vector3 c = at(0.25f, 0.22f, 0); rt::DrawWorldCube(Vector3Add(c, Vector3Scale(up, L * 0.06f)), {L * 0.1f, L * 0.16f, L * 0.1f}, {246, 246, 240, 255}); }
+    if (h == "monocle") glow(at(0.36f, 0.06f, 0.12f), L * 0.035f, {250, 240, 200, 255}, 0.8f);
+    if (h == "bigeyes") { box(at(0.36f, 0.08f, 0.11f), L * 0.07f, {250, 250, 250, 255}); box(at(0.36f, 0.08f, -0.11f), L * 0.07f, {250, 250, 250, 255}); }
+    if (h == "eyepatch") box(at(0.36f, 0.06f, 0.12f), L * 0.05f, {20, 20, 22, 255});
+    if (h == "key") { Vector3 c = at(-0.05f, 0.2f, 0); rt::DrawWorldCube(c, {L * 0.03f, L * 0.12f, L * 0.03f}, {200, 170, 80, 255}); rt::DrawWorldCube(Vector3Add(c, Vector3Scale(up, L * 0.08f)), {L * 0.02f, L * 0.06f, L * 0.12f}, {200, 170, 80, 255}); }
+    if (h == "streamers") for (int k = 0; k < 3; k++) { Color c3[3] = {{230, 60, 50, 255}, {250, 250, 250, 255}, {60, 90, 220, 255}}; Vector3 c = at(-0.45f - 0.1f * k, 0.05f * sinf(t * 4 + k), 0.08f * (k - 1)); rt::DrawWorldCube(c, {L * 0.05f, L * 0.02f, L * 0.05f}, c3[k]); }
+    if (h == "chain") for (int k = 0; k < 4; k++) box(at(-0.45f - k * 0.08f, -0.05f, 0), L * 0.03f, {120, 120, 126, 255});
+    if (h == "rivets") for (int k = 0; k < 6; k++) box(at(0.2f - k * 0.08f, 0.14f, (k % 2 ? 0.06f : -0.06f)), L * 0.025f, {170, 140, 70, 255});
+    if (h == "ribs") for (int k = 0; k < 5; k++) rt::DrawWorldCube(at(0.15f - k * 0.08f, 0.0f, 0), {L * 0.02f, L * 0.24f, L * 0.22f}, {236, 232, 220, 255});
+    if (h == "gems") for (int k = 0; k < 4; k++) glow(at(0.2f - k * 0.12f, 0.14f, 0), L * 0.03f, k % 2 ? Color{90, 220, 140, 255} : Color{255, 80, 140, 255}, 1.4f);
+    if (h == "horns") { rt::DrawWorldCube(at(0.28f, 0.2f, 0.07f), {L * 0.03f, L * 0.12f, L * 0.03f}, {230, 210, 170, 255}); rt::DrawWorldCube(at(0.28f, 0.2f, -0.07f), {L * 0.03f, L * 0.12f, L * 0.03f}, {230, 210, 170, 255}); }
+    if (h == "mask") glow(at(0.42f, 0.05f, 0), L * 0.09f, {255, 200, 80, 255}, 0.9f);
+    if (h == "rice") rt::DrawWorldCube(at(0, 0.16f, 0), {L * 0.24f, L * 0.06f, L * 0.12f}, {250, 248, 240, 255});
+    if (h == "box") rt::DrawWorldCube(pos, {L * 0.55f, L * 0.4f, L * 0.4f}, {196, 156, 104, 255});
+    if (h == "sub") rt::DrawWorldCube(at(0, 0.2f, 0), {L * 0.12f, L * 0.08f, L * 0.3f}, {110, 116, 108, 255});
+    if (h == "lamp") { rt::DrawWorldCube(at(0.32f, 0.22f, 0), {L * 0.015f, L * 0.12f, L * 0.015f}, {60, 60, 60, 255}); glow(at(0.4f, 0.3f, 0), L * 0.05f, {255, 240, 160, 255}, 2.0f); }
+    if (h == "scar") glow(at(0.1f, 0.08f, 0.12f), L * 0.02f, {255, 90, 70, 255}, 1.0f);
+    if (h == "fishhat") rt::DrawCreature(rt::Creature("mouthful_reef", "Snapper"), at(0.18f, 0.24f, 0), atan2f(f.x, f.z), 0, L * 0.35f / std::max(0.05f, rt::Creature("mouthful_reef", "Snapper").length), t * 3, 0.3f, WHITE);
+}
 void DrawMouth(const mf::World& w, const mf::Mouth& m, bool mine) {
     if (!m.alive) return;
     const mf::FormDef& F = w.FormOf(m);
-    const rt::CreatureModel& cm = rt::Creature("mouthful_reef", F.art);
+    const mf::SkinDef* sk = mf::WornSkin(m.look, m.path);
+    const rt::CreatureModel& cm = rt::Creature("mouthful_reef", sk && sk->special == "sharksuit" ? (m.tier >= 6 ? "Great White" : "Bull Shark") : F.art);   // (the Shark Suit: the panic is real)
     float L = w.Length(m);
     Vector3 f{cosf(m.pitch) * cosf(m.yaw), sinf(m.pitch), cosf(m.pitch) * sinf(m.yaw)};
     float spd = Vector3Length(m.vel);
@@ -227,10 +265,14 @@ void DrawMouth(const mf::World& w, const mf::Mouth& m, bool mine) {
     }
     if (m.buriedT >= 2 || m.ambush) tint = Mix(tint, Color{120, 110, 90, 255}, 0.6f);
     if (F.ps == mf::PS_CAMO && m.stillT > 1) tint = Mix(tint, Color{150, 140, 120, 255}, 0.7f);
+    if (sk && sk->hasTint) tint = Mul(tint, sk->tint);
+    if (sk && sk->pattern == "sheen") tint = Mix(tint, WHITE, 0.25f + 0.2f * sinf(S.t * 2 + m.id));
+    if (sk && sk->pattern == "pale") tint = Mix(tint, Color{220, 236, 244, 255}, 0.5f);
     float scale = L / std::max(0.05f, cm.length) * swell;
     if (F.ab == mf::AB_INFLATE && m.abT > 0) scale *= 1.0f;   // (Length already doubles it)
     float phase = S.t * cm.freq * (0.5f + inten * 0.5f) * coil + m.id * 1.7f;
     rt::DrawCreature(cm, m.pos, CreatureYaw(f), std::clamp(m.pitch + pitchAdd, -1.3f, 1.3f), scale, phase, std::min(2.0f, inten * coil), tint);
+    if (sk) DrawSkinExtras(*sk, m.pos, f, L, S.t + m.id);
     // a burrowed crab or an ambushing stonefish shows only as a little mound of sand to a sharp eye
     if (m.buriedT >= 2 || m.ambush) { Vector3 p = m.pos; p.y = mf::FloorY(p.x, p.z) + 0.05f; rt::DrawWorldCube(p, {L * 0.7f, L * 0.12f, L * 0.7f}, mf::BandAt(p) == mf::B_SHALLOWS ? Color{228, 214, 170, 255} : Color{170, 150, 130, 255}); }
     if (m.immuneT > 0) for (int k = 0; k < 6; k++) { float a = k * 1.047f + S.t * 2.5f, r = L * 0.8f + 0.06f; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.025f, 0.025f, 0.025f), MatrixTranslate(m.pos.x + cosf(a) * r, m.pos.y + sinf(a * 2) * r * 0.3f, m.pos.z + sinf(a) * r)), {255, 240, 170, 255}, 1.0f); }
@@ -271,6 +313,7 @@ void DrawWorld(const mf::World& w, const Camera3D& cam) {
     for (const auto& c : w.clouds) {
         float k = std::clamp(c.t, 0.0f, 1.0f);
         Color col = c.kind == 0 ? Color{18, 14, 30, 255} : Color{150, 190, 60, 255};
+        if (c.kind == 0 && c.owner >= 0 && c.owner < (int)w.mouths.size()) { const mf::SkinDef* os = mf::WornSkin(w.mouths[c.owner].look, w.mouths[c.owner].path); if (os && os->special == "purpleink") col = {70, 24, 100, 255}; }   // (Kraken Ink)
         // a billow of puffs: dense in the middle, thinning at the edge, swelling as it spreads
         for (int j = 0; j < 70; j++) {
             float a = j * 2.399f, rr = c.r * sqrtf((j + 0.5f) / 70) * (0.7f + 0.3f * (1 - k)), y = sinf(j * 1.3f) * c.r * 0.45f;
@@ -572,9 +615,11 @@ void DrawHud(mf::World& w) {
     }
 }
 void DrawResults(Game& g, mf::World& w) {
+    static const mf::World* paidFor = nullptr; static float paidAt = -1; static int paid = 0;
+    if (paidFor != &w || paidAt != w.time) { paid = mf::RoundTokens(w, S.me, !S.shot); paidFor = &w; paidAt = w.time; }
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.55f));
     auto b = w.Board();
-    Rectangle r{SCREEN_W / 2.0f - 380, 90, 760, 150.0f + 28 * b.size()};
+    Rectangle r{SCREEN_W / 2.0f - 380, 90, 760, 180.0f + 28 * b.size()};
     DrawRectangleRounded(r, 0.05f, 6, Fade(Color{6, 24, 32, 255}, 0.94f));
     DrawRectangleRoundedLinesEx(r, 0.05f, 6, 2, Color{214, 180, 110, 255});
     DrawTextCenteredBold(w.winner == S.me ? "You were the biggest mouth in the water." : (w.winner >= 0 ? w.mouths[w.winner].name : std::string("Nobody")) + " wins the round.", SCREEN_W / 2.0f, r.y + 16, 26, Color{255, 226, 150, 255});
@@ -588,10 +633,98 @@ void DrawResults(Game& g, mf::World& w) {
         Txt(TextFormat("%d", (int)mf::ScoreOf(w, o)), r.x + 680, y, 16, c);
         y += 28;
     }
+    DrawTextCenteredBold(TextFormat("+%d tokens for the wardrobe (%d in all)", paid, mf::MyWardrobe().tokens + (S.shot ? paid : 0)), SCREEN_W / 2.0f, r.y + r.height - 78, 16, Color{255, 220, 150, 255});
     if (Button({SCREEN_W / 2.0f - 120, r.y + r.height - 50, 240, 38}, "Back to the arcade", true, 16)) ::LeaveMouthful(g);
 }
 
 }  // namespace
+
+// ---------------------------------------------------------------- the wardrobe (doc pp. 16-18): the shop, the crate, a skin worn per path, the profile
+namespace {
+int gWrPath = mf::P_SHARK; std::string gWrMsg; float gWrMsgT = 0; std::string gWrShow; int gWrShowTier = -1; float gWrClamT = 0;
+void Swatch(float cx, float cy, float s, const mf::SkinDef* sk, int path, float t) {
+    // a fish in 2D: the path's first form's colours under the skin's tint, its hat named on it
+    const auto& F = mf::D().forms; Color base{200, 200, 200, 255}, belly{240, 240, 240, 255};
+    for (const auto& fm : F) if (fm.path == path && fm.tier == 2) { base = fm.base; belly = fm.belly; break; }
+    if (sk && sk->hasTint) { base = Mul(base, sk->tint); belly = Mul(belly, sk->tint); }
+    float wob = sinf(t * 3) * s * 0.05f;
+    DrawTriangle({cx - s * 0.9f, cy}, {cx - s * 1.4f, cy + s * 0.45f + wob}, {cx - s * 1.4f, cy - s * 0.45f + wob}, Shade(base, 0.8f));
+    DrawTriangle({cx - s * 0.9f, cy}, {cx - s * 1.4f, cy - s * 0.45f + wob}, {cx - s * 1.4f, cy + s * 0.45f + wob}, Shade(base, 0.8f));
+    DrawEllipse((int)cx, (int)cy, s, s * 0.55f, base);
+    DrawEllipse((int)cx, (int)(cy + s * 0.18f), s * 0.8f, s * 0.3f, belly);
+    DrawCircle((int)(cx + s * 0.55f), (int)(cy - s * 0.12f), s * 0.12f, WHITE); DrawCircle((int)(cx + s * 0.58f), (int)(cy - s * 0.12f), s * 0.06f, BLACK);
+    if (sk && sk->pattern == "stripes") for (int k = 0; k < 3; k++) DrawRectangle((int)(cx - s * 0.5f + k * s * 0.35f), (int)(cy - s * 0.5f), (int)(s * 0.1f), (int)(s), Fade(BLACK, 0.6f));
+    if (sk && sk->hasGlow) for (int k = 0; k < 6; k++) DrawCircle((int)(cx - s * 0.6f + k * s * 0.24f), (int)(cy + sinf(k * 2.0f) * s * 0.25f), s * 0.05f, sk->glow);
+    if (sk && !sk->hat.empty()) DrawTextCentered(sk->hat == "bicorne" ? "(a bicorne)" : sk->hat == "crown" ? "(a crown)" : ("(" + sk->hat + ")").c_str(), cx, cy - s * 0.95f, 13, Color{255, 230, 170, 255});
+}
+}
+bool MouthfulWardrobePage() {
+    mf::Wardrobe& w = mf::MyWardrobe();
+    float t = (float)GetTime();
+    ClearBackground(Color{8, 34, 44, 255});
+    Color ink{236, 250, 246, 255}, dim{170, 210, 210, 255}, gold{255, 214, 110, 255};
+    DrawTextCenteredBold("The Mouthful wardrobe", SCREEN_W / 2.0f, 18, 30, gold);
+    DrawTextCentered(TextFormat("%d tokens   %d crate%s   %d rounds, %d crowns%s", w.tokens, w.crates, w.crates == 1 ? "" : "s", w.rounds, w.crowns, w.blobKing ? "   THE BLOBFISH KING" : ""), SCREEN_W / 2.0f, 56, 16, dim);
+    // the path tabs: a skin is worn on every form of one path
+    for (int p = 0; p < mf::P_COUNT; p++) {
+        Rectangle r{SCREEN_W / 2.0f - 450 + p * 150.0f, 84, 140, 30};
+        bool on = p == gWrPath;
+        DrawRectangleRounded(r, 0.3f, 6, on ? Color{30, 120, 118, 255} : Color{16, 60, 64, 255});
+        DrawTextCenteredBold(TextFormat("%s (best %d)", mf::PathName(p), w.bestTier[p]), r.x + r.width / 2, r.y + 7, 14, on ? ink : dim);
+        if (CheckCollisionPointRec(GetMousePosition(), r) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gWrPath = p;
+    }
+    const mf::SkinDef* worn = mf::FindSkin(w.worn[gWrPath]);
+    Swatch(SCREEN_W / 2.0f, 190, 60, worn, gWrPath, t);
+    DrawTextCentered(TextFormat("worn on the %s path: %s", mf::PathName(gWrPath), worn ? worn->name.c_str() : "as hatched"), SCREEN_W / 2.0f, 250, 15, ink);
+    if (worn && Button({SCREEN_W / 2.0f - 60, 272, 120, 26}, "take it off", true, 13)) mf::WearSkin(gWrPath, "");
+    // the shop (left)
+    DrawTextCenteredBold("The token shop", 250, 300, 18, gold);
+    int i = 0;
+    for (const auto& s : mf::Skins()) {
+        if (s.tier != 0) continue;
+        Rectangle r{40, 328 + i * 36.0f, 420, 32};
+        bool own = w.Owns(s.id), on = w.worn[gWrPath] == s.id;
+        DrawRectangleRounded(r, 0.2f, 6, on ? Color{40, 110, 90, 255} : Color{14, 50, 58, 255});
+        DrawRectangle((int)r.x + 6, (int)r.y + 6, 20, 20, s.hasTint ? s.tint : Color{230, 230, 230, 255});
+        Txt(s.name, r.x + 34, r.y + 7, 15, ink);
+        if (!own) { if (Button({r.x + r.width - 110, r.y + 3, 104, 26}, TextFormat("buy %d", s.price), w.tokens >= s.price, 13)) { std::string why; if (!mf::BuySkin(s.id, &why)) { gWrMsg = why; gWrMsgT = 3; } } }
+        else if (Button({r.x + r.width - 110, r.y + 3, 104, 26}, on ? "worn" : "wear", !on, 13)) mf::WearSkin(gWrPath, s.id);
+        if (CheckCollisionPointRec(GetMousePosition(), r)) DrawTextCentered(s.note, SCREEN_W / 2.0f, SCREEN_H - 30.0f, 14, dim);
+        i++;
+    }
+    // the crate (right): every crate skin, the ones you own lit
+    DrawTextCenteredBold("The crate (a clam that opens)", SCREEN_W - 330, 300, 18, gold);
+    int k = 0;
+    for (const auto& s : mf::Skins()) {
+        if (s.tier == 0) continue;
+        float x = SCREEN_W - 620 + (k % 5) * 116.0f, y = 328 + (k / 5) * 34.0f;
+        Rectangle r{x, y, 110, 30};
+        bool own = w.Owns(s.id), on = w.worn[gWrPath] == s.id;
+        static const Color TC[5] = {{200, 200, 200, 255}, {180, 220, 200, 255}, {120, 180, 255, 255}, {220, 140, 255, 255}, {255, 210, 90, 255}};
+        DrawRectangleRounded(r, 0.2f, 6, on ? Color{40, 110, 90, 255} : own ? Color{20, 64, 70, 255} : Color{10, 26, 30, 255});
+        DrawRectangleRoundedLinesEx(r, 0.2f, 6, 1, Fade(TC[s.tier], own ? 1.0f : 0.35f));
+        DrawTextCentered(s.name.size() > 15 ? s.name.substr(0, 14) + "." : s.name, x + 55, y + 8, 12, own ? ink : Color{90, 110, 110, 255});
+        if (CheckCollisionPointRec(GetMousePosition(), r)) { DrawTextCentered(s.name + " (" + mf::SkinTierName(s.tier) + (s.earned ? ", earned only" : "") + "): " + s.note, SCREEN_W / 2.0f, SCREEN_H - 30.0f, 14, dim); if (own && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) mf::WearSkin(gWrPath, on ? "" : s.id); }
+        k++;
+    }
+    float cy = 328 + 8 * 34.0f + 14;
+    if (Button({SCREEN_W - 620.0f, cy, 200, 34}, TextFormat("Buy a crate (%d token%s)", mf::CratePrice(), mf::CratePrice() == 1 ? "" : "s"), w.tokens >= mf::CratePrice(), 14)) { std::string why; if (!mf::BuyCrate(&why)) { gWrMsg = why; gWrMsgT = 3; } }
+    if (Button({SCREEN_W - 400.0f, cy, 200, 34}, TextFormat("Open a clam (%d)", w.crates), w.crates > 0, 14)) {
+        mf::CrateRoll r = mf::OpenCrate((uint32_t)(GetTime() * 1000) ^ (uint32_t)w.rounds * 977u);
+        if (r.ok) { const mf::SkinDef* s = mf::FindSkin(r.id); gWrShow = s ? (r.duplicate ? "A pearl of no value (you have " + s->name + ")" : s->name) : "an empty clam"; gWrShowTier = r.duplicate ? -1 : r.tier; gWrClamT = 3.5f; PlayCue("ui.click"); }
+    }
+    if (gWrClamT > 0) {
+        gWrClamT -= GetFrameTime();
+        float open = std::clamp((3.5f - gWrClamT) * 2, 0.0f, 1.0f);
+        Vector2 c{SCREEN_W - 330.0f, cy + 90};
+        DrawEllipse((int)c.x, (int)(c.y + 10), 70, 26, Color{180, 170, 200, 255});
+        DrawEllipse((int)c.x, (int)(c.y - 10 - open * 26), 70, 26 - open * 10, Color{200, 190, 220, 255});
+        if (open >= 1) DrawTextCenteredBold(gWrShow, c.x, c.y - 4, 16, gWrShowTier >= 3 ? gold : ink);
+    }
+    if (gWrMsgT > 0) { gWrMsgT -= GetFrameTime(); DrawTextCenteredBold(gWrMsg, SCREEN_W / 2.0f, SCREEN_H - 60.0f, 16, Color{255, 190, 150, 255}); }
+    return Button({30, 20, 120, 34}, "Back", true, 16);
+}
+void DebugMouthfulWardrobe() { mf::gWardrobeNoSave = true; mf::Wardrobe& w = mf::MyWardrobe(); w.tokens = 240; w.crates = 2; w.rounds = 14; w.crowns = 3; if (!w.Owns("captain")) w.owned.push_back("captain"); if (!w.Owns("dragon")) w.owned.push_back("dragon"); if (!w.Owns("sushi")) w.owned.push_back("sushi"); w.worn[mf::P_SHARK] = "captain"; gWrPath = mf::P_SHARK; }
 
 // ---------------------------------------------------------------- sound: the state each frame, and the effects diffed from the world
 struct SoundMemo { std::vector<float> bite, tell, morph, hurt, mass; std::vector<bool> alive; int king = -2; bool levAwake = false, hooked = false; float swimT = 0; };
@@ -624,7 +757,11 @@ void MouthfulAudioFrame(const mf::World& w, float dt) {
         float d = Vector3Distance(o.pos, ear), vol = std::clamp(1.2f - d / 35, 0.0f, 1.0f) * (o.id == S.me ? 1.0f : 0.8f);
         float pitch = 1.6f / (0.6f + w.Length(o));   // (bigger mouths, lower)
         if (vol > 0.02f) {
-            if (o.biteAnim > gSm.bite[i] + 0.05f) MouthfulCue(o.king ? MFC_CHOMP : (o.mass > gSm.mass[i] + 0.5f ? MFC_GULP : MFC_SNAP), vol, panOf(o.pos), pitch);
+            if (o.biteAnim > gSm.bite[i] + 0.05f) {
+                bool chef = false; if (const mf::SkinDef* os = mf::WornSkin(o.look, o.path)) chef = os->special == "chop";
+                bool ate = o.mass > gSm.mass[i] + 0.5f;
+                MouthfulCue(o.king ? MFC_CHOMP : ate ? (chef ? MFC_CLAW : MFC_GULP) : MFC_SNAP, vol, panOf(o.pos), pitch);   // (the Chef: every swallow is a chop)
+            }
             if (o.hurtT > gSm.hurt[i] + 0.05f) MouthfulCue(MFC_CRUNCH, vol, panOf(o.pos), pitch);
             if (o.tellT > gSm.tell[i] + 0.05f) {
                 static const int AB[mf::AB_COUNT] = {-1, MFC_DASH, MFC_DASH, MFC_DASH, MFC_DASH, MFC_INK, MFC_INK, MFC_INK, MFC_DASH, MFC_FRENZY, MFC_DASH, MFC_CLAW, MFC_DASH, MFC_CLAW, MFC_DASH, MFC_DASH, MFC_SLAM, MFC_CLAW, MFC_INTAKE, MFC_INK, MFC_POP, -1};   // (the stonefish's ambush: no sound)
@@ -665,9 +802,19 @@ void StartMouthful(Game& g, int bots, float minutes, int botLevel) {
     S.net = nullptr; S.live = nullptr; S.W.mirror = false;
     S.opts = mf::Opts{}; S.opts.humans = 1; S.opts.bots = std::clamp(bots, 0, 11); S.opts.minutes = minutes; S.opts.botLevel = botLevel; S.opts.seed = (uint32_t)GetRandomValue(1, 1 << 30);
     WD().Init(S.opts);
+    WD().mouths[0].look = mf::LookString();
     S.me = 0; S.active = true; S.shot = false; S.help = true; S.t = 0;
     S.aimYaw = WD().mouths[0].yaw; S.aimPitch = 0; S.camYaw = S.aimYaw; S.camPitch = 0; S.camDist = 1;
     g.scene = Scene::Mouthful;
+}
+void StartMouthfulMode(Game& g, int bots, float minutes, int botLevel, int mode, int path) {
+    StartMouthful(g, bots, minutes, botLevel);
+    if (!S.active) return;
+    S.opts.mode = mode; S.opts.path = path;
+    if (mode == mf::M_SOLO_TANK) S.opts.bots = 11;
+    WD().Init(S.opts);
+    WD().mouths[0].look = mf::LookString();
+    S.aimYaw = S.camYaw = WD().mouths[0].yaw;
 }
 void SceneMouthful(Game& g) {
     if (!S.active) { StartMouthful(g, 11, 15, 0); if (!S.active) return; }
@@ -692,7 +839,7 @@ void SceneMouthful(Game& g) {
         }
         mf::World& w = WD();
         if (w.mouths.empty() || (!S.live && !w.mirror)) { ClearBackground(Color{30, 110, 130, 255}); DrawTextCenteredBold("Into the water...", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 24, WHITE); return; }
-        if (!S.helloSent) { Writer o; mf::OrderHello(o, S.netName); N.Act(o); S.helloSent = true; S.aimYaw = S.camYaw = w.mouths[S.me].yaw; }
+        if (!S.helloSent) { Writer o; mf::OrderHello(o, S.netName, mf::LookString()); N.Act(o); S.helloSent = true; S.aimYaw = S.camYaw = w.mouths[S.me].yaw; }
         Gather(dt);
         Writer iw; mf::WriteInput(Me().in, iw); N.Act(iw);
         if (!S.live) w.Predict(Me(), Me().in, dt);   // (a guest swims its own mouth ahead of the host)
@@ -711,7 +858,7 @@ void SceneMouthful(Game& g) {
     DrawHud(WD());
     if (WD().over) DrawResults(g, WD());
 }
-std::string MouthfulOpts(int minutes, int botLevel, int fill) { return mf::MouthfulHostOpts(minutes, botLevel, fill); }
+std::string MouthfulOpts(int minutes, int botLevel, int fill, int mode, int path) { return mf::MouthfulHostOpts(minutes, botLevel, fill, mode, path); }
 void MouthfulMenuTick(float dt) {
     // (the game menu is open: a networked round goes on underneath, and our mouth drifts on its last heading)
     if (!S.active || !S.net) { if (S.active && !S.shot) WD().Step(dt); return; }
@@ -765,6 +912,19 @@ void DebugMouthfulShot(Game& g, int which) {
     }
     if (which == 12) { w.bloomAt = w.time; w.StepEvents(0.01f); place(Vector3Add(w.bloom.pos, {-20, 0, 0}), 0, -0.1f, 140, "reef_squid"); m.pos.y = std::max(m.pos.y, mf::FloorY(m.pos.x, m.pos.z) + 3); }
     if (which == 13) { w.fallAt = w.time; w.StepEvents(0.01f); w.fall.left = 180; place(Vector3Add(w.fall.pos, {-14, 6, 2}), 0, -0.35f, 1600, "croc"); gather("Rattail", 6, w.fall.pos, 5); }
+    if (which == 15) {   // a line-up in skins: every shop skin and some of the crate's, each on a different form
+        place({20, -40, -14}, PI * 0.5f, 0, 600, "bull");
+        std::vector<const mf::SkinDef*> sk; for (const auto& s : mf::Skins()) if (s.tier == 0 || s.tier >= 3) sk.push_back(&s);
+        int k = 0;
+        for (auto& o : w.mouths) {
+            if (o.id == m.id) continue;
+            int fi = 1 + (k * 5) % ((int)mf::D().forms.size() - 1); o.form = fi; o.path = mf::D().forms[fi].path; o.mass = 600; o.tier = w.TierOfMass(o.mass);
+            o.pos = {20 + ((k % 4) - 1.5f) * 2.8f, -40.5f + (k / 4) * 1.6f, -14 + 7.0f + (k / 4) * 2.5f}; o.yaw = -PI * 0.5f + 0.5f; o.pitch = 0; o.vel = {0, 0, 0}; o.immuneT = 0; o.alive = true;
+            if (k >= 8) { o.pos = {200, -200, 0}; }
+            o.look.clear(); for (int p = 0; p < mf::P_COUNT; p++) { if (p) o.look += ";"; o.look += sk[(k + p) % sk.size()]->id; }
+            k++;
+        }
+    }
     if (which == 14) { w.time = w.duskAt + 40; place({-120, -14, 20}, 0.3f, -0.1f, 400, "octopus"); gather("Sardine", 30, {-110, -10, 23}, 6); }
     if (which == 9) {
         // a guest's screen: the round run a while by a host, mirrored from the snapshot for player 2
