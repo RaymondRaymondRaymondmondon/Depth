@@ -130,8 +130,8 @@ void Night::Init(const Opts& o) {
     if (o.startMinutes > 0) { t = o.startMinutes * SECONDS_PER_GAME_MINUTE; for (int k = 0; k < 40; k++) StepPatrons(0.5f); }
 }
 const Band& Night::BandOf(const Player& p) const { const auto& b = D().bands; int k = 0; for (int i = 0; i < (int)b.size(); i++) if (p.drunk >= b[i].from) k = i; return b[k]; }
-float Night::Charisma(const Player& p) const { return BandOf(p).charisma * (1 + (p.charBuffT > 0 ? p.charBuff : 0)) * (p.kidneys < 2 ? 1.0f : 1.0f); }
-float Night::Toughness(const Player& p) const { return BandOf(p).toughness * (1 + (p.toughBuffT > 0 ? p.toughBuff : 0)) * (p.jacket ? 1.2f : 1.0f); }   // (a biker's jacket: +20%)
+float Night::Charisma(const Player& p) const { return BandOf(p).charisma * (1 + (p.charBuffT > 0 ? p.charBuff : 0)) * WareCharisma(p); }
+float Night::Toughness(const Player& p) const { return BandOf(p).toughness * (1 + (p.toughBuffT > 0 ? p.toughBuff : 0)) * (p.jacket ? 1.2f : 1.0f) * WareToughness(p); }   // (a biker's jacket: +20%)
 float Night::PriceOf(int i) const {
     if (i < 0 || i >= (int)D().drinks.size()) return 0;
     if (freeDrinks) return 0;   // (the shotgun fired at the cartel: the bar is yours)
@@ -155,7 +155,8 @@ bool Night::Order(Player& p, int i, std::string* why) {
     if (!kitchen && p.barred) { if (why) *why = "\"You're barred. Water, and then the door.\""; return false; }
     if (!kitchen && opts.mode == MD_SOBER && d.drunk > 0) { if (why) *why = "\"I'm on strike tonight. Water or coffee.\""; return false; }
     if (p.fight.brawl >= 0) { if (why) *why = "Not in the middle of a fight."; return false; }
-    float price = PriceOf(i) * p.priceMul;   // (the bartender's memory: a regular's price, or his window's)
+    float price = p.barkeepT > 0 ? 0 : PriceOf(i) * p.priceMul;   // (the Cocktail's third: you're the bartender, and you drink free)
+    if (!kitchen && price > 0) for (auto& q : players) if (q.barkeepT > 0 && q.id != p.id) q.money += roundf(price * 0.25f);   // (and every drink you pour tips you)   // (the bartender's memory: a regular's price, or his window's)
     if (p.money - p.tab < price && !kitchen) { if (why) *why = "Your tab's bigger than your wages."; return false; }   // (drinks go on the tab: doc p. 19)
     if (kitchen) { if (p.money < price) { if (why) *why = "Not enough money."; return false; } p.money -= price; }
     else p.tab += price;
@@ -243,8 +244,10 @@ void Night::Collide(Vector2& pos, float r) const {
 }
 void Night::StepPlayer(Player& p, float dt) {
     auto dec = [&](float& x) { x = std::max(0.0f, x - dt); };
-    dec(p.charBuffT); dec(p.toughBuffT); dec(p.honestT); dec(p.visionsT); dec(p.shakesT); dec(p.stumbleT);
+    dec(p.charBuffT); dec(p.toughBuffT); dec(p.honestT); dec(p.visionsT); dec(p.shakesT); dec(p.stumbleT); dec(p.toastT); dec(p.barkeepT);
     if (p.st == State::Gone || p.st == State::PassedOut) return;
+    StepWares(p, dt);
+    if (p.skipT > 0 || p.st == State::Gone || p.st == State::PassedOut) return;   // (Deep Pressure's lost minutes; the Cocktail's mornings)
     if (p.st == State::Down) { p.vel = {0, 0}; return; }   // (knocked out: StepBrawls counts the 30 s)
     // time sobers you: 1 a game minute (about 15 a real minute)
     p.drunk = std::max(0.0f, p.drunk - D().soberPerMin * dt / SECONDS_PER_GAME_MINUTE);
@@ -367,6 +370,7 @@ int NightFlirtChecks();
 int NightEventChecks();
 int NightCardChecks();
 int NightProfileChecks();
+int NightWaresChecks();
 int RunNightTest() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
@@ -463,6 +467,8 @@ int RunNightTest() {
     fails += NightCardChecks();
     // ---- stage 9: the profile across nights
     fails += NightProfileChecks();
+    // ---- stage 10a: the cartel's wares
+    fails += NightWaresChecks();
     printf(fails ? "A Night Off: %d check(s) FAILED\n" : "A Night Off: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

@@ -25,6 +25,7 @@ struct NightScene {
     std::string netName; int netCrew = 0; bool helloSent = false; int seenVersion = -1;
     no::NightProfile prof; bool profSaved = false; std::vector<std::string> remembered;   // (the profile: tomorrow's carry-overs)
     bool chatting = false; std::string chatBuf;
+    bool wares = false;           // (the quiet man's list is open)
     int me = 0;
     float camYaw = PI * 0.5f, camPitch = -0.28f, camDist = 3.2f;
     Vector3 camAt{};          // the camera's lagging focus
@@ -58,6 +59,10 @@ Clothes ShoreClothes(int crew) {
         case 4: return {{36, 44, 80, 255}, {40, 40, 50, 255}, {30, 32, 46, 255}, {220, 180, 150, 255}, 1.02f};    // the Captain: Nemo-blue
         default: return {{216, 214, 226, 255}, {80, 70, 90, 255}, {200, 60, 60, 255}, {232, 196, 170, 255}, 0.96f}; // the Nurse
     }
+}
+Vector2 HallucAt(const no::Player& me, int k) {   // (where the k-th person who isn't there stands: near you, drifting)
+    uint32_t s = me.hallucSeed * (2654435761u + k * 40503u); float a = (s % 6283) / 1000.0f + S.t * 0.05f * (k % 2 ? 1 : -1), r = 2.2f + (s >> 13) % 100 / 60.0f;
+    Vector2 at{me.pos.x + cosf(a) * r, me.pos.y + sinf(a) * r}; NW().Collide(at, 0.3f); return at;
 }
 void DrawPerson(const Model* m, const Clothes& c, Vector3 feet, float yaw, fig::Pose P, float lean, float lurch, bool lying) {
     if (!m) return;
@@ -281,6 +286,14 @@ void DrawPeople(const no::Night& n) {
         // a glass in the hand while drinking
         if (p.st == no::State::Drinking) { Vector3 h{p.pos.x + cosf(p.yaw) * 0.3f, 1.2f + 0.3f * std::clamp((1 - p.actT / 2.5f) * 3, 0.0f, 1.0f), p.pos.y + sinf(p.yaw) * 0.3f}; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.14f, 0.08f), MatrixTranslate(h.x, h.y, h.z)), {230, 170, 60, 255}, 0.5f); }
     }
+    // Angler's Light: people who aren't there (only you see them; they drift, and vanish when you come close)
+    for (int k = 0; k < 3; k++) {
+        const no::Player& me = Me(); if (!me.hallucSeed) break;
+        Vector2 at = HallucAt(me, k); if (Vector2Distance(at, me.pos) < 1.3f) continue;
+        fig::Pose P; P.breathe = S.t; P.look = sinf(S.t * 0.7f + k);
+        Clothes cl{{(unsigned char)(120 + 40 * k), 150, 200, 255}, {70, 80, 120, 255}, {60, 60, 90, 255}, {200, 210, 230, 255}, 1};
+        DrawPerson(CrewModel((int)(me.hallucSeed >> (k * 3)) % 6), cl, {at.x, 0, at.y}, atan2f(me.pos.y - at.y, me.pos.x - at.x), P, 0.05f * sinf(S.t + k), 0, false);
+    }
 }
 
 // ---------------------------------------------------------------- the camera: over the shoulder, a free orbit; drink makes it lag, lurch and roll
@@ -358,10 +371,10 @@ void Gather(float dt) {
     in.moveX = in.moveZ = 0; in.run = false; in.faceYaw = S.camYaw; in.cheat = IsKeyDown(KEY_V);
     if (S.chatting) { MouseLook(false); return; }   // (typing a line: the keys are words, not moves)
     if (IsKeyPressed(KEY_H)) S.help = !S.help;
-    bool canMove = p.st == no::State::Active && !S.menu && !S.shot && !S.chatting && p.talk.patron < 0 && p.flirt.patron < 0 && p.leavingT <= 0 && !nog::Blocking(p);
+    bool canMove = p.st == no::State::Active && !S.menu && !S.wares && !S.shot && !S.chatting && p.talk.patron < 0 && p.flirt.patron < 0 && p.leavingT <= 0 && !nog::Blocking(p);
     if (p.talk.patron >= 0 && IsKeyPressed(KEY_ESCAPE)) in.say = 6;
     if (p.flirt.patron >= 0 && IsKeyPressed(KEY_ESCAPE)) { if (p.flirt.offer) in.offer = 2; else in.flirtSay = 6; }
-    Vector2 md = MouseLook(!S.shot && !S.menu && !NW().over && p.talk.patron < 0 && p.flirt.patron < 0 && !nog::Blocking(p));
+    Vector2 md = MouseLook(!S.shot && !S.menu && !S.wares && !NW().over && p.talk.patron < 0 && p.flirt.patron < 0 && !nog::Blocking(p));
     S.camYaw += md.x * 0.0025f; S.camPitch = std::clamp(S.camPitch - md.y * 0.002f, -0.9f, 0.35f);
     float wheel = GetMouseWheelMove(); S.camDist = std::clamp(S.camDist - wheel * 0.4f, 1.6f, 6.0f);
     if (canMove) {
@@ -418,6 +431,8 @@ void DrawHud() {
         Txt(TextFormat("wages %.0f   tab %.0f   (%.0f left)", p.money, p.tab, p.money - p.tab), x, y + 66, 15, ink);
         std::string fx;
         if (p.charBuffT > 0) fx += "confident  "; if (p.toughBuffT > 0) fx += "steady fists  "; if (p.honestT > 0) fx += "honest  "; if (p.visionsT > 0) fx += "visions  "; if (p.shakesT > 0) fx += "the shakes  "; if (p.hiccup) fx += "hiccups";
+        for (int w = 0; w < no::W_COUNT; w++) if (p.wareT[w] > 0) fx += "  " + no::Wares()[w].name;
+        if (p.barkeepT > 0) fx += "  (you're the bartender)";
         Txt(fx, x, y + 90, 13, dim);
     }
     // names and mood faces over the patrons near you (traits too, with Absinthe's visions)
@@ -432,12 +447,21 @@ void DrawHud() {
         static const Color FC[5] = {{240, 90, 80, 255}, {240, 160, 90, 255}, {220, 220, 200, 255}, {170, 230, 150, 255}, {255, 220, 110, 255}};
         float a = std::clamp(1.4f - dd / 6, 0.0f, 1.0f);
         DrawTextCenteredBold(TextFormat("%s  %s", c.name.c_str(), FACE[mi]), s.x, s.y, 14, Fade(FC[mi], a));
+        if (p.wareT[no::W_ANGLER] > 0 && c.thief) DrawTextCenteredBold("(a cooler, glowing)", s.x, s.y - 16, 13, Fade(Color{120, 255, 200, 255}, a));
         bool known = std::find(p.known.begin(), p.known.end(), c.name) != p.known.end();
         if (p.visionsT > 0 || known) {
             std::string tr = no::TypeName(c.type); for (int k = 0; k < (int)no::D().traitNames.size(); k++) if (c.Has(k)) tr += ", " + no::D().traitNames[k];
             DrawTextCentered(tr, s.x, s.y + 16, 12, Fade(Color{200, 190, 255, 255}, a));
             if (known) DrawTextCentered(c.secret, s.x, s.y + 30, 11, Fade(Color{255, 200, 160, 255}, a));
         }
+    }
+    // the people who aren't there have names too (and vanish when you come close)
+    if (p.hallucSeed) for (int k = 0; k < 3; k++) {
+        static const char* FAKE[6] = {"Mr. Haddock", "a pale sailor", "Aunt Marguerite", "the other you", "Captain Nobody", "a lady in green"};
+        Vector2 at = HallucAt(p, k); float dd = Vector2Distance(at, p.pos); if (dd < 1.3f || dd > 7) continue;
+        Vector3 toC = Vector3Subtract({at.x, 1.5f, at.y}, S.cam.position), fw = Vector3Subtract(S.cam.target, S.cam.position); if (Vector3DotProduct(toC, fw) <= 0) continue;
+        Vector2 s = GetWorldToScreen({at.x, 1.95f, at.y}, S.cam);
+        DrawTextCenteredBold(TextFormat("%s  :)", FAKE[(p.hallucSeed >> (k * 4)) % 6]), s.x, s.y, 14, Fade(Color{170, 230, 150, 255}, std::clamp(1.4f - dd / 6, 0.0f, 1.0f)));
     }
     // the conversation (doc p. 10): their line, what you said, four options (and listen, a drink, walk away)
     if (p.talk.patron >= 0) {
@@ -591,9 +615,30 @@ void DrawHud() {
         auto opts = n.EventOptions(p);
         for (int k = 0; k < (int)opts.size() && k < 3; k++) {
             DrawTextCenteredBold(TextFormat("F%d: %s", k + 1, opts[k].label.c_str()), SCREEN_W / 2.0f, SCREEN_H - 150.0f + k * 22, 16, Color{255, 210, 150, 255});
-            if (IsKeyPressed(KEY_F1 + k)) { p.in.evAct = opts[k].act; p.in.evArg = opts[k].arg; }
+            if (IsKeyPressed(KEY_F1 + k)) { if (opts[k].act == 60) S.wares = true; else { p.in.evAct = opts[k].act; p.in.evArg = opts[k].arg; } }
         }
     }
+    // the quiet man's list (doc pp. 36-37): eight doses, one of each a night; slip the Siren or the Cocktail into a friend's drink
+    if (S.wares && !n.WaresHere(p)) S.wares = false;
+    if (S.wares) {
+        Rectangle r{SCREEN_W / 2.0f - 420, 70, 840, 470};
+        DrawRectangleRounded(r, 0.04f, 6, Fade(Color{18, 14, 20, 255}, 0.95f)); DrawRectangleRoundedLinesEx(r, 0.04f, 6, 2, Color{150, 130, 190, 255});
+        TxtBold("The quiet man's ledger", r.x + 18, r.y + 12, 20, Color{210, 190, 255, 255});
+        Txt("\"One of each, and never above eighty. I have standards.\"", r.x + 18, r.y + 38, 14, dim);
+        int near = -1; for (const auto& q : n.players) if (q.id != p.id && (q.st == no::State::Active || q.st == no::State::Drinking) && Vector2Distance(q.pos, p.pos) < 2.0f) { near = q.id; break; }
+        for (int w = 0; w < no::W_COUNT; w++) {
+            const no::WareDef& d = no::Wares()[w]; float y = r.y + 66 + w * 47;
+            bool had = (p.wares >> w) & 1;
+            TxtBold(TextFormat("%s  (%.0f)", d.name.c_str(), d.price), r.x + 18, y, 15, had ? dim : ink);
+            Txt(d.effect, r.x + 200, y, 12, Color{190, 230, 190, 255}); DrawWrapped("but: " + d.catchText, {r.x + 200, y + 15, 420, 30}, 11, Color{240, 170, 150, 255});
+            if (Button({r.x + r.width - 190, y - 2, 80, 26}, had ? "had it" : "Buy", !had && p.money >= d.price, 13)) p.in.evAct = 61 + w;
+            if ((w == no::W_SIREN || w == no::W_COCKTAIL) && near >= 0 && Button({r.x + r.width - 104, y - 2, 88, 26}, "Slip it", p.money >= d.price && !((n.players[near].wares >> w) & 1), 13)) { p.in.evAct = 71 + w; p.in.evArg = near; }
+        }
+        if (near >= 0) Txt(TextFormat("(%s's glass is within reach.)", n.players[near].name.c_str()), r.x + 18, r.y + r.height - 26, 13, dim);
+        if (Button({r.x + r.width - 120, r.y + r.height - 34, 100, 26}, "Done", true, 14) || IsKeyPressed(KEY_ESCAPE)) S.wares = false;
+    }
+    if (p.toastT > 0) DrawTextCenteredBold(p.toast, SCREEN_W / 2.0f, SCREEN_H - 180.0f, 16, Color{255, 190, 160, (unsigned char)(255 * std::min(1.0f, p.toastT))});
+    if (p.skipT > 0) { DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.85f)); DrawTextCenteredBold("Things are happening.", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 10, 28, Color{200, 190, 255, 255}); DrawTextCentered("(You'll hear about them.)", SCREEN_W / 2.0f, SCREEN_H / 2.0f + 26, 16, dim); }
     // the bar games: the opponent-and-stake menu, or the game being played
     nog::Frame(n, p, S.shot ? 1 / 60.0f : GetFrameTime());
 }
@@ -929,6 +974,14 @@ void DebugNightOffShot(Game& g, int which) {
         for (int k = 0; k < 90; k++) { p.in.moveX = 1; n.Step(1 / 60.0f); }
         p.in.moveX = 0; at(p.pos.x, p.pos.y, PI, PI * 0.85f, 15); S.camPitch = -0.35f;
         for (int k = 0; k < 60; k++) n.Step(1 / 60.0f);
+    }
+    if (which == 28 || which == 29) {   // the cartel's ledger open; Angler's Light (people who aren't there, a thief glowing)
+        n.events.clear(); n.ForceEvent("cartel", 21.0f);
+        for (int i = 0; i < (int)(2 * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f) + 60; i++) n.Step(0.1f);
+        for (const auto& c : n.patrons) if (c.role == "a large man" && c.inside) { at(c.pos.x + 0.9f, c.pos.y, PI, PI * 0.9f, 25); break; }
+        p.money = 260; S.camPitch = -0.25f;
+        if (which == 28) { p.wares = 1u << no::W_SALT; S.wares = true; }
+        else { n.DoseWare(p, no::W_ANGLER); p.hallucSeed = 12345; at(18, 5.5f, PI * 0.5f, PI * 0.42f, 25); S.camPitch = -0.22f; for (auto& c : n.patrons) if (c.thief) { c.inside = true; c.gone = false; c.pos = {19.5f, 3.8f}; c.goal = c.pos; c.nextGoalT = 1e9f; break; } }
     }
     if (which == 27) {   // emotes: you raise a glass, a shipmate laughs
         for (int i = 0; i < (int)(2 * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f); i++) n.Step(0.1f);

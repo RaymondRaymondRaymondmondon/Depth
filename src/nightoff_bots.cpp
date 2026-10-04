@@ -128,7 +128,7 @@ void Night::BotPlayer(Player& p, float dt) {
     if (p.game.kind >= 0) {
         GameSeat& g = p.game;
         if (g.over) { if (p.botT <= 0) { in.gameAct = (g.result == 0 && p.botStyle && Rand() < 0.4f) ? 4 : 3; p.botT = 1.5f; } return; }
-        float sk = AimMul(p.drunk);
+        float sk = PlayerAim(p);
         GRng r; r.s = (uint32_t)(t * 977) + p.id * 31 + 1;
         switch (g.kind) {
             case GK_DARTS: if (g.darts.turn == 0 && g.botT <= 0 && p.botT <= 0) { Vector2 a = g.darts.BotAim(); float s = GD().dartSigma * sk; in.gameAim = {a.x + r.N() * s, a.y + r.N() * s}; in.gameAct = 1; p.botT = 0.7f; } break;

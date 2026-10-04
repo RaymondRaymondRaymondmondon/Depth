@@ -129,6 +129,7 @@ template <class A> void VisitPlayer(A& a, Player& p, bool own, bool over) {
     a.f(p.swayPh); a.f(p.stumbleT); a.f(p.stumbleDir); a.f(p.vomitT); a.f(p.lurch); a.i(p.drinks); a.f(p.peakDrunk); a.b(p.barred);
     VisitCombat(a, p.fight);
     a.f(p.leavingT); a.i(p.leavingWith); a.i(p.carrying); a.i(p.carriedBy); a.b(p.faceDrawn);
+    a.s(p.toast); a.f(p.toastT); { int wv = p.wares; a.i(wv); p.wares = (uint16_t)wv; } for (int w = 0; w < W_COUNT; w++) { a.f(p.wareT[w]); a.f(p.wareAfterT[w]); } a.i(p.cocktail); a.f(p.skipT); a.f(p.barkeepT); a.b(p.sureHome); a.u(p.hallucSeed);
     a.f(p.priceMul); a.f(p.owedAtDoor); a.b(p.blackEye); a.i(p.kidneysAtStart); a.i(p.emote); a.f(p.emoteT);
     a.s(p.homeWith); a.s(p.homeKind); a.b(p.homeBad); a.s(p.card); a.i(p.gamesWon); a.i(p.fightsWon); a.i(p.fightsWonSober);
     a.i(p.dare); a.i(p.daresDone); a.b(p.adopted); a.b(p.jacket); a.b(p.bribed); a.b(p.checked); a.b(p.promised); a.b(p.helpingRobbers); a.b(p.gaveRobbers);
@@ -165,7 +166,7 @@ template <class A> void Visit(A& a, Night& n, int viewer) {
     a.vec(n.props, [&](Prop& p) { a.s(p.kind); P3(a, p.pos); a.f(p.yaw); a.f(p.tilt); int st = p.state; a.i(st); if constexpr (A::reading) p.state = (uint8_t)std::clamp(st, 0, (int)PS_GONE); W(a, p.holder); a.i(p.weapon); a.i(p.brawl); F2(a, p.size); });
     a.vec(n.pops, [&](Pop& p) { a.f(p.pos.x); a.f(p.pos.y); a.f(p.pos.z); a.s(p.text); a.f(p.t); Col(a, p.col); });
     a.vec(n.events, [&](Night::EventRun& e) { a.i(e.def); a.f(e.startH); a.f(e.endH); a.b(e.started); a.b(e.done); a.i(e.stage); a.f(e.a); a.f(e.b); a.i(e.target); a.s(e.outcome); a.vec(e.people, [&](int& k) { a.i(k); }); });
-    a.b(n.raining); a.b(n.lockIn); a.b(n.freeDrinks); a.b(n.scratchEaten); a.b(n.safeOpened); a.b(n.goatOn); a.b(n.partied); a.f(n.rainH); a.f(n.endMinutes); P2(a, n.goatPos); a.f(n.goatYaw); a.f(n.goatPh);
+    a.b(n.raining); a.b(n.lockIn); a.b(n.freeDrinks); a.b(n.scratchEaten); a.b(n.safeOpened); a.b(n.goatOn); a.i(n.goatOwner); a.b(n.partied); a.f(n.rainH); a.f(n.endMinutes); P2(a, n.goatPos); a.f(n.goatYaw); a.f(n.goatPh);
     // the card room: what this viewer may see (their own cards, a marked hand, the showdown; others' bullshit hands by count)
     VisitPoker(a, n.poker, viewer); VisitPoker(a, n.cartelHand, viewer);
     { cards::Bullshit& B = n.bs; a.b(n.bsOn); a.f(n.bsT);

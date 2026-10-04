@@ -74,6 +74,7 @@ float Night::FlirtOdds(const Player& p, const Patron& c, int o) const {
     if (c.home == "married") x -= 10;
     x += c.mood >= 80 ? 15 : c.mood < 40 ? -15 : 0;
     x += AfterFightCharisma(p, c) * 100;
+    if (p.wareT[W_SIREN] > 0) x += 30;                                // (the Siren: every threshold -30)
     return std::clamp(x / 100, 0.05f, 0.95f);
 }
 void Night::StartFlirt(Player& p, int idx) {
@@ -83,6 +84,7 @@ void Night::StartFlirt(Player& p, int idx) {
     Flirt F; F.patron = idx;
     // a packed bar after 10 p.m. lowers the bar by one; the kidney thieves make their offer early
     F.need = (opts.crowd == 2 && Hour() >= 22) || c.home == "kidney" ? 2 : 3;
+    if (p.wareT[W_SIREN] > 0) F.need = std::max(1, F.need - 1);   // (the Siren: the offer comes early)
     c.talkingTo = p.id;
     if (EventOn("wake")) {   // flirting at a wake is -30 with everyone, and the Reverend notices
         for (auto& o : patrons) if (o.inside && !o.gone && Vector2Distance(o.pos, p.pos) < 12) o.mood = std::max(0.0f, o.mood - 30);
@@ -135,7 +137,7 @@ void Night::FlirtOffer(Player& p, bool take) {
     bool bad = h && !h->good;
     // a bad night can be stopped at the door: another player who follows within 30 s (doc p. 14)
     int others = 0; for (const auto& q : players) others += q.id != p.id && (q.st == State::Active || q.st == State::Drinking);
-    if (bad && others > 0) { p.leavingT = 30; p.leavingWith = idx; c.playing = p.id; c.goal = D().bar.door; c.path = NavPath(c.pos, c.goal); c.nextGoalT = 1e9f; Say(p.name + " leaves with " + c.name + "."); return; }
+    if (bad && others > 0 && p.wareT[W_SIREN] <= 0) {   /* (under the Siren, nobody talks you out of it) */ p.leavingT = 30; p.leavingWith = idx; c.playing = p.id; c.goal = D().bar.door; c.path = NavPath(c.pos, c.goal); c.nextGoalT = 1e9f; Say(p.name + " leaves with " + c.name + "."); return; }
     GoHome(p, idx, c.home);
 }
 void Night::EndFlirt(Player& p) {
@@ -146,6 +148,7 @@ void Night::GoHome(Player& p, int idx, const std::string& kindIn) {
     std::string kind = kindIn;
     std::string who = idx >= 0 ? patrons[idx].name : "the fortune teller";
     // nobody steals a kidney in front of a dog
+    if (p.sureHome && idx >= 0) { kind = "sincere"; p.sureHome = false; }   // (the Cocktail's best night: a sincere go-home, guaranteed)
     if (kind == "kidney" && dog.owner == p.id) { Say("Halfway to the door, " + who + " sees the dog and remembers an appointment."); kind = "dog"; }
     const HomeDef* h = HomeOf(kind);
     p.homeWith = who; p.homeKind = kind; p.homeBad = kind == "dog" || (h && !h->good);

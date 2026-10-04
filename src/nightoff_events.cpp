@@ -356,6 +356,8 @@ std::vector<Night::EvOption> Night::EventOptions(const Player& p) const {
         if (m) for (const auto& c : patrons) if (c.name == "Harrow" && c.inside && !c.gone) { o.push_back({5, 100 + c.id, "Point them at Harrow"}); break; }
     }
     for (const auto& c : patrons) if (c.name == "Harrow" && c.inside && !c.gone && Vector2Distance(c.pos, p.pos) < 1.8f && p.money < 20 && p.debt <= 0) o.push_back({3, -1, "Borrow 100 from Harrow"});
+    // the cartel's wares: the list (the scene opens it; the purchases are acts 61-78)
+    if (WaresHere(p)) o.insert(o.begin(), {60, -1, "See what the quiet man's men are selling"});
     // the bouncer: last night's unpaid tab, paid double
     if (p.owedAtDoor > 0 && p.money >= p.owedAtDoor && Vector2Distance(p.pos, D().bar.spawn) < 3.5f) o.push_back({50, -1, TextFormat("Pay the bouncer double for last night (%.0f)", p.owedAtDoor)});
     // the cartel's hand at the poker table; side bets on the other sailors' matches
@@ -379,6 +381,11 @@ std::vector<Night::EvOption> Night::EventOptions(const Player& p) const {
 }
 void Night::EventAction(Player& p, int act, int arg) {
     if (p.st != State::Active) return;
+    if (act > 60 && act < 80) {   // the cartel's wares (nightoff_wares.cpp checks everything itself): 61-68 buy, 71-78 slip one into arg's drink
+        std::string why = BuyWare(p, (act - 61) % 10, act >= 71 ? arg : -1);
+        if (!why.empty()) { p.toast = why; p.toastT = 4; }
+        return;
+    }
     auto valid = [&]() { for (const auto& o : EventOptions(p)) if (o.act == act && (o.arg == arg || arg < 0)) return true; return false; };
     if (!valid()) return;
     int bi = EventIndex("bachelorette"), ki = EventIndex("bikers");

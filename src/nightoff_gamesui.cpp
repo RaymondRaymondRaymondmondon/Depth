@@ -132,7 +132,7 @@ void Darts(no::Night& n, no::Player& p) {
     if (g.over) { OverButtons(p, r); return; }
     // your throw: the reticle drifts with the meter; hold to start the timing bar, release on the middle
     if (m.turn == 0 && g.botT <= 0) {
-        float A = no::GD().dartSigma * no::AimMul(p.drunk) * 1.05f;
+        float A = no::GD().dartSigma * n.PlayerAim(p) * 1.05f;
         Vector2 ms = GetMousePosition();
         Vector2 aim{(ms.x - c.x) / sc, (c.y - ms.y) / sc};
         Vector2 drift{A * (sinf(U.t * 1.7f) + 0.5f * sinf(U.t * 3.1f + 1)), A * (cosf(U.t * 1.3f + 0.4f) + 0.5f * sinf(U.t * 2.6f))};
@@ -209,7 +209,7 @@ void Pool(no::Night& n, no::Player& p) {
     }
     // aim: the cue line wobbles with the meter; hold for power; W/S (or the wheel) sets the English
     Vector2 cue = m.t.b[0].p;
-    float Wb = no::GD().poolSigma * no::AimMul(p.drunk) * 2.6f;
+    float Wb = no::GD().poolSigma * n.PlayerAim(p) * 2.6f;
     float ang = atan2f(tm.y - cue.y, tm.x - cue.x) + Wb * (sinf(U.t * 2.3f) + 0.4f * sinf(U.t * 5.1f + 0.7f));
     Vector2 dir{cosf(ang), sinf(ang)};
     // the line to the first ball it meets, and the ghost ball there
@@ -296,7 +296,7 @@ void Golf(no::Night& n, no::Player& p) {
     if (m.turn != 0 || g.replayT > 0) { U.charging = false; if (m.turn == 1 && g.replayT <= 0) DrawTextCentered(g.oppName + " lines up a putt.", SCREEN_W / 2.0f, r.y + 70, 16, INK); return; }
     // the putting line sways with the meter; hold for power
     Vector2 ms = GetMousePosition(); Vector2 b = m.ball[0].p; Vector2 tm{(ms.x - o.x) / sc, (ms.y - o.y) / sc};
-    float sway = no::GD().golfSigma * no::AimMul(p.drunk) * 2.2f;
+    float sway = no::GD().golfSigma * n.PlayerAim(p) * 2.2f;
     float ang = atan2f(tm.y - b.y, tm.x - b.x) + sway * (sinf(U.t * 1.9f) + 0.5f * sinf(U.t * 4.3f + 1.3f));
     DrawLineEx(P(b), P(Vector2Add(b, {cosf(ang) * 0.9f, sinf(ang) * 0.9f})), 2, Fade(WHITE, 0.6f));
     bool down = IsMouseButtonDown(MOUSE_BUTTON_LEFT) || IsKeyDown(KEY_SPACE);

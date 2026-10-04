@@ -187,6 +187,7 @@ void Night::Strike(Who att, Who def, float dmg, int weapon, bool hay) {
         D->fallT = 1.2f; AddPop(dp, 1.6f, "Whoops", {230, 200, 160, 255});
     }
     if (D->blockT > 0) { dmg *= FD().blockK; D->blockT = 0; AddPop(dp, 2.0f, "Blocked", {200, 200, 200, 255}); }
+    if (def.kind == 0 && def.idx < (int)players.size() && players[def.idx].wareT[W_BARNACLE] > 0) dmg *= 0.7f;   // (Barnacle: no pain)
     float k = 0.75f + 0.25f * ToughOf(att);                   // (a sober one hits for less)
     float hpLoss = dmg * k;
     D->hp -= hpLoss; D->hitT = 0.35f;

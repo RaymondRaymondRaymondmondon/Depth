@@ -70,6 +70,10 @@ const char* RoomAt(Vector2 p);    // the room's name, or "the street"
 // ---------------------------------------------------------------- the night
 constexpr float SECONDS_PER_GAME_MINUTE = 4;      // about four real minutes per game hour (doc p. 2)
 constexpr float NIGHT_MINUTES = 8 * 60;           // 7 p.m. to 3 a.m.
+// the cartel's wares (doc pp. 36-37): one dose of each a night; they stack with drink
+enum Ware { W_SALT, W_OIL, W_BARNACLE, W_KELP, W_ANGLER, W_PRESSURE, W_SIREN, W_COCKTAIL, W_COUNT };
+struct WareDef { std::string key, name, effect, catchText; float price = 0, minutes = 5; };
+const std::vector<WareDef>& Wares();
 enum class State : uint8_t { Active, Drinking, Eating, Vomiting, PassedOut, Gone, Down };   // Down: knocked out (30 s)
 enum Ending : uint8_t { E_NONE, E_WALKED, E_HOME_WITH, E_PASSED_OUT, E_KNOCKED_OUT, E_ARRESTED, E_HOSPITAL, E_ROBBED, E_THROWN_OUT, E_CLOSING };
 const char* EndingName(int e);
@@ -126,6 +130,9 @@ struct Player {
     float debt = 0, roundT = -1e9f, damageCaused = 0, lastFightT = -1e9f;
     int cartelDue = 0; bool watchingSafe = false;
     int cheatsCaught = 0, cheatsDone = 0; int bsSel = 0;   // (the card room)
+    // the cartel's wares: which you've had, each one's effect and its catch afterwards (s), the Cocktail's roll, and its odder results
+    std::string toast; float toastT = 0;   // (a private line for this player: why the cartel wouldn't sell, and so on)
+    uint16_t wares = 0; float wareT[W_COUNT] = {}, wareAfterT[W_COUNT] = {}; int cocktail = 0; float skipT = 0, sirenT = 0, bumpT = 0, barkeepT = 0; bool sureHome = false; uint32_t hallucSeed = 0;
     float priceMul = 1; float owedAtDoor = 0; bool blackEye = false; int kidneysAtStart = 2; int emote = 0; float emoteT = 0;   // (the profile's carry-overs; an emote)
     // the bot's mind (an AI seat, a dropped player, --night-sim): a style, a goal, a path, a pause
     int botStyle = 0; float botT = 0, botDrinkTo = 40, botLeaveH = 25.5f, botFightT = 0; int botGoal = -1, botArg = 0; Vector2 botTarget{}; std::vector<int> botPath;
@@ -195,6 +202,15 @@ struct Night {
     // the drunk meter (doc p. 6)
     const Band& BandOf(const Player& p) const;
     float Charisma(const Player& p) const;
+    // the cartel's wares (nightoff_wares.cpp)
+    int goatOwner = -1;                               // (the Cocktail's fourth outcome: the goat is yours)
+    bool WaresHere(const Player& p) const;            // a cartel man within reach selling
+    std::string BuyWare(Player& p, int w, int slipTo = -1);   // "" if sold; otherwise why not
+    void DoseWare(Player& p, int w);
+    void StepWares(Player& p, float dt);
+    float WareCharisma(const Player& p) const;
+    float WareToughness(const Player& p) const;
+    float PlayerAim(const Player& p) const;           // the player's aim error (the drink, the shakes, the Deep Pressure)
     float Toughness(const Player& p) const;
     float PriceOf(int drink) const;
     bool NearServe(const Player& p) const;

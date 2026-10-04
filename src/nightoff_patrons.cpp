@@ -257,6 +257,7 @@ void Night::TalkChoose(Player& p, int o) {
     roll += c.mood >= 80 ? 20 : c.mood < 20 ? -40 : c.mood < 40 ? -15 : 0;
     if (Noise() > 0.8f && Vector2Distance(c.pos, p.pos) > 1.0f) roll -= 10;
     bool win = roll >= Difficulty(c, option);
+    if (p.wareT[W_KELP] > 0 && option != 2) win = false;   // (Kelp Smoke: you laugh through anything serious)
     T.lastOption = option; T.lastWin = win; T.exchanges++;
     T.myCaption = (T.substituted ? d.talk.youDrunk[option] : d.talk.you[option]).Pick((uint32_t)(t * 13) + option);
     T.theirLine = (win ? d.talk.ok[option] : d.talk.fail[option]).Pick((uint32_t)(t * 17));

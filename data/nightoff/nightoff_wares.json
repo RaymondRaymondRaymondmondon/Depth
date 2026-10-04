@@ -1,0 +1,31 @@
+{
+  "_source": "A Night Off design doc pp. 36-37 (The cartel's wares). Minutes are game minutes.",
+  "max_drunk": 80,
+  "search_fine": 50,
+  "monkey_cellar_from": 23,
+  "wares": [
+    {"key": "salt", "name": "Sea Salt", "price": 20, "minutes": 2, "effect": "Sobers you 30 points over 2 minutes.", "catch": "Your hands shake for 5 minutes: darts, pool and golf are hopeless."},
+    {"key": "oil", "name": "Lamp Oil", "price": 30, "minutes": 5, "effect": "+30% charisma for 5 minutes; your captions become eloquent.", "catch": "Afterwards -30% for 5 minutes, and you tell everyone the truth."},
+    {"key": "barnacle", "name": "Barnacle", "price": 30, "minutes": 5, "effect": "+50% toughness for 5 minutes, no pain (damage taken -30%).", "catch": "You can't stop fighting: anyone who bumps you is a fight, and the police count it as armed."},
+    {"key": "kelp", "name": "Kelp Smoke", "price": 25, "minutes": 5, "effect": "Everything is funny: +15 mood for every patron within 5 m while you laugh.", "catch": "You laugh during conversations, which fails every serious option. The Reverend hates it."},
+    {"key": "angler", "name": "Angler's Light", "price": 40, "minutes": 5, "effect": "You see every patron's trait icons, and the thieves glow.", "catch": "You also see people who aren't there, and the fortune teller's cards change when you look at them."},
+    {"key": "pressure", "name": "Deep Pressure", "price": 50, "minutes": 3, "effect": "Time slows for you in games: aim, timing and card tells are easy for 3 minutes.", "catch": "The meter climbs 20 when it wears off, and you miss the next 2 minutes of the night."},
+    {"key": "siren", "name": "The Siren", "price": 60, "minutes": 3, "effect": "Everyone in the room is Delighted with you for 3 minutes; any flirt's offer comes early.", "catch": "Every flirt's offer is from whoever is closest, thieves included, and your sober friends can't talk you out of it."},
+    {"key": "cocktail", "name": "The Cocktail", "price": 100, "minutes": 10, "effect": "The quiet man mixes it himself: one of six outcomes, equal odds.", "catch": "One of the six is waking up without a kidney."}
+  ],
+  "cocktail": [
+    "The best night of your life: every stat maxed for 10 minutes, a sincere go-home guaranteed, and 300 in your pocket.",
+    "You can fly. You can't, but you're sure of it: +40% toughness for 10 minutes.",
+    "You're the bartender for 10 minutes: your drinks are free, and every drink poured tips you.",
+    "The goat and you understand each other. It follows you, and it bites for you.",
+    "You wake up in the morning, at once, with a headline you didn't earn and both kidneys.",
+    "You wake up in the morning, at once, without a kidney."
+  ],
+  "skipped": [
+    "Things happened. You have a tattoo of an anchor. It's upside down.",
+    "Things happened. Someone has drawn a moustache on you.",
+    "Things happened. Your pockets are 30 lighter.",
+    "Things happened. Your pockets are 40 heavier, and you don't know why.",
+    "Things happened. A regular you've never spoken to calls you by a nickname."
+  ]
+}
