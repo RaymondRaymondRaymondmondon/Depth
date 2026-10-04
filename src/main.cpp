@@ -24,6 +24,7 @@
 #include "flight.h"
 #include "mouthful.h"
 #include "mouthful_net.h"
+#include "nightoff.h"
 #include "flight_costumes.h"
 #include "study.h"
 #include "course.h"
@@ -50,6 +51,7 @@ static void RunScene(Game& g) {
         case Scene::Trawl:      SceneTrawl(g); break;
         case Scene::Flight:     SceneFlight(g); break;
         case Scene::Mouthful:   SceneMouthful(g); break;
+        case Scene::NightOff:   SceneNightOff(g); break;
         case Scene::Hub:        SceneHub(g); break;
         case Scene::Helm:       SceneHelm(g); break;
         case Scene::Crew:       SceneCrew(g); break;
@@ -226,6 +228,9 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"mouthful_redtide", [](Game& g) { DebugMouthfulShot(g, 12); }}, {"mouthful_whalefall", [](Game& g) { DebugMouthfulShot(g, 13); }},
         {"mouthful_dusk", [](Game& g) { DebugMouthfulShot(g, 14); }},
         {"mouthful_skins", [](Game& g) { DebugMouthfulShot(g, 15); }},
+        {"night_door", [](Game& g) { DebugNightOffShot(g, 0); }}, {"night_menu", [](Game& g) { DebugNightOffShot(g, 1); }},
+        {"night_hammered", [](Game& g) { DebugNightOffShot(g, 2); }}, {"night_snug", [](Game& g) { DebugNightOffShot(g, 3); }},
+        {"night_passedout", [](Game& g) { DebugNightOffShot(g, 4); }}, {"night_morning", [](Game& g) { DebugNightOffShot(g, 5); }},
         {"mouthful_wardrobe", [](Game& g) { DebugMouthfulWardrobe(); g.scene = Scene::Arcade; DebugArcadeReel(206); }},
         {"arcade_mouthful", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(6); }},
         {"flight_dawn", [](Game& g) { DebugFlightShot(g, 0); }},
@@ -795,6 +800,8 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--mouthful-test") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulTest(); }
     if (argc >= 2 && strcmp(argv[1], "--mouthful-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulNetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--mouthful-skins-test") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulSkinsTest(); }
+    // A Night Off (arcade game 6)
+    if (argc >= 2 && strcmp(argv[1], "--night-test") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunNightTest(); }
     if (argc >= 2 && strcmp(argv[1], "--mouthful-round") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulRound(argc > 2 ? atoi(argv[2]) : 11, argc > 3 ? (float)atof(argv[3]) : 15.0f, argc > 4 ? (uint32_t)atoi(argv[4]) : 1u, argc > 5 ? atoi(argv[5]) : 1, argc > 6 ? atoi(argv[6]) : 0); }
     if (argc >= 5 && strcmp(argv[1], "--mouthful-duel") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulDuel(argv[2], argv[3], (float)atof(argv[4]), argc > 5 ? atoi(argv[5]) : 40); }
     if (argc >= 2 && strcmp(argv[1], "--flight-society-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSocietyTest(); }
@@ -1016,7 +1023,7 @@ int main(int argc, char** argv) {
             MouseLookFrameEnd();   // a scene that stopped asking for mouse look gets its pointer back
             {   // aboard the Nautilus (the salon and its station screens) the waltz and the ship's bed play
                 bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon && g.scene != Scene::Study
-                              && !(g.scene == Scene::RedTide && RedTideAudioActive()) && g.scene != Scene::Trawl && g.scene != Scene::Flight && g.scene != Scene::Mouthful;
+                              && !(g.scene == Scene::RedTide && RedTideAudioActive()) && g.scene != Scene::Trawl && g.scene != Scene::Flight && g.scene != Scene::Mouthful && g.scene != Scene::NightOff;
                 AudioHub(aboard, g.scene == Scene::Hub ? -1 : (int)g.scene, g.mourning);
                 AudioStudy(g.scene == Scene::Study);   // below the hatch: the Study's own soundscape instead
                 if (g.scene != Scene::Dungeon) AudioExpedition(ExpAudio{});   // (the Dungeon scene sets it every frame)

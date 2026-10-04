@@ -41,6 +41,8 @@ src/flight_long.cpp
     src/mouthful_net.cpp
     src/mouthful_events.cpp
     src/mouthful_skins.cpp
+    src/nightoff.cpp
+    src/nightoff_game.cpp
     src/data.cpp
     src/ui.cpp
     src/render.cpp

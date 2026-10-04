@@ -68,13 +68,14 @@ void MainPage(Game& g, Rectangle p) {
     if (item("Resume")) { gOpen = false; PlayCue("ui.confirm"); }   // (a first-person scene takes the pointer back itself)
     if (item("Settings")) { gPage = P_SETTINGS; }
     if (item("Controls")) { gPage = P_CONTROLS; }
-    if (g.scene == Scene::RedTide || g.scene == Scene::Trawl || g.scene == Scene::Flight || g.scene == Scene::Mouthful || g.scene == Scene::Arcade) { if (item("Graphics (3D)")) gPage = P_GRAPHICS; }
+    if (g.scene == Scene::RedTide || g.scene == Scene::Trawl || g.scene == Scene::Flight || g.scene == Scene::Mouthful || g.scene == Scene::NightOff || g.scene == Scene::Arcade) { if (item("Graphics (3D)")) gPage = P_GRAPHICS; }
     if (g.scene == Scene::RedTide || g.scene == Scene::Trawl || g.scene == Scene::Arcade) { if (item("Voice chat")) gPage = P_VOICE; }
     if (g.scene == Scene::RedTide || g.scene == Scene::Trawl) {
         if (item("Leave the match")) { gOpen = false; if (g.scene == Scene::Trawl) LeaveTrawlMatch(g); else LeaveRedTideMatch(g); }
     }
     if (g.scene == Scene::Flight && item("Leave the island")) { gOpen = false; LeaveFlight(g); }
     if (g.scene == Scene::Mouthful && item("Leave the reef")) { gOpen = false; LeaveMouthful(g); }
+    if (g.scene == Scene::NightOff && item("Leave the bar")) { gOpen = false; LeaveNightOff(g); }
     if (g.scene == Scene::Platformer || g.scene == Scene::Abyss) {
         if (item("Abandon the dive")) {
             gOpen = false;

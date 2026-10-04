@@ -34,6 +34,7 @@ const GameInfo& Info(int g) {
         {"Red Tide", 1, 4, true, 20, true},
         {"The Flight", 2, 6, true, 20, true, false},
         {"Mouthful", 1, 6, true, 20, true, false},
+        {"A Night Off", 1, 6, true, 20, false, false},
     };
     static const GameInfo DRIFT = {"Drift (test)", 2, 6, true, 20, true};
     static const GameInfo NONE = {"?", 2, 2, false, 0, false};
