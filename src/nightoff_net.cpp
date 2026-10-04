@@ -487,4 +487,113 @@ int RunNightNetLoop(bool forceMemory) {
     return fails ? 1 : 0;
 }
 
+// ---------------------------------------------------------------- stage 9's gate: a three-night series over the internet
+int RunNightSeries(bool forceMemory, int lagMs) {
+    // the doc's gate (p. 29): a three-night series between friends, the profile carried from night to night. A host and
+    // two guests; each guest keeps its own profile (as the scene does with nightoff_profile.txt), sends its summary in
+    // the hello, and writes tomorrow from its own mirror at the morning; the host rematches the same seats. Night one:
+    // guest A walks in owing the Gull 50 (the bouncer wants 100), and guest B loses a kidney at the card table. Night
+    // two: B is a kidney short. Night three: the Uber note brings it back. Over GNS with lag and 1% loss when asked.
+    using namespace arcade;
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    std::string err;
+    if (!rt::DataOk(&err)) { printf("FAIL: no data: %s\n", err.c_str()); return 1; }
+    bool real = !forceMemory && net::Init(&err);
+    if (real && lagMs > 0) net::SetFakeLag(lagMs, 1.0f);
+    auto make = [&]() { return real ? net::MakeTransport() : net::MakeMemoryTransport(); };
+    uint16_t port = 47850;
+    std::string addr = real ? "127.0.0.1:" + std::to_string(port) : "mem:" + std::to_string(port);
+    float startMin = 465;   // (each night's last quarter hour: a minute of real time over UDP)
+    printf("net-loop night series over %s%s: a host and two guests, three nights\n", real ? "GameNetworkingSockets (loopback UDP)" : "the in-memory transport",
+           real && lagMs > 0 ? TextFormat(", %d ms lag and 1%% loss", lagMs) : "");
+    int fails = 0;
+    auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
+    const int NG = 2;
+    Session host, gs[NG];
+    Profile ph{"Host", 72};
+    if (!host.Host(ph, G_NIGHT_OFF, &err, port, make(), false)) { printf("FAIL: host: %s\n", err.c_str()); return 1; }
+    host.gameOpts = NightHostOpts(MD_NIGHT_OFF, 1, true, startMin) + (real ? ":test" : ":test:step=0.1");
+    const float dt = real ? 1 / 30.0f : 0.1f;
+    double t = 0;
+    NightProfile prof[NG]; prof[0].name = "Sailor A"; prof[0].owed = 50; prof[1].name = "Sailor B";
+    std::vector<std::unique_ptr<Night>> mirror;
+    int seen[NG] = {}, mirrorOk[NG] = {}, readFails = 0;
+    auto pace = [&]() { if (real) std::this_thread::sleep_for(std::chrono::milliseconds(33)); };
+    auto step = [&](int frames) {
+        for (int f = 0; f < frames; f++) {
+            t += dt; host.Update(t, dt);
+            for (int k = 0; k < NG; k++) {
+                gs[k].Update(t, dt);
+                if (gs[k].stage == S_PLAYING && gs[k].stateVersion != seen[k] && !gs[k].Snapshot().empty()) {
+                    seen[k] = gs[k].stateVersion;
+                    Reader r(gs[k].Snapshot());
+                    if (ReadNight(r, *mirror[k])) mirrorOk[k]++; else readFails++;
+                }
+            }
+            pace();
+        }
+    };
+    auto until = [&](std::function<bool()> ok, float seconds) { for (int i = 0; i < seconds / dt && !ok(); i++) step(1); };
+    for (int k = 0; k < NG; k++) { Profile p{std::string("Sailor ") + char('A' + k), (uint64_t)(95 + k)}; if (!gs[k].Join(p, addr, &err, 0, make())) { printf("FAIL: join: %s\n", err.c_str()); return 1; } }
+    until([&] { for (auto& g : gs) if (g.stage != S_LOBBY) return false; return true; }, 15);
+    for (auto& g : gs) g.SetReady(true);
+    until([&] { for (int s = 1; s <= NG; s++) if (!host.seats[s].ready) return false; return true; }, 10);
+    std::vector<std::string> after[NG];
+    for (int night = 1; night <= 3; night++) {
+        // a fresh mirror per night; wait for the new night's first snapshot (not last night's morning)
+        mirror.clear(); for (int k = 0; k < NG; k++) { mirror.push_back(std::make_unique<Night>()); mirrorOk[k] = 0; }
+        std::string why;
+        bool launched = night == 1 ? host.Launch(&why) : host.Rematch(&why);
+        check(launched, TextFormat("night %d: the same three go ashore%s", night, why.empty() ? "" : (": " + why).c_str()));
+        if (!launched) break;
+        until([&] { for (int k = 0; k < NG; k++) if (mirrorOk[k] == 0 || mirror[k]->over || mirror[k]->players.size() != 3) return false; return true; }, 30);
+        for (int k = 0; k < NG; k++) { Writer o; OrderHello(o, prof[k].name, k, ProfileSummary(prof[k])); gs[k].Act(o); }
+        step(real ? 30 : 5);
+        Night& truth = *NightHostWorld(host.HostGame());
+        int pa = gs[0].MyPlayer(), pb = gs[1].MyPlayer();
+        bool idsOk = pa >= 1 && pa < 3 && pb >= 1 && pb < 3;
+        check(idsOk && truth.players[pa].name == "Sailor A" && truth.players[pb].name == "Sailor B", TextFormat("night %d: names and profiles arrive", night));
+        if (!idsOk) break;
+        if (night == 1) {
+            check(truth.players[pa].owedAtDoor == 100 && truth.players[pa].barred, "night 1: the bouncer wants double the 50 Sailor A owes");
+            check(truth.players[pb].kidneys == 2, "night 1: Sailor B comes in with both kidneys");
+            truth.players[pb].kidneys = 1; truth.Note(truth.players[pb], 8, "Lost a kidney in the cartel's hand.");   // (the card table, short-cut)
+        }
+        if (night == 2) {
+            check(truth.players[pb].kidneys == 1, "night 2: Sailor B is a kidney short");
+            check(truth.players[pa].owedAtDoor == 100 || truth.players[pa].owedAtDoor == 0, TextFormat("night 2: the unpaid door carries on (%.0f)", truth.players[pa].owedAtDoor));
+        }
+        if (night == 3) check(truth.players[pb].kidneys == 2, "night 3: Sailor B's kidney is back");
+        for (auto& m : mirror) for (auto& p : m->players) { p.botStyle = 0; p.botDrinkTo = 40; p.botLeaveH = 27; }
+        truth.players[0].botStyle = 0; truth.players[0].botDrinkTo = 40; truth.players[0].botLeaveH = 27;
+        while (!truth.over && t < 3600 * 3 * night) {
+            for (int k = 0; k < NG; k++) {
+                Night& m = *mirror[k]; int p = gs[k].MyPlayer();
+                if (p < 0 || p >= (int)m.players.size() || m.over) continue;
+                m.BotPlayer(m.players[p], dt); m.players[p].in.faceYaw = m.players[p].yaw;
+                Writer w; WriteInput(m.players[p].in, w); gs[k].Act(w); m.players[p].in = Input{};
+            }
+            { Player& h = truth.players[0]; truth.BotPlayer(h, dt); h.in.faceYaw = h.yaw; Writer w; WriteInput(h.in, w); host.Act(w); h.in = Input{}; }
+            step(1);
+        }
+        check(truth.over, TextFormat("night %d ends (%s)", night, truth.Clock().c_str()));
+        until([&] { for (int k = 0; k < NG; k++) if (!mirror[k]->over) return false; return true; }, 20);
+        bool agree = true; for (int k = 0; k < NG; k++) agree = agree && mirror[k]->over && mirror[k]->headlineCache == truth.headlineCache;
+        check(agree, TextFormat("night %d: both guests read the same morning paper", night));
+        for (int k = 0; k < NG; k++) { int p = gs[k].MyPlayer(); if (p >= 0 && p < (int)mirror[k]->players.size()) after[k] = mirror[k]->ProfileAfter(mirror[k]->players[p], prof[k]); }
+        auto has = [&](int k, const char* s) { for (const auto& l : after[k]) if (l.find(s) != std::string::npos) return true; return false; };
+        if (night == 1) check(has(1, "kidney short tomorrow") && prof[1].kidneyNights == 2, "night 1's morning: Sailor B will be a kidney short tomorrow");
+        if (night == 3) check(has(1, "Uber note") && prof[1].kidneyNights == 0, "night 3's morning: the Uber note brings the kidney back");
+    }
+    check(prof[0].nights == 3 && prof[1].nights == 3, TextFormat("both profiles count three nights (%d, %d)", prof[0].nights, prof[1].nights));
+    check(prof[1].kidneysLost == 1, "Sailor B's profile remembers the kidney");
+    check(readFails == 0, "no snapshot refused");
+    for (auto& g : gs) g.Leave();
+    host.Leave();
+    step(5);
+    if (real) { net::SetFakeLag(0, 0); net::Shutdown(); }
+    printf(fails ? "%d FAILED\n" : "net-loop night series: all checks passed\n", fails);
+    return fails ? 1 : 0;
+}
+
 } // namespace no

@@ -25,4 +25,5 @@ std::string NightHostOpts(int mode, int crowd, bool pvp, float startMinutes = 0)
 uint32_t NightDataHash();
 int RunNightNetTest();                                 // --night-net-test
 int RunNightNetLoop(bool mem);                         // --net-loop night [mem]
+int RunNightSeries(bool mem, int lagMs);               // --net-loop night series [lagMs] [mem]: three nights, profiles carried
 }

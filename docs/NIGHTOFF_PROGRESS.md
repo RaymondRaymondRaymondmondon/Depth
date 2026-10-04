@@ -195,5 +195,24 @@ Build order is the doc's p. 29 (nine stages).
   blinds and a cash-out, a bullshit hand to its end, a side bet settling, a wrecked cheat caught far more than a sober
   one. Shots `night_cards_poker`, `night_cards_bullshit`.
 
+## Stage 9: sound, the profile, the bartender's memory, internet play (done)
+- Sound (`sound_nightoff.inl`): the Gull's jukebox and band songs, the room's beds by the crowd, 44 cues (glasses, the
+  till, darts, pool, slots, fists, the bell), patrons' voices, and everything muffled as you get drunk.
+- The profile (`nightoff_profile.cpp`, `nightoff_profile.txt` next to the exe, gitignored): nights, best and total
+  score, headlines, kidneys lost and won, the bartender's memory (three tabs paid: a regular's price, 0.9; his window
+  shot out: 1.2; an unpaid tab: the bouncer wants double at the door or you drink water - evAct 50 pays him), feuds and
+  friends among the regulars for three nights (a round clears a feud), and tomorrow's carry-overs: a kidney short one
+  night (the Uber note brings it back the morning after), a black eye, the hangover (charisma down for the first hour),
+  and a debt (the cartel comes in for it). `ApplyProfile` at the door, `ProfileAfter` at the morning; the morning paper
+  lists what "the Gull will remember".
+- Online: the hello carries `ProfileSummary` (the host applies it once per night); each player writes their own file
+  from their own mirror. A dropped person's sailor nurses a water at the bar, and walks home after three minutes away.
+  Emotes F5-F10 (a word over the head and a pose; fall over really falls). Table talk: Enter, over the session's chat.
+- The gate: `depth.exe --net-loop night series 100` (GNS, 100 ms lag, 1% loss; `mem` for the fast one): a host and two
+  guests play three nights by `Session::Rematch`; A owes 50 and meets the bouncer, B loses a kidney on night one, is a
+  kidney short on night two, and has it back (the Uber note) on night three; both profiles count three nights. Passes.
+- Shots `night_emote`, `night_morning_kidney` (now with the remembered lines). Shots never read the real profile.
+
 ## Next
-9. Sound, the profile, the bartender's memory, internet play.
+10. The doc's remaining content (pp. 30-42): the Brass Monkey, seasonal nights, the cartel's wares, skins and the
+    spin, the fortune deck.

@@ -240,7 +240,7 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"night_game_menu", [](Game& g) { DebugNightOffShot(g, 14); }},
         {"night_brawl", [](Game& g) { DebugNightOffShot(g, 15); }}, {"night_wreck", [](Game& g) { DebugNightOffShot(g, 16); }}, {"night_dog", [](Game& g) { DebugNightOffShot(g, 17); }},
         {"night_guest", [](Game& g) { DebugNightOffShot(g, 20); }}, {"arcade_night", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(7); }},
-        {"night_flirt", [](Game& g) { DebugNightOffShot(g, 18); }},
+        {"night_flirt", [](Game& g) { DebugNightOffShot(g, 18); }}, {"night_emote", [](Game& g) { DebugNightOffShot(g, 27); }},
         {"night_ev_bikers", [](Game& g) { DebugNightOffShot(g, 21); }}, {"night_ev_robbery", [](Game& g) { DebugNightOffShot(g, 22); }},
         {"night_ev_band", [](Game& g) { DebugNightOffShot(g, 23); }}, {"night_cards_poker", [](Game& g) { DebugNightOffShot(g, 25); }}, {"night_cards_bullshit", [](Game& g) { DebugNightOffShot(g, 26); }}, {"night_ev_police", [](Game& g) { DebugNightOffShot(g, 24); }}, {"night_morning_kidney", [](Game& g) { DebugNightOffShot(g, 19); }},
         {"mouthful_wardrobe", [](Game& g) { DebugMouthfulWardrobe(); g.scene = Scene::Arcade; DebugArcadeReel(206); }},
@@ -931,7 +931,7 @@ int main(int argc, char** argv) {
         int lag = 0; bool mem = false, trawl = false, redtide = false, flight = false, mouthful = false, night = false;
         for (int i = 2; i < argc; i++) { if (strcmp(argv[i], "mem") == 0) mem = true; else if (strcmp(argv[i], "trawl") == 0) trawl = true; else if (strcmp(argv[i], "redtide") == 0) redtide = true; else if (strcmp(argv[i], "flight") == 0) flight = true; else if (strcmp(argv[i], "mouthful") == 0) mouthful = true; else if (strcmp(argv[i], "night") == 0) night = true; else if (strcmp(argv[i], "scuttle") != 0) lag = atoi(argv[i]); }
         if (mouthful) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulNetLoop(mem); }
-        if (night) { SetTraceLogLevel(LOG_WARNING); return no::RunNightNetLoop(mem); }
+        if (night) { SetTraceLogLevel(LOG_WARNING); bool series = false; for (int i = 2; i < argc; i++) series |= strcmp(argv[i], "series") == 0; return series ? no::RunNightSeries(mem, lag) : no::RunNightNetLoop(mem); }
         if (trawl) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlNetLoop(mem); }
         if (redtide) { SetTraceLogLevel(LOG_WARNING); return rt::RunRedTideNetLoop(mem); }
         if (flight) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightNetLoop(mem); }

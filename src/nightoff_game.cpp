@@ -23,6 +23,8 @@ struct NightScene {
     no::Night N;                  // (our own night: solo, or a guest's mirror of the host's)
     arcade::Session* net = nullptr; no::Night* live = nullptr;   // (a networked night: the host draws its real night)
     std::string netName; int netCrew = 0; bool helloSent = false; int seenVersion = -1;
+    no::NightProfile prof; bool profSaved = false; std::vector<std::string> remembered;   // (the profile: tomorrow's carry-overs)
+    bool chatting = false; std::string chatBuf;
     int me = 0;
     float camYaw = PI * 0.5f, camPitch = -0.28f, camDist = 3.2f;
     Vector3 camAt{};          // the camera's lagging focus
@@ -32,6 +34,7 @@ struct NightScene {
     Camera3D cam{};
 };
 NightScene S;
+bool gShotStart = false;   // (a debug shot is starting: no profile from disk)
 no::Night& NW() { return S.live ? *S.live : S.N; }
 
 Color Mix(Color a, Color b, float k) { k = std::clamp(k, 0.0f, 1.0f); return {(unsigned char)(a.r + (b.r - a.r) * k), (unsigned char)(a.g + (b.g - a.g) * k), (unsigned char)(a.b + (b.b - a.b) * k), 255}; }
@@ -273,6 +276,7 @@ void DrawPeople(const no::Night& n) {
         if (p.st == no::State::Vomiting) lean = 0;
         float pitch = p.st == no::State::Vomiting ? 0.5f : p.lurch * 0.2f;
         FightPose(p.fight, P, lean);
+        if (p.emoteT > 0) { switch (p.emote) { case 1: P.reach = 0.35f; P.elbow = 1; P.grip = 1; break; case 2: P.reach = 1; P.elbow = 0; break; case 3: P.shout = 0.8f; P.nod = -0.2f; lean -= 0.1f; break; case 4: P.elbow = 0.6f; P.reach = 0.15f; P.nod = 0.1f; break; case 5: P.grip = 1; P.elbow = 1; P.reach = 0.4f; break; } }
         DrawPerson(CrewModel(p.crew), ShoreClothes(p.crew), {p.pos.x, 0, p.pos.y}, p.yaw, P, lean, pitch, p.st == no::State::PassedOut || p.st == no::State::Down || p.fight.fallT > 0);
         // a glass in the hand while drinking
         if (p.st == no::State::Drinking) { Vector3 h{p.pos.x + cosf(p.yaw) * 0.3f, 1.2f + 0.3f * std::clamp((1 - p.actT / 2.5f) * 3, 0.0f, 1.0f), p.pos.y + sinf(p.yaw) * 0.3f}; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.14f, 0.08f), MatrixTranslate(h.x, h.y, h.z)), {230, 170, 60, 255}, 0.5f); }
@@ -352,8 +356,9 @@ void Gather(float dt) {
     no::Player& p = Me();
     no::Input& in = p.in;
     in.moveX = in.moveZ = 0; in.run = false; in.faceYaw = S.camYaw; in.cheat = IsKeyDown(KEY_V);
+    if (S.chatting) { MouseLook(false); return; }   // (typing a line: the keys are words, not moves)
     if (IsKeyPressed(KEY_H)) S.help = !S.help;
-    bool canMove = p.st == no::State::Active && !S.menu && !S.shot && p.talk.patron < 0 && p.flirt.patron < 0 && p.leavingT <= 0 && !nog::Blocking(p);
+    bool canMove = p.st == no::State::Active && !S.menu && !S.shot && !S.chatting && p.talk.patron < 0 && p.flirt.patron < 0 && p.leavingT <= 0 && !nog::Blocking(p);
     if (p.talk.patron >= 0 && IsKeyPressed(KEY_ESCAPE)) in.say = 6;
     if (p.flirt.patron >= 0 && IsKeyPressed(KEY_ESCAPE)) { if (p.flirt.offer) in.offer = 2; else in.flirtSay = 6; }
     Vector2 md = MouseLook(!S.shot && !S.menu && !NW().over && p.talk.patron < 0 && p.flirt.patron < 0 && !nog::Blocking(p));
@@ -378,6 +383,7 @@ void Gather(float dt) {
         if (IsKeyPressed(KEY_R)) in.pickUp = true;
         if (IsKeyPressed(KEY_C)) in.smash = true;
         if (IsKeyPressed(KEY_T)) { int near = NW().NearestPatron(p, 1.8f); if (near >= 0) in.flirtWith = near; }
+        for (int k = 0; k < 6; k++) if (IsKeyPressed(KEY_F5 + k)) in.emote = k + 1;   // (toast, point, laugh, shrug, fists up, fall over)
         if (in.attack) p.yaw = S.camYaw;   // (you swing where you're looking)
     }
     if (IsKeyPressed(KEY_E) && p.st == no::State::Active && !nog::Blocking(p)) {
@@ -517,13 +523,29 @@ void DrawHud() {
         }
         if (!kitchen && Button({r.x + r.width / 2 - 170, r.y + r.height + 30, 340, 30}, "Buy him one and ask who's trouble tonight", true, 14)) { p.in.askTrouble = true; S.menu = false; }
     }
+    // the sailors' emotes over their heads, and a black eye noted
+    for (const auto& q : n.players) {
+        if (q.st == no::State::Gone || q.emoteT <= 0) continue;
+        static const char* EM[7] = {"", "Cheers!", "Him!", "HA!", "*shrug*", "Come on, then!", "Whoa-"};
+        Vector3 w{q.pos.x, 2.3f, q.pos.y}; Vector3 toC = Vector3Subtract(w, S.cam.position), fw = Vector3Subtract(S.cam.target, S.cam.position);
+        if (Vector3DotProduct(toC, fw) <= 0) continue;
+        Vector2 s = GetWorldToScreen(w, S.cam); DrawTextCenteredBold(TextFormat("%s: %s", q.name.c_str(), EM[std::clamp(q.emote, 0, 6)]), s.x, s.y, 16, Color{255, 230, 160, 255});
+    }
+    if (p.blackEye) Txt("(a black eye from last night)", SCREEN_W - 290.0f, 112, 12, Color{200, 150, 150, 255});
+    // the table talk (online): the session's chat, and your line as you type it
+    if (S.net) {
+        const auto& ch = S.net->chat; float y = SCREEN_H - 230.0f;
+        for (int k = std::max(0, (int)ch.size() - 4); k < (int)ch.size(); k++) { Txt(ch[k], 18, y, 14, Color{180, 220, 255, 255}); y += 18; }
+        if (S.chatting) { DrawRectangle(16, (int)y + 2, 520, 22, Fade(BLACK, 0.6f)); Txt("say: " + S.chatBuf + "_", 20, y + 4, 15, WHITE); }
+        else Txt("Enter: talk to the table   F5-F10: toast, point, laugh, shrug, fists up, fall over", 18, y + 4, 12, dim);
+    }
     // the room's talk: the bartender, the toasts
     { float y = SCREEN_H - 140; int shown = 0; for (int i = (int)n.say.size() - 1; i >= 0 && shown < 4; i--, shown++) { Txt(n.say[i], 18, y, 15, Fade(ink, 1 - shown * 0.2f)); y -= 20; } }
     if (S.help) {
-        Rectangle r{18, 44, 330, 108};
+        Rectangle r{18, 44, 400, 131};
         DrawRectangleRounded(r, 0.06f, 6, Fade(Color{20, 12, 8, 255}, 0.7f));
-        const char* L[] = {"WASD: walk (Shift: hurry)   Mouse: look", "E: the bar, the hatch, a game, a patron; the door: home", "Every drink: charisma down, toughness up", "H: hide this"};
-        for (int i = 0; i < 4; i++) Txt(L[i], r.x + 12, r.y + 10 + i * 23, 14, i < 2 ? ink : dim);
+        const char* L[] = {"WASD: walk (Shift: hurry)   Mouse: look", "E: the bar, the hatch, a game, a patron; the door: home", "Every drink: charisma down, toughness up", "F5-F10: toast, point, laugh, shrug, fists up, fall over", "H: hide this"};
+        for (int i = 0; i < 5; i++) Txt(L[i], r.x + 12, r.y + 10 + i * 23, 14, i < 2 ? ink : dim);
     }
     // the fight: the hits' words, health over everyone in a brawl near you, your own state, the police
     for (const auto& pp : n.pops) {
@@ -599,6 +621,11 @@ void DrawMorning(Game& g) {
         for (const auto& l : n.ScoreBreakdown(p)) { Txt(l.what, x + 6, yy, 14, soft); Txt(TextFormat("%+d", l.points), x + w - 50, yy, 14, l.points >= 0 ? ink : Color{150, 50, 40, 255}); yy += 17; total += l.points; }
         DrawRectangle((int)x, (int)yy + 2, (int)w, 1, ink);
         TxtBold(TextFormat("Score %d", total), x + w - 110, yy + 6, 17, ink);
+    }
+    if (!S.remembered.empty()) {
+        float y = SCREEN_H - 150.0f - 18 * std::min<size_t>(S.remembered.size(), 4);
+        TxtBold(TextFormat("The Gull will remember (night %d):", S.prof.nights), 120, y, 15, Color{120, 50, 40, 255}); y += 20;
+        for (size_t k = 0; k < S.remembered.size() && k < 4; k++) { Txt(S.remembered[k], 136, y, 13, Color{90, 70, 54, 255}); y += 18; }
     }
     if (Button({SCREEN_W / 2.0f - 120, SCREEN_H - 80.0f, 240, 40}, S.net ? "Back to the lobby" : "Back to the arcade", true, 16)) { LeaveNightOff(g); }
 }
@@ -724,6 +751,8 @@ void StartNightOff(Game& g, int crew, int mode, int crowd) {
     if (o.mode == no::MD_SOLO && o.crowd > 1) o.crowd = 1;   // (Solo: a Dead or Normal crowd)
     S.N.Init(o);
     S.N.players[0].crew = std::clamp(crew, 0, 5);
+    S.prof = gShotStart ? no::NightProfile{} : no::LoadNightProfile("nightoff_profile.txt"); S.profSaved = false; S.remembered.clear();
+    S.N.ApplyProfile(S.N.players[0], S.prof);
     S.me = 0; S.active = true; S.shot = false; S.menu = false; S.help = true; S.t = 0; S.walkPh.clear(); nog::Reset();
     S.camYaw = PI * 0.5f; S.camPitch = -0.28f; S.camDist = 3.2f; S.camAt = {Me().pos.x, 1.55f, Me().pos.y};
     g.scene = Scene::NightOff;
@@ -734,6 +763,7 @@ void StartNightOffNet(Game& g, arcade::Session* net, const char* name, int crew)
     if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
     S.net = net; S.live = nullptr; S.N = no::Night{};
     S.netName = name ? name : "Sailor"; S.netCrew = std::clamp(crew, 0, 5); S.helloSent = false; S.seenVersion = -1;
+    S.prof = no::LoadNightProfile("nightoff_profile.txt"); S.profSaved = false; S.remembered.clear(); S.chatting = false; S.chatBuf.clear();
     S.me = std::max(0, net->MyPlayer()); S.active = true; S.shot = false; S.menu = false; S.help = true; S.t = 0; S.walkPh.clear(); nog::Reset();
     S.camYaw = PI * 0.5f; S.camPitch = -0.28f; S.camDist = 3.2f; S.camAt = {19.5f, 1.55f, 1.5f};
     g.scene = Scene::NightOff;
@@ -759,8 +789,12 @@ void SceneNightOff(Game& g) {
         }
         no::Night& n = NW();
         if (n.players.empty() || S.me >= (int)n.players.size()) { ClearBackground(Color{20, 14, 10, 255}); DrawTextCenteredBold("Ashore, to the Sodden Gull...", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 24, Color{240, 210, 150, 255}); return; }
-        if (!S.helloSent) { Writer o; no::OrderHello(o, S.netName, S.netCrew); N.Act(o); S.helloSent = true; S.camAt = {Me().pos.x, 1.55f, Me().pos.y}; }
-        if (n.over) { NightAudioFrame(n, dt); DrawMorning(g); return; }
+        if (!S.helloSent) { Writer o; no::OrderHello(o, S.netName, S.netCrew, no::ProfileSummary(S.prof)); N.Act(o); S.helloSent = true; S.camAt = {Me().pos.x, 1.55f, Me().pos.y}; }
+        // the table talk: Enter to say something to everyone
+        if (S.chatting) { int ch; while ((ch = GetCharPressed()) > 0) if (ch >= 32 && ch < 127 && S.chatBuf.size() < 80) S.chatBuf += (char)ch; if (IsKeyPressed(KEY_BACKSPACE) && !S.chatBuf.empty()) S.chatBuf.pop_back();
+            if (IsKeyPressed(KEY_ENTER)) { if (!S.chatBuf.empty()) N.Chat(S.chatBuf); S.chatBuf.clear(); S.chatting = false; } if (IsKeyPressed(KEY_ESCAPE)) { S.chatting = false; S.chatBuf.clear(); } }
+        else if (IsKeyPressed(KEY_ENTER) && Me().talk.patron < 0 && Me().flirt.patron < 0 && !nog::Blocking(Me())) S.chatting = true;
+        if (n.over) { if (!S.profSaved) { S.remembered = n.ProfileAfter(Me(), S.prof); no::SaveNightProfile(S.prof, "nightoff_profile.txt"); S.profSaved = true; } NightAudioFrame(n, dt); DrawMorning(g); return; }
         Gather(dt);
         S.t += dt;
         Render(dt);
@@ -771,7 +805,7 @@ void SceneNightOff(Game& g) {
         NightAudioFrame(n, dt);
         return;
     }
-    if (NW().over) { if (!S.shot) NightAudioFrame(NW(), dt); DrawMorning(g); return; }
+    if (NW().over) { if (!S.shot && !S.profSaved) { S.remembered = NW().ProfileAfter(Me(), S.prof); no::SaveNightProfile(S.prof, "nightoff_profile.txt"); S.profSaved = true; } if (!S.shot) NightAudioFrame(NW(), dt); DrawMorning(g); return; }
     Gather(dt);
     if (!S.shot) {   // (solo: the bots of an empty seat, none; the night steps here)
         NW().Step(dt);
@@ -790,7 +824,7 @@ void NightOffMenuTick(float dt) {
 // --shots: 0 walking in at 7, 1 at the bar ordering (the menu), 2 hammered at midnight in the games room, 3 the snug,
 // 4 passed out on the floor, 5 the morning paper
 void DebugNightOffShot(Game& g, int which) {
-    StartNightOff(g, which % 6);
+    gShotStart = true; StartNightOff(g, which % 6); gShotStart = false;   // (shots never read the player's own profile)
     S.shot = true; S.help = which == 0;
     no::Night& n = NW(); no::Player& p = Me();
     auto at = [&](float x, float z, float yaw, float camYaw, float drunk) { p.pos = {x, z}; p.yaw = yaw; S.camYaw = camYaw; p.drunk = drunk; S.camAt = {x, 1.55f, z}; };
@@ -843,7 +877,7 @@ void DebugNightOffShot(Game& g, int which) {
             at(34.6f, 6.0f, 0.5f, 0.2f, 15);
             n.StartFlirt(p, d); n.FlirtChoose(p, 1);
             if (p.flirt.tell.empty()) p.flirt.tell = c.name + " glances at the toilets' window.";
-            if (which == 19) { p.name = "You"; p.flirt.offer = true; n.FlirtOffer(p, true); n.over = true; }
+            if (which == 19) { p.name = "You"; p.flirt.offer = true; n.FlirtOffer(p, true); p.kidneys = 1; p.tab = 18; p.peakDrunk = 82; n.over = true; S.remembered = n.ProfileAfter(p, S.prof); }
             for (int k = 0; k < 30; k++) StepCamera(1 / 60.0f);
         }
     }
@@ -895,6 +929,10 @@ void DebugNightOffShot(Game& g, int which) {
         for (int k = 0; k < 90; k++) { p.in.moveX = 1; n.Step(1 / 60.0f); }
         p.in.moveX = 0; at(p.pos.x, p.pos.y, PI, PI * 0.85f, 15); S.camPitch = -0.35f;
         for (int k = 0; k < 60; k++) n.Step(1 / 60.0f);
+    }
+    if (which == 27) {   // emotes: you raise a glass, a shipmate laughs
+        for (int i = 0; i < (int)(2 * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f); i++) n.Step(0.1f);
+        at(18, 5.5f, PI * 0.5f, PI * 0.42f, 20); S.camPitch = -0.22f; p.emote = 1; p.emoteT = 2;
     }
     if (which == 5) { p.drinks = 7; p.peakDrunk = 88; n.Leave(p, no::E_PASSED_OUT, ""); n.over = true; }
     for (int i = 0; i < 30; i++) StepCamera(1 / 60.0f);
