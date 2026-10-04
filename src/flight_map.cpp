@@ -819,6 +819,30 @@ int RunFlightFairTest(int argc, char** argv) {
     return fails ? 1 : 0;
 }
 
+// ---------------------------------------------------------------- --flight-fish: the Founder visits every island; fish must wake round each one
+int RunFlightFishTest() {
+    int fails = 0;
+    printf("The Flight: fish round every island\n");
+    for (int arr = 0; arr < (int)Arrangement::COUNT; arr++) for (int L = 0; L < 2; L++) {
+        World w; MapOpts o; o.arr = (Arrangement)arr; o.players = 4; o.seasons = L ? 6 : 0; o.farSea = L != 0;
+        w.Init("gannet", 11 + arr, o);
+        for (int i = 0; i < (int)w.isles.size(); i++) {
+            const Island& is = w.isles[i];
+            w.me.pos = {is.c.x, 40, is.c.z}; w.StepMap(0);
+            for (int k = 0; k < 40; k++) { w.me.pos = {is.c.x, 40, is.c.z}; w.me.vel = {0, 0, 0}; w.Step(0.1f, FounderInput{}); }
+            std::string pre = is.name + ": ";
+            int n = 0, zones = 0; float depth = 0;
+            for (int z = 0; z < (int)w.eco.map->zones.size(); z++) if (w.eco.map->zones[z].name.rfind(pre, 0) == 0) zones++;
+            for (const auto& a : w.eco.agents) { if (!a.alive || a.diver >= 0 || a.homeZone < 0 || a.homeZone >= (int)w.eco.map->zones.size()) continue; if (w.eco.map->zones[a.homeZone].name.rfind(pre, 0) == 0) { n++; depth += a.pos.y; } }
+            bool drift = zones == 0;
+            bool ok = drift || n >= 5;
+            if (!ok) fails++;
+            printf("  %s  %-13s %s %-30s %2d zones, %3d fish%s\n", ok ? "ok  " : "FAIL", ArrangementName(o.arr), L ? "long " : "short", is.name.c_str(), zones, n, n ? TextFormat(", mean depth %.1f m", depth / n) : "");
+        }
+    }
+    printf(fails ? "flight-fish: %d islands without fish\n" : "flight-fish: every island has fish\n", fails);
+    return fails ? 1 : 0;
+}
 // ---------------------------------------------------------------- --flight-scout-test (the stage-3 gate)
 int RunFlightScoutTest() {
     int fails = 0;

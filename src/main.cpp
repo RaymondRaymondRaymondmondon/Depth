@@ -804,6 +804,7 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--flight-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-colony-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightColonyTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSim(argc, argv); }
+    if (argc >= 2 && strcmp(argv[1], "--flight-fish") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightFishTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-fair") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightFairTest(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--flight-danger-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightDangerTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-costume-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightCostumeTest(); }

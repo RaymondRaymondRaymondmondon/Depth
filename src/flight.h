@@ -880,6 +880,7 @@ int RunFlightTest();                            // depth.exe --flight-test
 int RunFlightColonyTest();                      // depth.exe --flight-colony-test
 int RunFlightSim(int argc, char** argv);        // depth.exe --flight-sim <island> <days> [careful|lagoon] [founder] [seed]
 int RunFlightFairTest(int argc, char** argv);   // depth.exe --flight-fair [seed]: every arrangement and player count is fair
+int RunFlightFishTest();                        // depth.exe --flight-fish: every island has fish round it once a bird comes near
 int RunFlightScoutTest();                       // depth.exe --flight-scout-test: the stage-3 gate (a scout's report from each altitude)
 int RunFlightWar(int argc, char** argv);         // depth.exe --flight-war [scenario|all] [runs]: the five rules in scripted fights; the stage-4 gate
 int RunFlightFounders(int days, int seeds);      // depth.exe --flight-sim founders [days] [seeds]: every founder's window (the stage-6 gate)
