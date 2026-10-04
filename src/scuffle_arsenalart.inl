@@ -134,6 +134,11 @@ void DrawScreenFx(float dt) {
         for (const auto& b : w.bullets) DrawCircleGradient((int)W2S(b.p).x, (int)W2S(b.p).y, 26, ColorAlpha(Color{255, 220, 150, 255}, 0.6f), ColorAlpha(Color{255, 220, 150, 255}, 0));
         for (const auto& k : w.sticks) if (k.alive && k.present && (k.burnT > 0 || k.trinket == sf::TK_LOUD_MOUTH || k.fireCool > 0.05f)) { Vector2 c = W2S(k.pt[sf::J_NECK].p); DrawCircleGradient((int)c.x, (int)c.y, 70, ColorAlpha(Color{255, 210, 140, 255}, 0.45f), ColorAlpha(Color{255, 210, 140, 255}, 0)); DrawCircleV(c, 3, StickColor(k.id)); }
         for (const auto& p : w.stage.pieces) if (p.prog > 0) { Vector2 c = W2S({(p.x + p.w * 0.5f) * sf::TILE, (p.y + p.h * 0.5f) * sf::TILE}); DrawCircleGradient((int)c.x, (int)c.y, 60, ColorAlpha(Color{255, 120, 80, 255}, 0.4f), ColorAlpha(Color{255, 120, 80, 255}, 0)); }
+        for (const auto& k : w.sticks) if (k.alive && k.present) {   // (stage 9: the Neon skin glows (worn on purpose); the Lantern hat lights the dark around you)
+            bool neon = k.skin >= 0 && k.skin < (int)sf::Skins().size() && sf::Skins()[k.skin].id == "neon", lamp = k.hat >= 0 && k.hat < (int)sf::Hats().size() && sf::Hats()[k.hat].id == "lantern";
+            if (lamp) { Vector2 c = W2S(k.pt[sf::J_HEAD].p); DrawCircleGradient((int)c.x, (int)c.y, S.zoom * 3.5f, ColorAlpha(Color{255, 220, 140, 255}, 0.55f), ColorAlpha(Color{255, 220, 140, 255}, 0)); }
+            if (neon) { static const int SEGN[][2] = {{sf::J_NECK, sf::J_PELVIS}, {sf::J_NECK, sf::J_HAND_L}, {sf::J_NECK, sf::J_HAND_R}, {sf::J_PELVIS, sf::J_FOOT_L}, {sf::J_PELVIS, sf::J_FOOT_R}}; for (const auto& s : SEGN) DrawLineEx(W2S(k.pt[s[0]].p), W2S(k.pt[s[1]].p), 4, ColorLerp(StickColor(k.id), WHITE, 0.4f)); DrawCircleV(W2S(k.pt[sf::J_HEAD].p), 6, StickColor(k.id)); }
+        }
         for (const auto& th : w.things) if (th.kind == sf::TH_BEAM || th.kind == sf::TH_HOLE || th.kind == sf::TH_POTATO) { Vector2 c = W2S(th.p); DrawCircleGradient((int)c.x, (int)c.y, 50, ColorAlpha(Color{200, 200, 255, 255}, 0.4f), ColorAlpha(Color{200, 200, 255, 255}, 0)); }
     }
     if (w.inkT > 0) { float a = std::min(1.0f, w.inkT); for (int i = 0; i < 9; i++) { float x = SCREEN_W * (0.1f + 0.1f * i), y = SCREEN_H * (0.3f + 0.35f * sinf(i * 2.1f)); DrawCircleV({x, y}, 140 + 40 * sinf(i * 1.3f), ColorAlpha(Color{12, 10, 16, 255}, 0.92f * a)); } }

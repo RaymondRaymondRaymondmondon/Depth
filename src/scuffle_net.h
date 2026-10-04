@@ -20,7 +20,7 @@ struct InputFrame { uint32_t seq = 0; Input in; };
 Input QuantizeInput(const Input& in);                       // what the host will read (a guest predicts with the same)
 void WriteInputs(const std::vector<InputFrame>& frames, Writer& w);
 bool ReadInputs(Reader& r, std::vector<InputFrame>& out);   // (after the SA_INPUTS byte)
-void OrderHello(Writer& w, const std::string& name, int trinket = -1);
+void OrderHello(Writer& w, const std::string& name, int trinket = -1, int skin = -1, int hat = -1);
 
 void WriteMatch(Match& m, std::vector<std::string>& names, int viewer, uint32_t ack, Writer& out);
 void PackMatch(Match& m, std::vector<std::string>& names, int viewer, uint32_t ack, Writer& out);   // compressed

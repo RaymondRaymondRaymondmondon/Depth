@@ -48,7 +48,7 @@ bool ReadInputs(Reader& r, std::vector<InputFrame>& out) {
     for (int k = 0; k < n; k++) { InputFrame f; f.seq = first + k; f.in = GetInput(r); if (r.bad) return false; out.push_back(f); }
     return true;
 }
-void OrderHello(Writer& w, const std::string& name, int trinket) { w.U8(SA_HELLO); w.Str(name.substr(0, 20)); w.U8((uint32_t)(trinket + 1)); }
+void OrderHello(Writer& w, const std::string& name, int trinket, int skin, int hat) { w.U8(SA_HELLO); w.Str(name.substr(0, 20)); w.U8((uint32_t)(trinket + 1)); w.U8((uint32_t)(skin + 1)); w.U8((uint32_t)(hat + 1)); }
 
 // ---------------------------------------------------------------- the snapshot (one Visit for writing and reading)
 namespace {
@@ -98,6 +98,7 @@ template <class A> void VisitStick(A& a, Stick& k) {
     a.i(k.gear); a.f(k.gearFuel); a.f(k.gearCool); a.v2(k.hook); a.b(k.hookOn); a.b(k.gearWas);
     a.i(k.trinket); a.f(k.size); a.b(k.airJump); a.b(k.windUsed); a.i(k.carry); a.f(k.aimT); a.f(k.steadyT);
     a.i(k.team); a.b(k.shark); a.f(k.respawnT); a.f(k.finished); a.f(k.balloonT); a.i(k.persona);
+    a.i(k.skin); a.i(k.hat);
     a.i(k.kills); a.i(k.lastHitBy); a.f(k.lastHitT); a.s(k.cause);
     VisitInput(a, k.in);
 }
@@ -327,6 +328,8 @@ public:
             std::string n = r.Str(); if (r.bad || n.empty()) return false; names[p] = n.substr(0, 20);
             int tk = (int)r.U8() - 1;   // (their trinket: for this match, and for this round if it has only begun)
             if (!r.bad && tk >= 0 && tk < TK_COUNT && p < (int)m.trinkets.size()) { m.trinkets[p] = tk; if (m.w.t < 3 && p < (int)m.w.sticks.size()) m.w.sticks[p].trinket = tk; }
+            int sk = (int)r.U8() - 1, ht = (int)r.U8() - 1;   // (their skin and hat: worn from now on)
+            if (!r.bad && sk >= -1 && sk < (int)Skins().size() && ht >= -1 && ht < (int)Hats().size() && p < (int)m.skins.size() && p < (int)m.hats.size()) { m.skins[p] = sk; m.hats[p] = ht; if (p < (int)m.w.sticks.size()) { m.w.sticks[p].skin = sk; if (m.w.t < 3) m.w.sticks[p].hat = ht; } }
             std::fill(cacheTick.begin(), cacheTick.end(), ~0u); return true;
         }
         return false;
@@ -375,6 +378,7 @@ uint32_t ScuffleDataHash() {
     for (const auto& d : Weapons()) { w.Str(d.key); w.Str(d.kind); w.I32(d.stage); w.I32(d.ammo); w.I32(d.pellets); w.F32(d.dmg); w.F32(d.rate); w.F32(d.knock); w.F32(d.speed); w.F32(d.spread); w.F32(d.area); w.F32(d.fuse); w.F32(d.reach); }
     const ArmsTuning& a = Arms(); w.F32(a.crateFirst); w.F32(a.crateEvery); w.F32(a.wallStart); w.F32(a.wallAll); w.F32(a.finaleWall);
     w.F32(STEP); w.F32(TILE);
+    for (const auto& c : Skins()) w.Str(c.id); for (const auto& c : Hats()) w.Str(c.id);   // (cosmetics travel as indices)
     return Fnv1a(w.b.data(), w.b.size());
 }
 

@@ -186,6 +186,7 @@ struct Stick {
     float steadyT = 0;                                     // (just back on your feet: no ragdoll for a moment, so nothing can keep you down)
     // stage 7: the modes
     int team = -1; bool shark = false; float respawnT = 0, finished = -1, balloonT = 0; int persona = PE_PLAIN;
+    int skin = -1, hat = -1;                               // (stage 9: the cosmetics: indices into Skins() and Hats(), -1 none; nothing changes a stat)
     int trinket = TK_NONE; float size = 1; bool airJump = false, windUsed = false; int carry = -1;   // (stage 6b: the trinket; Giants and Tiny; the Spring Heels' second jump; the Second Wind; the Pack Rat's second weapon)
     // the round's story
     int kills = 0; int lastHitBy = -1; float lastHitT = -10; std::string cause;
@@ -201,7 +202,7 @@ enum EventKind { EV_PUNCH = 1, EV_HIT, EV_HAYMAKER, EV_KICK, EV_JUMP, EV_LAND, E
 // chum, a black hole, chum in the water, a portal, a bear trap, a turret, a mine, a banana peel, a decoy, a spring, a
 // stuck charge, and a beam (the laser's and the tesla's, for the drawing)
 enum ThingKind : uint8_t { TH_SWARM, TH_SNAKE, TH_FISH, TH_HOLE, TH_CHUM, TH_PORTAL, TH_TRAP, TH_TURRET, TH_MINE, TH_PEEL, TH_DECOY, TH_SPRING, TH_STUCK, TH_BEAM, TH_DOG, TH_POTATO,
-                          TH_EGG, TH_MIRROR, TH_COUNT };
+                          TH_EGG, TH_MIRROR, TH_HAT, TH_COUNT };   // (TH_HAT: a hat knocked off by a headshot; weapon = the hat)
 struct Thing {
     uint8_t kind = TH_SWARM; bool alive = true;
     Vector2 p{}, v{}, q{};                                // (position, velocity; q: a beam's far end, a portal's facing)
@@ -244,6 +245,8 @@ struct World {
     void MovePlank();
     Boss boss;                                             // (stage 8: Boss Arena's boss; kind -1 when there is none)
     void StepBoss();
+    void KnockHat(Stick& k, Vector2 v);                    // (stage 9: a headshot sends the hat flying)
+    void StepHats();                                       // (loose hats fall, bounce, and are worn by the next bare head)
     bool BossStrike(Vector2 at, float r, float dmg, int by, bool splash = false);
     bool BossTouch(Vector2 at, float r) const;              // (would a shot here meet the boss)   // (a blow, a shot or a blast on the boss: true if it struck)
     bool EggHolder(int id) const { for (const auto& th : things) if (th.kind == TH_EGG && th.hold == id) return true; return false; }
@@ -313,6 +316,7 @@ struct Match {
     std::vector<Stage> custom;                             // (a playlist of the group's own: the editor's "play now", a pasted pack)
     uint32_t mutators = 0; bool randomMutator = false;     // (the lobby's rules; Random: one picked each round)
     std::vector<int> trinkets;                             // (each player's trinket, -1: let the game pick)
+    std::vector<int> skins, hats;                          // (each player's cosmetics: -1 none, -2 the game dresses them (bots))
     uint32_t roundMut = 0;                                 // (this round's rules: the stack plus Random's pick)
     // stage 7: the mode (scuffle_modes.cpp)
     int mode = MD_CLASSIC, teamSize = 2; bool friendlyFire = true, wallOn = true; float target = 0;   // (target: King's 60 points, the Egg's 30 s)
@@ -328,6 +332,24 @@ struct Match {
     bool Over() const { return phase == P_OVER; }
 };
 Stage GauntletStage(int world, int n, uint32_t seed);
+// stage 9 (scuffle_cosmetics.cpp): skins and hats (doc pp. 18-20), the locker (tokens, the crate), the payout
+struct Cosmetic { std::string id, name, look; int tier = 0, cost = 0; bool hat = false; };   // (tier 0 the shop, 1 common, 2 rare, 3 super rare, 4 special)
+const std::vector<Cosmetic>& Skins();
+const std::vector<Cosmetic>& Hats();
+int SkinIndex(const std::string& id);
+int HatIndex(const std::string& id);
+const char* CosTierName(int tier);
+struct Locker { int tokens = 0, crates = 0, bananas = 0, matches = 0, wins = 0; std::vector<std::string> owned; std::string skin, hat; bool Owns(const std::string& id) const; };
+Locker& MyLocker();                                         // (scuffle_profile.txt next to the exe)
+void SaveLocker();
+extern bool gLockerNoSave;                                  // (tests: the player's file is never touched)
+int CratePrice();
+bool BuyCosmetic(const std::string& id, std::string* why = nullptr);
+bool BuyCrate(std::string* why = nullptr);
+struct CrateRoll { bool ok = false, banana = false; std::string id; int tier = -1; };
+CrateRoll OpenCrate(uint32_t seed);                         // (a duplicate gives a banana)
+bool WearCosmetic(const std::string& id);                   // (a skin or a hat; "skin:" or "hat:" alone takes it off)
+int MatchTokens(const Match& m, int me);                    // (what a finished match pays player me)
 Stage BossArena(int kind);                                  // (stage 8: each boss's stage)
 Boss MakeBoss(int kind, int players, const Stage& s);       // (its health grows with the crew: half again for each stick past one)   // (the Gauntlet's nth stage: generated, worse each time, an exit)
 std::vector<Stage> StagePlaylist(int world = -1);           // a world's forty (-1: all six worlds); the stone stages if no pack is found

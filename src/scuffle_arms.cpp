@@ -383,6 +383,7 @@ void World::StepBullets() {
                 float dmg = b.dmg * (head && k.trinket != TK_THICK_SKULL ? d.head : 1.0f); if (head && k.gear == GR_FISHBOWL) dmg = std::max(0.0f, dmg - 10);
                 std::string cause = (b.deflected ? std::string("a deflected ") : std::string()) + (b.hazard == -2 ? std::string("crystal shrapnel") : b.hazard == PK_CROWD ? std::string("a bottle from the crowd") : b.hazard == PK_DART ? std::string("a dart") : b.hazard == PK_POOL ? std::string("a pool ball") : b.hazard == PK_DRIP ? std::string("acid") : b.hazard == -3 ? std::string("a turret") : b.hazard == -4 ? std::string(BossName(boss.kind)) : d.name);
                 Hit(k, b.owner, dmg, Vector2Normalize(b.v), b.knock, b.knock >= 10 || d.pin, cause.c_str());
+                if (head && k.hat >= 0) KnockHat(k, b.v);   // (stage 9: a headshot sends the hat flying)
                 if (d.pin && k.alive) k.ragT = std::max(k.ragT, 1.0f);   // (the harpoon pins: a second on the end of the line)
                 if (--b.pierce <= 0) { b.alive = false; break; }
             }

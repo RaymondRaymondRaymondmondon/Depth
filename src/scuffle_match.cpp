@@ -85,6 +85,10 @@ void Match::Start(int nPlayers, int roundsToWin, uint32_t s, int ars) {
     // trinkets: each player's pick, or the game picks (it's seeded)
     trinkets.resize(players, -1);
     { uint32_t r = seed * 2246822519u + 99; for (auto& tk : trinkets) { r = r * 1664525u + 1013904223u; if (tk < 0 || tk >= TK_COUNT) tk = (int)((r >> 8) % TK_COUNT); } }
+    // cosmetics: each player's own; the bots (-2) dressed by the seed, half of them in a skin, most in a hat
+    skins.resize(players, -2); hats.resize(players, -2);
+    { uint32_t r = seed * 40503u + 17; auto R = [&]() { r = r * 1664525u + 1013904223u; return (r >> 8) / 16777216.0f; };
+      for (int i = 0; i < players; i++) { if (skins[i] == -2) skins[i] = R() < 0.5f && !Skins().empty() ? (int)(R() * Skins().size()) % (int)Skins().size() : -1; if (hats[i] == -2) hats[i] = R() < 0.7f && !Hats().empty() ? (int)(R() * Hats().size()) % (int)Hats().size() : -1; } }
     finales = custom.empty() ? FinalePlaylist(world) : std::vector<Stage>{};
     if (mode == MD_DUEL && !finales.empty()) playlist = finales;   // (the Duel: best of 7 on finale stages)
     // the rotation: shuffled by the seed (no stage twice until the list runs out)
@@ -116,6 +120,7 @@ void Match::NewRound() {
     w.event = ((rs >> 4) % 4 == 0) ? (int)((rs >> 9) % RE_COUNT) : -1; w.eventAt = 10 + (float)((rs >> 16) % 2000) / 100.0f;
     w.leader = -1; { int best = 0; for (int i = 0; i < (int)wins.size(); i++) if (wins[i] > best) { best = wins[i]; w.leader = i; } }
     for (int i = 0; i < (int)w.sticks.size() && i < (int)trinkets.size(); i++) w.sticks[i].trinket = trinkets[i];
+    for (int i = 0; i < (int)w.sticks.size(); i++) { w.sticks[i].skin = i < (int)skins.size() ? skins[i] : -1; w.sticks[i].hat = i < (int)hats.size() ? hats[i] : -1; }   // (each round in your own hat again)
     w.ApplyRules();
     phase = P_COUNT; phaseT = 1.0f; roundWinner = -1;
     // the mode (scuffle_modes.cpp)

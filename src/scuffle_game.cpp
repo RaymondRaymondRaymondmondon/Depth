@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstdio>
 #include <ctime>
+#include "sound.h"
 #include <vector>
 
 namespace {
@@ -21,6 +22,7 @@ struct ScuffleScene {
     int players = 4, skill = 2, toWin = 5, arsenal = sf::AR_CLASSIC; int lastRound = 0;
     std::vector<uint32_t> botRng;
     float acc = 0, t = 0, wallMsgT = 0, modeMsgT = 0; std::string modeMsg;
+    uint64_t paidKey = 0; int paid = 0;   // (stage 9: the match's tokens, paid once)
     bool boardDone = false; std::vector<std::string> board; int boardMine = -1;   // (the Gauntlet's local leaderboard, scuffle_gauntlet.txt)
     Vector2 cam{}; float zoom = 60;
     std::vector<Blot> blots; uint32_t evSeen = 0;
@@ -87,6 +89,7 @@ void Gather(sf::Input& in, const sf::Stick& k) {
 #include "scuffle_worldart.inl"
 #include "scuffle_arsenalart.inl"
 #include "scuffle_bossart.inl"
+#include "scuffle_cosart.inl"
 // ---------------------------------------------------------------- drawing
 void DrawBackdrop(const sf::Stage& s) {
     if (s.world != sf::WD_NAUTILUS) { WorldBackdrop(s); return; }
@@ -188,11 +191,14 @@ void DrawStick(const sf::Stick& k) {
     auto C = [&](int a, int b) { Vector2 A = P(a), B = P(b); DrawLineEx(A, B, th, c); DrawCircleV(B, th * 0.5f, c); DrawCircleV(A, th * 0.5f, c); };
     static const int SEG[][2] = {{sf::J_NECK, sf::J_PELVIS}, {sf::J_NECK, sf::J_ELBOW_L}, {sf::J_ELBOW_L, sf::J_HAND_L}, {sf::J_NECK, sf::J_ELBOW_R}, {sf::J_ELBOW_R, sf::J_HAND_R},
                                  {sf::J_PELVIS, sf::J_KNEE_L}, {sf::J_KNEE_L, sf::J_FOOT_L}, {sf::J_PELVIS, sf::J_KNEE_R}, {sf::J_KNEE_R, sf::J_FOOT_R}, {sf::J_NECK, sf::J_HEAD}};
-    for (const auto& s : SEG) L(s[0], s[1]);   // (an ink outline under the colour)
-    for (const auto& s : SEG) C(s[0], s[1]);
+    float skA = 1;   // (stage 9: a skin draws its own line; the ghost is see-through)
+    if (!cosart::Limbs(k, c, th, P, SEG, 10, &skA)) {
+        for (const auto& s : SEG) L(s[0], s[1]);   // (an ink outline under the colour)
+        for (const auto& s : SEG) C(s[0], s[1]);
+    }
     // the head: a ring, and the face (two dots and a line); dead eyes are crosses
     Vector2 h = P(sf::J_HEAD); float r = k.pt[sf::J_HEAD].r * S.zoom;
-    DrawCircleV(h, r + 2, INK); DrawCircleV(h, r, PAPER); DrawRing(h, r - th * 0.6f, r, 0, 360, 24, c);
+    DrawCircleV(h, r + 2, ColorAlpha(INK, skA)); DrawCircleV(h, r, ColorAlpha(PAPER, skA)); DrawRing(h, r - th * 0.6f, r, 0, 360, 24, ColorAlpha(c, skA));
     Vector2 up = Vector2Normalize(Vector2Subtract(P(sf::J_HEAD), P(sf::J_NECK))); Vector2 fw{-up.y * k.face, up.x * k.face};
     if (fw.x * k.face < 0) fw = Vector2Negate(fw);
     Vector2 e = Vector2Add(h, Vector2Scale(fw, r * 0.35f));
@@ -205,6 +211,7 @@ void DrawStick(const sf::Stick& k) {
     } else {
         for (float s : {-0.2f, 0.2f}) { Vector2 q = Vector2Add(Vector2Add(e, ey), Vector2Scale(fw, r * s)); DrawLineEx(Vector2Subtract(q, Vector2Add(ex, ey)), Vector2Add(q, Vector2Add(ex, ey)), 1.5f, INK); DrawLineEx(Vector2Add(q, Vector2Subtract(ey, ex)), Vector2Subtract(q, Vector2Subtract(ey, ex)), 1.5f, INK); }
     }
+    cosart::HatOn(k, skA);
     // a name over the living, and the round's grab
     if (k.alive) { Vector2 n = W2S(Vector2Add(k.pt[sf::J_HEAD].p, {0, 0.38f})); DrawTextCentered(StickName(k.id), n.x, n.y - 8, 12, ColorAlpha(NameInk(), 0.7f)); }
 }
@@ -384,6 +391,7 @@ void DrawWorld(float dt) {
     for (const auto& k : S.M.w.sticks) if (k.alive) { DrawStick(k); DrawHeld(k); DrawStickStatus(k); }
     DrawThings();
     DrawModeOver();
+    cosart::LooseHats();
     DrawArms();
     DrawBlots(dt);
     DrawScreenFx(dt);
@@ -468,6 +476,7 @@ void StartScuffle(Game& g, int bots, int skill, int toWin, int world) {
     S.active = true; S.players = gScuffleMode == sf::MD_DUEL ? 2 : std::clamp(bots + 1, gScuffleMode == sf::MD_HUNT ? 3 : 2, sf::MAX_STICKS); S.skill = std::clamp(skill, 0, 2); S.toWin = std::clamp(toWin, 1, 20);
     S.M.mode = gScuffleMode; S.M.world = world; S.M.mutators = ScuffleRulesMask(gScuffleRules); S.M.randomMutator = gScuffleRules == 1;
     S.M.trinkets.assign(S.players, -1); S.M.trinkets[0] = gScuffleTrinket;
+    S.M.skins.assign(S.players, -2); S.M.hats.assign(S.players, -2); S.M.skins[0] = sf::SkinIndex(sf::MyLocker().skin); S.M.hats[0] = sf::HatIndex(sf::MyLocker().hat);   // (yours from the locker; the bots dressed by the seed)
     S.M.Start(S.players, S.toWin, (uint32_t)GetRandomValue(1, 1 << 30), S.arsenal); S.toWin = S.M.toWin;
     S.botRng.resize(S.players);
     for (int i = 0; i < S.players; i++) S.botRng[i] = 1234567u + i * 7919u + (uint32_t)GetRandomValue(0, 1 << 20);
@@ -495,7 +504,7 @@ static bool NetTick(float dt, bool steer) {
     arcade::Session& N = *S.net;
     N.Update(GetTime(), dt);
     if (N.stage != arcade::S_PLAYING) return false;
-    if (!S.helloSent) { Writer o; sf::OrderHello(o, S.netName, gScuffleTrinket); N.Act(o); S.helloSent = true; }
+    if (!S.helloSent) { Writer o; sf::OrderHello(o, S.netName, gScuffleTrinket, sf::SkinIndex(sf::MyLocker().skin), sf::HatIndex(sf::MyLocker().hat)); N.Act(o); S.helloSent = true; }
     std::vector<sf::InputFrame> box;
     if (N.role == arcade::R_HOST) {
         sf::Match* hm = sf::ScuffleHostMatch(N.HostGame());
@@ -529,6 +538,14 @@ static bool NetTick(float dt, bool steer) {
     }
     return true;
 }
+static bool EditorPlaying();
+// the match's tokens into the locker, once (a match is its seed and its last round)
+static void PayOut() {
+    if (S.shot || EditorPlaying() || !S.M.Over()) return;
+    uint64_t key = ((uint64_t)S.M.seed << 16) ^ (uint64_t)S.M.round ^ 0x5F00000000ull; if (key == S.paidKey) return;
+    S.paidKey = key; S.paid = sf::MatchTokens(S.M, S.me);
+    sf::Locker& L = sf::MyLocker(); L.tokens += S.paid; L.matches++; if (S.M.champion == S.me || (S.M.mode == sf::MD_BOSS && !S.M.gFailed)) L.wins++; sf::SaveLocker();
+}
 static void NetFrame(Game& g, float dt) {
     if (!NetTick(dt, true)) { S.net = nullptr; S.active = false; g.scene = Scene::Arcade; return; }
     arcade::Session& N = *S.net;
@@ -552,7 +569,9 @@ static void NetFrame(Game& g, float dt) {
     DrawWorld(dt);
     DrawHud();
     if (N.paused) DrawTextCenteredBold(TextFormat("Waiting for a lost player (%.0f s)", N.pauseLeft), SCREEN_W / 2.0f, 120, 18, Color{150, 50, 40, 255});
+    PayOut();
     if (S.M.Over()) {
+        DrawTextCenteredBold(TextFormat("+%d tokens for the locker (%d in all)", S.paid, sf::MyLocker().tokens), SCREEN_W / 2.0f, SCREEN_H / 2.0f + 120, 16, Color{170, 110, 30, 255});
         if (host) {
             std::string why;
             if (Button({SCREEN_W / 2.0f - 230, SCREEN_H / 2.0f + 160, 200, 40}, "Rematch", true, 16)) { N.Rematch(&why); S.lastRound = -1; S.blots.clear(); }
@@ -595,6 +614,8 @@ void SceneScuffle(Game& g) {
     if (S.M.Over() && EditorPlaying()) {
         if (Button({SCREEN_W / 2.0f - 100, SCREEN_H / 2.0f + 160, 200, 40}, "Back to the editor", true, 16)) EditorBackFromPlay();
     } else if (S.M.Over()) {
+        PayOut();
+        DrawTextCenteredBold(TextFormat("+%d tokens for the locker (%d in all)", S.paid, sf::MyLocker().tokens), SCREEN_W / 2.0f, SCREEN_H / 2.0f + 128, 16, Color{170, 110, 30, 255});
         if (Button({SCREEN_W / 2.0f - 230, SCREEN_H / 2.0f + 160, 200, 40}, "Again", true, 16)) { int b = S.players - 1, sk = S.skill, tw = S.toWin, wd = S.M.world; StartScuffle(g, b, sk, tw, wd); }
         if (Button({SCREEN_W / 2.0f + 30, SCREEN_H / 2.0f + 160, 200, 40}, "Back to the arcade", true, 16)) { S.active = false; g.scene = Scene::Arcade; }
     }
@@ -636,6 +657,18 @@ void DebugScuffleShot(Game& g, int which) {
         w.fireT.assign(w.stage.t.size(), 0); for (int x = 20; x < 24; x++) w.fireT[6 * w.stage.w + x] = 0.5f;
         if (which == 6) { w.mut = 1u << sf::MU_BLACKOUT; int pt = w.AddThing(sf::TH_POTATO, {}, {}, 2.5f, -1); w.things[pt].on = 3; w.things[pt].p = w.sticks[3].pt[sf::J_HAND_R].p; gEventBanner = 2; gEventKind = sf::RE_GRAVITY_FLIP; }
         S.cam = {w.stage.Width() / 2, w.stage.Height() / 2}; S.zoom = 30; for (int i = 0; i < 120; i++) StepCamera(1 / 60.0f);
+        return;
+    }
+    if (which >= 80 && which < 85) {   // the wardrobe on parade (80 + page): eight sticks, each in the next skin and hat; page 4 knocks two hats off
+        int page = which - 80;
+        S = ScuffleScene{}; S.active = true; S.shot = true; S.players = 8; S.toWin = 5; gEventBanner = 0;
+        sf::Stage st = sf::StoneStage(); S.M.custom = {st}; S.M.Start(8, 5, 99); S.M.phase = sf::Match::P_FIGHT; S.M.w.nextCrate = 1e9f; S.M.w.wallOn = false;
+        sf::World& w = S.M.w;
+        for (int i = 0; i < 8; i++) { sf::Stick& k = w.sticks[i]; w.SpawnStick(k, {1.6f + i * 2.3f, 1.2f}, 1); k.skin = (page * 8 + i) % (int)sf::Skins().size(); k.hat = (page * 8 + i) % (int)sf::Hats().size(); }
+        for (int f = 0; f < 90; f++) w.Step();
+        if (page == 4) { w.KnockHat(w.sticks[2], {3, 1}); w.KnockHat(w.sticks[5], {-3, 1}); for (int f = 0; f < 20; f++) w.Step(); }
+        S.names.clear(); for (int i = 0; i < 8; i++) { const sf::Stick& k = w.sticks[i]; S.names.push_back(TextFormat("%s / %s", k.skin >= 0 ? sf::Skins()[k.skin].name.c_str() : "-", k.hat >= 0 ? sf::Hats()[k.hat].name.c_str() : "-")); }
+        S.cam = {w.stage.Width() / 2, 2.5f}; S.zoom = 64;
         return;
     }
     if (which >= 60 && which < 60 + sf::BK_COUNT * 2) {   // a boss mid-fight (60 + boss: four bots, caught during an attack; 66 + boss: in its last phase)
@@ -700,5 +733,94 @@ void DebugScuffleShot(Game& g, int which) {
         for (int i = 0; i < 90; i++) StepCamera(1 / 60.0f);
     }
 }
+
+// ---------------------------------------------------------------- the locker (stage 9; the arcade's Scuffle panel opens it): the shop, the crate, what you wear
+namespace {
+std::string gLkMsg; float gLkMsgT = 0, gLkOpenT = 0; std::string gLkShow; int gLkShowTier = -1; bool gLkBanana = false; int gLkTab = 0;
+void LockerStick(Vector2 feetScreen, float zoom, int skin, int hat) {
+    // a stick on the locker's floor, breathing: a little world of its own, drawn through the scene's camera
+    static sf::World pv; static bool made = false;
+    if (!made) { pv.Init(sf::StoneStage(), 1, 3); made = true; }
+    pv.sticks[0].skin = skin; pv.sticks[0].hat = hat; pv.sticks[0].in = sf::Input{}; pv.sticks[0].in.aim = {1, 0.15f};
+    pv.Step(); pv.nextCrate = 1e9f; pv.wallOn = false;
+    Vector2 cam = S.cam; float z = S.zoom; std::vector<std::string> names = S.names;
+    const sf::Stick& k = pv.sticks[0]; S.zoom = zoom; S.names = {" "};
+    S.cam = {k.pos.x - (feetScreen.x - SCREEN_W / 2.0f) / zoom, k.pos.y + (feetScreen.y - SCREEN_H / 2.0f) / zoom};
+    DrawStick(k);
+    S.cam = cam; S.zoom = z; S.names = names;
+}
+}
+bool ScuffleLockerPage() {
+    sf::Locker& L = sf::MyLocker();
+    float dt = GetFrameTime(); S.t += dt;
+    Color bg{226, 214, 186, 255}, ink{40, 30, 24, 255}, dim{110, 96, 80, 255}, gold{170, 110, 30, 255};
+    static const Color TC[5] = {{120, 110, 100, 255}, {90, 130, 100, 255}, {60, 110, 190, 255}, {150, 70, 190, 255}, {200, 140, 30, 255}};
+    ClearBackground(bg);
+    for (const auto& g : S.grain) DrawCircleV(g, 1.2f, Color{196, 182, 150, 255});
+    DrawTextCenteredBold("The Scuffle locker", SCREEN_W / 2.0f, 16, 30, ink);
+    DrawTextCentered(TextFormat("%d tokens   %d crate%s   %d banana%s   %d matches, %d won", L.tokens, L.crates, L.crates == 1 ? "" : "s", L.bananas, L.bananas == 1 ? "" : "s", L.matches, L.wins), SCREEN_W / 2.0f, 54, 16, dim);
+    // the preview: you, in what you wear (or what you point at)
+    std::string tryOn;
+    // the tabs: skins, hats
+    for (int t = 0; t < 2; t++) { Rectangle r{SCREEN_W / 2.0f - 150 + t * 160.0f, 80, 140, 30}; DrawRectangleRounded(r, 0.3f, 6, t == gLkTab ? Color{90, 60, 36, 255} : Color{200, 186, 156, 255}); DrawTextCenteredBold(t ? "Hats" : "Skins", r.x + 70, r.y + 6, 16, t == gLkTab ? WHITE : ink); if (CheckCollisionPointRec(GetMousePosition(), r) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gLkTab = t; }
+    const auto& list = gLkTab ? sf::Hats() : sf::Skins();
+    const std::string& worn = gLkTab ? L.hat : L.skin;
+    // the shop (left): ten to buy
+    DrawTextCenteredBold("The token shop", 250, 124, 18, gold);
+    int i = 0;
+    for (const auto& c : list) {
+        if (c.tier != 0) continue;
+        Rectangle r{40, 150 + i * 38.0f, 420, 34};
+        bool own = L.Owns(c.id), on = worn == c.id, hov = CheckCollisionPointRec(GetMousePosition(), r);
+        DrawRectangleRounded(r, 0.2f, 6, on ? Color{150, 120, 70, 255} : hov ? Color{214, 198, 166, 255} : Color{206, 190, 158, 255});
+        Txt(c.name, r.x + 12, r.y + 8, 15, ink);
+        if (!own) { if (Button({r.x + r.width - 120, r.y + 4, 114, 26}, TextFormat("buy %d", c.cost), L.tokens >= c.cost, 13)) { std::string why; if (!sf::BuyCosmetic(c.id, &why)) { gLkMsg = why; gLkMsgT = 3; } else PlayCue("ui.click"); } }
+        else if (Button({r.x + r.width - 120, r.y + 4, 114, 26}, on ? "take off" : "wear", true, 13)) sf::WearCosmetic(on ? (gLkTab ? "hat:" : "skin:") : c.id);
+        if (hov) { tryOn = c.id; DrawTextCentered(c.name + ": " + c.look, SCREEN_W / 2.0f, SCREEN_H - 28.0f, 15, ink); }
+        i++;
+    }
+    // the crate's (right): all of them, the ones you own lit (click to wear)
+    DrawTextCenteredBold("From the crate", SCREEN_W - 260, 124, 18, gold);
+    int k = 0;
+    for (const auto& c : list) {
+        if (c.tier == 0) continue;
+        float x = SCREEN_W - 500 + (k % 4) * 120.0f, y = 150 + (k / 4) * 34.0f;
+        Rectangle r{x, y, 114, 30};
+        bool own = L.Owns(c.id), on = worn == c.id, hov = CheckCollisionPointRec(GetMousePosition(), r);
+        DrawRectangleRounded(r, 0.2f, 6, on ? Color{150, 120, 70, 255} : own ? Color{214, 198, 166, 255} : Color{190, 178, 150, 255});
+        DrawRectangleRoundedLinesEx(r, 0.2f, 6, own ? 2.0f : 1.0f, ColorAlpha(TC[c.tier], own ? 1.0f : 0.4f));
+        std::string nm = c.name.rfind("the ", 0) == 0 ? c.name.substr(4) : c.name;
+        DrawTextCentered(nm.size() > 15 ? nm.substr(0, 14) + "." : nm, x + 57, y + 8, 12, own ? ink : Color{150, 136, 116, 255});
+        if (hov) { if (own) tryOn = c.id; DrawTextCentered(c.name + " (" + sf::CosTierName(c.tier) + (own ? "" : ", not found yet") + "): " + c.look, SCREEN_W / 2.0f, SCREEN_H - 28.0f, 15, ink); if (own && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) sf::WearCosmetic(on ? (gLkTab ? "hat:" : "skin:") : c.id); }
+        k++;
+    }
+    // the preview in the middle
+    std::string skin = L.skin, hat = L.hat; if (!tryOn.empty()) { if (gLkTab) hat = tryOn; else skin = tryOn; }
+    DrawEllipse(SCREEN_W / 2, 470, 70, 10, Color{190, 172, 140, 255});
+    LockerStick({SCREEN_W / 2.0f, 470}, 130, sf::SkinIndex(skin), sf::HatIndex(hat));
+    DrawTextCentered(TextFormat("%s, %s", skin.empty() ? "no skin" : sf::Skins()[sf::SkinIndex(skin)].name.c_str(), hat.empty() ? "no hat" : sf::Hats()[sf::HatIndex(hat)].name.c_str()), SCREEN_W / 2.0f, 488, 15, dim);
+    // the crate: one token; it comes down on its parachute and bursts
+    float cy = SCREEN_H - 150.0f;
+    if (Button({SCREEN_W - 500.0f, cy, 230, 36}, TextFormat("Buy a crate (%d token%s)", sf::CratePrice(), sf::CratePrice() == 1 ? "" : "s"), L.tokens >= sf::CratePrice(), 14)) { std::string why; if (!sf::BuyCrate(&why)) { gLkMsg = why; gLkMsgT = 3; } else PlayCue("ui.click"); }
+    if (Button({SCREEN_W - 260.0f, cy, 220, 36}, TextFormat("Open a crate (%d)", L.crates), L.crates > 0 && gLkOpenT <= 0, 14)) {
+        sf::CrateRoll r = sf::OpenCrate((uint32_t)(GetTime() * 1000) ^ (uint32_t)L.matches * 977u ^ (uint32_t)L.bananas * 31u);
+        if (r.ok) { int si = sf::SkinIndex(r.id), hi = sf::HatIndex(r.id); gLkShow = r.banana ? "A banana." : si >= 0 ? sf::Skins()[si].name : hi >= 0 ? sf::Hats()[hi].name : r.id; gLkShowTier = r.tier; gLkBanana = r.banana; gLkOpenT = 3.2f; PlayCue("ui.click"); }
+    }
+    if (gLkOpenT > 0) {
+        gLkOpenT -= dt;
+        float u = 3.2f - gLkOpenT; Vector2 c{SCREEN_W - 270.0f, std::min(cy - 60, 150 + u * 260)};
+        if (u < 1.0f) { DrawCircleSector({c.x, c.y - 70}, 52, 180, 360, 20, Color{236, 226, 200, 255}); DrawCircleSectorLines({c.x, c.y - 70}, 52, 180, 360, 20, ink); for (float s : {-1.0f, -0.35f, 0.35f, 1.0f}) DrawLineEx({c.x + s * 52, c.y - 70}, {c.x + s * 26, c.y - 26}, 1.5f, ink); DrawRectangleRec({c.x - 26, c.y - 26, 52, 52}, Color{170, 120, 64, 255}); DrawRectangleLinesEx({c.x - 26, c.y - 26, 52, 52}, 3, ink); }
+        else {
+            float b = std::min(1.0f, (u - 1.0f) * 3);
+            for (int j = 0; j < 12; j++) { float a = j * PI / 6; DrawLineEx({c.x + cosf(a) * 30 * b, c.y + sinf(a) * 30 * b}, {c.x + cosf(a) * 70 * b, c.y + sinf(a) * 70 * b}, 3, gLkBanana ? Color{220, 200, 60, 255} : TC[std::clamp(gLkShowTier, 0, 4)]); }
+            DrawTextCenteredBold(gLkShow, c.x, c.y - 12, 22, gLkBanana ? dim : TC[std::clamp(gLkShowTier, 0, 4)]);
+            DrawTextCentered(gLkBanana ? "(you had it already: duplicates give a banana)" : sf::CosTierName(gLkShowTier), c.x, c.y + 16, 14, dim);
+        }
+    }
+    DrawTextCentered("Tokens: 3 a match, +1 a round won, +5 for the match. Nothing here changes a stat.", 250, SCREEN_H - 150.0f, 13, dim);
+    if (gLkMsgT > 0) { gLkMsgT -= dt; DrawTextCenteredBold(gLkMsg, SCREEN_W / 2.0f, SCREEN_H - 60.0f, 16, Color{170, 50, 30, 255}); }
+    return Button({30, 18, 120, 34}, "Back", true, 15);
+}
+void DebugScuffleLocker(int tab) { gLkTab = tab; S.grain.clear(); uint32_t h = 99; for (int i = 0; i < 700; i++) { h = h * 1664525u + 1013904223u; float x = (float)((h >> 8) % SCREEN_W); h = h * 1664525u + 1013904223u; S.grain.push_back({x, (float)((h >> 8) % SCREEN_H)}); } }
 
 #include "scuffle_editor.inl"

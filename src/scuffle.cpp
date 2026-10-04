@@ -511,6 +511,7 @@ void World::Step() {
     StepParticles();
     StepArms();
     StepThings();
+    StepHats();
     for (auto& k : sticks) {
         if (!k.present) continue;
         // a thrown stick is a projectile: 15 to it and to whoever it hits
@@ -788,6 +789,7 @@ int ScuffleArsenalChecks();
 int ScuffleRulesChecks();
 int ScuffleModeChecks();
 int ScuffleBossChecks();
+int ScuffleCosmeticChecks();
 static void Check(bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) Fails++; }
 static void Run(World& w, float seconds, void (*fn)(World&) = nullptr) { int n = (int)(seconds / STEP); for (int i = 0; i < n; i++) { if (fn) fn(w); w.Step(); } }
 static Stage Flat(int w = 40, int h = 18) { std::vector<std::string> rows(h, std::string(w, '.')); rows[h - 1] = std::string(w, '#'); rows[h - 2] = std::string(w, '#'); return StageFromText(rows, "Flat"); }
@@ -880,6 +882,7 @@ int RunScuffleTest() {
     Fails += ScuffleRulesChecks();
     Fails += ScuffleModeChecks();
     Fails += ScuffleBossChecks();
+    Fails += ScuffleCosmeticChecks();
     printf(Fails ? "Scuffle: %d check(s) FAILED\n" : "Scuffle: all checks passed\n", Fails);
     return Fails ? 1 : 0;
 }

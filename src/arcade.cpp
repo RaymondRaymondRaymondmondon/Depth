@@ -15,6 +15,7 @@
 #include "input.h"
 static int gWardrobe = -1;
 static bool gMfWardrobe = false; static int gMfMode = 0, gMfPath = 2;   // Mouthful's wardrobe page; the mode (and One Path's path) picked on its reel
+static bool gSfLocker = false;   // (Scuffle's locker page over the arcade)
 static bool gFlWardrobe = false; static int gFlGallery = -1;   // the Flight's Roost wardrobe; a costume gallery page (--shots)   // the skins page over the arcade (skins::TRAWL), -1 none
 #include "sound.h"
 #include <algorithm>
@@ -335,6 +336,7 @@ void DrawReels(Game& g) {
         }
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Fight (solo)", true, 15)) { StartScuffle(g, sfBots, sfSkill, TOWIN[sfToWin], sfWorld); return; }
         if (Button({c.x - 110, c.y + 278, 220, 30}, "The editor", true, 13)) { StartScuffleEditor(g); return; }
+        if (Button({40, 574, 244, 30}, TextFormat("The locker (%d tokens)", sf::MyLocker().tokens), true, 13)) { gSfLocker = true; DebugScuffleLocker(0); return; }
         DrawTextCentered("Host or Join to fight friends (2-8; the host picks the rounds and the arsenal in the lobby)", c.x, c.y + 316, 13, SCREEN_DIM);
     }
     if (selGame == G_NIGHT_OFF) {   // solo: one sailor, the bar, the night (the modes that make sense alone; Host above for friends)
@@ -1145,6 +1147,7 @@ void SceneArcade(Game& g) {
     if (gWardrobe >= 0) { if (skins::WardrobePage(gWardrobe)) gWardrobe = -1; return; }
     if (gFlGallery >= 0) { DrawFlightCostumeGallery(gFlGallery); return; }
     if (gFlWardrobe) { if (FlightWardrobePage(gFlSel)) gFlWardrobe = false; return; }
+    if (gSfLocker) { if (ScuffleLockerPage()) gSfLocker = false; return; }
     if (gMfWardrobe) { if (MouthfulWardrobePage()) gMfWardrobe = false; return; }
     if (gNoCloakShot) { gNoCloak = true; gNoCloakShot = false; }
     if (gNoCloak) { if (NightCloakroomPage()) gNoCloak = false; return; }
@@ -1235,6 +1238,7 @@ void DebugArcadeShot(int which) {
     }
     SetAudioSuppressed(false);
 }
+void DebugArcadeScuffleLocker(Game& g, int tab) { g.scene = Scene::Arcade; gSfLocker = true; DebugScuffleLocker(tab); }
 void DebugArcadeFlightWardrobe(Game& g, int tab, const char* pick, int galleryPage) {
     g.scene = Scene::Arcade; gFlGallery = galleryPage; gFlWardrobe = galleryPage < 0;
     if (galleryPage < 0) DebugFlightWardrobe(tab, pick);
