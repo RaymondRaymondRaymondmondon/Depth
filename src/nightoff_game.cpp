@@ -271,8 +271,9 @@ void StepCamera(float dt) {
     float k = std::clamp(p.drunk / 100, 0.0f, 1.0f);
     Vector3 head{p.pos.x, p.st == no::State::PassedOut ? 0.4f : 1.55f, p.pos.y};
     // in a conversation the camera swings round to frame you both (from the side, looking at the pair's middle)
-    if (p.talk.patron >= 0 && p.talk.patron < (int)S.N.patrons.size()) {
-        const no::Patron& c = S.N.patrons[p.talk.patron];
+    int partner = p.talk.patron >= 0 ? p.talk.patron : p.flirt.patron;
+    if (partner >= 0 && partner < (int)S.N.patrons.size()) {
+        const no::Patron& c = S.N.patrons[partner];
         float toC = atan2f(c.pos.y - p.pos.y, c.pos.x - p.pos.x), want = toC - 0.75f;
         S.camYaw += atan2f(sinf(want - S.camYaw), cosf(want - S.camYaw)) * std::min(1.0f, dt * 3);
         head = {(p.pos.x + c.pos.x) / 2 - 0.55f * cosf(S.camYaw + PI / 2), 1.45f, (p.pos.y + c.pos.y) / 2 - 0.55f * sinf(S.camYaw + PI / 2)};
@@ -326,9 +327,10 @@ void Gather(float dt) {
     no::Input& in = p.in;
     in.moveX = in.moveZ = 0; in.run = false;
     if (IsKeyPressed(KEY_H)) S.help = !S.help;
-    bool canMove = p.st == no::State::Active && !S.menu && !S.shot && p.talk.patron < 0 && !nog::Blocking(p);
+    bool canMove = p.st == no::State::Active && !S.menu && !S.shot && p.talk.patron < 0 && p.flirt.patron < 0 && p.leavingT <= 0 && !nog::Blocking(p);
     if (p.talk.patron >= 0 && IsKeyPressed(KEY_ESCAPE)) in.say = 6;
-    Vector2 md = MouseLook(!S.shot && !S.menu && !S.N.over && p.talk.patron < 0 && !nog::Blocking(p));
+    if (p.flirt.patron >= 0 && IsKeyPressed(KEY_ESCAPE)) { if (p.flirt.offer) in.offer = 2; else in.flirtSay = 6; }
+    Vector2 md = MouseLook(!S.shot && !S.menu && !S.N.over && p.talk.patron < 0 && p.flirt.patron < 0 && !nog::Blocking(p));
     S.camYaw += md.x * 0.0025f; S.camPitch = std::clamp(S.camPitch - md.y * 0.002f, -0.9f, 0.35f);
     float wheel = GetMouseWheelMove(); S.camDist = std::clamp(S.camDist - wheel * 0.4f, 1.6f, 6.0f);
     if (canMove) {
@@ -349,6 +351,7 @@ void Gather(float dt) {
         if (IsKeyPressed(KEY_SPACE)) in.dodge = true;
         if (IsKeyPressed(KEY_R)) in.pickUp = true;
         if (IsKeyPressed(KEY_C)) in.smash = true;
+        if (IsKeyPressed(KEY_T)) { int near = S.N.NearestPatron(p, 1.8f); if (near >= 0) in.flirtWith = near; }
         if (in.attack) p.yaw = S.camYaw;   // (you swing where you're looking)
     }
     if (IsKeyPressed(KEY_E) && p.st == no::State::Active && !nog::Blocking(p)) {
@@ -359,7 +362,7 @@ void Gather(float dt) {
         else if (S.N.NearServe(p) || S.N.NearHatch(p)) S.menu = true;
         else if (S.N.NearDoor(p)) in.leave = true;
         else if (gk >= 0 && p.talk.patron < 0) { if (gk <= no::GK_GOLF) nog::OpenMenu(gk, mach); else { in.startGame = gk; in.gameMachine = mach; in.gameOpp = -1; in.gameStake = 0; } }
-        else if (p.talk.patron < 0) { int near = S.N.NearestPatron(p, 1.8f); if (near >= 0) in.talkTo = near; }
+        else if (p.talk.patron < 0 && p.flirt.patron < 0) { int near = S.N.NearestPatron(p, 1.8f); if (near >= 0) in.talkTo = near; }
     }
     if (S.menu && (IsKeyPressed(KEY_ESCAPE) || !(S.N.NearServe(p) || S.N.NearHatch(p)))) S.menu = false;
     (void)dt;
@@ -416,6 +419,7 @@ void DrawHud() {
         DrawWrapped(std::string("\"") + p.talk.theirLine + "\"", {r.x + 16, r.y + 80, r.width - 32, 44}, 17, ink);
         if (p.talk.over) DrawTextCenteredBold(p.talk.result, r.x + r.width / 2, r.y + 150, 16, Color{255, 220, 150, 255});
         else {
+            if (c.type != no::T_STAFF && c.home != "none") { Rectangle fb{r.x + r.width - 132, r.y + 104, 116, 32}; if (Button(fb, "8 Flirt", true, 14) || IsKeyPressed(KEY_EIGHT)) p.in.flirtWith = p.talk.patron; }
             const char* OPT[7] = {"1 Ask", "2 Agree", "3 Joke", "4 Challenge", "5 Listen", "6 Buy a drink", "7 Leave"};
             for (int k = 0; k < 7; k++) {
                 if (k == 4 && c.type != no::T_TALKER) continue;
@@ -428,10 +432,38 @@ void DrawHud() {
             }
         }
     }
+    if (p.flirt.patron >= 0) {
+        const no::Patron& c = n.patrons[p.flirt.patron]; const no::Flirt& F = p.flirt;
+        Rectangle r{SCREEN_W / 2.0f - 360, SCREEN_H - 236.0f, 720, 224};
+        DrawRectangleRounded(r, 0.06f, 6, Fade(Color{40, 14, 22, 255}, 0.93f));
+        DrawRectangleRoundedLinesEx(r, 0.06f, 6, 2, Color{230, 140, 160, 255});
+        TxtBold(TextFormat("%s  (%s)", c.name.c_str(), n.MoodName(c.mood)), r.x + 16, r.y + 10, 17, Color{240, 170, 190, 255});
+        for (int k = 0; k < F.need; k++) DrawCircle((int)(r.x + r.width - 30 - k * 22), (int)r.y + 20, 7, k < F.wins ? Color{240, 120, 150, 255} : Fade(Color{240, 120, 150, 255}, 0.25f));
+        if (!F.myCaption.empty()) DrawWrapped(std::string("You: \"") + F.myCaption + "\"" + (F.substituted ? "  (that is not what you meant to say)" : ""), {r.x + 16, r.y + 36, r.width - 32, 40}, 15, F.substituted ? Color{255, 170, 150, 255} : dim);
+        DrawWrapped(std::string("\"") + F.theirLine + "\"", {r.x + 16, r.y + 76, r.width - 32, 40}, 17, ink);
+        if (!F.tell.empty()) Txt(F.tell, r.x + 16, r.y + 116, 14, Color{200, 190, 255, 255});
+        if (F.offer) {
+            if (Button({r.x + r.width / 2 - 190, r.y + 160, 180, 40}, "Take it", true, 17) || IsKeyPressed(KEY_ONE)) p.in.offer = 1;
+            if (Button({r.x + r.width / 2 + 10, r.y + 160, 180, 40}, "Decline (a friend)", true, 15) || IsKeyPressed(KEY_TWO)) p.in.offer = 2;
+        } else if (F.over) DrawTextCenteredBold(F.result, r.x + r.width / 2, r.y + 170, 16, Color{255, 200, 210, 255});
+        else {
+            static const char* OPEN[4] = {"1 Compliment", "2 Joke", "3 Buy a drink", "4 Ask to dance"}, * BUILD[4] = {"1 Compliment", "2 Joke", "3 Ask about them", "4 Lean in"};
+            static const int OPT_OPEN[4] = {0, 1, 2, 3}, OPT_BUILD[4] = {0, 1, 4, 5};
+            for (int k = 0; k < 5; k++) {
+                Rectangle b{r.x + 16 + k * 138.0f, r.y + 160, 130, 40};
+                bool hov = CheckCollisionPointRec(GetMousePosition(), b);
+                DrawRectangleRounded(b, 0.2f, 6, hov ? Color{110, 50, 66, 255} : Color{70, 30, 42, 255});
+                DrawTextCentered(k == 4 ? "5 Walk away" : (F.round == 0 ? OPEN[k] : BUILD[k]), b.x + b.width / 2, b.y + 12, 14, ink);
+                if (k < 4 && hov) DrawTextCentered(TextFormat("%.0f%% it lands", n.FlirtOdds(p, c, F.round == 0 ? OPT_OPEN[k] : OPT_BUILD[k]) * 100), b.x + b.width / 2, b.y - 18, 12, dim);
+                if ((hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) || IsKeyPressed(KEY_ONE + k)) p.in.flirtSay = k == 4 ? 6 : k;
+            }
+        }
+    }
+    if (p.leavingT > 0) DrawTextCenteredBold(TextFormat("Leaving with %s... (%.0f s)", n.patrons[std::clamp(p.leavingWith, 0, (int)n.patrons.size() - 1)].name.c_str(), p.leavingT), SCREEN_W / 2.0f, SCREEN_H / 2.0f + 60, 20, Color{255, 190, 200, 255});
     // the prompts
-    if (p.st == no::State::Active && !S.menu && p.talk.patron < 0 && !nog::Blocking(p)) {
+    if (p.st == no::State::Active && !S.menu && p.talk.patron < 0 && p.flirt.patron < 0 && !nog::Blocking(p)) {
         int near = n.NearestPatron(p, 1.8f), gk = n.NearGame(p);
-        std::string talkTo = near >= 0 ? "E: talk to " + n.patrons[near].name : "";
+        std::string talkTo = near >= 0 ? "E: talk to " + n.patrons[near].name + (n.patrons[near].type != no::T_STAFF ? "   T: flirt" : "") : "";
         const char* prompt = n.NearServe(p) ? "E: order at the bar" : n.NearHatch(p) ? "E: order food" : n.NearDoor(p) ? "E: walk home (ends your night)" : gk >= 0 ? nog::Prompt(n, p, gk) : near >= 0 ? talkTo.c_str() : nullptr;
         if (prompt) DrawTextCenteredBold(prompt, SCREEN_W / 2.0f, SCREEN_H - 90, 18, brass);
     }
@@ -457,6 +489,7 @@ void DrawHud() {
             if (hov && !d.line.empty()) DrawTextCentered(d.line, SCREEN_W / 2.0f, r.y + r.height + 8, 14, dim);
             if ((hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) || IsKeyPressed(KEY_ONE + k)) { p.in.order = items[k]; S.menu = false; }
         }
+        if (!kitchen && Button({r.x + r.width / 2 - 170, r.y + r.height + 30, 340, 30}, "Buy him one and ask who's trouble tonight", true, 14)) { p.in.askTrouble = true; S.menu = false; }
     }
     // the room's talk: the bartender, the toasts
     { float y = SCREEN_H - 140; int shown = 0; for (int i = (int)n.say.size() - 1; i >= 0 && shown < 4; i--, shown++) { Txt(n.say[i], 18, y, 15, Fade(ink, 1 - shown * 0.2f)); y -= 20; } }
@@ -510,12 +543,22 @@ void DrawMorning(Game& g) {
     DrawRectangle(120, 92, SCREEN_W - 240, 3, Color{30, 26, 22, 255});
     DrawTextCenteredBold(n.Headline(), SCREEN_W / 2.0f, 110, 30, Color{40, 30, 24, 255});
     DrawRectangle(120, 152, SCREEN_W - 240, 1, Color{30, 26, 22, 255});
-    float y = 180;
-    for (const auto& p : n.players) {
-        TxtBold(TextFormat("%s (the %s): %s", p.name.c_str(), no::CrewName(p.crew), no::EndingName(p.ending)), 140, y, 20, Color{40, 30, 24, 255});
-        DrawWrapped(n.MorningLine(p), {160, y + 28, SCREEN_W - 340.0f, 44}, 16, Color{70, 56, 44, 255});
-        Txt(TextFormat("walked in with 200, kept %.0f, %d drinks, peak %.0f drunk, kidneys %d   score %d", p.money, p.drinks, p.peakDrunk, p.kidneys, n.Score(p)), 160, y + 74, 15, Color{90, 74, 58, 255});
-        y += 110;
+    // a column per sailor (two rows of three at most): the ending, the story, the scoreboard
+    int N = (int)n.players.size(), cols = N <= 1 ? 1 : N <= 2 ? 2 : 3;
+    float colW = (SCREEN_W - 160.0f) / cols, y0 = 172;
+    for (int i = 0; i < N; i++) {
+        const no::Player& p = n.players[i];
+        float x = 80 + (i % cols) * colW, y = y0 + (i / cols) * 270.0f, w = colW - 24;
+        Color ink{40, 30, 24, 255}, soft{86, 70, 54, 255};
+        TxtBold(TextFormat("%s (the %s)", p.name.c_str(), no::CrewName(p.crew)), x, y, 19, ink);
+        Txt(no::EndingName(p.ending), x, y + 24, 15, Color{140, 50, 40, 255});
+        float yy = y + 46;
+        for (const auto& line : n.MorningStory(p)) { DrawWrapped(line, {x, yy, w, 60}, 14, soft); yy += 18.0f * (1 + (int)(MeasureText(line.c_str(), 14) / std::max(1.0f, w))); }
+        yy += 6;
+        int total = 0;
+        for (const auto& l : n.ScoreBreakdown(p)) { Txt(l.what, x + 6, yy, 14, soft); Txt(TextFormat("%+d", l.points), x + w - 50, yy, 14, l.points >= 0 ? ink : Color{150, 50, 40, 255}); yy += 17; total += l.points; }
+        DrawRectangle((int)x, (int)yy + 2, (int)w, 1, ink);
+        TxtBold(TextFormat("Score %d", total), x + w - 110, yy + 6, 17, ink);
     }
     if (Button({SCREEN_W / 2.0f - 120, SCREEN_H - 80.0f, 240, 40}, "Back to the arcade", true, 16)) { S.active = false; g.scene = Scene::Arcade; }
 }
@@ -544,7 +587,7 @@ void SceneNightOff(Game& g) {
     DrawHud();
 }
 void NightOffMenuTick(float) {}
-bool NightOffOwnsEsc() { if (!S.active || S.N.over) return false; const no::Player& p = Me(); return S.menu || p.talk.patron >= 0 || nog::Blocking(p); }
+bool NightOffOwnsEsc() { if (!S.active || S.N.over) return false; const no::Player& p = Me(); return S.menu || p.talk.patron >= 0 || p.flirt.patron >= 0 || nog::Blocking(p); }
 // --shots: 0 walking in at 7, 1 at the bar ordering (the menu), 2 hammered at midnight in the games room, 3 the snug,
 // 4 passed out on the floor, 5 the morning paper
 void DebugNightOffShot(Game& g, int which) {
@@ -592,6 +635,18 @@ void DebugNightOffShot(Game& g, int which) {
         if (!crowd.empty()) { no::Patron& f = n.patrons[crowd[0]]; f.pos = {5.2f, 8.7f}; f.goal = f.pos; p.in.attack = no::MV_HAYMAKER; }
         for (int k = 0; k < (which == 15 ? 140 : 2400); k++) n.Step(1 / 60.0f);
         if (which == 16) { for (auto& b : n.brawls) if (!b.over) n.EndBrawl(b); p.st = no::State::Active; p.fight = no::Combat{}; at(8.5f, 12.5f, -PI * 0.6f, -PI * 0.62f, 20); S.camPitch = -0.45f; S.camDist = 5.0f; }
+    }
+    if (which == 18 || which == 19) {   // a flirt with Dottie Finch (a tell you can read sober); the morning after taking her offer
+        for (int i = 0; i < (int)(3 * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f); i++) n.Step(0.1f);
+        int d = -1; for (auto& c : n.patrons) if (c.name == "Dottie Finch") d = c.id;
+        if (d >= 0) {
+            no::Patron& c = n.patrons[d]; c.inside = true; c.gone = false; c.leaving = false; c.talkingTo = -1; c.mood = 70; c.pos = {35.6f, 6.6f}; c.goal = c.pos; c.nextGoalT = 1e9f; c.sitting = false;
+            at(34.6f, 6.0f, 0.5f, 0.2f, 15);
+            n.StartFlirt(p, d); n.FlirtChoose(p, 1);
+            if (p.flirt.tell.empty()) p.flirt.tell = c.name + " glances at the toilets' window.";
+            if (which == 19) { p.name = "You"; p.flirt.offer = true; n.FlirtOffer(p, true); n.over = true; }
+            for (int k = 0; k < 30; k++) StepCamera(1 / 60.0f);
+        }
     }
     if (which == 17) {   // the alley dog, fed and following you in
         p.pos = Vector2Add(n.dog.pos, {0.6f, 0}); for (int k = 0; k < 3; k++) { p.in.feedDog = true; n.Step(0.02f); }

@@ -238,6 +238,7 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"night_game_scratch", [](Game& g) { DebugNightOffShot(g, 12); }}, {"night_game_fortune", [](Game& g) { DebugNightOffShot(g, 13); }},
         {"night_game_menu", [](Game& g) { DebugNightOffShot(g, 14); }},
         {"night_brawl", [](Game& g) { DebugNightOffShot(g, 15); }}, {"night_wreck", [](Game& g) { DebugNightOffShot(g, 16); }}, {"night_dog", [](Game& g) { DebugNightOffShot(g, 17); }},
+        {"night_flirt", [](Game& g) { DebugNightOffShot(g, 18); }}, {"night_morning_kidney", [](Game& g) { DebugNightOffShot(g, 19); }},
         {"mouthful_wardrobe", [](Game& g) { DebugMouthfulWardrobe(); g.scene = Scene::Arcade; DebugArcadeReel(206); }},
         {"arcade_mouthful", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(6); }},
         {"flight_dawn", [](Game& g) { DebugFlightShot(g, 0); }},

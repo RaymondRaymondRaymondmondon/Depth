@@ -44,7 +44,7 @@ int Night::AddPatron(int reg) {
     Patron c; c.id = (int)patrons.size(); c.reg = reg;
     if (reg >= 0) {
         const PatronDef& r = d.regulars[reg];
-        c.name = r.name; c.secret = r.secret; c.tell = r.tell; c.type = r.type; c.thief = r.thief; c.rich = r.rich;
+        c.name = r.name; c.secret = r.secret; c.tell = r.tell; c.type = r.type; c.thief = r.thief; c.rich = r.rich; c.home = r.home;
         for (int t : r.traits) c.traits |= 1u << t;
         c.arriveH = r.arrive + Rand(-0.15f, 0.25f); c.leaveH = r.leave + Rand(-0.3f, 0.3f); c.look = r.look;
     } else {
@@ -54,6 +54,8 @@ int Night::AddPatron(int reg) {
         c.name = d.firstNames[(int)(Rand() * d.firstNames.size()) % d.firstNames.size()] + " " + d.lastNames[(int)(Rand() * d.lastNames.size()) % d.lastNames.size()];
         float r = Rand(); c.thief = r < 0.03f;
         c.secret = c.thief ? "kidney thief" : d.genericSecrets[1 + (int)(Rand() * (d.genericSecrets.size() - 1)) % (d.genericSecrets.size() - 1)];
+        // where going home with them ends up: the regulars' odds, the kidney at 3% (a thief) (doc p. 14)
+        { float u = Rand() * 95; c.home = c.thief ? "kidney" : u < 42 ? "sincere" : u < 58 ? "sweet" : u < 63 ? "rich" : u < 74 ? "married" : "robbery"; if (c.home == "rich") c.rich = true; }
         c.arriveH = Hour(); c.leaveH = std::min(26.9f, Hour() + Rand(1.0f, 3.5f));
         c.look.model = (int)(Rand() * 5) % 5; c.look.build = Rand(0.8f, 1.25f); c.look.height = Rand(0.85f, 1.08f);
         c.look.top = {(unsigned char)Rand(40, 220), (unsigned char)Rand(40, 200), (unsigned char)Rand(40, 200), 255};

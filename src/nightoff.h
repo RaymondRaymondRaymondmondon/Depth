@@ -44,7 +44,7 @@ const char* TypeName(int t);
 struct TypeDef { std::string want, approach, danger, haunt; int tolerance = 4; float hp = 80; };
 struct Look { int model = 1; Color top{120, 100, 80, 255}, hat{80, 70, 60, 255}; float build = 1, height = 1; std::string beard; };
 struct PatronDef {
-    std::string name, secret, tell, staff; int type = T_TALKER; std::vector<int> traits;
+    std::string name, secret, tell, staff, home = "sincere"; int type = T_TALKER; std::vector<int> traits;   // home: where going home with them ends up (doc pp. 13-14)
     bool thief = false, rich = false; int stool = -1; float arrive = 19, leave = 26; Look look;
 };
 struct Lines { std::vector<std::string> v; const std::string& Pick(uint32_t k) const; };
@@ -80,6 +80,10 @@ struct Input {
     int talkTo = -1;                                  // start a conversation with a patron
     int say = -1;                                     // a conversation's option: 0 ask, 1 agree, 2 joke, 3 challenge, 4 listen, 5 buy them a drink, 6 walk away
     bool leave = false;                               // confirm walking home
+    int flirtWith = -1, flirtSay = -1;                // flirt with a patron; a line (0 compliment, 1 joke, 2 a drink, 3 a dance, 4 ask about them, 5 lean in; 6 walk away)
+    int offer = 0;                                    // the offer: 1 take it, 2 decline
+    bool askTrouble = false;                          // ask the bartender who's trouble tonight (a drink on your tab)
+    bool fortuneYes = false;                          // the fortune teller asks you home
     // the bar games (nightoff_games.cpp): start one at a station, then act in it
     int startGame = -1, gameMachine = 0, gameOpp = -1, gameStake = 0;   // GK_*; the table or machine; a patron id (-1 alone, -2 the bartender); the stake
     int gameAct = 0;                                  // 1 throw / shoot / pull / reveal / read, 2 place the cue ball, 3 leave, 4 again, 5 buy another
@@ -92,7 +96,11 @@ struct Talk {                                         // the conversation mini-g
     int patron = -1; int exchanges = 0, wins = 0, losses = 0, target = 4;
     std::string theirLine, myCaption, result; bool over = false; float overT = 0, listenT = 0;
     int lastOption = -1; bool lastWin = false, substituted = false;
-};struct Moment { float t; int kind; std::string text; };   // the night's log (the morning screen's story)
+};struct Moment { float t; int kind; std::string text; };   // the night's log (the morning screen's story; kind 5 is a story worth points)
+struct Flirt {                                        // the flirt mini-game (doc p. 13): open, build, the offer
+    int patron = -1, round = 0, wins = 0, losses = 0, need = 3, lastOption = -1;
+    std::string theirLine, myCaption, tell, result; bool over = false, offer = false, substituted = false, lastWin = false; float overT = 0;
+};
 struct Player {
     int id = 0; std::string name; int crew = 0; bool bot = false;
     State st = State::Active; int ending = E_NONE; std::string wokeAt;
@@ -103,7 +111,10 @@ struct Player {
     bool hiccup = false;
     float swayPh = 0, stumbleT = 0, stumbleDir = 0, vomitT = 0, lurch = 0;   // the drunk walk: a curve, stumbles, a lurch
     int drinks = 0; float peakDrunk = 0, spent = 0;
-    Talk talk; GameSeat game; Combat fight; bool barred = false; std::vector<std::string> items, known;   // items given; secrets learned (patron names whose secret you know)
+    Talk talk; GameSeat game; Combat fight; Flirt flirt; bool barred = false; std::vector<std::string> items, known;
+    int gamesWon = 0, fightsWon = 0, fightsWonSober = 0, eventsSurvived = 0;   // (the morning's scoreboard)
+    std::string homeWith, homeKind, card; bool homeBad = false; float leavingT = 0; int leavingWith = -1;   // going home: with whom, how it went; a bad night's 30 s at the door
+    bool fortuneAsked = false;   // items given; secrets learned (patron names whose secret you know)
     Input in;
     std::vector<Moment> log;
 };
@@ -122,6 +133,7 @@ struct Patron {
     std::vector<int> path; Vector2 goal{}; std::string seatKind; int seat = -1; float nextGoalT = 0; bool sitting = false;
     float drunk = 0, drinkT = 0; int talkingTo = -1, playing = -1;   // playing: a game with that player
     Combat fight; bool outForNight = false;           // (thrown through a window: out for the night)
+    std::string home = "sincere"; uint8_t friendOf = 0;   // where going home ends up; players they'll back in a fight (a declined offer)
     Look look; std::vector<Memory> mem;               // a memory per player
     bool Has(int trait) const { return trait >= 0 && ((traits >> trait) & 1); }
 };
@@ -203,6 +215,19 @@ struct Night {
     void EndBrawl(Brawl& b);
     void AddPop(Vector2 at, float y, const std::string& text, Color c);
     float AfterFightCharisma(const Player& p, const Patron& c) const;   // the after-fight swing with this patron
+    // flirting, going home, the morning (nightoff_flirt.cpp)
+    std::vector<std::pair<std::string, std::string>> flags;   // the night's headline moments: (key, who)
+    void Flag(const std::string& key, const std::string& who = "");
+    void StartFlirt(Player& p, int patron);
+    void FlirtChoose(Player& p, int option);
+    void FlirtOffer(Player& p, bool take);
+    void EndFlirt(Player& p);
+    void GoHome(Player& p, int patron, const std::string& kind);
+    void AskTrouble(Player& p);
+    float FlirtOdds(const Player& p, const Patron& c, int option) const;   // the chance a line lands (0..1)
+    struct ScoreLine { std::string what; int points; };
+    std::vector<ScoreLine> ScoreBreakdown(const Player& p) const;
+    std::vector<std::string> MorningStory(const Player& p) const;
     std::string Headline() const;
     std::string MorningLine(const Player& p) const;
 };

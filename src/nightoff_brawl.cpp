@@ -204,6 +204,7 @@ void Night::Strike(Who att, Who def, float dmg, int weapon, bool hay) {
         if (D->brawl >= 0) brawls[D->brawl].kos++;
         if (def.kind == 0) {
             Player& p = players[def.idx]; p.st = State::Down;
+            if (weapon >= 0 && FD().weapons[weapon].bleed) { Note(p, 9, TextFormat("Stabbed by %s with %s.", NameOf(att).c_str(), FD().weapons[weapon].name.c_str())); Leave(p, E_HOSPITAL, "in the harbour hospital with a stitched arm and a bill for 100"); return; }
             Note(p, 11, TextFormat("Knocked out by %s at %s.", NameOf(att).c_str(), Clock().c_str()));
             if (D->knockouts >= FD().koBarred) { Leave(p, E_THROWN_OUT, "the pavement outside the Gull"); Say("The bartender: \"Three times on my floor. Out.\""); }
         }
@@ -223,7 +224,7 @@ void Night::Attack(Who w, int move) {
             for (auto& b : brawls) if (!b.over) EndBrawl(b);
             AddPop(pos, 2.4f, "BLAM!", {255, 90, 60, 255});
             p.state = PS_GONE; C->held = -1;
-            if (w.kind == 0) { Player& pl = players[w.idx]; Note(pl, 5, "Fired the bartender's shotgun in the Gull."); policeT = 0; Leave(pl, E_ARRESTED, "a cell at the harbour station"); }
+            if (w.kind == 0) { Player& pl = players[w.idx]; Note(pl, 5, "Fired the bartender's shotgun in the Gull."); Flag("shotgun", pl.name); policeT = 0; Leave(pl, E_ARRESTED, "a cell at the harbour station"); }
             return;
         }
         float drift = (AimMul(DrunkOf(w)) - 1) * 0.3f * (Rand() - 0.5f) * 2;
@@ -310,7 +311,7 @@ void Night::EndBrawl(Brawl& b) {
         bool won = standing[c->side] && !standing[1 - c->side];
         if (w.kind == 0) {
             Player& p = players[w.idx];
-            if (won) { c->afterT = FD().afterMin * SECONDS_PER_GAME_MINUTE; Note(p, p.drunk < 20 ? 5 : 11, TextFormat("Won a fight in %s%s.", b.room.c_str(), p.drunk < 20 ? ", sober" : "")); }
+            if (won) { p.fightsWon++; if (p.drunk < 20) p.fightsWonSober++; c->afterT = FD().afterMin * SECONDS_PER_GAME_MINUTE; Note(p, p.drunk < 20 ? 5 : 11, TextFormat("Won a fight in %s%s.", b.room.c_str(), p.drunk < 20 ? ", sober" : "")); }
             else if (!c->Down()) Note(p, 11, TextFormat("Came out of a fight in %s.", b.room.c_str()));
         }
         if (w.kind == 1) { Patron& p = patrons[w.idx]; p.nextGoalT = 0; if (!won && p.Has(D().Trait("good loser"))) p.mood = std::min(100.0f, p.mood + 15); }
@@ -525,7 +526,7 @@ void Night::StepBrawls(float dt) {
             for (Who w : in) {
                 if (Vector2Distance(*PosOf(w), c.pos) > FD().crowdR) continue;
                 Combat* fc = CombatOf(w);
-                bool friendOf = w.kind == 1 && c.mood >= 80;
+                bool friendOf = (w.kind == 1 && c.mood >= 80) || (w.kind == 0 && ((c.friendOf >> std::clamp(w.idx, 0, 7)) & 1));
                 if (!violent && !friendOf) continue;
                 if (Rand() > dt * 1.5f) continue;
                 int side = friendOf ? fc->side : (standing[0] <= standing[1] ? 0 : 1);

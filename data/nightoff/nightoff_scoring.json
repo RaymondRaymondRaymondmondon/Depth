@@ -1,0 +1,56 @@
+{
+  "_source": "A Night Off design doc p. 4 (the scoreboard's points), pp. 13-14 (where going home ends up, with its odds and its morning), p. 3 (endings and the morning after: SIX SAILORS, ONE KIDNEY, A TRIUMPHANT GOAT), p. 29 (nightoff_scoring.json holds the morning screen's points, headlines and story templates).",
+  "points": {
+    "money_per": 10,
+    "game_won": 20,
+    "fight_won": 30, "fight_won_sober": 60,
+    "home_good": 100, "home_bad": 50,
+    "event_survived": 50,
+    "story": 25,
+    "both_kidneys": 50,
+    "walked_sober": 40,
+    "debt_per_10": -5
+  },
+  "_home": "what going home ends up as: the share of the 30 regulars (the regulars carry their own in nightoff_patrons.json 'home'; the generator's extras roll these odds with the kidney at 3%)",
+  "home": [
+    {"key": "sincere", "odds": 40, "good": true,  "morning": "You woke at {who}'s place with breakfast on a tray, a kind word, and a friend for next time."},
+    {"key": "sweet",   "odds": 15, "good": false, "morning": "Tea, a lecture about your liver, and the dawn bus home. {who} waved you off from the door."},
+    {"key": "rich",    "odds": 5,  "good": true,  "morning": "A mansion, a butler who called you 'sir' twice, and a dawn chase across the lawn by {who}'s husband."},
+    {"key": "married", "odds": 10, "good": true,  "morning": "At 4 a.m. a shoe came through {who}'s window. It was their spouse's. You kept the score and lost your own shoe."},
+    {"key": "robbery", "odds": 15, "good": false, "morning": "You woke in the alley without your money or your coat. The dog was wearing your hat. {who} was nowhere."},
+    {"key": "kidney",  "odds": 10, "good": false, "morning": "A bathtub of ice, a note in {who}'s handwriting, a neat stitch. Every drink counts double now."},
+    {"key": "fortune", "odds": 5,  "good": true,  "morning": "You woke with your fortune changed and a card in your pocket: {card}."}
+  ],
+  "extras_kidney": 3,
+  "_headlines": "the morning's one line: the first rule (in this order) the night's log satisfies wins; {n} is the count of sailors, {N} it in words, {who} a name, {thing} a detail",
+  "headlines": [
+    {"when": "shotgun",      "text": "ONE SHOT FIRED AT THE SODDEN GULL; THE SILENCE AFTER IT WAS LOUDER"},
+    {"when": "kidney",       "text": "{N} SAILOR{S}, ONE KIDNEY, A TRIUMPHANT {thing}"},
+    {"when": "window_body",  "text": "{who} LEAVES THE GULL BY THE WINDOW; THE DOOR WAS RIGHT THERE"},
+    {"when": "arrested",     "text": "NAUTILUS CREW HELPS POLICE WITH THEIR ENQUIRIES; POLICE REGRET IT"},
+    {"when": "rich",         "text": "SAILOR CHASED ACROSS MANSION LAWN AT DAWN; BUTLER 'NOT SURPRISED'"},
+    {"when": "hospital",     "text": "HARBOUR HOSPITAL ADMITS SAILOR WITH A STORY AND A SCAR"},
+    {"when": "bartender",    "text": "BARTENDER BEATEN AT HIS OWN DARTBOARD; TAB TORN UP; WITNESSES STUNNED"},
+    {"when": "big_bill",     "text": "GULL'S GAMES ROOM 'MOSTLY STILL THERE', SAYS BARTENDER, TOTTING UP {thing}"},
+    {"when": "one_eighty",   "text": "ONE HUNDRED AND EIGHTY! {who}'S THREE DARTS SILENCE THE GULL"},
+    {"when": "hole_in_one",  "text": "HOLE IN ONE ON {thing}; THE FISH IN THE TANK UNMOVED"},
+    {"when": "slots_kidney", "text": "SLOT MACHINE PAYS OUT A KIDNEY; MANAGEMENT 'LOOKING INTO IT'"},
+    {"when": "married",      "text": "SHOE THROUGH WINDOW AT 4 A.M.; OWNER OF SHOE UNKNOWN; OWNER OF WINDOW FURIOUS"},
+    {"when": "sober_win",    "text": "SOBER SAILOR WINS BAR FIGHT; REGULARS DEMAND A RECOUNT"},
+    {"when": "all_passed",   "text": "{N} SAILOR{S} FOUND ASLEEP IN VARIOUS PLACES"},
+    {"when": "sick",         "text": "THE GULL'S FLOOR HAS SEEN THINGS"},
+    {"when": "fight",        "text": "CHAIRS FLY AT THE SODDEN GULL; BARTENDER ADDS IT TO A TAB"},
+    {"when": "home_sweet",   "text": "SAILOR GOES HOME WITH THE NICEST PERSON IN THE BAR; RECEIVES LECTURE"},
+    {"when": "no_drinks",    "text": "CREW VISITS BAR, DRINKS NOTHING, BARTENDER BAFFLED"},
+    {"when": "all_walked",   "text": "QUIET NIGHT AT THE GULL; NOBODY BELIEVES IT"},
+    {"when": "any",          "text": "{n} DRINKS, {N} SAILOR{S}, ONE SODDEN GULL"}
+  ],
+  "headline_things": ["GOAT", "GULL", "PIANO", "CAT", "LOBSTER", "ACCORDION"],
+  "_woke": "where you wake, by ending",
+  "woke": {
+    "knocked_out": ["on the floor of the games room with a black eye", "in the toilets, where someone dragged you", "under the pool table, holding a cue"],
+    "hospital": ["in the harbour hospital with a stitched arm and a bill for 100"],
+    "arrested": ["in a cell at the harbour station, with a 200 fine and a mugshot"],
+    "thrown_out": ["on the pavement outside the Gull, your tab unpaid"]
+  }
+}

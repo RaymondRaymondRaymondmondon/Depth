@@ -400,6 +400,7 @@ void Fortune(no::Night& n, no::Player& p) {
         DrawWrapped(g.reading.text[k], {c.x - 20, c.y + c.height + 12, c.width + 40, 80}, 14, INK);
     }
     if (g.haveReading && p.visionsT > 0) DrawTextCentered("(The absinthe lets you see what she sees: the marks over everyone's heads.)", r.x + r.width / 2, r.y + 440, 14, Color{200, 190, 255, 255});
+    if (p.fortuneAsked && g.haveReading && p.st == no::State::Active) { if (Btn({r.x + r.width / 2 + 130, r.y + r.height - 100, 220, 40}, "Walk her home", true, 16)) p.in.fortuneYes = true; }
     if (Btn({r.x + r.width / 2 - 110, r.y + r.height - 100, 220, 40}, TextFormat("A reading (%d)", d.fortuneCost), p.money >= d.fortuneCost)) p.in.gameAct = 1;
     if (Btn({r.x + r.width / 2 - 80, r.y + r.height - 50, 160, 36}, "Thank her") || IsKeyPressed(KEY_ESCAPE)) p.in.gameAct = 3;
 }

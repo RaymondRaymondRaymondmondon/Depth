@@ -31,5 +31,39 @@
   "buffs": {
     "laugh": {"text": "A laugh shared: +5 charisma for 5 minutes", "charisma": 0.05, "minutes": 5}
   },
+  "flirt": {
+    "_source": "doc p. 13 (the flirt mini-game: open with a compliment, a joke, a drink or a dance; build with four options; the offer; signals), p. 14 (the kidney thieves are the best flirts, and their lines are the funniest)",
+    "options": ["Pay a compliment", "Crack a joke", "Buy them a drink", "Ask them to dance", "Ask about them", "Lean in"],
+    "you": {
+      "compliment": ["That colour's doing things for this whole room.", "You've the best laugh in the Gull, and I've heard them all.", "Has anyone told you you're the only interesting thing here?"],
+      "joke": ["A squid walks into a bar. Eight drinks, no hands free.", "I'd tell you a joke about the tide, but it'll come back to you.", "What did the ocean say to the sailor? Nothing. It waved."],
+      "drink": ["Whatever they're having, and one for me.", "Let me get this one. And the next.", "Bartender! Something with an umbrella."],
+      "dance": ["Dance with me. Nobody's watching.", "The jukebox is playing our song. It's playing everyone's song.", "Come on, one turn round the floor."],
+      "ask": ["So what's your story?", "What's the best night you've had in here?", "Where'd you learn to smile like that?"],
+      "lean": ["You know, I almost didn't come out tonight.", "It's loud in here. Lean closer.", "I've a feeling about you."]
+    },
+    "drunk": ["Your eyes are like two... no, wait, I've lost it.", "I love you. I love everyone. Where's my drink?", "Do you want to see my anchor? It's a tattoo. Mostly.", "I could lift that table. Watch. No. Don't watch.", "My ship's called the Nautilus. Do you like submarines? I LIKE submarines."],
+    "ok": {
+      "compliment": ["Oh, stop. No, don't stop.", "Flatterer. Keep going.", "Well. Aren't you sweet."],
+      "joke": ["Ha! That's terrible. Tell me another.", "I'm laughing against my better judgement.", "You're an idiot. I like idiots."],
+      "drink": ["Now we're talking.", "You know the way to my heart.", "A gentleman sailor. Rare as pearls."],
+      "dance": ["Lead on, then.", "You're treading on my feet, and I don't mind.", "One more song."],
+      "ask": ["Oh, you don't want to hear all that. Well, if you insist...", "Most people don't ask.", "That's a long story. Have you got all night?"],
+      "lean": ["Closer, then.", "I've a feeling about you, too.", "Careful, sailor."]
+    },
+    "fail": {
+      "compliment": ["Is that a line? It sounded like a line.", "Hm. You say that to everyone.", "I've heard better from the dog."],
+      "joke": ["...", "Was that the joke?", "I'll laugh later. Maybe."],
+      "drink": ["I've got one, thanks.", "Buying me doesn't buy me.", "I'm not that easy. Or that thirsty."],
+      "dance": ["I don't dance.", "Not to this song.", "Ask me after another drink. Yours, not mine."],
+      "ask": ["Why do you want to know?", "Nosy, aren't you.", "Ask me something better."],
+      "lean": ["Back up a bit, sailor.", "That's close enough.", "Personal space. Look it up."]
+    },
+    "thief_ok": ["Oh, you're funny. I could just take you home and keep you.", "You've the healthiest glow in the room. I mean it as a compliment.", "Do you drink much? No reason. I just like a sailor who looks after himself.", "Has anyone ever told you you've beautiful insides?"],
+    "tells": {"kidney": "glances at the toilets' window", "married": "turns a ring on their finger", "sincere": "laughs at your worst joke", "robbery": "eyes your coat pocket", "rich": "checks a gold watch", "sweet": "pours you a water from the jug"},
+    "offer": ["Walk me home?", "My place is upstairs."],
+    "decline": ["Another night, then. You're good company.", "Shame. Stay and have one more, at least.", "Your loss, sailor. I'll be here."],
+    "end_bad": ["I think I'll find someone else to talk to.", "Goodnight, sailor.", "You've had your three chances."]
+  },
   "items": ["a lucky coin", "a brass key", "a bent darts flight", "a scratch-off (unscratched)", "a matchbook from the Brass Monkey"]
 }

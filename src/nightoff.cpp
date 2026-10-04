@@ -54,7 +54,7 @@ static Data Load() {
     for (const Json& x : pj["first_names"].a) d.firstNames.push_back(x.Str0());
     for (const Json& x : pj["last_names"].a) d.lastNames.push_back(x.Str0());
     for (const Json& r : pj["regulars"].a) {
-        PatronDef p; p.name = r["name"].Str0(); p.secret = r["secret"].Str0(); p.tell = r["tell"].Str0(); p.staff = r["staff"].Str0();
+        PatronDef p; p.name = r["name"].Str0(); p.secret = r["secret"].Str0(); p.tell = r["tell"].Str0(); p.staff = r["staff"].Str0(); p.home = r["home"].Str0("sincere");
         std::string ty = r["type"].Str0(); for (int t = 0; t < T_COUNT; t++) if (ty == TypeName(t)) p.type = t;
         for (const Json& tr : r["traits"].a) { int k = d.Trait(tr.Str0()); if (k >= 0) p.traits.push_back(k); }
         p.thief = r["thief"].Bool0(false); p.rich = r["rich"].Bool0(false); p.stool = r["stool"].I(-1); p.arrive = r["arrive"].F(20); p.leave = r["leave"].F(25);
@@ -194,6 +194,8 @@ void Night::Leave(Player& p, int ending, const std::string& where) {
         Say(p.name + (p.name == "You" ? " have" : " has") + " passed out.");
     } else {
         p.st = State::Gone;
+        if (ending == E_ARRESTED) { p.money -= 200; Note(p, 9, "Fined 200 by the harbour magistrate."); }   // (night over, a 200 fine, a mugshot)
+        if (ending == E_HOSPITAL) { p.money -= 100; }                                                    // (the hospital's bill)
         p.wokeAt = where.empty() ? (ending == E_WALKED ? "in your own bunk on the Nautilus" : "somewhere") : where;
         // the tab is settled at the door (doc p. 19)
         float paid = std::min(p.money, p.tab); p.money -= paid; p.tab -= paid;
@@ -282,6 +284,30 @@ void Night::StepPlayer(Player& p, float dt) {
         if (Vector2Distance(c.pos, p.pos) > 3.5f || c.gone || !c.inside) EndTalk(p);
         else if (p.talk.over && (p.talk.overT -= dt) <= 0) EndTalk(p);
     }
+    // flirting (nightoff_flirt.cpp): start one (from a conversation too), choose a line, take or decline the offer
+    if (in.flirtWith >= 0) { if (p.talk.patron == in.flirtWith) EndTalk(p); StartFlirt(p, in.flirtWith); in.flirtWith = -1; }
+    if (in.flirtSay >= 0) { FlirtChoose(p, in.flirtSay); in.flirtSay = -1; }
+    if (in.offer) { FlirtOffer(p, in.offer == 1); in.offer = 0; }
+    if (p.flirt.patron >= 0) {
+        Patron& c = patrons[p.flirt.patron];
+        p.vel = Vector2Scale(p.vel, 0.85f);
+        if (Vector2Distance(c.pos, p.pos) > 3.5f || c.gone || !c.inside) EndFlirt(p);
+        else if (p.flirt.over && (p.flirt.overT -= dt) <= 0) EndFlirt(p);
+    }
+    if (in.askTrouble) { AskTrouble(p); in.askTrouble = false; }
+    if (in.fortuneYes) { in.fortuneYes = false; if (p.game.kind == GK_FORTUNE && p.fortuneAsked) { EndGame(p); GoHome(p, -1, "fortune"); return; } }
+    // a bad night's 30 s at the door: a teammate who gets there first stops it (doc p. 14)
+    if (p.leavingT > 0) {
+        p.vel = {0, 0}; p.pos = Vector2Lerp(p.pos, D().bar.door, std::min(1.0f, dt * 2));
+        bool saved = false; for (const auto& q : players) if (q.id != p.id && (q.st == State::Active || q.st == State::Drinking) && Vector2Distance(q.pos, D().bar.door) < 3.5f) saved = true;
+        if (saved) {
+            Patron& c = patrons[std::clamp(p.leavingWith, 0, (int)patrons.size() - 1)];
+            Say("A short scuffle at the door: " + c.name + " runs for it."); c.gone = true; c.inside = false; c.playing = -1;
+            for (auto& q : players) if (q.id != p.id && Vector2Distance(q.pos, D().bar.door) < 3.5f) Note(q, 5, "Stopped " + c.name + " at the door before they could take " + p.name + " home.");
+            Note(p, 5, "Was rescued from " + c.name + " at the door."); p.leavingT = 0; p.leavingWith = -1;
+        } else if ((p.leavingT -= dt) <= 0) { p.leavingT = 0; int w = p.leavingWith; p.leavingWith = -1; GoHome(p, w, patrons[std::clamp(w, 0, (int)patrons.size() - 1)].home); return; }
+        return;
+    }
     // the bar games
     if (in.startGame >= 0) { std::string why; if (!StartGame(p, in.startGame, in.gameMachine, in.gameOpp, in.gameStake, &why) && !why.empty() && p.id == 0) Say(why); in.startGame = -1; }
     if (in.gameAct) { GameAction(p); in.gameAct = 0; }
@@ -305,37 +331,16 @@ void Night::Step(float dt) {
     StepBrawls(dt);
     // 3 a.m., or every night over
     bool anyone = false; for (const auto& p : players) anyone |= p.st != State::Gone && p.st != State::PassedOut;
-    if (Minutes() >= NIGHT_MINUTES) { for (auto& p : players) if (p.st != State::Gone && p.st != State::PassedOut) Leave(p, E_CLOSING, "on the pavement outside the Gull at 3 a.m., swept out with the glass"); anyone = false; }
+    if (Minutes() >= NIGHT_MINUTES) { for (auto& p : players) if (p.st != State::Gone && p.st != State::PassedOut) Leave(p, p.st == State::Down ? E_KNOCKED_OUT : E_CLOSING, p.st == State::Down ? "on the floor of the Gull with a black eye" : "on the pavement outside the Gull at 3 a.m., swept out with the glass"); anyone = false; }
     if (!anyone) over = true;
 }
 // ---------------------------------------------------------------- the morning (doc pp. 3-4)
-int Night::Score(const Player& p) const {
-    int s = (int)std::max(0.0f, (p.money - 200) / 10);
-    if (p.kidneys >= 2) s += 50;
-    if (p.ending == E_WALKED && p.drunk < 20) s += 40;   // (walked home sober: the hard way)
-    return s;
-}
-std::string Night::Headline() const {
-    // the rarest moment leads (stage 5 builds the full generator from the night's log)
-    int passed = 0, sick = 0, walked = 0, drinks = 0;
-    for (const auto& p : players) { passed += p.ending == E_PASSED_OUT; walked += p.ending == E_WALKED; drinks += p.drinks; for (const auto& m : p.log) sick += m.kind == 2; }
-    int n = (int)players.size();
-    if (passed == n) return TextFormat("%s SAILOR%s FOUND ASLEEP IN VARIOUS PLACES", n == 1 ? "ONE" : TextFormat("%d", n), n == 1 ? "" : "S");
-    if (sick >= 2) return "THE GULL'S FLOOR HAS SEEN THINGS";
-    if (drinks == 0) return "CREW VISITS BAR, DRINKS NOTHING, BARTENDER BAFFLED";
-    if (walked == n && passed == 0) return "QUIET NIGHT AT THE GULL; NOBODY BELIEVES IT";
-    return TextFormat("%d DRINKS, %d SAILORS, ONE SODDEN GULL", drinks, n);
-}
-std::string Night::MorningLine(const Player& p) const {
-    if (p.ending == E_PASSED_OUT) return "You woke " + p.wokeAt + ". Your head is a bell someone keeps ringing.";
-    if (p.ending == E_WALKED) return p.drunk < 20 ? "You walked home sober, which nobody at breakfast believes." : "You walked home, mostly in a straight line, singing.";
-    if (p.ending == E_CLOSING) return "The bartender swept you out with the glass at three.";
-    return "You woke " + p.wokeAt + ".";
-}
+std::string Night::MorningLine(const Player& p) const { auto s = MorningStory(p); return s.empty() ? std::string() : s[0]; }
 
 // ---------------------------------------------------------------- the check (stage 1's gate: walk in, drink, stumble, pass out)
 int NightGamesChecks();
 int NightBrawlChecks();
+int NightFlirtChecks();
 int RunNightTest() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
@@ -424,6 +429,8 @@ int RunNightTest() {
     fails += NightGamesChecks();
     // ---- stage 4: fights, weapons, the mess and the bill
     fails += NightBrawlChecks();
+    // ---- stage 5: flirting, going home, the morning
+    fails += NightFlirtChecks();
     printf(fails ? "A Night Off: %d check(s) FAILED\n" : "A Night Off: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

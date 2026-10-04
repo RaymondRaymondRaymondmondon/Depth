@@ -78,6 +78,36 @@ Build order is the doc's p. 29 (nine stages).
   on the starter's tab. Also checked: barred after three knockouts, Sister Ash, the smashed bottle and the police
   arrest, the dog. Shots `night_brawl`, `night_wreck`, `night_dog`.
 
+## Stage 5: flirting, going home, the morning after (done)
+- `nightoff_flirt.cpp`, data `nightoff_scoring.json` (the scoreboard's points, where going home ends up, the headline
+  rules in order, where you wake), the `flirt` block of `nightoff_dialogue.json` (lines per option, drunk surprises, the
+  thieves' funniest lines, the tells, the offers), and a `home` per regular in `nightoff_patrons.json`.
+- The flirt: T near a patron (or Flirt in a conversation); open with a compliment, a joke, a drink or a dance, then two
+  more exchanges (compliment, joke, ask about them, lean in); each line's chance is charisma + its fit (a romantic
+  patron wants a compliment, a flirty one a joke, a suspicious one a drink first, a loud one a dance) + mood + the
+  after-fight swing. Three successes make the offer (two on a packed night after 10, and for the kidney thieves, the best
+  flirts in the bar); two failures end it. At 60+ what you say is a surprise. A sober player reads the tells (the
+  thief's glance at the toilets' window, a married patron's ring, a sincere laugh).
+- The offer: take it and the night ends in a fade; decline and they're your friend (they join your side in a fight).
+  Where it ends up is the patron's: sincere (40%), a sweet nothing (15%), rich (5%), married (10%: you lose a shoe),
+  robbery (15%: your money and your coat), the kidney thieves (10%: one kidney, every drink counts double); the fortune
+  teller asks you herself after a late reading (a tarot card in your pocket). The extras roll the same odds, the kidney
+  at 3%. A dog at your side saves the kidney; a bad night waits 30 s at the door when there are friends in the bar, and
+  one who gets there first stops it.
+- The bartender, for a drink: who's trouble tonight (one true name, one false).
+- The endings: a stabbing sends you to hospital (a bill of 100), an arrest is a 200 fine, closing time while you're out
+  cold is Knocked out.
+- The morning: the doc's scoreboard (money kept, games won, fights won and won sober, going home, events, stories, both
+  kidneys, walked home sober, the unpaid tab), a headline from the first rule the night satisfies (the shotgun, the
+  kidney, a body through a window, an arrest, the mansion, the hospital, beating the bartender, a big bill, a 180, a
+  hole in one, the slots' kidney, the married one's shoe, a sober win, everyone asleep...), and a story per player
+  (where they woke, the best moment, what they lost). The morning screen shows them in columns.
+- The gate (in `--night-test`): flirt with Dottie Finch, take her offer, wake in a bathtub with one kidney; the
+  headline is "ONE SAILOR, ONE KIDNEY, A TRIUMPHANT <ACCORDION|GOAT|...>". Also checked: the regulars' odds, the
+  line's fit, the dog, the teammate at the door, a sincere night's 100, a declined offer's friend, the bartender's
+  warning. Shots `night_flirt`, `night_morning_kidney`.
+
 ## Next
-5. Flirting and the morning after.  6. Multiplayer (six), modes.
+6. Multiplayer and the morning after.  
+   (six), modes.
 7. Events, the rest of the regulars.  8. Poker and bullshit, cheating, side bets.  9. Sound, profile, internet play.

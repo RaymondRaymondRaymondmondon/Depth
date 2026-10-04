@@ -100,12 +100,13 @@ static void Settle(Night& n, Player& p, int result) {
     g.over = true; g.result = result;
     const char* what = GameName(g.kind);
     if (g.opp == -2) {
-        if (result == 0) { n.Note(p, 3, TextFormat("Beat the bartender at darts and won back a tab of %.0f.", p.tab)); p.tab = 0; g.caption = "The bartender tears up your tab. \"Don't tell anyone.\""; n.bar.mood = std::min(100.0f, n.bar.mood + 5); }
+        if (result == 0) { p.gamesWon++; n.Flag("bartender", p.name); n.Note(p, 5, TextFormat("Beat the bartender at darts and won back a tab of %.0f.", p.tab)); p.tab = 0; g.caption = "The bartender tears up your tab. \"Don't tell anyone.\""; n.bar.mood = std::min(100.0f, n.bar.mood + 5); }
         else { p.tab += 10; g.caption = "\"Ten more on the tab, for the lesson.\""; }
     } else if (g.opp >= 0) {
         Patron& c = n.patrons[g.opp];
         if (g.opp < (int)n.patrons.size() && p.id < (int)c.mem.size()) c.mem[p.id].games += 1;
         if (result == 0) {
+            p.gamesWon++;
             p.money += g.stake; g.caption = TextFormat("You win %d off %s.", g.stake, c.name.c_str());
             if (c.Has(D().Trait("bad loser"))) { c.mood = std::max(0.0f, c.mood - 20); g.caption += " They don't take it well."; }
             else if (c.Has(D().Trait("good loser"))) { c.mood = std::min(100.0f, c.mood + 5); g.caption += " They shake your hand."; }
@@ -148,7 +149,7 @@ void Night::GameAction(Player& p) {
             if (act == 1 && !g.over && g.darts.turn == 0 && g.botT <= 0) {
                 int b0 = g.darts.big[0];
                 g.darts.Throw(in.gameAim);
-                if (g.darts.big[0] > b0) Note(p, 5, "Threw a 180.");
+                if (g.darts.big[0] > b0) { Note(p, 5, "Threw a 180."); Flag("one_eighty", p.name); }
                 if (g.darts.winner >= 0) Settle(*this, p, g.darts.winner == 0 ? 0 : 1);
                 else if (g.darts.turn == 1) g.botT = 1.4f;
             }
@@ -174,7 +175,7 @@ void Night::GameAction(Player& p) {
                 g.golfPath.push_back(g.golf.ball[0].p);
                 g.golf.Shoot(in.gameAim.x, in.gamePower, &g.golfPath);
                 g.replayLen = (int)g.golfPath.size(); g.replayT = g.replayLen / 60.0f;
-                if (g.golf.lastHoled && g.golf.lastStrokes == 1) Note(p, 5, TextFormat("A hole in one on %s.", golf::Course()[g.golf.lastHole].name.c_str()));
+                if (g.golf.lastHoled && g.golf.lastStrokes == 1) { Note(p, 5, TextFormat("A hole in one on %s.", golf::Course()[g.golf.lastHole].name.c_str())); Flag("hole_in_one", golf::Course()[g.golf.lastHole].name); }
                 if (g.golf.turn == 1) g.botT = g.replayT + 1.0f;
             }
             break;
@@ -183,7 +184,7 @@ void Night::GameAction(Player& p) {
                 if (p.money < d.slotCost) { g.caption = "You're out of coins."; g.captionT = 3; break; }
                 p.money -= d.slotCost; g.pull = slots::Spin(g.machine, g.rng); g.pulls++; g.spinT = std::max(0.35f, 1.1f - p.drunk / 140);   // (pulls get faster)
                 p.money += g.pull.pays;
-                if (g.pull.kidney) { p.kidneys = std::min(2, p.kidneys + 1); Note(p, 5, "Hit the kidney line on the slot machine."); }
+                if (g.pull.kidney) { p.kidneys = std::min(2, p.kidneys + 1); Note(p, 5, "Hit the kidney line on the slot machine."); Flag("slots_kidney", p.name); }
                 if (g.pull.pays >= 200) Note(p, 3, TextFormat("Won %d on the slots.", g.pull.pays));
             }
             break;
@@ -204,6 +205,7 @@ void Night::GameAction(Player& p) {
             if (act == 1) {
                 if (p.money < d.fortuneCost) { g.caption = "\"Ten, love. The cards don't read for free.\""; g.captionT = 3; break; }
                 p.money -= d.fortuneCost; g.reading = fortune::Read(*this, p, g.rng); g.haveReading = true;
+                if (!p.fortuneAsked && Hour() >= 22 && g.rng.U() < 0.25f) { p.fortuneAsked = true; g.caption = "She gathers the cards and doesn't look up: \"Walk me home, sailor?\""; g.captionT = 8; }
                 Note(p, 6, "Had a fortune read in the snug.");
             }
             break;
