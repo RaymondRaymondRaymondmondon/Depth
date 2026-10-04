@@ -1,0 +1,35 @@
+{
+  "source": "A Night Off design doc p. 10 (Conversation), p. 26 (Dialogue: text with gibberish voices, captioned; drunk captions substitute the spoken line), p. 40 (conversation math). Lines are ours; the doc asks for about 40 per regular in the end (stage 7).",
+  "you": {
+    "ask":       ["So what brings you here?", "What's the story with you, then?", "Seen anything strange tonight?", "Who's trouble in here?"],
+    "agree":     ["Couldn't agree more.", "That's exactly right.", "Aye, I've said the same.", "You're not wrong."],
+    "joke":      ["A squid walks into a bar. Eight arms, no tip.", "I'd tell you a joke about the Nautilus, but it'd go over your head. Underneath it, actually.", "My captain says I drink like a fish. Fish drink water. Checkmate.", "Why did the crab never share? He was shellfish."],
+    "challenge": ["That's a load of bilge.", "You don't look like much.", "Bet you can't back that up.", "Prove it."],
+    "listen":    ["(You nod.)", "(You nod and sip.)", "(You keep nodding.)", "(You make a sound like listening.)"],
+    "buy":       ["Let me get you one.", "Your next one's on me.", "Barkeep! Whatever they're having."],
+    "drunk_ask":       ["Whashyourname. Wait. I asked that.", "D'you ever think about... squid?"],
+    "drunk_agree":     ["Yesh. Yes. Absolutely. What?", "You're my best friend. Who are you?"],
+    "drunk_joke":      ["Why did the... the thing... HA. I forget. HA.", "Knock knock. No wait, I'M the door."],
+    "drunk_challenge": ["Your face is a hull with barnacles on.", "I could take you. I could take anyone. Hold my drink. Hold me."]
+  },
+  "reply": {
+    "greet":          {"Talker": ["Oh! Sit, sit. Have I told you about my knee?", "Company! At last."], "Flirt": ["Well, hello, sailor.", "Aren't you a pleasant surprise."], "Brooder": ["...", "Go away."], "Hustler": ["Fancy a game? Friendly stakes.", "You've got the look of someone who's good at pool."], "Regular": ["Evening.", "Mind the stool."], "Gambler": ["Cards later? I'm feeling lucky.", "Got any money? Asking for a friend."], "Sailor": ["Nautilus, eh? Bet my lot drinks yours under the table.", "Shore leave! Finally."], "Oddball": ["The gulls are talking tonight. Did you hear?", "Have you ever counted the bubbles in a pint?"], "Staff": ["Buy something or get out.", "What?"]},
+    "ask_ok":         ["Funny you should ask...", "Well, since you're asking nicely...", "Most people don't ask. Here's the thing."],
+    "ask_fail":       ["That's none of your business.", "Who's asking?", "Hmph."],
+    "agree_ok":       ["Exactly! Finally, someone with sense.", "See? This one gets it.", "Ha! Too right."],
+    "agree_fail":     ["You're just saying that.", "Don't patronise me.", "Hm."],
+    "joke_ok":        ["HA! Oh, that's terrible. Tell another.", "*snorts into their drink*", "That's the worst thing I've heard all week. I love it."],
+    "joke_fail":      ["...", "Was that a joke?", "I've heard better from the goat."],
+    "challenge_ok":   ["Ha! You've got some brass. I like that.", "Fair. Fair. You've a point.", "Bold. Very bold."],
+    "challenge_fail": ["Say that again. I dare you.", "You want to take this outside?", "Watch your mouth."],
+    "listen":         ["...and then the second wife, well...", "...so I says to him, I says...", "...and that was the year of the eels...", "...which is why I don't trust lighthouses..."],
+    "drink":          ["Oh, you're a gem.", "Now we're talking.", "Cheers! You're alright."],
+    "end_good":       ["You're alright, you know that?", "Come find me later.", "Here, let me tell you something nobody knows..."],
+    "end_bad":        ["We're done here.", "Clear off.", "I've had enough of you."],
+    "hostile":        ["Get away from me.", "You again.", "One more word."]
+  },
+  "buffs": {
+    "laugh": {"text": "A laugh shared: +5 charisma for 5 minutes", "charisma": 0.05, "minutes": 5}
+  },
+  "items": ["a lucky coin", "a brass key", "a bent darts flight", "a scratch-off (unscratched)", "a matchbook from the Brass Monkey"]
+}

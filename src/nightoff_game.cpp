@@ -37,6 +37,8 @@ const Model* CrewModel(int crew) {
     return rt::LoadAsset(F[std::clamp(crew, 0, 5)]);
 }
 struct Clothes { Color top, trousers, hat, skin; float build; };
+// a patron actually sat down (stools, the snug, the card and dining tables; at the games, the dance floor and the corner they stand)
+bool Seated(const no::Patron& c) { return c.sitting && (c.seatKind == "stool" || c.seatKind == "snug" || c.seatKind == "cards" || c.seatKind == "tables"); }
 Clothes ShoreClothes(int crew) {
     switch (crew) {
         case 0: return {{60, 84, 124, 255}, {52, 50, 58, 255}, {40, 44, 60, 255}, {214, 170, 140, 255}, 1.0f};    // the Diver: a navy pea coat
@@ -144,6 +146,22 @@ void DrawPeople(const no::Night& n) {
         float yaw = -PI * 0.5f;   // (facing the room: -z)
         DrawPerson(m, c, {n.bar.pos.x, 0, n.bar.pos.y}, yaw, P, 0, 0, false);
     }
+    static const char* PM[5] = {"shared/crew/crew_diver.glb", "shared/crew/crew_bosun.glb", "shared/crew/crew_angler.glb", "shared/crew/crew_medic.glb", "shared/crew/crew_medic.glb"};
+    for (const auto& c : n.patrons) {
+        if (!c.inside || c.gone) continue;
+        if (Vector3Distance({c.pos.x, 1, c.pos.y}, S.cam.position) > 40) continue;
+        const Model* m = rt::LoadAsset(PM[std::clamp(c.look.model, 0, 4)]);
+        Clothes cl{c.look.top, Shade(c.look.top, 0.45f), c.look.hat, c.reg >= 0 ? Color{(unsigned char)(170 + (c.reg * 37) % 70), (unsigned char)(120 + (c.reg * 53) % 70), (unsigned char)(90 + (c.reg * 29) % 60), 255} : Color{200, 156, 126, 255}, c.look.build};
+        fig::Pose P; float spd = Vector2Length(c.vel);
+        P.walk = std::clamp(spd / 1.4f, 0.0f, 1.0f); P.walkPh = c.walkPh; P.breathe = S.t * 1.3f + c.id;
+        P.blink = fmodf(S.t + c.id * 0.37f, 3.7f) < 0.12f ? 1.0f : 0.0f;
+        P.sit = Seated(c) ? 1.0f : 0.0f;
+        if (c.talkingTo >= 0) { P.look = 0.1f * sinf(S.t * 2 + c.id); P.shout = 0.3f + 0.3f * sinf(S.t * 9 + c.id); }
+        if (c.drinkT > 0) { P.reach = 0.25f; P.elbow = 0.8f; P.grip = 0.9f; }
+        float lean = sinf(S.t * 0.9f + c.id) * 0.06f * std::clamp(c.drunk / 100, 0.0f, 1.0f);
+        Vector3 feet{c.pos.x, P.sit > 0 ? 0.0f : 0.0f, c.pos.y};
+        DrawPerson(m, cl, feet, c.yaw, P, lean, 0, false);
+    }
     if (S.walkPh.size() < n.players.size()) S.walkPh.resize(n.players.size(), 0);
     for (const auto& p : n.players) {
         if (p.st == no::State::Gone) continue;
@@ -185,6 +203,13 @@ void StepCamera(float dt) {
     no::Player& p = Me();
     float k = std::clamp(p.drunk / 100, 0.0f, 1.0f);
     Vector3 head{p.pos.x, p.st == no::State::PassedOut ? 0.4f : 1.55f, p.pos.y};
+    // in a conversation the camera swings round to frame you both (from the side, looking at the pair's middle)
+    if (p.talk.patron >= 0 && p.talk.patron < (int)S.N.patrons.size()) {
+        const no::Patron& c = S.N.patrons[p.talk.patron];
+        float toC = atan2f(c.pos.y - p.pos.y, c.pos.x - p.pos.x), want = toC - 0.75f;
+        S.camYaw += atan2f(sinf(want - S.camYaw), cosf(want - S.camYaw)) * std::min(1.0f, dt * 3);
+        head = {(p.pos.x + c.pos.x) / 2 - 0.55f * cosf(S.camYaw + PI / 2), 1.45f, (p.pos.y + c.pos.y) / 2 - 0.55f * sinf(S.camYaw + PI / 2)};
+    }
     float lag = std::max(1.5f, 10 - 9 * k);   // (camera lag grows with the meter)
     S.camAt = Vector3Lerp(S.camAt, head, std::min(1.0f, dt * lag));
     if (Vector3Distance(S.camAt, head) > 4) S.camAt = head;
@@ -233,8 +258,9 @@ void Gather(float dt) {
     no::Input& in = p.in;
     in.moveX = in.moveZ = 0; in.run = false;
     if (IsKeyPressed(KEY_H)) S.help = !S.help;
-    bool canMove = p.st == no::State::Active && !S.menu && !S.shot;
-    Vector2 md = MouseLook(!S.shot && !S.menu && !S.N.over);
+    bool canMove = p.st == no::State::Active && !S.menu && !S.shot && p.talk.patron < 0;
+    if (p.talk.patron >= 0 && IsKeyPressed(KEY_ESCAPE)) in.say = 6;
+    Vector2 md = MouseLook(!S.shot && !S.menu && !S.N.over && p.talk.patron < 0);
     S.camYaw += md.x * 0.0025f; S.camPitch = std::clamp(S.camPitch - md.y * 0.002f, -0.9f, 0.35f);
     float wheel = GetMouseWheelMove(); S.camDist = std::clamp(S.camDist - wheel * 0.4f, 1.6f, 6.0f);
     if (canMove) {
@@ -249,6 +275,7 @@ void Gather(float dt) {
         if (S.menu) S.menu = false;
         else if (S.N.NearServe(p) || S.N.NearHatch(p)) S.menu = true;
         else if (S.N.NearDoor(p)) in.leave = true;
+        else if (p.talk.patron < 0) { int near = S.N.NearestPatron(p, 1.8f); if (near >= 0) in.talkTo = near; }
     }
     if (S.menu && (IsKeyPressed(KEY_ESCAPE) || !(S.N.NearServe(p) || S.N.NearHatch(p)))) S.menu = false;
     (void)dt;
@@ -274,9 +301,54 @@ void DrawHud() {
         if (p.charBuffT > 0) fx += "confident  "; if (p.toughBuffT > 0) fx += "steady fists  "; if (p.honestT > 0) fx += "honest  "; if (p.visionsT > 0) fx += "visions  "; if (p.shakesT > 0) fx += "the shakes  "; if (p.hiccup) fx += "hiccups";
         Txt(fx, x, y + 90, 13, dim);
     }
+    // names and mood faces over the patrons near you (traits too, with Absinthe's visions)
+    for (const auto& c : n.patrons) {
+        if (!c.inside || c.gone) continue;
+        float dd = Vector2Distance(c.pos, p.pos); if (dd > 7) continue;
+        Vector2 s = GetWorldToScreen({c.pos.x, (Seated(c) ? 1.55f : 1.95f) * c.look.height, c.pos.y}, S.cam);
+        Vector3 toC = Vector3Subtract({c.pos.x, 1.5f, c.pos.y}, S.cam.position), fw = Vector3Subtract(S.cam.target, S.cam.position);
+        if (Vector3DotProduct(toC, fw) <= 0 || s.x < 0 || s.x > SCREEN_W || s.y < 0 || s.y > SCREEN_H) continue;
+        static const char* FACE[5] = {">:(", ":/", ":|", ":)", ":D"};
+        int mi = c.mood < 20 ? 0 : c.mood < 40 ? 1 : c.mood < 60 ? 2 : c.mood < 80 ? 3 : 4;
+        static const Color FC[5] = {{240, 90, 80, 255}, {240, 160, 90, 255}, {220, 220, 200, 255}, {170, 230, 150, 255}, {255, 220, 110, 255}};
+        float a = std::clamp(1.4f - dd / 6, 0.0f, 1.0f);
+        DrawTextCenteredBold(TextFormat("%s  %s", c.name.c_str(), FACE[mi]), s.x, s.y, 14, Fade(FC[mi], a));
+        bool known = std::find(p.known.begin(), p.known.end(), c.name) != p.known.end();
+        if (p.visionsT > 0 || known) {
+            std::string tr = no::TypeName(c.type); for (int k = 0; k < (int)no::D().traitNames.size(); k++) if (c.Has(k)) tr += ", " + no::D().traitNames[k];
+            DrawTextCentered(tr, s.x, s.y + 16, 12, Fade(Color{200, 190, 255, 255}, a));
+            if (known) DrawTextCentered(c.secret, s.x, s.y + 30, 11, Fade(Color{255, 200, 160, 255}, a));
+        }
+    }
+    // the conversation (doc p. 10): their line, what you said, four options (and listen, a drink, walk away)
+    if (p.talk.patron >= 0) {
+        const no::Patron& c = n.patrons[p.talk.patron];
+        Rectangle r{SCREEN_W / 2.0f - 340, SCREEN_H - 212.0f, 680, 200};
+        DrawRectangleRounded(r, 0.06f, 6, Fade(Color{24, 16, 12, 255}, 0.93f));
+        DrawRectangleRoundedLinesEx(r, 0.06f, 6, 2, brass);
+        TxtBold(TextFormat("%s (%s, %s)", c.name.c_str(), no::TypeName(c.type), n.MoodName(c.mood)), r.x + 16, r.y + 10, 17, brass);
+        Txt(TextFormat("%d won, %d lost", p.talk.wins, p.talk.losses), r.x + r.width - 120, r.y + 12, 14, dim);
+        if (!p.talk.myCaption.empty()) DrawWrapped(std::string("You: \"") + p.talk.myCaption + "\"" + (p.talk.substituted ? "  (that isn't what you meant to say)" : ""), {r.x + 16, r.y + 38, r.width - 32, 40}, 15, p.talk.substituted ? Color{255, 170, 150, 255} : dim);
+        DrawWrapped(std::string("\"") + p.talk.theirLine + "\"", {r.x + 16, r.y + 80, r.width - 32, 44}, 17, ink);
+        if (p.talk.over) DrawTextCenteredBold(p.talk.result, r.x + r.width / 2, r.y + 150, 16, Color{255, 220, 150, 255});
+        else {
+            const char* OPT[7] = {"1 Ask", "2 Agree", "3 Joke", "4 Challenge", "5 Listen", "6 Buy a drink", "7 Leave"};
+            for (int k = 0; k < 7; k++) {
+                if (k == 4 && c.type != no::T_TALKER) continue;
+                Rectangle b{r.x + 16 + k * 93.0f, r.y + 146, 88, 36};
+                bool hov = CheckCollisionPointRec(GetMousePosition(), b);
+                DrawRectangleRounded(b, 0.2f, 6, hov ? Color{90, 64, 40, 255} : Color{56, 40, 28, 255});
+                DrawTextCentered(OPT[k], b.x + b.width / 2, b.y + 10, 13, ink);
+                if (k < 4 && hov) DrawTextCentered(TextFormat("difficulty %.0f", n.Difficulty(c, k)), b.x + b.width / 2, b.y - 16, 12, dim);
+                if ((hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) || IsKeyPressed(KEY_ONE + k)) p.in.say = k;
+            }
+        }
+    }
     // the prompts
-    if (p.st == no::State::Active && !S.menu) {
-        const char* prompt = n.NearServe(p) ? "E: order at the bar" : n.NearHatch(p) ? "E: order food" : n.NearDoor(p) ? "E: walk home (ends your night)" : nullptr;
+    if (p.st == no::State::Active && !S.menu && p.talk.patron < 0) {
+        int near = n.NearestPatron(p, 1.8f);
+        std::string talkTo = near >= 0 ? "E: talk to " + n.patrons[near].name : "";
+        const char* prompt = n.NearServe(p) ? "E: order at the bar" : n.NearHatch(p) ? "E: order food" : n.NearDoor(p) ? "E: walk home (ends your night)" : near >= 0 ? talkTo.c_str() : nullptr;
         if (prompt) DrawTextCenteredBold(prompt, SCREEN_W / 2.0f, SCREEN_H - 90, 18, brass);
     }
     if (p.st == no::State::Vomiting) DrawTextCenteredBold("...", SCREEN_W / 2.0f, SCREEN_H / 2.0f + 40, 30, Color{180, 220, 120, 255});
@@ -365,6 +437,12 @@ void DebugNightOffShot(Game& g, int which) {
     if (which == 2) { at(6, 7, PI, PI * 0.95f, 72); n.t = 60 * no::SECONDS_PER_GAME_MINUTE * 5; p.swayPh = 1.2f; p.lurch = 0.6f; S.rollK = 0.12f; }
     if (which == 3) { at(34, 4, 0, -0.3f, 30); S.camPitch = -0.2f; }
     if (which == 4) { at(18, 6, 0.3f, PI * 0.3f, 100); n.Leave(p, no::E_PASSED_OUT, ""); }
+    if (which == 6 || which == 7) {   // the room at 10 p.m.; a conversation with Old Marlow
+        for (int i = 0; i < (int)(3 * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f); i++) n.Step(0.1f);
+        at(18, 5.5f, PI * 0.5f, PI * 0.42f, 25); S.camPitch = -0.22f;
+        if (which == 7) { int who = -1; for (const auto& c : n.patrons) if (c.inside && !c.gone && c.name == "Old Marlow") who = c.id; if (who < 0) for (const auto& c : n.patrons) if (c.inside && !c.gone && c.type == no::T_TALKER) who = c.id;
+            if (who >= 0) { no::Patron& c = n.patrons[who]; p.pos = Vector2Add(c.pos, {cosf(c.yaw) * 1.1f, sinf(c.yaw) * 1.1f}); S.camYaw = atan2f(c.pos.y - p.pos.y, c.pos.x - p.pos.x) - 0.3f; S.camAt = {p.pos.x, 1.55f, p.pos.y}; n.StartTalk(p, who); n.TalkChoose(p, 0); } }
+    }
     if (which == 5) { p.drinks = 7; p.peakDrunk = 88; n.Leave(p, no::E_PASSED_OUT, ""); n.over = true; }
     for (int i = 0; i < 30; i++) StepCamera(1 / 60.0f);
 }

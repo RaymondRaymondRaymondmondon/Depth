@@ -231,6 +231,7 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"night_door", [](Game& g) { DebugNightOffShot(g, 0); }}, {"night_menu", [](Game& g) { DebugNightOffShot(g, 1); }},
         {"night_hammered", [](Game& g) { DebugNightOffShot(g, 2); }}, {"night_snug", [](Game& g) { DebugNightOffShot(g, 3); }},
         {"night_passedout", [](Game& g) { DebugNightOffShot(g, 4); }}, {"night_morning", [](Game& g) { DebugNightOffShot(g, 5); }},
+        {"night_crowd", [](Game& g) { DebugNightOffShot(g, 6); }}, {"night_talk", [](Game& g) { DebugNightOffShot(g, 7); }},
         {"mouthful_wardrobe", [](Game& g) { DebugMouthfulWardrobe(); g.scene = Scene::Arcade; DebugArcadeReel(206); }},
         {"arcade_mouthful", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(6); }},
         {"flight_dawn", [](Game& g) { DebugFlightShot(g, 0); }},
@@ -802,6 +803,7 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--mouthful-skins-test") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulSkinsTest(); }
     // A Night Off (arcade game 6)
     if (argc >= 2 && strcmp(argv[1], "--night-test") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunNightTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--patron-check") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunPatronCheck(); }
     if (argc >= 2 && strcmp(argv[1], "--mouthful-round") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulRound(argc > 2 ? atoi(argv[2]) : 11, argc > 3 ? (float)atof(argv[3]) : 15.0f, argc > 4 ? (uint32_t)atoi(argv[4]) : 1u, argc > 5 ? atoi(argv[5]) : 1, argc > 6 ? atoi(argv[6]) : 0); }
     if (argc >= 5 && strcmp(argv[1], "--mouthful-duel") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulDuel(argv[2], argv[3], (float)atof(argv[4]), argc > 5 ? atoi(argv[5]) : 40); }
     if (argc >= 2 && strcmp(argv[1], "--flight-society-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSocietyTest(); }

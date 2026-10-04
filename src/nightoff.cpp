@@ -36,9 +36,53 @@ static Data Load() {
     const Json& s = b["spots"];
     B.bartender = V2(s["bartender"]); B.serve = V2(s["serve"]); B.hatch = V2(s["kitchen_hatch"]); B.door = V2(s["front_door"]); B.spawn = V2(s["spawn"]);
     B.dartboard = V2(s["dartboard"]); B.fortune = V2(s["fortune"]); B.mirror = V2(s["mirror"]); B.jukebox = V2(s["jukebox"]);
+    for (const Json& n : b["nav"]["nodes"].a) B.nav.push_back(V2(n));
+    B.navLinks.assign(B.nav.size(), {});
+    for (const Json& l : b["nav"]["links"].a) { int a = l[0].I(-1), c = l[1].I(-1); if (a >= 0 && c >= 0 && a < (int)B.nav.size() && c < (int)B.nav.size()) { B.navLinks[a].push_back(c); B.navLinks[c].push_back(a); } }
+    for (const Json& n : b["nav"]["names"].a) B.navNames.push_back(n.Str0());
+    for (const auto& kv : b["seats"].o) { std::vector<Vector2> v; for (const Json& p : kv.second.a) v.push_back(V2(p)); B.seats.push_back({kv.first, v}); }
+    // the patrons and what they say
+    Json pj = LoadJsonFile(dir + "nightoff_patrons.json");
+    for (int t = 0; t < T_COUNT; t++) {
+        const Json& x = pj["types"][TypeName(t)];
+        d.types[t].want = x["want"].Str0(); d.types[t].approach = x["approach"].Str0(); d.types[t].danger = x["danger"].Str0(); d.types[t].haunt = x["haunt"].Str0("bar");
+        d.types[t].tolerance = x["tolerance"].I(4); d.types[t].hp = x["hp"].F(80);
+    }
+    for (const Json& x : pj["traits"].a) d.traitNames.push_back(x.Str0());
+    for (const Json& x : pj["generic_secrets"].a) d.genericSecrets.push_back(x.Str0());
+    for (const Json& x : pj["first_names"].a) d.firstNames.push_back(x.Str0());
+    for (const Json& x : pj["last_names"].a) d.lastNames.push_back(x.Str0());
+    for (const Json& r : pj["regulars"].a) {
+        PatronDef p; p.name = r["name"].Str0(); p.secret = r["secret"].Str0(); p.tell = r["tell"].Str0(); p.staff = r["staff"].Str0();
+        std::string ty = r["type"].Str0(); for (int t = 0; t < T_COUNT; t++) if (ty == TypeName(t)) p.type = t;
+        for (const Json& tr : r["traits"].a) { int k = d.Trait(tr.Str0()); if (k >= 0) p.traits.push_back(k); }
+        p.thief = r["thief"].Bool0(false); p.rich = r["rich"].Bool0(false); p.stool = r["stool"].I(-1); p.arrive = r["arrive"].F(20); p.leave = r["leave"].F(25);
+        const Json& lk = r["look"]; p.look.model = lk["model"].I(1); p.look.build = lk["build"].F(1); p.look.height = lk["height"].F(1); p.look.beard = lk["beard"].Str0();
+        if (lk["top"].IsArr()) p.look.top = {(unsigned char)lk["top"][0].I(), (unsigned char)lk["top"][1].I(), (unsigned char)lk["top"][2].I(), 255};
+        if (lk["hat"].IsArr()) p.look.hat = {(unsigned char)lk["hat"][0].I(), (unsigned char)lk["hat"][1].I(), (unsigned char)lk["hat"][2].I(), 255};
+        d.regulars.push_back(p);
+    }
+    for (const Json& h : pj["crowd"]["hours"].a) d.crowdHours.push_back({h[0].F(19), h[1].F(4), h[2].F(8)});
+    d.crowdMul[0] = pj["crowd"]["dead"].F(0.5f); d.crowdMul[1] = pj["crowd"]["normal"].F(1); d.crowdMul[2] = pj["crowd"]["packed"].F(1.5f);
+    Json dj = LoadJsonFile(dir + "nightoff_dialogue.json");
+    auto lines = [](const Json& a, Lines& out) { for (const Json& x : a.a) out.v.push_back(x.Str0()); if (out.v.empty()) out.v.push_back("..."); };
+    static const char* OPT[4] = {"ask", "agree", "joke", "challenge"};
+    for (int k = 0; k < 4; k++) {
+        lines(dj["you"][OPT[k]], d.talk.you[k]); lines(dj["you"][std::string("drunk_") + OPT[k]], d.talk.youDrunk[k]);
+        lines(dj["reply"][std::string(OPT[k]) + "_ok"], d.talk.ok[k]); lines(dj["reply"][std::string(OPT[k]) + "_fail"], d.talk.fail[k]);
+    }
+    lines(dj["you"]["listen"], d.talk.listen); lines(dj["you"]["buy"], d.talk.buy);
+    for (int t = 0; t < T_COUNT; t++) lines(dj["reply"]["greet"][TypeName(t)], d.talk.greet[t]);
+    lines(dj["reply"]["listen"], d.talk.listenReply); lines(dj["reply"]["drink"], d.talk.drink); lines(dj["reply"]["end_good"], d.talk.endGood);
+    lines(dj["reply"]["end_bad"], d.talk.endBad); lines(dj["reply"]["hostile"], d.talk.hostile);
+    for (const Json& x : dj["items"].a) d.talk.items.push_back(x.Str0());
     return d;
 }
 const Data& D() { static Data d = Load(); return d; }
+const char* TypeName(int t) { static const char* N[T_COUNT] = {"Talker", "Flirt", "Brooder", "Hustler", "Regular", "Gambler", "Sailor", "Oddball", "Staff"}; return N[std::clamp(t, 0, T_COUNT - 1)]; }
+int Data::Trait(const std::string& n) const { for (int i = 0; i < (int)traitNames.size(); i++) if (traitNames[i] == n) return i; return -1; }
+const std::string& Lines::Pick(uint32_t k) const { static const std::string none = "..."; return v.empty() ? none : v[k % v.size()]; }
+const std::vector<Vector2>* BarData::Seats(const std::string& kind) const { for (const auto& s : seats) if (s.first == kind) return &s.second; return nullptr; }
 int DrinkIndex(const std::string& key) { const auto& v = D().drinks; for (int i = 0; i < (int)v.size(); i++) if (v[i].key == key) return i; return -1; }
 const char* CrewName(int c) { static const char* N[6] = {"Diver", "Whaler", "Stowaway", "Mechanic", "Captain", "Nurse"}; return N[std::clamp(c, 0, 5)]; }
 const char* RoomAt(Vector2 p) {
@@ -61,7 +105,7 @@ std::string Night::Clock() const {
 }
 void Night::Init(const Opts& o) {
     opts = o; rng = o.seed ? o.seed : 1; t = 0; over = false; say.clear(); players.clear();
-    bar = Bartender{}; bar.pos = D().bar.bartender;
+    bar = Bartender{}; bar.pos = D().bar.bartender; patrons.clear();
     static const char* NAMES[6] = {"You", "Player 2", "Player 3", "Player 4", "Player 5", "Player 6"};
     for (int i = 0; i < std::clamp(o.players, 1, 6); i++) {
         Player p; p.id = i; p.name = NAMES[i]; p.crew = i % 6;
@@ -69,6 +113,7 @@ void Night::Init(const Opts& o) {
         p.swayPh = Rand() * 6.28f;
         players.push_back(p);
     }
+    InitPatrons();
     Say("The Sodden Gull, 7 p.m. The bartender looks up.");
 }
 const Band& Night::BandOf(const Player& p) const { const auto& b = D().bands; int k = 0; for (int i = 0; i < (int)b.size(); i++) if (p.drunk >= b[i].from) k = i; return b[k]; }
@@ -219,6 +264,15 @@ void Night::StepPlayer(Player& p, float dt) {
     if (Vector2Length(p.vel) > 0.2f) { float ty = atan2f(p.vel.y, p.vel.x), dyaw = atan2f(sinf(ty - p.yaw), cosf(ty - p.yaw)); p.yaw += dyaw * std::min(1.0f, dt * (8 - 4 * k)); p.lurch = std::clamp(dyaw, -1.0f, 1.0f) * k; }
     p.pos = Vector2Add(p.pos, Vector2Scale(p.vel, dt));
     Collide(p.pos, 0.32f);
+    // a conversation: start one, choose in one
+    if (in.talkTo >= 0) { StartTalk(p, in.talkTo); in.talkTo = -1; }
+    if (in.say >= 0) { TalkChoose(p, in.say); in.say = -1; }
+    if (p.talk.patron >= 0) {
+        Patron& c = patrons[p.talk.patron];
+        p.vel = Vector2Scale(p.vel, 0.85f);
+        if (Vector2Distance(c.pos, p.pos) > 3.5f || c.gone || !c.inside) EndTalk(p);
+        else if (p.talk.over && (p.talk.overT -= dt) <= 0) EndTalk(p);
+    }
     // the menu and the door
     if (in.order >= 0) { std::string why; if (!Order(p, in.order, &why) && !why.empty() && p.id == 0) Say(why); in.order = -1; }
     if (in.leave && NearDoor(p)) Leave(p, E_WALKED, "");
@@ -233,6 +287,7 @@ void Night::Step(float dt) {
     if (bar.servingFor >= 0 && bar.servingFor < (int)players.size() && bar.busyT > 0) goal = {std::clamp(players[bar.servingFor].pos.x, 13.0f, 20.5f), 11.0f};
     bar.pos = Vector2Lerp(bar.pos, goal, std::min(1.0f, dt * 2));
     if (Hour() >= 25) bar.mood = std::max(0.0f, bar.mood - dt * 0.02f);
+    StepPatrons(dt);
     for (auto& p : players) StepPlayer(p, dt);
     // 3 a.m., or every night over
     bool anyone = false; for (const auto& p : players) anyone |= p.st != State::Gone && p.st != State::PassedOut;
@@ -314,6 +369,41 @@ int RunNightTest() {
     check(q.st == State::Gone && q.ending == E_WALKED && q.tab == 0 && q.money == 195, "walking home settles the tab at the door");
     m.Init(o); Player& w = m.players[0]; w.pos = d.bar.serve; w.drunk = 30;
     check(m.Order(w, water) && w.tab == 0, "water is free (and the bartender judges you)");
+    // ---- stage 2: a dead night with the patrons (its gate: a dead night is playable alone)
+    {
+        Night e; Opts eo; eo.players = 1; eo.crowd = 0; eo.seed = 21; e.Init(eo);
+        Player& y = e.players[0];
+        int max8 = 0, max23 = 0, sat = 0;
+        for (int i = 0; i < (int)(5 * 60 * SECONDS_PER_GAME_MINUTE / 0.05f); i++) {   // (7 p.m. to midnight)
+            e.Step(0.05f);
+            int in = 0; for (const auto& c : e.patrons) in += c.inside && !c.gone;
+            if (e.Hour() < 20) max8 = std::max(max8, in);
+            if (e.Hour() > 22.5f && e.Hour() < 23.5f) max23 = std::max(max23, in);
+            if (e.Hour() > 21) for (const auto& c : e.patrons) sat += c.sitting;
+        }
+        check(max8 >= 1 && max8 <= 8, TextFormat("a dead night: %d in by 8 p.m.", max8));
+        check(max23 > max8 && max23 <= 22, TextFormat("the room fills toward the peak (%d at 11 p.m.)", max23));
+        check(sat > 0, "patrons walk to their seats and sit");
+        bool stuck = false; for (const auto& c : e.patrons) if (c.inside && !c.gone) { std::string room = RoomAt(c.pos); if (room == "the street" && !c.leaving) stuck = true; }
+        check(!stuck, "nobody is stuck in the street");
+        // talk to someone: the mini-game runs and ends
+        int who = -1; for (const auto& c : e.patrons) if (c.inside && !c.gone && !c.leaving && c.mood >= 20 && c.type != T_STAFF) { who = c.id; break; }
+        check(who >= 0, "someone to talk to");
+        if (who >= 0) {
+            Patron& c = e.patrons[who]; y.pos = Vector2Add(c.pos, {0.8f, 0}); y.st = State::Active; y.drunk = 25;
+            e.StartTalk(y, who);
+            check(y.talk.patron == who && c.talkingTo == 0 && !y.talk.theirLine.empty(), "a conversation opens: \"" + y.talk.theirLine + "\"");
+            float m0 = c.mood; e.TalkChoose(y, 5);
+            check(c.mood > m0 && y.tab > 0, "buying them a drink: their mood rises, your tab too");
+            for (int k = 0; k < 6 && !y.talk.over; k++) e.TalkChoose(y, k % 2);
+            check(y.talk.over && !y.talk.result.empty(), "it ends: " + y.talk.result);
+            e.EndTalk(y);
+            check(c.talkingTo < 0, "and they go back to their night");
+            // drunk captions: at 80+, half the time the most insulting thing comes out
+            int subs = 0; for (int k = 0; k < 200; k++) { y.drunk = 85; y.talk = Talk{}; c.talkingTo = -1; c.mood = 60; c.bothers = 0; y.pos = Vector2Add(c.pos, {0.8f, 0}); e.StartTalk(y, who); e.TalkChoose(y, 1); subs += y.talk.substituted; e.EndTalk(y); }
+            check(subs > 60 && subs < 140, TextFormat("wrecked, the wrong words come out about half the time (%d of 200)", subs));
+        }
+    }
     printf(fails ? "A Night Off: %d check(s) FAILED\n" : "A Night Off: all checks passed\n", fails);
     return fails ? 1 : 0;
 }
