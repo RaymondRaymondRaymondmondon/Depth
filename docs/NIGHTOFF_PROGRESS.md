@@ -50,6 +50,34 @@ Build order is the doc's p. 29 (nine stages).
 - Not yet: cheating and side bets (stage 8), rain on holes 4 and 7 (events, stage 7), superstitious patrons acting on
   their readings.
 
+## Stage 4: fights, weapons, the mess and the bill (done)
+- `nightoff_brawl.h/.cpp`, data `nightoff_fights.json`. Fighters are `Who` (a player, a patron, the alley dog), each
+  with a `Combat`: HP 100 x toughness, jab / haymaker (a windup you can see) / grab (1.5 s, then thrown) / shove /
+  block (halves) / dodge (above 60 it's falling over); swings drift with the meter above 40, so a drunk haymaker can hit
+  the wrong person and pull them in.
+- A brawl pulls in the violent within 3 m and anyone Delighted with a fighter; Sister Ash ends one by walking in;
+  cowards run below 40% HP; a knockout is 30 s on the floor, three in a night and you're barred (thrown out).
+  Violent patrons challenged in conversation swing first now.
+- Props (`Prop`, 73 in the bar): tables (flip, break under a thrown body), chairs and stools (picked up, swung, thrown,
+  broken), the street windows (a body through one is out for the night), the slot machines, the piano, the mirror,
+  glasses and bottles on the tables (swept off a flipped table), the cue rack (a cue snaps after three hits into a
+  jagged half), darts, golf clubs, the kitchen's pan (Tam sells it for 20) and knife, the shotgun under the till.
+- A bottle smashed on the bar (C) is a broken bottle: the fight is armed and the police come in 3 minutes; while
+  they're in, anyone fighting or armed is arrested. Taking the shotgun bars you; firing it hospitalizes whoever's in
+  the cone, freezes every fight and ends your night in a cell.
+- The ledger: every break in a brawl goes on its bill with what broke it; the bill goes on the starter's tab (if a
+  patron started it and the bartender dislikes you, it's yours anyway); the bartender sours per fight and per break.
+  Winners get the after-fight swing (+10% charisma with violent and loud patrons, -20% with everyone else).
+- The alley dog: share your chips three times (5 each) and it follows you and bites and holds your foes.
+- Scene: props drawn (flipped tables, broken chairs, shattered windows, a sparking slot machine), fight poses (guard,
+  windup, swing, block, flinch, floored), floating hit words, health bars, your corner (HP, weapon, keys), the police
+  countdown, the dog. Controls: LMB jab, RMB haymaker, F grab/throw, G shove, Q block, Space dodge, R pick up, X throw,
+  C smash a bottle, E feed the dog.
+- The gate (in `--night-test`): a brawl started in the games room runs (about 12 s, 6 fighters, 2 knockouts), wrecks
+  it (a table, a window with a body through it, chairs, glasses, a bottle), and the bill matches what broke and lands
+  on the starter's tab. Also checked: barred after three knockouts, Sister Ash, the smashed bottle and the police
+  arrest, the dog. Shots `night_brawl`, `night_wreck`, `night_dog`.
+
 ## Next
-4. Fights and weapons, mess and damage.  5. Flirting and the morning after.  6. Multiplayer (six), modes.
+5. Flirting and the morning after.  6. Multiplayer (six), modes.
 7. Events, the rest of the regulars.  8. Poker and bullshit, cheating, side bets.  9. Sound, profile, internet play.

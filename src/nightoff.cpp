@@ -115,6 +115,7 @@ void Night::Init(const Opts& o) {
         players.push_back(p);
     }
     InitPatrons();
+    InitProps();
     Say("The Sodden Gull, 7 p.m. The bartender looks up.");
 }
 const Band& Night::BandOf(const Player& p) const { const auto& b = D().bands; int k = 0; for (int i = 0; i < (int)b.size(); i++) if (p.drunk >= b[i].from) k = i; return b[k]; }
@@ -138,6 +139,8 @@ bool Night::Order(Player& p, int i, std::string* why) {
     if (kitchen ? !NearHatch(p) : !NearServe(p)) { if (why) *why = kitchen ? "Order food at the kitchen hatch." : "Order at the bar."; return false; }
     // the bartender cuts you off when he's Annoyed and you're past 60, and everyone at last call who's Wrecked
     if (!kitchen && d.drunk > 0 && ((bar.mood < 30 && p.drunk >= 60) || (Hour() >= D().lastCallHour && p.drunk >= 80))) { if (why) *why = "\"You've had enough, sailor.\""; Say("The bartender: \"You've had enough.\""); return false; }
+    if (!kitchen && p.barred) { if (why) *why = "\"You're barred. Water, and then the door.\""; return false; }
+    if (p.fight.brawl >= 0) { if (why) *why = "Not in the middle of a fight."; return false; }
     float price = PriceOf(i);
     if (p.money - p.tab < price && !kitchen) { if (why) *why = "Your tab's bigger than your wages."; return false; }   // (drinks go on the tab: doc p. 19)
     if (kitchen) { if (p.money < price) { if (why) *why = "Not enough money."; return false; } p.money -= price; }
@@ -226,6 +229,7 @@ void Night::StepPlayer(Player& p, float dt) {
     auto dec = [&](float& x) { x = std::max(0.0f, x - dt); };
     dec(p.charBuffT); dec(p.toughBuffT); dec(p.honestT); dec(p.visionsT); dec(p.shakesT); dec(p.stumbleT);
     if (p.st == State::Gone || p.st == State::PassedOut) return;
+    if (p.st == State::Down) { p.vel = {0, 0}; return; }   // (knocked out: StepBrawls counts the 30 s)
     // time sobers you: 1 a game minute (about 15 a real minute)
     p.drunk = std::max(0.0f, p.drunk - D().soberPerMin * dt / SECONDS_PER_GAME_MINUTE);
     if (p.st == State::Drinking || p.st == State::Eating) {
@@ -252,6 +256,9 @@ void Night::StepPlayer(Player& p, float dt) {
     float k = std::clamp(p.drunk / 100, 0.0f, 1.0f);
     p.swayPh += dt * (1.3f + 0.8f * k);
     float speed = (in.run && p.drunk < 60 ? 5.0f : 3.0f) * (1 - 0.25f * k);
+    if (p.fight.Busy()) speed = 0;                                   // (stunned, fallen over, held, smashing a bottle)
+    if (p.fight.grabbing.Valid()) speed *= 0.4f;
+    if (p.fight.windT > 0) speed *= 0.35f;
     if (wl > 0.05f) {
         float weave = (p.drunk >= 40 ? 0.35f + 0.9f * (k - 0.4f) : 0) * sinf(p.swayPh * 1.7f);
         float c = cosf(weave), s = sinf(weave);
@@ -265,6 +272,7 @@ void Night::StepPlayer(Player& p, float dt) {
     if (Vector2Length(p.vel) > 0.2f) { float ty = atan2f(p.vel.y, p.vel.x), dyaw = atan2f(sinf(ty - p.yaw), cosf(ty - p.yaw)); p.yaw += dyaw * std::min(1.0f, dt * (8 - 4 * k)); p.lurch = std::clamp(dyaw, -1.0f, 1.0f) * k; }
     p.pos = Vector2Add(p.pos, Vector2Scale(p.vel, dt));
     Collide(p.pos, 0.32f);
+    PlayerFightInput(p, dt);
     // a conversation: start one, choose in one
     if (in.talkTo >= 0) { StartTalk(p, in.talkTo); in.talkTo = -1; }
     if (in.say >= 0) { TalkChoose(p, in.say); in.say = -1; }
@@ -294,6 +302,7 @@ void Night::Step(float dt) {
     StepPatrons(dt);
     for (auto& p : players) StepPlayer(p, dt);
     StepGames(dt);
+    StepBrawls(dt);
     // 3 a.m., or every night over
     bool anyone = false; for (const auto& p : players) anyone |= p.st != State::Gone && p.st != State::PassedOut;
     if (Minutes() >= NIGHT_MINUTES) { for (auto& p : players) if (p.st != State::Gone && p.st != State::PassedOut) Leave(p, E_CLOSING, "on the pavement outside the Gull at 3 a.m., swept out with the glass"); anyone = false; }
@@ -326,6 +335,7 @@ std::string Night::MorningLine(const Player& p) const {
 
 // ---------------------------------------------------------------- the check (stage 1's gate: walk in, drink, stumble, pass out)
 int NightGamesChecks();
+int NightBrawlChecks();
 int RunNightTest() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
@@ -412,6 +422,8 @@ int RunNightTest() {
     }
     // ---- stage 3: the bar games in the night
     fails += NightGamesChecks();
+    // ---- stage 4: fights, weapons, the mess and the bill
+    fails += NightBrawlChecks();
     printf(fails ? "A Night Off: %d check(s) FAILED\n" : "A Night Off: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

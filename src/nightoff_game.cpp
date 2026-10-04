@@ -97,7 +97,7 @@ void DrawBar(const no::Night& n) {
         if (k == "counter") { rt::DrawWorldCube(c, s, {84, 48, 30, 255}); rt::DrawWorldCube({c.x, b.h + 0.02f, c.z}, {s.x + 0.08f, 0.05f, s.z + 0.1f}, {210, 170, 80, 255}); }
         else if (k == "pool") { rt::DrawWorldCube({c.x, 0.4f, c.z}, {s.x, 0.8f, s.z}, {84, 50, 30, 255}); rt::DrawWorldCube({c.x, 0.82f, c.z}, {s.x - 0.2f, 0.04f, s.z - 0.2f}, {30, 110, 64, 255}); }
         else if (k == "slot") { rt::DrawWorldCube(c, s, {120, 40, 40, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.1f, 0.5f, 0.6f), MatrixTranslate(b.r.x + b.r.width + 0.02f, 1.3f, c.z)), {255, 210, 120, 255}, 1.0f + 0.4f * sinf(S.t * 3 + c.z)); }
-        else if (k == "table") { rt::DrawWorldCube({c.x, b.h - 0.03f, c.z}, {s.x, 0.06f, s.z}, {96, 62, 38, 255}); rt::DrawWorldCube({c.x, b.h / 2, c.z}, {0.12f, b.h, 0.12f}, {60, 40, 28, 255}); }
+        else if (k == "table") {}   // (a prop: see DrawProps)
         else if (k == "hearth") {
             rt::DrawWorldCube(c, s, {80, 70, 66, 255});
             rt::DrawWorldCube({b.r.x - 0.05f, 0.35f, c.z}, {0.3f, 0.7f, 1.8f}, {20, 16, 14, 255});   // (the firebox)
@@ -113,7 +113,7 @@ void DrawBar(const no::Night& n) {
         else rt::DrawWorldCube(c, s, {100, 70, 50, 255});
     }
     // the stools along the bar, the bottles on the back shelf, the dartboard, the jukebox
-    for (const auto& st : B.stools) { rt::DrawWorldCube({st.x, 0.38f, st.y}, {0.08f, 0.76f, 0.08f}, {60, 40, 30, 255}); rt::DrawWorldCube({st.x, 0.78f, st.y}, {0.42f, 0.07f, 0.42f}, {130, 40, 40, 255}); }
+
     rt::DrawWorldCube({17, 1.9f, 11.8f}, {9, 0.06f, 0.35f}, {90, 60, 36, 255}); rt::DrawWorldCube({17, 1.4f, 11.8f}, {9, 0.06f, 0.35f}, {90, 60, 36, 255});
     static const Color BC[5] = {{80, 140, 70, 255}, {150, 90, 40, 255}, {200, 200, 210, 255}, {120, 40, 50, 255}, {220, 180, 90, 255}};
     for (int i = 0; i < 34; i++) { float x = 12.9f + i * 0.25f; int row = i % 2; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.3f, 0.08f), MatrixTranslate(x, 1.58f + row * 0.5f, 11.75f)), BC[(i * 7) % 5], 0.35f); }
@@ -136,6 +136,70 @@ void DrawBar(const no::Night& n) {
     for (int i = 0; i < 24; i++) { float x = 1 + i * 1.65f; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.08f, 0.08f), MatrixTranslate(x, 3.0f - 0.3f * sinf(i * 0.26f * PI), 38)), i % 3 == 0 ? Color{255, 120, 90, 255} : Color{255, 220, 140, 255}, 1.6f); }
     for (float x : {6.0f, 30.0f}) { rt::DrawWorldCube({x, 1.6f, -5}, {0.12f, 3.2f, 0.12f}, {30, 30, 34, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.3f, 0.4f, 0.3f), MatrixTranslate(x, 3.3f, -5)), {255, 210, 140, 255}, 1.8f); }
     (void)n;
+}
+// a fighter's pose: fists up in a brawl, the haymaker's windup (seen coming), the swing, a block, a flinch
+void FightPose(const no::Combat& C, fig::Pose& P, float& lean) {
+    if (C.brawl >= 0) { P.grip = 1; P.elbow = std::max(P.elbow, 0.75f); P.reach = std::max(P.reach, 0.2f); }
+    if (C.windT > 0) { bool hay = C.move == no::MV_HAYMAKER; P.reach = hay ? 0.05f : 0.3f; P.elbow = 1; P.grip = 1; lean -= hay ? 0.18f : 0.05f; }
+    if (C.swingT > 0) { P.swingT = 1 - C.swingT; P.reach = 0.4f + 0.6f * C.swingT; P.elbow = 0.2f; P.grip = 1; lean += 0.12f * C.swingT; }
+    if (C.blockT > 0) { P.elbow = 1; P.reach = 0.3f; P.grip = 1; P.nod = 0.2f; }
+    if (C.grabbing.Valid()) { P.reach = 0.85f; P.elbow = 0.35f; P.grip = 1; }
+    if (C.hitT > 0) { lean -= 0.5f * C.hitT; P.nod = -0.35f; P.shout = 0.6f; }
+    if (C.stunT > 0) { P.nod = 0.4f; lean += 0.1f * sinf(S.t * 9); }
+    if (C.smashT > 0) { P.reach = 0.6f; P.elbow = 0.9f - C.smashT * 0.8f; P.grip = 1; }
+}
+bool Floored(const no::Combat& C) { return C.downT > 0 || C.fallT > 0; }
+void DrawProps(const no::Night& n) {
+    auto cubeR = [](Vector3 c, Vector3 s, float yaw, float tilt, Color col) { rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(s.x, s.y, s.z), MatrixRotateZ(tilt)), MatrixRotateY(-yaw)), MatrixTranslate(c.x, c.y, c.z)), col); };
+    for (size_t i = 0; i < n.props.size(); i++) {
+        const no::Prop& p = n.props[i]; const std::string& k = p.kind;
+        if (p.state == no::PS_GONE) continue;
+        bool broken = p.state == no::PS_BROKEN, over = p.state == no::PS_OVER;
+        float h = (float)(i * 2654435761u % 1000) / 1000.0f;   // (a scatter per prop)
+        Vector3 at = p.pos;
+        if (k == "table") {
+            Color top{96, 62, 38, 255}, leg{60, 40, 28, 255};
+            float th = std::max(0.06f, 0.0f), H = 0.8f;
+            if (broken) { for (int j = 0; j < 4; j++) cubeR({at.x + (j % 2 - 0.5f) * p.size.x * 0.5f, 0.05f, at.z + (j / 2 - 0.5f) * p.size.y * 0.5f}, {p.size.x * 0.45f, 0.05f, 0.18f}, h * 6 + j, 0.2f * j, top); continue; }
+            if (over) { cubeR({at.x + cosf(p.yaw) * 0.3f, p.size.x / 2, at.z + sinf(p.yaw) * 0.3f}, {0.06f, p.size.x, p.size.y}, p.yaw, 0, top); cubeR({at.x - cosf(p.yaw) * 0.1f, 0.45f, at.z - sinf(p.yaw) * 0.1f}, {0.8f, 0.1f, 0.1f}, p.yaw, 0, leg); continue; }
+            rt::DrawWorldCube({at.x, H - th / 2, at.z}, {p.size.x, th, p.size.y}, top); rt::DrawWorldCube({at.x, H / 2, at.z}, {0.12f, H, 0.12f}, leg); continue;
+        }
+        if (k == "chair" || k == "stool") {
+            Color seat = k == "stool" ? Color{130, 40, 40, 255} : Color{110, 72, 44, 255}, wood{70, 46, 30, 255};
+            if (broken) { for (int j = 0; j < 3; j++) cubeR({at.x + (j - 1) * 0.2f, 0.04f, at.z + (h - 0.5f) * 0.3f}, {0.35f, 0.04f, 0.06f}, h * 9 + j * 1.3f, 0, j ? wood : seat); continue; }
+            if (p.state == no::PS_HELD || p.state == no::PS_FLYING) { cubeR({at.x, at.y + 0.2f, at.z}, {0.42f, 0.06f, 0.42f}, p.yaw, PI * 0.5f, seat); cubeR({at.x, at.y - 0.1f, at.z}, {0.06f, 0.6f, 0.06f}, p.yaw, PI * 0.5f, wood); continue; }
+            if (over) { cubeR({at.x, 0.22f, at.z}, {0.42f, 0.42f, 0.07f}, p.yaw + h, 0, seat); cubeR({at.x + 0.25f, 0.06f, at.z}, {0.5f, 0.06f, 0.06f}, p.yaw + h, 0, wood); continue; }
+            float hs = k == "stool" ? 0.76f : 0.46f;
+            rt::DrawWorldCube({at.x, hs / 2, at.z}, {0.07f, hs, 0.07f}, wood); rt::DrawWorldCube({at.x, hs, at.z}, {0.42f, 0.07f, 0.42f}, seat);
+            if (k == "chair") cubeR({at.x - cosf(p.yaw) * 0.19f, hs + 0.25f, at.z - sinf(p.yaw) * 0.19f}, {0.05f, 0.5f, 0.42f}, p.yaw, 0, wood);
+            continue;
+        }
+        if (k == "window") { if (broken) { rt::DrawWorldCube({at.x, at.y, 0.2f}, {1.5f, 1.2f, 0.08f}, {14, 18, 26, 255}); for (int j = 0; j < 5; j++) cubeR({at.x - 0.6f + j * 0.3f, at.y + 0.5f - (j % 3) * 0.15f, 0.22f}, {0.04f, 0.3f + 0.1f * (j % 2), 0.04f}, 0, 0.5f * (j % 3 - 1), {150, 180, 210, 255}); for (int j = 0; j < 6; j++) rt::DrawWorldCube({at.x - 0.7f + j * 0.28f, 0.02f, 0.6f + (j % 3) * 0.25f}, {0.12f, 0.02f, 0.08f}, {150, 180, 210, 255}); } continue; }
+        if (k == "slot") { if (broken) { rt::DrawWorldCube({at.x + 0.42f, 1.3f, at.z}, {0.06f, 0.5f, 0.62f}, {20, 16, 16, 255}); if (fmodf(S.t + h * 3, 1.3f) < 0.08f) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.08f, 0.08f), MatrixTranslate(at.x + 0.5f, 1.4f, at.z)), {255, 230, 140, 255}, 2.0f); } continue; }
+        if (k == "mirror") { rt::DrawWorldCube({at.x, at.y, at.z}, {0.9f, 0.7f, 0.04f}, broken ? Color{60, 64, 70, 255} : Color{170, 190, 200, 255}); continue; }
+        if (k == "piano") { if (broken) for (int j = 0; j < 6; j++) cubeR({at.x - 1 + j * 0.4f, 0.1f, at.z + (j % 2) * 0.4f}, {0.5f, 0.12f, 0.2f}, j, 0.3f, {24, 20, 22, 255}); continue; }
+        // the small things: glasses, bottles, the weapons
+        if (broken) { if (k == "glass" || k == "bottle" || k == "broken") for (int j = 0; j < 4; j++) rt::DrawWorldCube({at.x + (j - 1.5f) * 0.09f, 0.015f, at.z + (h - 0.5f) * 0.2f + j * 0.03f}, {0.05f, 0.015f, 0.04f}, k == "glass" ? Color{210, 220, 220, 255} : Color{60, 120, 70, 255}); continue; }
+        float tilt = over ? PI * 0.5f : 0;
+        float y = over ? 0.05f : at.y;
+        if (k == "glass") rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.12f, 0.08f), MatrixTranslate(at.x, y + 0.06f, at.z)), {220, 190, 120, 255}, 0.25f);
+        else if (k == "bottle" || k == "broken") { cubeR({at.x, y + 0.13f, at.z}, {0.08f, k == "broken" ? 0.16f : 0.24f, 0.08f}, p.yaw, tilt, {50, 110, 60, 255}); if (k == "bottle") cubeR({at.x, y + 0.3f, at.z}, {0.035f, 0.1f, 0.035f}, p.yaw, tilt, {50, 110, 60, 255}); }
+        else if (k == "cue" || k == "jagged") { float L = k == "cue" ? 1.45f : 0.75f; bool up = p.state == no::PS_OK; cubeR({at.x, up ? at.y : y + 0.03f, at.z}, {up ? 0.035f : L, up ? L : 0.035f, 0.035f}, p.yaw, p.state == no::PS_HELD ? -0.9f : 0, {170, 120, 70, 255}); }
+        else if (k == "dart") cubeR({at.x, y, at.z}, {0.15f, 0.02f, 0.02f}, p.yaw, 0, {200, 200, 210, 255});
+        else if (k == "club") cubeR({at.x, y + (over || p.state == no::PS_OK ? 0 : 0.2f), at.z}, {0.04f, 0.95f, 0.04f}, p.yaw, over ? PI * 0.5f : (p.state == no::PS_HELD ? -0.9f : 0.1f), {150, 150, 160, 255});
+        else if (k == "pan") { cubeR({at.x, y + 0.03f, at.z}, {0.3f, 0.05f, 0.3f}, p.yaw, tilt, {40, 40, 44, 255}); cubeR({at.x + cosf(p.yaw) * 0.3f, y + 0.04f, at.z + sinf(p.yaw) * 0.3f}, {0.3f, 0.03f, 0.04f}, p.yaw, 0, {40, 40, 44, 255}); }
+        else if (k == "knife") cubeR({at.x, y + 0.02f, at.z}, {0.28f, 0.02f, 0.04f}, p.yaw, 0, {200, 205, 215, 255});
+        else if (k == "shotgun") cubeR({at.x, y + 0.05f, at.z}, {0.95f, 0.08f, 0.08f}, p.yaw, p.state == no::PS_HELD ? -0.15f : 0, {70, 50, 36, 255});
+    }
+    // the alley dog: a scruffy brown dog of boxes, asleep by the bins until someone shares their chips
+    const no::Dog& d = n.dog;
+    Color fur{124, 86, 52, 255}, dark{70, 48, 30, 255};
+    float yaw = d.yaw, sl = d.sleeping && d.owner < 0 ? 1.0f : 0.0f, step = sinf(d.walkPh) * 0.12f;
+    auto part = [&](float fx, float fy, float fz, Vector3 s, Color c) { Vector2 f{cosf(yaw), sinf(yaw)}, r{-sinf(yaw), cosf(yaw)}; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(s.x, s.y, s.z), MatrixRotateY(-yaw)), MatrixTranslate(d.pos.x + f.x * fx + r.x * fz, fy, d.pos.y + f.y * fx + r.y * fz)), c); };
+    part(0, 0.42f - 0.22f * sl, 0, {0.62f, 0.26f, 0.28f}, fur);
+    part(0.36f, 0.6f - 0.42f * sl, 0, {0.24f, 0.22f, 0.22f}, fur); part(0.5f, 0.56f - 0.42f * sl, 0, {0.12f, 0.1f, 0.12f}, dark);
+    part(-0.36f, 0.55f - 0.3f * sl + 0.05f * sinf(S.t * 12) * (1 - sl), 0, {0.22f, 0.06f, 0.06f}, dark);   // (the tail; it wags when it is yours)
+    if (sl < 1) for (int j = 0; j < 4; j++) part((j < 2 ? 0.22f : -0.22f) + (j % 2 ? step : -step), 0.16f, (j % 2 ? 0.1f : -0.1f), {0.07f, 0.32f, 0.07f}, dark);
 }
 void DrawPeople(const no::Night& n) {
     // the bartender behind his counter, polishing a glass (or reaching for one)
@@ -160,8 +224,10 @@ void DrawPeople(const no::Night& n) {
         if (c.talkingTo >= 0) { P.look = 0.1f * sinf(S.t * 2 + c.id); P.shout = 0.3f + 0.3f * sinf(S.t * 9 + c.id); }
         if (c.drinkT > 0) { P.reach = 0.25f; P.elbow = 0.8f; P.grip = 0.9f; }
         float lean = sinf(S.t * 0.9f + c.id) * 0.06f * std::clamp(c.drunk / 100, 0.0f, 1.0f);
+        FightPose(c.fight, P, lean);
+        if (Floored(c.fight)) P.sit = 0;
         Vector3 feet{c.pos.x, P.sit > 0 ? 0.0f : 0.0f, c.pos.y};
-        DrawPerson(m, cl, feet, c.yaw, P, lean, 0, false);
+        DrawPerson(m, cl, feet, c.yaw, P, lean, 0, Floored(c.fight));
     }
     if (S.walkPh.size() < n.players.size()) S.walkPh.resize(n.players.size(), 0);
     for (const auto& p : n.players) {
@@ -180,8 +246,8 @@ void DrawPeople(const no::Night& n) {
         float lean = sinf(p.swayPh) * (0.03f + 0.16f * k * k) + (p.stumbleT > 0 ? p.stumbleDir * 0.25f : 0);   // (the sway; a stumble throws it)
         if (p.st == no::State::Vomiting) lean = 0;
         float pitch = p.st == no::State::Vomiting ? 0.5f : p.lurch * 0.2f;
-        Matrix dummy = MatrixIdentity(); (void)dummy;
-        DrawPerson(CrewModel(p.crew), ShoreClothes(p.crew), {p.pos.x, 0, p.pos.y}, p.yaw, P, lean, pitch, p.st == no::State::PassedOut);
+        FightPose(p.fight, P, lean);
+        DrawPerson(CrewModel(p.crew), ShoreClothes(p.crew), {p.pos.x, 0, p.pos.y}, p.yaw, P, lean, pitch, p.st == no::State::PassedOut || p.st == no::State::Down || p.fight.fallT > 0);
         // a glass in the hand while drinking
         if (p.st == no::State::Drinking) { Vector3 h{p.pos.x + cosf(p.yaw) * 0.3f, 1.2f + 0.3f * std::clamp((1 - p.actT / 2.5f) * 3, 0.0f, 1.0f), p.pos.y + sinf(p.yaw) * 0.3f}; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.14f, 0.08f), MatrixTranslate(h.x, h.y, h.z)), {230, 170, 60, 255}, 0.5f); }
     }
@@ -249,6 +315,7 @@ void Render(float dt) {
     rt::ApplyGameQuality();
     rt::RenderBegin(S.cam, L);
     DrawBar(n);
+    DrawProps(n);
     DrawPeople(n);
     rt::RenderEnd();
 }
@@ -272,9 +339,23 @@ void Gather(float dt) {
         in.moveX = w.x; in.moveZ = w.y; in.run = IsKeyDown(KEY_LEFT_SHIFT);
     }
     // E: the menu at the bar or the hatch; walk home at the door
+    if (canMove) {   // fighting (doc p. 15): LMB jab, RMB haymaker, F grab (again: throw), G shove, Q block, Space dodge, R pick up / put down, X throw it, C smash a bottle on the bar
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) in.attack = no::MV_JAB;
+        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) in.attack = no::MV_HAYMAKER;
+        if (IsKeyPressed(KEY_F)) in.attack = no::MV_GRAB;
+        if (IsKeyPressed(KEY_G)) in.attack = no::MV_SHOVE;
+        if (IsKeyPressed(KEY_X)) in.attack = no::MV_THROW;
+        in.block = IsKeyDown(KEY_Q);
+        if (IsKeyPressed(KEY_SPACE)) in.dodge = true;
+        if (IsKeyPressed(KEY_R)) in.pickUp = true;
+        if (IsKeyPressed(KEY_C)) in.smash = true;
+        if (in.attack) p.yaw = S.camYaw;   // (you swing where you're looking)
+    }
     if (IsKeyPressed(KEY_E) && p.st == no::State::Active && !nog::Blocking(p)) {
         int mach = 0, gk = S.N.NearGame(p, &mach);
+        bool byDog = Vector2Distance(p.pos, S.N.dog.pos) < 1.6f && S.N.dog.owner != p.id;
         if (S.menu) S.menu = false;
+        else if (byDog) in.feedDog = true;
         else if (S.N.NearServe(p) || S.N.NearHatch(p)) S.menu = true;
         else if (S.N.NearDoor(p)) in.leave = true;
         else if (gk >= 0 && p.talk.patron < 0) { if (gk <= no::GK_GOLF) nog::OpenMenu(gk, mach); else { in.startGame = gk; in.gameMachine = mach; in.gameOpp = -1; in.gameStake = 0; } }
@@ -385,6 +466,39 @@ void DrawHud() {
         const char* L[] = {"WASD: walk (Shift: hurry)   Mouse: look", "E: the bar, the hatch, a game, a patron; the door: home", "Every drink: charisma down, toughness up", "H: hide this"};
         for (int i = 0; i < 4; i++) Txt(L[i], r.x + 12, r.y + 10 + i * 23, 14, i < 2 ? ink : dim);
     }
+    // the fight: the hits' words, health over everyone in a brawl near you, your own state, the police
+    for (const auto& pp : n.pops) {
+        Vector3 toC = Vector3Subtract(pp.pos, S.cam.position), fw = Vector3Subtract(S.cam.target, S.cam.position);
+        if (Vector3DotProduct(toC, fw) <= 0) continue;
+        Vector2 s = GetWorldToScreen(pp.pos, S.cam); float a = std::min(1.0f, pp.t);
+        DrawTextCenteredBold(pp.text, s.x, s.y, 22 + (int)(8 * std::max(0.0f, pp.t - 1)), Fade(pp.col, a));
+    }
+    auto hpBar = [&](Vector2 at, float hh, const no::Combat& c, bool mine) {
+        if (c.brawl < 0 && c.downT <= 0) return;
+        Vector3 w{at.x, hh, at.y}; Vector3 toC = Vector3Subtract(w, S.cam.position), fw = Vector3Subtract(S.cam.target, S.cam.position);
+        if (Vector3DotProduct(toC, fw) <= 0 || Vector2Distance(at, p.pos) > 12) return;
+        Vector2 s = GetWorldToScreen(w, S.cam); float k = c.hpMax > 0 ? c.hp / c.hpMax : 0;
+        DrawRectangle((int)s.x - 26, (int)s.y, 52, 6, Fade(BLACK, 0.6f)); DrawRectangle((int)s.x - 25, (int)s.y + 1, (int)(50 * std::clamp(k, 0.0f, 1.0f)), 4, mine || c.side == p.fight.side ? Color{120, 220, 120, 255} : Color{230, 90, 70, 255});
+        if (c.downT > 0.5f) DrawTextCentered(TextFormat("out %.0f", c.downT), s.x, s.y - 16, 13, Color{255, 160, 140, 255});
+    };
+    for (const auto& c : n.patrons) if (c.inside && !c.gone) hpBar(c.pos, 2.15f * c.look.height, c.fight, false);
+    if (p.fight.brawl >= 0 || p.fight.held >= 0 || p.st == no::State::Down) {
+        Rectangle r{18, SCREEN_H - 250.0f, 300, 92};
+        DrawRectangleRounded(r, 0.1f, 6, Fade(Color{20, 12, 8, 255}, 0.75f));
+        TxtBold(p.st == no::State::Down ? TextFormat("Knocked out (%.0f s)", p.fight.downT) : p.fight.brawl >= 0 ? "In a fight" : "Armed", r.x + 12, r.y + 8, 16, Color{255, 190, 150, 255});
+        Bar(r.x + 12, r.y + 32, 270, 12, p.fight.hpMax > 0 ? p.fight.hp / p.fight.hpMax : 0, Color{120, 220, 120, 255});
+        std::string held = p.fight.held >= 0 && p.fight.held < (int)n.props.size() && n.props[p.fight.held].weapon >= 0 ? no::FD().weapons[n.props[p.fight.held].weapon].name : "bare fists";
+        Txt(TextFormat("%s   (knockouts tonight: %d)", held.c_str(), p.fight.knockouts), r.x + 12, r.y + 50, 14, dim);
+        Txt("LMB jab  RMB haymaker  F grab/throw  G shove  Q block  Space dodge  R pick up  X throw", r.x + 12, r.y + 70, 11, dim);
+    }
+    if (n.policeT > 0) DrawTextCenteredBold(TextFormat("The police are on their way: %d:%02d", (int)n.policeT / 60, (int)n.policeT % 60), SCREEN_W / 2.0f, 64, 18, Color{140, 180, 255, 255});
+    if (n.policeInT > 0) DrawTextCenteredBold("THE POLICE ARE IN THE BAR", SCREEN_W / 2.0f, 64, 20, Color{140, 180, 255, 255});
+    if (p.st == no::State::Active && !S.menu && p.talk.patron < 0 && !nog::Blocking(p) && p.fight.held < 0) {
+        int k = n.NearestProp(p.pos, 1.6f, true);
+        if (k >= 0 && n.props[k].weapon >= 0 && n.NearGame(p) < 0 && n.NearestPatron(p, 1.8f) < 0) DrawTextCentered(TextFormat("R: pick up %s", no::FD().weapons[n.props[k].weapon].name.c_str()), SCREEN_W / 2.0f, SCREEN_H - 64, 15, dim);
+        if (Vector2Distance(p.pos, n.dog.pos) < 1.6f && n.dog.owner != p.id) DrawTextCenteredBold(TextFormat("E: share your chips with the dog (5)  [%d of %d]", n.dog.fed[std::clamp(p.id, 0, 5)], no::FD().dogFeeds), SCREEN_W / 2.0f, SCREEN_H - 90, 18, brass);
+    }
+    if (p.fight.held >= 0 && n.props[p.fight.held].kind == "bottle" && p.pos.x > 12 && p.pos.x < 21.5f && p.pos.y > 7.6f && p.pos.y < 9.2f) DrawTextCentered("C: smash it on the bar", SCREEN_W / 2.0f, SCREEN_H - 64, 15, Color{255, 170, 130, 255});
     // the bar games: the opponent-and-stake menu, or the game being played
     nog::Frame(n, p, S.shot ? 1 / 60.0f : GetFrameTime());
 }
@@ -468,6 +582,22 @@ void DebugNightOffShot(Game& g, int which) {
             if (kind == no::GK_FORTUNE) { p.in.gameAct = 1; n.GameAction(p); p.in.gameAct = 0; nog::DebugPrepare(kind); }
             gs.captionT = 0;
         }
+    }
+    if (which == 15 || which == 16) {   // a brawl in the games room; and the wreck it leaves
+        for (int i = 0; i < (int)(4 * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f); i++) n.Step(0.1f);
+        std::vector<int> crowd;
+        for (auto& c : n.patrons) if (!c.gone && (c.name == "Cutter Jones" || c.name == "Boxer Mags" || c.name == "Captain Vane" || c.name == "Harrow" || c.name == "Big Ruth")) { c.inside = true; c.leaving = false; c.leaveH = 27; c.talkingTo = -1; c.playing = -1; crowd.push_back(c.id); }
+        for (size_t k = 0; k < crowd.size(); k++) { no::Patron& c = n.patrons[crowd[k]]; c.pos = {4.0f + k * 1.1f, 6.5f + (k % 2) * 1.4f}; c.goal = c.pos; c.path.clear(); c.nextGoalT = 1e9f; }
+        at(5.2f, 9.8f, -PI * 0.5f, -PI * 0.5f, 35); S.camPitch = -0.3f; S.camDist = 4.2f;
+        if (!crowd.empty()) { no::Patron& f = n.patrons[crowd[0]]; f.pos = {5.2f, 8.7f}; f.goal = f.pos; p.in.attack = no::MV_HAYMAKER; }
+        for (int k = 0; k < (which == 15 ? 140 : 2400); k++) n.Step(1 / 60.0f);
+        if (which == 16) { for (auto& b : n.brawls) if (!b.over) n.EndBrawl(b); p.st = no::State::Active; p.fight = no::Combat{}; at(8.5f, 12.5f, -PI * 0.6f, -PI * 0.62f, 20); S.camPitch = -0.45f; S.camDist = 5.0f; }
+    }
+    if (which == 17) {   // the alley dog, fed and following you in
+        p.pos = Vector2Add(n.dog.pos, {0.6f, 0}); for (int k = 0; k < 3; k++) { p.in.feedDog = true; n.Step(0.02f); }
+        for (int k = 0; k < 90; k++) { p.in.moveX = 1; n.Step(1 / 60.0f); }
+        p.in.moveX = 0; at(p.pos.x, p.pos.y, PI, PI * 0.85f, 15); S.camPitch = -0.35f;
+        for (int k = 0; k < 60; k++) n.Step(1 / 60.0f);
     }
     if (which == 5) { p.drinks = 7; p.peakDrunk = 88; n.Leave(p, no::E_PASSED_OUT, ""); n.over = true; }
     for (int i = 0; i < 30; i++) StepCamera(1 / 60.0f);

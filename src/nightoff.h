@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include "nightoff_games.h"
+#include "nightoff_brawl.h"
 
 namespace no {
 
@@ -68,7 +69,7 @@ const char* RoomAt(Vector2 p);    // the room's name, or "the street"
 // ---------------------------------------------------------------- the night
 constexpr float SECONDS_PER_GAME_MINUTE = 4;      // about four real minutes per game hour (doc p. 2)
 constexpr float NIGHT_MINUTES = 8 * 60;           // 7 p.m. to 3 a.m.
-enum class State : uint8_t { Active, Drinking, Eating, Vomiting, PassedOut, Gone };
+enum class State : uint8_t { Active, Drinking, Eating, Vomiting, PassedOut, Gone, Down };   // Down: knocked out (30 s)
 enum Ending : uint8_t { E_NONE, E_WALKED, E_HOME_WITH, E_PASSED_OUT, E_KNOCKED_OUT, E_ARRESTED, E_HOSPITAL, E_ROBBED, E_THROWN_OUT, E_CLOSING };
 const char* EndingName(int e);
 struct Input {
@@ -82,7 +83,10 @@ struct Input {
     // the bar games (nightoff_games.cpp): start one at a station, then act in it
     int startGame = -1, gameMachine = 0, gameOpp = -1, gameStake = 0;   // GK_*; the table or machine; a patron id (-1 alone, -2 the bartender); the stake
     int gameAct = 0;                                  // 1 throw / shoot / pull / reveal / read, 2 place the cue ball, 3 leave, 4 again, 5 buy another
-    Vector2 gameAim{}; float gamePower = 0, gameEnglish = 0;   // darts: where it landed (mm); pool: the cue ball (m) or the shot's angle in .x; golf: angle in .x
+    Vector2 gameAim{}; float gamePower = 0, gameEnglish = 0;
+    // fighting (nightoff_brawl.cpp): a move this frame, held guards, the things in reach
+    int attack = 0;                                   // Move: 1 jab, 2 haymaker (winds up), 3 grab (again: throw), 4 shove, 5 throw what you hold
+    bool block = false, dodge = false, pickUp = false, smash = false, feedDog = false, grabGun = false;   // darts: where it landed (mm); pool: the cue ball (m) or the shot's angle in .x; golf: angle in .x
 };
 struct Talk {                                         // the conversation mini-game (doc p. 10, p. 40)
     int patron = -1; int exchanges = 0, wins = 0, losses = 0, target = 4;
@@ -99,7 +103,7 @@ struct Player {
     bool hiccup = false;
     float swayPh = 0, stumbleT = 0, stumbleDir = 0, vomitT = 0, lurch = 0;   // the drunk walk: a curve, stumbles, a lurch
     int drinks = 0; float peakDrunk = 0, spent = 0;
-    Talk talk; GameSeat game; std::vector<std::string> items, known;   // items given; secrets learned (patron names whose secret you know)
+    Talk talk; GameSeat game; Combat fight; bool barred = false; std::vector<std::string> items, known;   // items given; secrets learned (patron names whose secret you know)
     Input in;
     std::vector<Moment> log;
 };
@@ -117,6 +121,7 @@ struct Patron {
     Vector2 pos{}, vel{}; float yaw = 0, walkPh = 0;
     std::vector<int> path; Vector2 goal{}; std::string seatKind; int seat = -1; float nextGoalT = 0; bool sitting = false;
     float drunk = 0, drinkT = 0; int talkingTo = -1, playing = -1;   // playing: a game with that player
+    Combat fight; bool outForNight = false;           // (thrown through a window: out for the night)
     Look look; std::vector<Memory> mem;               // a memory per player
     bool Has(int trait) const { return trait >= 0 && ((traits >> trait) & 1); }
 };
@@ -177,6 +182,27 @@ struct Night {
     void StepGames(float dt);
     void EndGame(Player& p);
     Vector2 GameSpot(int kind, int machine) const;    // where the opponent stands
+    // fights, weapons, mess and damage (nightoff_brawl.cpp)
+    std::vector<Prop> props; std::vector<Brawl> brawls; std::vector<Pop> pops; Dog dog;
+    float policeT = -1, policeInT = 0, damage = 0;    // police due in (s; -1 none); police in the bar (s); the night's damage
+    void InitProps();
+    void StepBrawls(float dt);
+    Combat* CombatOf(Who w);
+    Vector2* PosOf(Who w);
+    float* YawOf(Who w);
+    std::string NameOf(Who w) const;
+    float DrunkOf(Who w) const;
+    float ToughOf(Who w) const;
+    bool Present(Who w) const;                        // in the bar, standing or down
+    int StartBrawl(Who a, Who b, Who starter);        // a fight between a and b (joins one already going)
+    void Attack(Who w, int move);
+    void Strike(Who att, Who def, float dmg, int weapon, bool haymaker);
+    void BreakProp(int prop, Who by, int brawl, const char* how = nullptr);
+    int NearestProp(Vector2 at, float range, bool weaponsOnly) const;
+    void PlayerFightInput(Player& p, float dt);
+    void EndBrawl(Brawl& b);
+    void AddPop(Vector2 at, float y, const std::string& text, Color c);
+    float AfterFightCharisma(const Player& p, const Patron& c) const;   // the after-fight swing with this patron
     std::string Headline() const;
     std::string MorningLine(const Player& p) const;
 };

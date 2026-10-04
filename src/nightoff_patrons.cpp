@@ -128,6 +128,7 @@ void Night::StepPatrons(float dt) {
             if (h < c.arriveH) continue;
             c.inside = true; c.pos = d.bar.nav.empty() ? Vector2{19.5f, -3} : d.bar.nav[0]; ChooseGoal(*this, c);
         }
+        if (c.fight.brawl >= 0 || c.fight.Down() || c.fight.Busy()) continue;   // (in a fight: StepBrawls moves them)
         // the hour (doc p. 10): everyone loosens after 10 p.m. and sours after 1 a.m.
         if (h >= 22 && h < 25) c.mood = std::min(100.0f, c.mood + dt * 0.03f);
         if (h >= 25) c.mood = std::max(0.0f, c.mood - dt * 0.03f);
@@ -246,7 +247,7 @@ void Night::TalkChoose(Player& p, int o) {
     T.substituted = false;
     if (p.drunk >= 80 && Rand() < 0.5f) { option = 3; T.substituted = true; }   // (at 80+, half the time the most insulting thing comes out)
     else if (p.drunk >= 60 && Rand() < 0.25f) { option = (int)(Rand() * 4) % 4; T.substituted = option != o; }
-    float roll = Rand(1, 100) + (Charisma(p) * 100 - 100);
+    float roll = Rand(1, 100) + (Charisma(p) * 100 - 100) + AfterFightCharisma(p, c) * 100;
     roll += c.mood >= 80 ? 20 : c.mood < 20 ? -40 : c.mood < 40 ? -15 : 0;
     if (Noise() > 0.8f && Vector2Distance(c.pos, p.pos) > 1.0f) roll -= 10;
     bool win = roll >= Difficulty(c, option);
@@ -267,8 +268,8 @@ void Night::TalkChoose(Player& p, int o) {
         T.over = true; T.overT = 3.0f; c.mood = std::max(0.0f, c.mood - 15);
         T.theirLine = d.talk.endBad.Pick((uint32_t)(t * 5));
         bool violent = c.Has(d.Trait("violent"));
-        T.result = violent && T.lastOption == 3 ? c.name + " shoves you. (Fights come aboard in stage 4.)" : c.name + " has had enough of you.";
-        if (violent && T.lastOption == 3) { p.vel = Vector2Scale(Vector2Normalize(Vector2Subtract(p.pos, c.pos)), 4); c.mood = std::max(0.0f, c.mood - 20); Note(p, 4, "Was shoved by " + c.name + "."); }
+        T.result = violent && T.lastOption == 3 ? c.name + " swings at you!" : c.name + " has had enough of you.";
+        if (violent && T.lastOption == 3) { c.mood = std::max(0.0f, c.mood - 20); Note(p, 4, c.name + " took a swing at you."); T.overT = 0.4f; StartBrawl(PatronW(c.id), PlayerW(p.id), PatronW(c.id)); c.fight.foe = PlayerW(p.id); }
     }
 }
 void Night::EndTalk(Player& p) {

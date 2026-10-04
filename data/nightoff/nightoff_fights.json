@@ -1,0 +1,39 @@
+{
+  "_source": "A Night Off design doc pp. 15-17 (Fighting and weapons: the brawl system, who fights, the weapons table, after a fight), p. 5-6 (mess and damage: a chair 10, a window 50, the piano 300), p. 19 (damage on your tab), p. 20 (the bartender: breaking things and fighting sour him). Times in seconds of real time unless named in game minutes.",
+  "hp": 100,
+  "reach": 1.35,
+  "moves": {
+    "jab":      {"damage": 10, "windup": 0.12, "recover": 0.35},
+    "haymaker": {"damage": 25, "windup": 0.8,  "recover": 0.6},
+    "grab":     {"hold": 1.5, "throw_damage": 15, "throw_speed": 6.5},
+    "shove":    {"damage": 4, "push": 3.5, "recover": 0.5},
+    "block":    {"time": 1.2, "factor": 0.5},
+    "dodge":    {"time": 0.45, "fall_from": 60}
+  },
+  "_weapons": "damage, then thrown damage (0: can't be thrown well), hits before it breaks (0: never), what it breaks into, a bleed, a stun on a haymaker; 'armed' calls the police",
+  "weapons": [
+    {"key": "bottle",  "name": "a beer bottle",      "damage": 15, "thrown": 15, "breaks": 0, "smash_to": "broken", "price": 3},
+    {"key": "broken",  "name": "a broken bottle",    "damage": 30, "thrown": 10, "bleed": true, "armed": true, "price": 0},
+    {"key": "cue",     "name": "a pool cue",         "damage": 20, "thrown": 12, "breaks": 3, "break_to": "jagged", "price": 15},
+    {"key": "jagged",  "name": "half a pool cue",    "damage": 25, "thrown": 10, "price": 0},
+    {"key": "chair",   "name": "a chair",            "damage": 20, "thrown": 30, "breaks": 2, "price": 10},
+    {"key": "stool",   "name": "a bar stool",        "damage": 20, "thrown": 28, "breaks": 2, "price": 10},
+    {"key": "pan",     "name": "the frying pan",     "damage": 30, "thrown": 18, "stun": true, "price": 20},
+    {"key": "dart",    "name": "a dart",             "damage": 10, "thrown": 20, "price": 1},
+    {"key": "club",    "name": "a golf club",        "damage": 25, "thrown": 15, "price": 30},
+    {"key": "knife",   "name": "a knife",            "damage": 35, "thrown": 15, "bleed": true, "armed": true, "price": 0},
+    {"key": "shotgun", "name": "the bartender's shotgun", "damage": 0, "thrown": 0, "shotgun": true, "armed": true, "price": 0}
+  ],
+  "_props": "what breaks and what it costs on the tab",
+  "props": {"chair": 10, "stool": 10, "table": 25, "window": 50, "piano": 300, "glass": 2, "bottle": 3, "cue": 15, "dartboard": 40, "slot": 150, "mirror": 60},
+  "knockout_s": 30,
+  "knockouts_barred": 3,
+  "crowd_radius": 3.0,
+  "police_armed_s": 180,
+  "police_shotgun_s": 60,
+  "after": {"violent_loud": 0.10, "others": -0.20, "game_minutes": 5},
+  "bartender": {"per_fight": -10, "per_break": -3, "behind_counter": -15},
+  "cook_pan_price": 20,
+  "dog_feeds": 3,
+  "dog": {"bite": 15, "hold": 1.2}
+}
