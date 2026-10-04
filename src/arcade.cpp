@@ -26,7 +26,7 @@ void ArcadeBetFrame();
 static void DrawBetResult();
 
 namespace {
-int gNoMode = 0, gNoCrowd = 1, gNoCrew = 0, gNoBar = 0, gNoSeason = 0; bool gNoPvp = true;   // (A Night Off: the host's mode, crowd and fights; who you go ashore as)
+int gNoMode = 0, gNoCrowd = 1, gNoCrew = 0, gNoBar = 0, gNoSeason = -1; bool gNoPvp = true;   // (A Night Off: the host's mode, crowd and fights; who you go ashore as)
 
 using namespace arcade;
 
@@ -313,6 +313,8 @@ void DrawReels(Game& g) {
         row(c.y + 44, TextFormat("ashore as %s", CREW[gNoCrew]), gNoCrew, 6);
         row(c.y + 70, TextFormat("solo: %s", no::ModeName(SOLO_MODES[soloMode])), soloMode, 4);
         row(c.y + 96, no::BarName(gNoBar), gNoBar, no::BAR_COUNT);
+        if (gNoSeason < 0) gNoSeason = no::SeasonToday();
+        row(c.y + 122, gNoSeason ? TextFormat("%s %s", no::SeasonName(gNoSeason), no::SeasonWhereText(gNoSeason).c_str()) : "an ordinary night", gNoSeason, no::SeasonCount() + 1);
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Go ashore (solo)", true, 15)) { StartNightOff(g, gNoCrew, SOLO_MODES[soloMode], soloCrowd, gNoBar, gNoSeason); return; }
         if (Button({c.x + 120, c.y + 241, 120, 26}, CROWD[soloCrowd], true, 12)) soloCrowd = (soloCrowd + 1) % 3;
         DrawTextCentered(no::ModeRule(SOLO_MODES[soloMode]), c.x, c.y + 280, 13, SCREEN_DIM);
@@ -617,6 +619,8 @@ void DrawLobby() {
             ch |= pick(p.x + 505, p.y + p.height - 140, CROWD[gNoCrowd], gNoCrowd, 4, true);
             int pv = gNoPvp ? 1 : 0; ch |= pick(p.x + 195, p.y + p.height - 108, pv ? "sailors may fight sailors" : "no fights between sailors", pv, 2, true); gNoPvp = pv != 0;
             ch |= pick(p.x + 195, p.y + p.height - 172, no::BarName(gNoBar), gNoBar, no::BAR_COUNT, true);   // (the two bars, doc p. 30)
+            if (gNoSeason < 0) gNoSeason = no::SeasonToday();   // (the calendar's season; the host may force another, or none)
+            ch |= pick(p.x + 505, p.y + p.height - 172, gNoSeason ? TextFormat("%s %s", no::SeasonName(gNoSeason), no::SeasonWhereText(gNoSeason).c_str()) : "an ordinary night", gNoSeason, no::SeasonCount() + 1, true);
             gSess.gameOpts = NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason);
             if (ch) gSess.Chat(TextFormat("Tonight: %s at %s, %s%s", no::ModeName(gNoMode), no::BarName(gNoBar), CROWD[gNoCrowd], gNoPvp ? "" : ", no fights between sailors"));
         }

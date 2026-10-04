@@ -149,10 +149,11 @@ template <class A> void VisitPatron(A& a, Patron& c, const Player* viewer) {
     a.i(c.look.model); Col(a, c.look.top); Col(a, c.look.hat); a.f(c.look.build); a.f(c.look.height);
     bool known = viewer && std::find(viewer->known.begin(), viewer->known.end(), c.name) != viewer->known.end();
     if (known) a.s(c.secret);
-    a.i(c.ev); a.s(c.role); a.f(c.backAt);
+    a.i(c.ev); a.s(c.role); a.f(c.backAt); a.b(c.unmasked);
     VisitCombat(a, c.fight); a.b(c.outForNight); int fo = c.friendOf; a.i(fo); if constexpr (A::reading) c.friendOf = (uint8_t)fo;
 }
 template <class A> void Visit(A& a, Night& n, int viewer) {
+    a.f(n.fireworksT); a.b(n.powerOut); a.b(n.weddingFree); a.b(n.countdownDone); a.b(n.ceremonyDone); a.i(n.groom); a.i(n.bride); a.b(n.seanceDone);
     a.f(n.t); a.b(n.over); a.i(n.winner); a.f(n.policeT); a.f(n.policeInT); a.f(n.damage); a.b(n.bartenderDarts); a.b(n.midnightBrawl); a.f(n.crewTab);
     { Bartender& b = n.bar; a.f(b.mood); P2(a, b.pos); a.f(b.busyT); a.i(b.servingFor); a.f(b.polishPh); }
     std::vector<std::string> tail;

@@ -84,7 +84,8 @@ void Night::StartFlirt(Player& p, int idx) {
     Flirt F; F.patron = idx;
     // a packed bar after 10 p.m. lowers the bar by one; the kidney thieves make their offer early
     F.need = (opts.crowd == 2 && Hour() >= 22) || c.home == "kidney" ? 2 : 3;
-    if (p.wareT[W_SIREN] > 0) F.need = std::max(1, F.need - 1);   // (the Siren: the offer comes early)
+    if (p.wareT[W_SIREN] > 0) F.need = std::max(1, F.need - 1);
+    if (fireworksT > 0) F.need = std::max(1, F.need - 1);   // (the Festival's fireworks: every flirt one step easier)   // (the Siren: the offer comes early)
     c.talkingTo = p.id;
     if (EventOn("wake")) {   // flirting at a wake is -30 with everyone, and the Reverend notices
         for (auto& o : patrons) if (o.inside && !o.gone && Vector2Distance(o.pos, p.pos) < 12) o.mood = std::max(0.0f, o.mood - 30);
@@ -132,6 +133,12 @@ void Night::FlirtOffer(Player& p, bool take) {
         return;
     }
     int idx = F.patron;
+    auto cool = std::find(p.items.begin(), p.items.end(), "a kidney cooler");
+    if (c.home == "kidney" && cool != p.items.end()) {   // (the Masquerade's prize: you show them a cooler of their own)
+        p.items.erase(cool); c.mood = 0; c.leaveH = Hour();
+        F.offer = false; F.over = true; F.overT = 3; F.result = c.name + " sees the cooler in your hand and remembers an appointment.";
+        Note(p, 5, "Held up an unmasked thief's cooler to " + c.name + ", who fled."); return;
+    }
     EndFlirt(p);
     const HomeDef* h = HomeOf(c.home);
     bool bad = h && !h->good;

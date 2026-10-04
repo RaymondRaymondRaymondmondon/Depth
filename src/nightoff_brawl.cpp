@@ -155,7 +155,7 @@ void Night::BreakProp(int i, Who by, int brawl, const char* how) {
 // ---------------------------------------------------------------- a brawl
 int Night::StartBrawl(Who a, Who b, Who starter) {
     Combat* A = CombatOf(a); Combat* Bc = CombatOf(b); if (!A || !Bc) return -1;
-    if (EventOn("wake")) { Say("Not at a wake. Everyone looks at the coffin."); return -1; }   // (fights are impossible at a wake)
+    if (EventOn("wake") || SeasonIs("wake")) { Say("Not at a wake. Everyone looks at the coffin."); return -1; }   // (fights are impossible at a wake)
     int id = A->brawl >= 0 ? A->brawl : Bc->brawl;
     if (id < 0 || brawls[id].over) {
         Brawl br; br.id = (int)brawls.size(); br.starter = starter; br.at = *PosOf(a); br.room = RoomAt(br.at);

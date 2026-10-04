@@ -161,9 +161,11 @@ void Night::Init(const Opts& o) {
         p.swayPh = Rand() * 6.28f;
         players.push_back(p);
     }
+    if (SeasonIs("festival")) opts.crowd = 2;   // (the Harbour Festival: Packed)
     InitPatrons();
     InitProps();
     ScheduleEvents();
+    SeasonInit();
     Say(o.mode == MD_SOLO ? "The bartender looks up. \"Just you tonight? I'll keep you company.\"" : "The Sodden Gull, 7 p.m. The bartender looks up.");
     // a night can start late (the tests' short nights): the regulars due by then are already in
     if (o.startMinutes > 0) { t = o.startMinutes * SECONDS_PER_GAME_MINUTE; for (int k = 0; k < 40; k++) StepPatrons(0.5f); }
@@ -174,6 +176,8 @@ float Night::Toughness(const Player& p) const { return BandOf(p).toughness * (1 
 float Night::PriceOf(int i) const {
     if (i < 0 || i >= (int)D().drinks.size()) return 0;
     if (freeDrinks) return 0;   // (the shotgun fired at the cartel: the bar is yours)
+    if (SeasonIs("cook") && D().drinks[i].where == "kitchen") return 0;              // (the Cook's Birthday: Tam cooks for free)
+    if (weddingFree && D().drinks[i].where == "bar") return 0;                       // (the Wedding's free bar)
     float p = D().drinks[i].price * D().bar.priceMul, h = Hour();   // (the Monkey's price board: everything 50% more)
     if (lockIn && D().drinks[i].drunk > 0) p *= 2;   // (the lock-in: double prices)
     if (h >= 22) p *= D().rise10;                                   // (prices rise 20% at 10 p.m.)
@@ -234,6 +238,7 @@ static void Finish(Night& n, Player& p, int i) {
         else p.hiccup = true;
     }
     if (d.key == "water") n.Say("The bartender pours a water. He judges you.");
+    if (d.where == "kitchen") { p.ate = true; if (n.SeasonIs("cook") && !n.panGiven) { n.panGiven = true; p.items.push_back("the cook's frying pan"); n.Note(p, 5, "Tam gave you his frying pan, for eating his birthday stew."); n.Flag("season_cook", p.name); n.Say("Tam the Cook, misty-eyed, presses his frying pan into " + p.name + "'s hands."); } }
     n.Note(p, 1, d.name);
     if (p.drunk >= 100) { n.Leave(p, E_PASSED_OUT, ""); }
 }
@@ -282,7 +287,7 @@ void Night::Collide(Vector2& pos, float r) const {
         }
     }
     // the night's edges: the street's far kerb, the yard's fence, the alley's wall
-    pos.x = std::clamp(pos.x, -8.6f, 48.0f); pos.y = std::clamp(pos.y, -9.0f, 49.5f);
+    pos.x = std::clamp(pos.x, -8.6f, 48.0f); pos.y = std::clamp(pos.y, -9.0f, SeasonIs("storm") ? 29.55f : 49.5f);   // (the Storm shuts the yard and the roof)
 }
 void Night::StepPlayer(Player& p, float dt) {
     auto dec = [&](float& x) { x = std::max(0.0f, x - dt); };
@@ -399,6 +404,7 @@ void Night::Step(float dt) {
     StepEvents(dt);
     StepCards(dt);
     StepMonkey(dt);
+    StepSeason(dt);
     // 3 a.m., or every night over
     bool anyone = false; for (const auto& p : players) anyone |= p.st != State::Gone && p.st != State::PassedOut;
     if (Minutes() >= endMinutes) { for (auto& p : players) if (p.st != State::Gone && p.st != State::PassedOut) Leave(p, p.st == State::Down ? E_KNOCKED_OUT : E_CLOSING, p.st == State::Down ? (CurBar() == BAR_MONKEY ? "on the Monkey's marble floor with a black eye" : "on the floor of the Gull with a black eye") : std::string("on the pavement outside ") + (CurBar() == BAR_MONKEY ? "the Monkey" : "the Gull") + " at 3 a.m., swept out with the glass"); anyone = false; }
@@ -416,6 +422,7 @@ int NightCardChecks();
 int NightProfileChecks();
 int NightWaresChecks();
 int NightMonkeyChecks();
+int NightSeasonChecks();
 int RunNightTest() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
@@ -518,6 +525,8 @@ int RunNightTest() {
     // ---- stage 10c: the Brass Monkey
     gTravelRolls = true;
     fails += NightMonkeyChecks();
+    // ---- stage 10d: seasonal nights
+    fails += NightSeasonChecks();
     printf(fails ? "A Night Off: %d check(s) FAILED\n" : "A Night Off: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

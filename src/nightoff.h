@@ -76,6 +76,16 @@ const Data& DataOf(int bar);
 bool TravellerHere(const std::string& name, int bar, uint32_t seed);   // a travelling patron is at one bar a night
 extern bool gTravelRolls;                                              // (--night-test's earlier stages keep every traveller at the Gull)
 const char* BarName(int bar);
+// the seasonal nights (doc pp. 34-36; nightoff_seasons.cpp): ids 1..SeasonCount(), 0 an ordinary night
+int SeasonCount();
+const char* SeasonKey(int id);
+const char* SeasonName(int id);
+const char* SeasonWhat(int id);
+int SeasonWhere(int id);            // BAR_GULL, BAR_MONKEY, or 2 (either)
+int SeasonId(const char* key);
+int SeasonForMonth(int month);
+int SeasonToday();                  // the real calendar's season
+std::string SeasonWhereText(int id);
 int DrinkIndex(const std::string& key);
 const char* CrewName(int crew);   // 0 Diver, 1 Whaler, 2 Stowaway, 3 Mechanic, 4 Captain, 5 Nurse
 const char* RoomAt(Vector2 p);    // the room's name, or "the street"
@@ -144,7 +154,8 @@ struct Player {
     int cartelDue = 0; bool watchingSafe = false;
     int cheatsCaught = 0, cheatsDone = 0; int bsSel = 0;   // (the card room)
     // the cartel's wares: which you've had, each one's effect and its catch afterwards (s), the Cocktail's roll, and its odder results
-    std::string toast; float toastT = 0, steadyT = 0; bool letIn = false, ropeIn = false, juniperTold = false, ferried = false;   // (the Monkey's rope: bribed in; came from the street)   // (a private line for this player: why the cartel wouldn't sell, and so on)
+    std::string toast; float toastT = 0, steadyT = 0; bool letIn = false, ropeIn = false, juniperTold = false, ferried = false;
+    bool kissed = false, ate = false, toasted = false, objected = false; int ladderWins = 0;   // (the seasonal nights)   // (the Monkey's rope: bribed in; came from the street)   // (a private line for this player: why the cartel wouldn't sell, and so on)
     uint16_t wares = 0; float wareT[W_COUNT] = {}, wareAfterT[W_COUNT] = {}; int cocktail = 0; float skipT = 0, sirenT = 0, bumpT = 0, barkeepT = 0; bool sureHome = false; uint32_t hallucSeed = 0;
     float priceMul = 1; float owedAtDoor = 0; bool blackEye = false; int kidneysAtStart = 2; int emote = 0; float emoteT = 0;   // (the profile's carry-overs; an emote)
     // the bot's mind (an AI seat, a dropped player, --night-sim): a style, a goal, a path, a pause
@@ -170,6 +181,7 @@ struct Patron {
     float drunk = 0, drinkT = 0; int talkingTo = -1, playing = -1;   // playing: a game with that player
     Combat fight; bool outForNight = false;           // (thrown through a window: out for the night)
     std::string home = "sincere"; uint8_t friendOf = 0;
+    bool unmasked = false;                            // (the Masquerade)
     int ev = -1; std::string role; float backAt = 0;      // an event's people (the groom, a biker, the inspector...); sent home for 20 minutes   // where going home ends up; players they'll back in a fight (a declined offer)
     Look look; std::vector<Memory> mem;               // a memory per player
     bool Has(int trait) const { return trait >= 0 && ((traits >> trait) & 1); }
@@ -226,7 +238,16 @@ struct Night {
     void LibraryRule(Who att);
     void QuinceTells(Player& p, Patron& c);
     bool FerryRunning() const;                        // the ferry leaves on the hour (the first ten minutes of each)
-    void FerryFrom(const Night& from, int player);    // a solo night carried across the harbour: this night at the other bar, 15 minutes on, with you in it
+    void FerryFrom(const Night& from, int player);
+    // the seasonal nights (nightoff_seasons.cpp)
+    float fireworksT = 0, stormSayT = 0, powerH = 99; int stormLine = 0, groom = -1, bride = -1;
+    bool fireworksDone = false, powerOut = false, countdownDone = false, confessed = false, ceremonyDone = false, weddingFree = false, cookAngry = false, panGiven = false;
+    bool SeasonOn() const;                            // tonight's season is held at this bar
+    bool SeasonIs(const char* key) const;
+    void SeasonInit();
+    void StepSeason(float dt);
+    void SeasonAction(Player& p, int act, int arg);
+    void SeasonGameWon(Player& p, int kind);    // a solo night carried across the harbour: this night at the other bar, 15 minutes on, with you in it
     bool WaresHere(const Player& p) const;            // a cartel man within reach selling
     std::string BuyWare(Player& p, int w, int slipTo = -1);   // "" if sold; otherwise why not
     void DoseWare(Player& p, int w);
@@ -273,6 +294,7 @@ struct Night {
     bool raining = false, lockIn = false, freeDrinks = false, scratchEaten = false, safeOpened = false, goatOn = false, partied = false;
     float rainH = 99, endMinutes = NIGHT_MINUTES; Vector2 goatPos{}, goatVel{}; float goatYaw = 0, goatPh = 0;
     struct EvOption { int act = 0, arg = -1; std::string label; };
+    void SeasonOptions(const Player& p, std::vector<EvOption>& o) const;
     void ScheduleEvents();
     void StepEvents(float dt);
     void StartEvent(int i);

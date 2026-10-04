@@ -91,7 +91,7 @@ void Night::QuinceTells(Player& p, Patron& c) {
     Note(p, 6, "Dr. Quince named the Monkey's kidney thief: " + who + ".");
 }
 
-bool Night::FerryRunning() const { float m = fmodf(Minutes(), 60); return m < 10 && Hour() >= 20; }
+bool Night::FerryRunning() const { float m = fmodf(Minutes(), 60); return m < 10 && Hour() >= 20 && !SeasonIs("storm"); }   // (the Storm: the ferry stops)
 void Night::FerryFrom(const Night& from, int pid) {
     const Player& old = from.players[std::clamp(pid, 0, (int)from.players.size() - 1)];
     Opts o = from.opts; o.players = 1; o.bar = 1 - from.opts.bar; o.seed = from.opts.seed * 2654435761u + 77; o.startMinutes = std::min(470.0f, from.Minutes() + 15);

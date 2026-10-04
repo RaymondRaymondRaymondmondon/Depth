@@ -101,6 +101,7 @@ bool Night::StartGame(Player& p, int kind, int machine, int opp, int stake, std:
     if (kind == GK_SCRATCH || kind == GK_PIP) g.caption = kind == GK_PIP ? "Pip opens his coat: \"Five. Luckier than the machine's.\"" : "The dispenser hums. Five a ticket.";
     if (kind == GK_FORTUNE) g.caption = "\"Ten, and sit. The cards don't lie, love; people do.\"";
     if (kind == GK_SCRATCH && scratchEaten) return no("The dispenser's empty: the goat ate them.");
+    if (kind == GK_SLOTS && powerOut) return no("The machines are dark: the power's out.");   // (the Storm)
     if (kind == GK_DANCE) { if (!EventOn("band")) return no("There's no band."); g.caption = "The band counts you in: hit the beats."; }
     if (!g.caption.empty() && g.captionT <= 0) g.captionT = 5;
     p.game = g;
@@ -119,7 +120,8 @@ static void Settle(Night& n, Player& p, int result) {
         n.SettleSideBets(p.id, result == 0);
         if (result == 0) {
             p.gamesWon++;
-            p.money += g.stake;
+            p.money += g.stake * (n.SeasonIs("regatta") && (g.kind == GK_DARTS || g.kind == GK_POOL) ? 3 : 1);   // (the Regatta's ladder pays triple)
+            n.SeasonGameWon(p, g.kind);
             if (c.role == "the leader" && g.kind == GK_POOL && !p.jacket) { p.jacket = true; p.items.push_back("a biker's jacket"); n.Note(p, 5, "Beat the biker leader at pool and won his jacket."); }
             if (c.role == "a mourner" && g.kind == GK_DARTS) { p.money += 100; n.Note(p, 5, "Won the dead man's darts tournament, in his honour."); } g.caption = TextFormat("You win %d off %s.", g.stake, c.name.c_str());
             if (c.Has(D().Trait("bad loser"))) { c.mood = std::max(0.0f, c.mood - 20); g.caption += " They don't take it well."; }

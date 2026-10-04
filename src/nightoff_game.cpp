@@ -156,7 +156,8 @@ void DrawBar(const no::Night& n) {
     for (const auto& l : B.lamps) {   // a gas lamp on its chain: a brass cap, a warm glass
         if (l.z < 30) rt::DrawWorldCube({l.x, (l.y + B.wallH) / 2 + 0.1f, l.z}, {0.03f, B.wallH - l.y, 0.03f}, {60, 50, 40, 255});
         rt::DrawWorldCube({l.x, l.y + 0.12f, l.z}, {0.22f, 0.06f, 0.22f}, {180, 140, 70, 255});
-        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.14f, 0.18f, 0.14f), MatrixTranslate(l.x, l.y - 0.02f, l.z)), {255, 190, 110, 255}, 0.9f);
+        if (n.powerOut) rt::DrawWorldCube({l.x, l.y - 0.02f, l.z}, {0.14f, 0.18f, 0.14f}, {60, 50, 40, 255});   // (the Storm: dark glass)
+        else rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.14f, 0.18f, 0.14f), MatrixTranslate(l.x, l.y - 0.02f, l.z)), {255, 190, 110, 255}, 0.9f);
     }
     // the ceilings over the rooms (dark boards and beams); the yard, the alley and the street are open to the night
     for (const auto& r : B.rooms) {
@@ -169,6 +170,20 @@ void DrawBar(const no::Night& n) {
         rt::DrawCubeGlow(MatrixMultiply(MatrixScale(9.0f, 1.5f, 0.05f), MatrixTranslate(17, 2.1f, 11.93f)), {150, 170, 190, 255}, 0.25f);
         for (const auto& l : B.lamps) for (int i = 0; i < 8; i++) { float a = i * PI / 4 + S.t * 0.1f; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.05f, 0.09f, 0.05f), MatrixTranslate(l.x + cosf(a) * 0.32f, l.y - 0.12f, l.z + sinf(a) * 0.32f)), {255, 240, 210, 255}, 0.7f); }
     }
+    if (n.fireworksT > 0) for (int k = 0; k < 14; k++) {   // the Festival's fireworks: bursts over the yard
+        float ph = fmodf(S.t * 0.7f + k * 0.37f, 1.0f); float a = k * 2.4f;
+        Vector3 c0{6 + fmodf(k * 7.3f, 28), 14 + fmodf(k * 3.1f, 8), 38 + fmodf(k * 5.7f, 10)};
+        static const Color FC[4] = {{255, 90, 80, 255}, {120, 200, 255, 255}, {255, 220, 100, 255}, {170, 255, 140, 255}};
+        for (int j = 0; j < 14; j++) { float b = a + j * PI / 7; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.55f, 0.55f, 0.55f), MatrixTranslate(c0.x + cosf(b) * ph * 7, c0.y + sinf(b) * ph * 6 - ph * ph * 3, c0.z + sinf(b * 1.3f) * ph * 3)), FC[k % 4], 2.6f * (1 - ph)); }
+    }
+    if (n.SeasonIs("festival")) {   // the stalls in the yard: a ring toss, a strongman bell, a fish jar
+        static const Vector2 ST[3] = {{8, 34}, {20, 33}, {30, 36}}; static const Color AW[3] = {{200, 50, 50, 255}, {50, 90, 200, 255}, {230, 180, 40, 255}};
+        for (int k = 0; k < 3; k++) { rt::DrawWorldCube({ST[k].x, 0.5f, ST[k].y + 1.0f}, {2.2f, 1.0f, 0.8f}, {120, 90, 60, 255}); rt::DrawWorldCube({ST[k].x, 2.3f, ST[k].y + 0.9f}, {2.6f, 0.12f, 1.4f}, AW[k]); for (float sx : {-1.1f, 1.1f}) rt::DrawWorldCube({ST[k].x + sx, 1.2f, ST[k].y + 0.4f}, {0.08f, 2.3f, 0.08f}, {90, 70, 50, 255}); }
+        rt::DrawWorldCube({20, 2.0f, 34.6f}, {0.15f, 4.0f, 0.15f}, {200, 60, 50, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.4f, 0.3f, 0.3f), MatrixTranslate(20, 4.1f, 34.6f)), {255, 220, 100, 255}, 1.0f);   // (the bell)
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.6f, 0.8f, 0.6f), MatrixTranslate(30, 1.4f, 37.0f)), {120, 200, 220, 255}, 0.4f);   // (the jar)
+    }
+    if (n.powerOut) for (const auto& b : B.boxes) if (b.kind == "table" || b.kind == "counter") { float fl = 0.8f + 0.2f * sinf(S.t * 11 + b.r.x); rt::DrawWorldCube({b.r.x + b.r.width / 2, b.h + 0.08f, b.r.y + b.r.height / 2}, {0.06f, 0.16f, 0.06f}, {230, 220, 200, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.05f, 0.08f * fl, 0.05f), MatrixTranslate(b.r.x + b.r.width / 2, b.h + 0.21f, b.r.y + b.r.height / 2)), {255, 180, 80, 255}, 1.6f); }   // (candles)
+    if (n.SeasonIs("wedding")) { rt::DrawWorldCube({16, 2.6f, 21.6f}, {4.2f, 0.2f, 0.2f}, {240, 236, 230, 255}); for (float sx : {14.0f, 18.0f}) rt::DrawWorldCube({sx, 1.5f, 21.6f}, {0.2f, 2.2f, 0.2f}, {240, 236, 230, 255}); }   // (the arch on the ballroom stage)
     if (B.roof) {
         // the roof: a parapet round the terrace, the harbour far below, and the Sodden Gull across the water, lit
         rt::DrawWorldCube({-0.25f, 0.55f, 40}, {0.5f, 1.1f, 20}, {120, 110, 104, 255}); rt::DrawWorldCube({40.25f, 0.55f, 40}, {0.5f, 1.1f, 20}, {120, 110, 104, 255});
@@ -295,6 +310,10 @@ void DrawPeople(const no::Night& n) {
         if (fy > 0 && c.ev >= 0) { P.reach = 0.5f; P.elbow = 0.6f + 0.3f * sinf(S.t * 8 + c.id); P.grip = 0.9f; P.nod = 0.15f * sinf(S.t * 4 + c.id); }   // (playing)
         Vector3 feet{c.pos.x, fy, c.pos.y};
         DrawPerson(m, cl, feet, c.yaw, P, lean, 0, Floored(c.fight));
+        if (n.SeasonIs("masquerade") && !c.unmasked && c.type != no::T_STAFF && !Floored(c.fight)) {   // (a domino mask, the masquerade)
+            float hy = (Seated(c) ? 1.18f : 1.62f) * c.look.height + fy;
+            rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.06f, 0.07f, 0.24f), MatrixRotateY(-c.yaw)), MatrixTranslate(c.pos.x + cosf(c.yaw) * 0.13f, hy, c.pos.y + sinf(c.yaw) * 0.13f)), (c.id % 3) ? Color{20, 20, 26, 255} : Color{150, 30, 50, 255});
+        }
     }
     if (S.walkPh.size() < n.players.size()) S.walkPh.resize(n.players.size(), 0);
     for (const auto& p : n.players) {
@@ -388,7 +407,11 @@ void Render(float dt) {
     std::vector<std::pair<float, Vector3>> near;
     for (const auto& l : no::D().bar.lamps) near.push_back({Vector2Distance({l.x, l.z}, Me().pos), l});
     std::sort(near.begin(), near.end(), [](auto& a, auto& b) { return a.first < b.first; });
-    for (size_t i = 0; i < near.size() && i < 6; i++) L.AddPoint(near[i].second, 9, {255, 190, 120, 255}, 0.9f - 0.3f * late);
+    if (n.powerOut) {   // (the Storm: the lamps are out; candles on the tables, a flicker)
+        L.ambK *= 0.45f; L.moonK *= 0.5f;
+        for (size_t i = 0; i < near.size() && i < 4; i++) L.AddPoint({near[i].second.x, 1.1f, near[i].second.z}, 4.5f, {255, 160, 80, 255}, 0.45f + 0.08f * sinf(S.t * 9 + i));
+    } else for (size_t i = 0; i < near.size() && i < 6; i++) L.AddPoint(near[i].second, 9, {255, 190, 120, 255}, 0.9f - 0.3f * late);
+    if (n.fireworksT > 0) L.AddPoint({20, 18, 40}, 30, {255, (unsigned char)(150 + (int)(100 * fabsf(sinf(S.t * 3)))), 120, 255}, 0.6f + 0.4f * fabsf(sinf(S.t * 5)));   // (the Festival's fireworks light the yard)
     rt::ApplyGameQuality();
     rt::RenderBegin(S.cam, L);
     DrawBar(n);
@@ -445,6 +468,8 @@ void Gather(float dt) {
     if (S.menu && (IsKeyPressed(KEY_ESCAPE) || !(NW().NearServe(p) || NW().NearHatch(p)))) S.menu = false;
     (void)dt;
 }
+bool Masked(const no::Night& n, const no::Patron& c) { return n.SeasonIs("masquerade") && !c.unmasked && c.type != no::T_STAFF; }
+std::string ShownName(const no::Night& n, const no::Patron& c) { return Masked(n, c) ? std::string("a masked guest") : c.name; }   // (the Masquerade: names and traits hidden)
 void Bar(float x, float y, float w, float h, float k, Color c) { DrawRectangleRounded({x, y, w, h}, 0.5f, 6, Fade(Color{20, 12, 8, 255}, 0.75f)); if (k > 0) DrawRectangleRounded({x + 2, y + 2, std::max(2.0f, (w - 4) * std::clamp(k, 0.0f, 1.0f)), h - 4}, 0.5f, 6, c); }
 void DrawHud() {
     no::Night& n = NW(); no::Player& p = Me();
@@ -452,6 +477,7 @@ void DrawHud() {
     DrawTextCenteredBold(n.Clock(), SCREEN_W / 2.0f, 12, 24, n.Hour() >= no::D().lastCallHour ? Color{255, 160, 120, 255} : ink);
     if (n.Hour() >= no::D().lastCallHour) DrawTextCentered("LAST CALL: prices double", SCREEN_W / 2.0f, 40, 14, Color{255, 170, 130, 255});
     Txt(no::RoomAt(p.pos), 18, 14, 16, dim);
+    if (n.SeasonOn()) DrawTextCentered(no::SeasonName(n.opts.season), SCREEN_W / 2.0f, n.Hour() >= no::D().lastCallHour ? 58.0f : 42.0f, 14, Color{255, 200, 120, 255});
     // the meter: the band, charisma and toughness (the trade, always the same)
     {
         float x = SCREEN_W - 300, y = 14;
@@ -479,10 +505,10 @@ void DrawHud() {
         int mi = c.mood < 20 ? 0 : c.mood < 40 ? 1 : c.mood < 60 ? 2 : c.mood < 80 ? 3 : 4;
         static const Color FC[5] = {{240, 90, 80, 255}, {240, 160, 90, 255}, {220, 220, 200, 255}, {170, 230, 150, 255}, {255, 220, 110, 255}};
         float a = std::clamp(1.4f - dd / 6, 0.0f, 1.0f);
-        DrawTextCenteredBold(TextFormat("%s  %s", c.name.c_str(), FACE[mi]), s.x, s.y, 14, Fade(FC[mi], a));
+        DrawTextCenteredBold(TextFormat("%s  %s", ShownName(n, c).c_str(), FACE[mi]), s.x, s.y, 14, Fade(FC[mi], a));
         if (p.wareT[no::W_ANGLER] > 0 && c.thief) DrawTextCenteredBold("(a cooler, glowing)", s.x, s.y - 16, 13, Fade(Color{120, 255, 200, 255}, a));
         bool known = std::find(p.known.begin(), p.known.end(), c.name) != p.known.end();
-        if (p.visionsT > 0 || known) {
+        if ((p.visionsT > 0 || known) && !Masked(n, c)) {
             std::string tr = no::TypeName(c.type); for (int k = 0; k < (int)no::D().traitNames.size(); k++) if (c.Has(k)) tr += ", " + no::D().traitNames[k];
             DrawTextCentered(tr, s.x, s.y + 16, 12, Fade(Color{200, 190, 255, 255}, a));
             if (known) DrawTextCentered(c.secret, s.x, s.y + 30, 11, Fade(Color{255, 200, 160, 255}, a));
@@ -502,7 +528,7 @@ void DrawHud() {
         Rectangle r{SCREEN_W / 2.0f - 340, SCREEN_H - 212.0f, 680, 200};
         DrawRectangleRounded(r, 0.06f, 6, Fade(Color{24, 16, 12, 255}, 0.93f));
         DrawRectangleRoundedLinesEx(r, 0.06f, 6, 2, brass);
-        TxtBold(TextFormat("%s (%s, %s)", c.name.c_str(), no::TypeName(c.type), n.MoodName(c.mood)), r.x + 16, r.y + 10, 17, brass);
+        TxtBold(Masked(n, c) ? TextFormat("a masked guest (%s)", n.MoodName(c.mood)) : TextFormat("%s (%s, %s)", c.name.c_str(), no::TypeName(c.type), n.MoodName(c.mood)), r.x + 16, r.y + 10, 17, brass);
         Txt(TextFormat("%d won, %d lost", p.talk.wins, p.talk.losses), r.x + r.width - 120, r.y + 12, 14, dim);
         if (!p.talk.myCaption.empty()) DrawWrapped(std::string("You: \"") + p.talk.myCaption + "\"" + (p.talk.substituted ? "  (that isn't what you meant to say)" : ""), {r.x + 16, r.y + 38, r.width - 32, 40}, 15, p.talk.substituted ? Color{255, 170, 150, 255} : dim);
         DrawWrapped(std::string("\"") + p.talk.theirLine + "\"", {r.x + 16, r.y + 80, r.width - 32, 44}, 17, ink);
@@ -526,7 +552,7 @@ void DrawHud() {
         Rectangle r{SCREEN_W / 2.0f - 360, SCREEN_H - 236.0f, 720, 224};
         DrawRectangleRounded(r, 0.06f, 6, Fade(Color{40, 14, 22, 255}, 0.93f));
         DrawRectangleRoundedLinesEx(r, 0.06f, 6, 2, Color{230, 140, 160, 255});
-        TxtBold(TextFormat("%s  (%s)", c.name.c_str(), n.MoodName(c.mood)), r.x + 16, r.y + 10, 17, Color{240, 170, 190, 255});
+        TxtBold(TextFormat("%s  (%s)", ShownName(n, c).c_str(), n.MoodName(c.mood)), r.x + 16, r.y + 10, 17, Color{240, 170, 190, 255});
         for (int k = 0; k < F.need; k++) DrawCircle((int)(r.x + r.width - 30 - k * 22), (int)r.y + 20, 7, k < F.wins ? Color{240, 120, 150, 255} : Fade(Color{240, 120, 150, 255}, 0.25f));
         if (!F.myCaption.empty()) DrawWrapped(std::string("You: \"") + F.myCaption + "\"" + (F.substituted ? "  (that is not what you meant to say)" : ""), {r.x + 16, r.y + 36, r.width - 32, 40}, 15, F.substituted ? Color{255, 170, 150, 255} : dim);
         DrawWrapped(std::string("\"") + F.theirLine + "\"", {r.x + 16, r.y + 76, r.width - 32, 40}, 17, ink);
@@ -552,7 +578,7 @@ void DrawHud() {
     // the prompts
     if (p.st == no::State::Active && !S.menu && p.talk.patron < 0 && p.flirt.patron < 0 && !nog::Blocking(p)) {
         int near = n.NearestPatron(p, 1.8f), gk = n.NearGame(p);
-        std::string talkTo = near >= 0 ? "E: talk to " + n.patrons[near].name + (n.patrons[near].type != no::T_STAFF ? "   T: flirt" : "") : "";
+        std::string talkTo = near >= 0 ? "E: talk to " + ShownName(n, n.patrons[near]) + (n.patrons[near].type != no::T_STAFF ? "   T: flirt" : "") : "";
         const char* prompt = n.NearServe(p) ? "E: order at the bar" : n.NearHatch(p) ? "E: order food" : n.NearDoor(p) ? "E: walk home (ends your night)" : gk >= 0 ? nog::Prompt(n, p, gk) : near >= 0 ? talkTo.c_str() : nullptr;
         if (prompt) DrawTextCenteredBold(prompt, SCREEN_W / 2.0f, SCREEN_H - 90, 18, brass);
     }
@@ -907,7 +933,10 @@ void NightOffMenuTick(float dt) {
 // --shots: 0 walking in at 7, 1 at the bar ordering (the menu), 2 hammered at midnight in the games room, 3 the snug,
 // 4 passed out on the floor, 5 the morning paper
 void DebugNightOffShot(Game& g, int which) {
-    gShotStart = true; StartNightOff(g, which % 6, 0, 1, which >= 40 && which < 50 ? no::BAR_MONKEY : no::BAR_GULL); gShotStart = false;   // (shots never read the player's own profile)
+    static const char* SEASON_SHOT[8] = {"festival", "storm", "wedding", "regatta", "newyear", "wake", "masquerade", "cook"};
+    int season = which >= 50 && which < 58 ? no::SeasonId(SEASON_SHOT[which - 50]) : 0;
+    int shotBar = (which >= 40 && which < 50) || (season && no::SeasonWhere(season) == no::BAR_MONKEY) ? no::BAR_MONKEY : no::BAR_GULL;
+    gShotStart = true; StartNightOff(g, which % 6, 0, 1, shotBar, season); gShotStart = false;   // (shots never read the player's own profile)
     S.shot = true; S.help = which == 0;
     no::Night& n = NW(); no::Player& p = Me();
     auto at = [&](float x, float z, float yaw, float camYaw, float drunk) { p.pos = {x, z}; p.yaw = yaw; S.camYaw = camYaw; p.drunk = drunk; S.camAt = {x, 1.55f, z}; };
@@ -1028,6 +1057,19 @@ void DebugNightOffShot(Game& g, int which) {
         if (which == 42) { at(20, 46, PI * 0.5f, PI * 0.38f, 20); S.camPitch = -0.05f; S.camDist = 3.4f; }
         if (which == 43) { p.barred = true; at(19.5f, -2.2f, PI * 0.5f, PI * 0.5f, 20); S.camPitch = -0.2f; for (int k = 0; k < 10; k++) { p.in.moveZ = 1; p.ropeIn = true; n.Step(0.05f); } p.in = no::Input{}; }
         if (which == 44) { at(6.5f, 7.5f, PI, PI * 1.05f, 20); S.camPitch = -0.3f; }
+    }
+    if (season) {   // the seasonal nights (50-57): each at its signature moment
+        const char* k = SEASON_SHOT[which - 50];
+        float hour = !strcmp(k, "festival") || !strcmp(k, "newyear") ? 24.02f : !strcmp(k, "storm") ? 22.0f : !strcmp(k, "wedding") ? 22.05f : !strcmp(k, "wake") ? 23.0f : 22.0f;
+        if (!strcmp(k, "storm")) n.powerH = 21.5f;
+        n.t = (hour - 19 - 0.4f) * 60 * no::SECONDS_PER_GAME_MINUTE; for (int i = 0; i < 40; i++) n.StepPatrons(0.5f);
+        for (int i = 0; i < (int)(0.4f * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f); i++) { n.Step(0.1f); if (p.st != no::State::Active) { p.st = no::State::Active; p.ending = no::E_NONE; p.fight = no::Combat{}; } }
+        n.over = false;
+        if (!strcmp(k, "festival")) { at(20, 31, PI * 0.5f, PI * 0.5f, 25); S.camPitch = 0.15f; S.camDist = 4.5f; }
+        else if (!strcmp(k, "wedding")) { at(16, 14.5f, PI * 0.5f, PI * 0.5f, 25); S.camPitch = -0.15f; }
+        else if (!strcmp(k, "masquerade")) { at(18, 5.0f, PI * 0.5f, PI * 0.45f, 20); S.camPitch = -0.2f; }
+        else if (!strcmp(k, "storm")) { at(18, 5.0f, PI * 0.5f, PI * 0.45f, 20); S.camPitch = -0.2f; }
+        else at(18, 5.5f, PI * 0.5f, PI * 0.42f, 25);
     }
     if (which == 27) {   // emotes: you raise a glass, a shipmate laughs
         for (int i = 0; i < (int)(2 * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f); i++) n.Step(0.1f);

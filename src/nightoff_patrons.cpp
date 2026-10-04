@@ -128,7 +128,7 @@ void Night::StepPatrons(float dt) {
     int inside = 0; for (const auto& c : patrons) inside += (c.inside || (!c.gone && c.arriveH <= h && c.reg < 0)) && !c.gone && !c.leaving && c.ev < 0;   // (an event's people are on top of the curve)
     int want = CrowdTarget();
     if (inside < want && Rand() < dt * 0.4f && patrons.size() < 90) { int id = AddPatron(-1); (void)id; }
-    if (inside > want + 2 && Rand() < dt * 0.15f) for (auto& c : patrons) if (c.inside && c.reg < 0 && c.ev < 0 && !c.leaving && c.talkingTo < 0) { c.leaveH = h; break; }
+    if (inside > want + 2 && Rand() < dt * 0.15f) for (auto& c : patrons) if (c.inside && c.reg < 0 && c.ev < 0 && c.role.empty() && !c.leaving && c.talkingTo < 0) { c.leaveH = h; break; }   // (never the groom or the bride)
     for (auto& c : patrons) {
         if (c.gone) {   // (sent home by a fight or the police: back in twenty minutes)
             if (c.backAt > 0 && h >= c.backAt && !c.outForNight) { c.gone = false; c.inside = false; c.leaving = false; c.arriveH = h; c.backAt = 0; c.leaveH = std::max(c.leaveH, h + 1); }

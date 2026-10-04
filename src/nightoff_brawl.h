@@ -61,7 +61,7 @@ struct Prop {
     bool Pickup() const { return weapon >= 0 && (state == PS_OK || state == PS_OVER); }
 };
 struct Brawl {
-    int id = 0; Who starter{}; float t = 0, quietT = 0; bool over = false, armed = false;
+    int id = 0; Who starter{}; float t = 0, quietT = 0; bool over = false, armed = false, refereed = false;   // (refereed: the Regatta's midnight brawl, Sister Ash in charge)
     float bill = 0; std::vector<std::string> broke; std::string room; Vector2 at{}; int kos = 0, size = 0;
 };
 struct Pop { Vector3 pos{}; std::string text; float t = 0; Color col{255, 255, 255, 255}; };   // a floating "Whack!" over a hit

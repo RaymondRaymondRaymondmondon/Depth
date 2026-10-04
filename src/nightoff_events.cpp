@@ -55,6 +55,7 @@ void Night::ScheduleEvents() {
     if (!opts.events) { rainH = 99; return; }
     int c = std::clamp(opts.crowd == 3 ? (int)(Rand() * 3) : opts.crowd, 0, 2);
     int n = D_.perNight[c][0] + (int)(Rand() * (D_.perNight[c][1] - D_.perNight[c][0] + 1));
+    if (SeasonIs("festival")) n *= 2;   // (the Harbour Festival: every event's odds double)
     if (opts.mode == MD_SOLO) n = std::min(n, 2);
     std::vector<int> pool; for (int i = 0; i < (int)D_.ev.size(); i++) if (D_.ev[i].key != "goat") pool.push_back(i);
     for (int k = 0; k < n && !pool.empty(); k++) {
@@ -383,6 +384,7 @@ std::vector<Night::EvOption> Night::EventOptions(const Player& p) const {
     if (atStairs && knowsSafe && !safeOpened) o.push_back({13, -1, "Go up and open the safe"});
     if (atStairs && EventOn("robbery") && !p.watchingSafe) o.push_back({18, -1, "Hide upstairs and watch the safe"});
     if (lockIn && RoomAt(p.pos) == std::string("The toilets")) o.push_back({14, -1, "Out through the toilet window"});
+    SeasonOptions(p, o);
     return o;
 }
 void Night::EventAction(Player& p, int act, int arg) {
@@ -429,6 +431,7 @@ void Night::EventAction(Player& p, int act, int arg) {
         case 17: EventAction(p, 11, -1); break;   // (the bikes are as sacred as the piano)
         case 30: case 31: { SideBet b; b.bettor = p.id; b.on = arg; b.stake = 10; b.forWin = act == 30; sideBets.push_back(b); Note(p, 0, std::string("Side bet of 10 ") + (act == 30 ? "on " : "against ") + players[std::clamp(arg, 0, (int)players.size() - 1)].name + "."); } break;
         case 40: { std::string why; StartGame(p, GK_POKER, 1, -1, 0, &why); if (!why.empty()) Say(why); } break;
+        case 80: case 81: case 82: case 83: case 84: case 85: case 86: SeasonAction(p, act, arg); break;
         case 52: p.money -= 10; p.ferried = true; Note(p, 0, std::string("Took the ferry to ") + BarName(1 - CurBar()) + " at " + Clock() + "."); Leave(p, E_WALKED, std::string("across the harbour, at ") + BarName(1 - CurBar())); break;
         case 51: p.money -= 30; p.letIn = true; Say("Horace pockets it without looking down, and unhooks the rope."); Note(p, 0, "Bribed the Monkey's doorman."); break;
         case 50: p.money -= p.owedAtDoor; Note(p, 0, TextFormat("Paid the bouncer %.0f for last night.", p.owedAtDoor)); p.owedAtDoor = 0; p.barred = false; Say("The bouncer counts it twice and stands aside."); break;
