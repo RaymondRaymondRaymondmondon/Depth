@@ -55,24 +55,93 @@ void Gather(sf::Input& in, const sf::Stick& k) {
 }
 
 // ---------------------------------------------------------------- drawing
-void DrawStage() {
-    const sf::Stage& s = S.M.w.stage;
+void DrawBackdrop(const sf::Stage& s) {
+    // the Nautilus's hull behind the fight: pipes along the walls, portholes with the blue water, a few rivet lines
     ClearBackground(PAPER);
     for (const auto& g : S.grain) DrawCircleV(g, 1.2f, Color{196, 182, 150, 255});
+    if (s.world != sf::WD_NAUTILUS) return;
+    Color pipe{184, 168, 136, 255}, line{150, 134, 104, 255};
+    for (int k = 0; k < 3; k++) { float y = W2S({0, s.Height() * (0.3f + 0.25f * k)}).y; DrawRectangle(0, (int)y - 5, SCREEN_W, 10, pipe); DrawLineEx({0, y - 5}, {(float)SCREEN_W, y - 5}, 1.5f, line); DrawLineEx({0, y + 5}, {(float)SCREEN_W, y + 5}, 1.5f, line); for (int x = 40 + k * 70; x < SCREEN_W; x += 220) DrawRectangle(x, (int)y - 8, 8, 16, line); }
+    for (int k = 0; k < 4; k++) { Vector2 c = W2S({s.Width() * (0.14f + 0.24f * k), s.Height() * 0.78f}); float r = S.zoom * 0.7f; DrawCircleV(c, r + 4, line); DrawCircleV(c, r, Color{150, 176, 190, 255}); DrawCircleLines((int)c.x, (int)c.y, r * 0.75f, Color{170, 196, 206, 255}); }
+}
+void DrawTile(const sf::Stage& s, int x, int y, uint8_t k) {
     float px = S.zoom * sf::TILE;
-    for (int y = 0; y < s.h; y++) for (int x = 0; x < s.w; x++) {
-        if (!s.Solid(x, y)) continue;
-        Vector2 a = W2S({x * sf::TILE, (y + 1) * sf::TILE});
-        DrawRectangleV(a, {px + 1, px + 1}, STONE);
-        // hatching: diagonal strokes, denser low on each block
-        for (int k = 1; k < 4; k++) { float o = k * px / 4; DrawLineEx({a.x + o, a.y + px}, {a.x + px, a.y + o}, 1, Color{120, 108, 92, 255}); }
-        // the ink edge on every exposed face
-        float th = std::max(2.0f, px * 0.09f);
-        if (!s.Solid(x, y + 1)) DrawLineEx({a.x - 1, a.y}, {a.x + px + 1, a.y}, th, INK);
-        if (!s.Solid(x, y - 1)) DrawLineEx({a.x - 1, a.y + px}, {a.x + px + 1, a.y + px}, th, INK);
-        if (!s.Solid(x - 1, y)) DrawLineEx({a.x, a.y - 1}, {a.x, a.y + px + 1}, th, INK);
-        if (!s.Solid(x + 1, y)) DrawLineEx({a.x + px, a.y - 1}, {a.x + px, a.y + px + 1}, th, INK);
+    Vector2 a = W2S({x * sf::TILE, (y + 1) * sf::TILE});
+    float th = std::max(2.0f, px * 0.09f);
+    auto edges = [&](Color ink) {
+        auto solidish = [&](int xx, int yy) { uint8_t q = s.At(xx, yy); return q != sf::T_EMPTY && q != sf::T_ROPE && q != sf::T_GLASS; };
+        if (!solidish(x, y + 1)) DrawLineEx({a.x - 1, a.y}, {a.x + px + 1, a.y}, th, ink);
+        if (!solidish(x, y - 1)) DrawLineEx({a.x - 1, a.y + px}, {a.x + px + 1, a.y + px}, th, ink);
+        if (!solidish(x - 1, y)) DrawLineEx({a.x, a.y - 1}, {a.x, a.y + px + 1}, th, ink);
+        if (!solidish(x + 1, y)) DrawLineEx({a.x + px, a.y - 1}, {a.x + px, a.y + px + 1}, th, ink);
+    };
+    switch (k) {
+        case sf::T_STONE: {
+            bool steel = s.world == sf::WD_NAUTILUS;
+            DrawRectangleV(a, {px + 1, px + 1}, steel ? Color{124, 128, 130, 255} : STONE);
+            for (int q = 1; q < 4; q++) { float o = q * px / 4; DrawLineEx({a.x + o, a.y + px}, {a.x + px, a.y + o}, 1, steel ? Color{104, 108, 110, 255} : Color{120, 108, 92, 255}); }
+            if (steel) for (float u : {0.18f, 0.82f}) DrawCircleV({a.x + px * u, a.y + px * 0.2f}, std::max(1.2f, px * 0.05f), Color{70, 72, 74, 255});   // (rivets)
+            edges(INK); break;
+        }
+        case sf::T_WOOD: DrawRectangleV(a, {px + 1, px + 1}, Color{150, 104, 60, 255}); for (int q = 1; q < 3; q++) DrawLineEx({a.x, a.y + q * px / 3}, {a.x + px, a.y + q * px / 3}, 1.5f, Color{110, 74, 40, 255}); edges(INK); break;
+        case sf::T_ICE: DrawRectangleV(a, {px + 1, px + 1}, Color{200, 226, 236, 255}); DrawLineEx({a.x + px * 0.2f, a.y + px * 0.3f}, {a.x + px * 0.6f, a.y + px * 0.15f}, 2, WHITE); edges(Color{70, 100, 120, 255}); break;
+        case sf::T_GLASS: DrawRectangleV(a, {px + 1, px + 1}, Color{180, 214, 226, 140}); DrawLineEx({a.x + px * 0.15f, a.y + px * 0.8f}, {a.x + px * 0.5f, a.y + px * 0.2f}, 1.5f, ColorAlpha(WHITE, 0.8f)); DrawRectangleLinesEx({a.x, a.y, px, px}, 1.5f, Color{60, 90, 110, 255}); break;
+        case sf::T_ROPE: { float yy = a.y + px * 0.15f; DrawLineEx({a.x, yy}, {a.x + px, yy}, 2.5f, Color{120, 90, 50, 255}); DrawLineEx({a.x, yy + px * 0.22f}, {a.x + px, yy + px * 0.22f}, 1.5f, Color{120, 90, 50, 255}); DrawRectangleV({a.x + px * 0.1f, yy - 1}, {px * 0.8f, px * 0.18f}, Color{160, 120, 70, 255}); DrawRectangleLinesEx({a.x + px * 0.1f, yy - 1, px * 0.8f, px * 0.18f}, 1, INK); break; }
+        case sf::T_RAIL: {
+            bool live = S.M.w.RailLive(x, y);
+            DrawRectangleV(a, {px + 1, px + 1}, Color{60, 62, 66, 255});
+            for (int q = 0; q < 4; q++) { float o = q * px / 4; DrawTriangle({a.x + o, a.y + px * 0.55f}, {a.x + o + px * 0.12f, a.y + px * 0.55f}, {a.x + o + px * 0.25f, a.y + px * 0.4f}, Color{230, 190, 40, 255}); }
+            if (live) { DrawRectangleLinesEx({a.x - 1, a.y - 1, px + 2, px + 2}, 2, Color{120, 200, 255, 255}); for (int q = 0; q < 3; q++) { float o = (q + 0.5f) * px / 3; DrawLineEx({a.x + o, a.y}, {a.x + o + px * 0.08f * sinf(S.t * 40 + q), a.y - px * 0.3f}, 1.5f, Color{170, 230, 255, 255}); } }
+            edges(INK); break;
+        }
+        case sf::T_CONV_L: case sf::T_CONV_R: {
+            DrawRectangleV(a, {px + 1, px + 1}, Color{70, 64, 60, 255});
+            float dir = k == sf::T_CONV_R ? 1.0f : -1.0f, sh = fmodf(S.t * 3 * dir / sf::TILE * px, px * 0.5f);
+            for (int q = -1; q < 3; q++) { float o = q * px * 0.5f + sh; if (o < 0 || o > px - 4) continue; DrawLineEx({a.x + o, a.y + px * 0.2f}, {a.x + o + dir * px * 0.15f, a.y + px * 0.4f}, 2, Color{200, 180, 120, 255}); DrawLineEx({a.x + o + dir * px * 0.15f, a.y + px * 0.4f}, {a.x + o, a.y + px * 0.6f}, 2, Color{200, 180, 120, 255}); }
+            edges(INK); break;
+        }
+        default: break;
     }
+}
+void DrawPieces(const sf::Stage& s) {
+    float px = S.zoom * sf::TILE;
+    for (const auto& p : s.pieces) {
+        Vector2 a = W2S({p.x * sf::TILE + p.off.x, (p.y + p.h) * sf::TILE + p.off.y});
+        Rectangle r{a.x, a.y, p.w * px, p.h * px};
+        switch (p.kind) {
+            case sf::PK_PISTON: case sf::PK_ELEVATOR: {
+                if (p.kind == sf::PK_PISTON) { Vector2 home = W2S({(p.x + p.w * 0.5f) * sf::TILE, (p.y + p.h * 0.5f) * sf::TILE}), now = {r.x + r.width / 2, r.y + r.height / 2}; Vector2 back = Vector2Subtract(home, Vector2Scale(Vector2Normalize(Vector2Subtract(now, home)), px * 0.6f)); if (Vector2Distance(now, home) > 2) { DrawLineEx(back, now, px * 0.3f + 3, INK); DrawLineEx(back, now, px * 0.3f, Color{170, 170, 176, 255}); } }
+                DrawRectangleRec({r.x - 2, r.y - 2, r.width + 4, r.height + 4}, INK);
+                DrawRectangleRec(r, p.kind == sf::PK_PISTON ? Color{150, 60, 50, 255} : Color{130, 120, 80, 255});
+                for (float u = 0.15f; u < 1; u += 0.35f) DrawLineEx({r.x, r.y + r.height * u}, {r.x + r.width, r.y + r.height * u}, 2, ColorAlpha(INK, 0.5f));
+                if (p.kind == sf::PK_ELEVATOR) for (float u : {0.1f, 0.9f}) DrawLineEx({r.x + r.width * u, r.y}, {r.x + r.width * u, 0}, 1.5f, ColorAlpha(INK, 0.6f));   // (the cables)
+                break;
+            }
+            case sf::PK_VENT: {
+                Vector2 g = W2S({p.x * sf::TILE, (p.y + p.h) * sf::TILE});
+                for (int q = 0; q < 4; q++) DrawLineEx({g.x + (q + 0.5f) * p.w * px / 4, g.y + 2}, {g.x + (q + 0.5f) * p.w * px / 4, g.y + px * 0.4f}, 2, INK);
+                float u = fmodf(S.M.w.t / std::max(0.2f, p.period) + p.phase, 1.0f); bool live = u < std::clamp(p.on / p.period, 0.05f, 0.95f);
+                bool warn = !live && u > 0.85f;
+                if (live || warn) for (int q = 0; q < 10; q++) { float h = fmodf(S.t * 6 + q * 0.37f, 1.0f); Vector2 c = W2S({(p.x + 0.5f * p.w + 0.25f * sinf(q * 2.3f + S.t * 3)) * sf::TILE, (p.y + p.h + h * p.travel) * sf::TILE}); DrawCircleV(c, px * (0.25f + 0.3f * h) * (live ? 1 : 0.4f), ColorAlpha(WHITE, (1 - h) * (live ? 0.7f : 0.3f))); }
+                break;
+            }
+            case sf::PK_PROPELLER: {
+                Vector2 c{r.x + r.width / 2, r.y + r.height / 2}; float rad = std::min(r.width, r.height) * 0.55f;
+                DrawCircleV(c, rad + 3, INK); DrawCircleV(c, rad, Color{90, 96, 100, 255});
+                for (int q = 0; q < 3; q++) { float an = S.t * 14 + q * 2.094f; DrawLineEx(c, {c.x + cosf(an) * rad * 0.95f, c.y + sinf(an) * rad * 0.95f}, px * 0.35f, Color{200, 170, 90, 255}); }
+                DrawCircleV(c, rad * 0.18f, INK);
+                break;
+            }
+            case sf::PK_TUBE: { Vector2 c = W2S({(p.x + 0.5f) * sf::TILE, (p.y + 0.5f) * sf::TILE}); DrawCircleV(c, px * 0.55f, Color{200, 160, 70, 255}); DrawCircleV(c, px * 0.42f, INK); DrawCircleV({c.x + p.dx * px * 0.12f, c.y}, px * 0.18f, Color{60, 50, 44, 255}); break; }
+            case sf::PK_WINDOW: if (!p.broken) DrawRectangleLinesEx({r.x, r.y, r.width, r.height}, 2.5f, Color{200, 160, 70, 255}); break;
+        }
+    }
+}
+void DrawStage() {
+    const sf::Stage& s = S.M.w.stage;
+    DrawBackdrop(s);
+    for (int y = 0; y < s.h; y++) for (int x = 0; x < s.w; x++) { uint8_t k = s.At(x, y); if (k != sf::T_EMPTY) DrawTile(s, x, y, k); }
+    DrawPieces(s);
 }
 void DrawStick(const sf::Stick& k) {
     if (!k.present) return;
@@ -249,7 +318,12 @@ void StartScuffle(Game& g, int bots, int skill, int toWin) {
     S.cam = {S.M.w.stage.Width() / 2, S.M.w.stage.Height() / 2}; S.zoom = 60; S.lastRound = S.M.round;
     g.scene = Scene::Scuffle;
 }
+static bool EditorFrame(Game& g);
+static bool EditorPlaying();
+static void EditorBackFromPlay();
 void SceneScuffle(Game& g) {
+    if (EditorFrame(g)) return;
+    if (EditorPlaying() && IsKeyPressed(KEY_P)) { EditorBackFromPlay(); return; }
     if (!S.active) { StartScuffle(g, 3, 2, 5); }
     float dt = std::min(GetFrameTime(), 1 / 20.0f);
     if (S.shot) dt = 1 / 60.0f;
@@ -273,7 +347,9 @@ void SceneScuffle(Game& g) {
     DrawArms();
     DrawBlots(dt);
     DrawHud();
-    if (S.M.Over()) {
+    if (S.M.Over() && EditorPlaying()) {
+        if (Button({SCREEN_W / 2.0f - 100, SCREEN_H / 2.0f + 160, 200, 40}, "Back to the editor", true, 16)) EditorBackFromPlay();
+    } else if (S.M.Over()) {
         if (Button({SCREEN_W / 2.0f - 230, SCREEN_H / 2.0f + 160, 200, 40}, "Again", true, 16)) { int b = S.players - 1, sk = S.skill, tw = S.toWin; StartScuffle(g, b, sk, tw); }
         if (Button({SCREEN_W / 2.0f + 30, SCREEN_H / 2.0f + 160, 200, 40}, "Back to the arcade", true, 16)) { S.active = false; g.scene = Scene::Arcade; }
     }
@@ -295,3 +371,5 @@ void DebugScuffleShot(Game& g, int which) {
     for (int i = 0; i < 90; i++) StepCamera(1 / 60.0f);
     if (which == 2) { S.M.wins = {5, 3, 2, 1}; S.M.champion = 0; S.M.phase = sf::Match::P_OVER; }
 }
+
+#include "scuffle_editor.inl"

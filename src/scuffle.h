@@ -33,6 +33,8 @@ constexpr int MAX_STICKS = 8;
 enum Tile : uint8_t { T_EMPTY, T_STONE, T_WOOD, T_ICE, T_GLASS, T_ROPE, T_RAIL, T_CONV_L, T_CONV_R, T_COUNT };
 enum PieceKind : uint8_t { PK_PISTON, PK_ELEVATOR, PK_VENT, PK_PROPELLER, PK_TUBE, PK_WINDOW, PK_COUNT };
 const char* PieceName(int kind);
+struct Piece;
+void PieceDefaults(Piece& p);
 const char* TileName(int t);
 struct Piece {
     uint8_t kind = PK_PISTON; int x = 0, y = 0, w = 1, h = 1, dx = 0, dy = 1;   // tiles; (dx, dy): which way it moves or faces
@@ -191,6 +193,7 @@ struct Match {
     enum Phase { P_COUNT, P_FIGHT, P_WIN, P_OVER } phase = P_COUNT; float phaseT = 1; int roundWinner = -1, champion = -1, draws = 0;
     std::vector<std::string> log;                          // (the round's story lines)
     uint32_t evSeen = 0;
+    std::vector<Stage> custom;                             // (a playlist of the group's own: the editor's "play now", a pasted pack)
     void Start(int nPlayers, int roundsToWin, uint32_t seed, int arsenal = AR_CLASSIC);
     void NewRound();
     void Step();                                           // one fixed step: the phases, and the world while fighting

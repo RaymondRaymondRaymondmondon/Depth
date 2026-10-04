@@ -32,7 +32,9 @@ const char* WorldName(int w) { static const char* N[WD_COUNT] = {"The Nautilus",
 static const char* WORLD_KEY[WD_COUNT] = {"nautilus", "cave", "reef", "atlantis", "void", "salon"};
 static int PieceLetter(char c) { switch (c) { case 'P': return PK_PISTON; case 'L': return PK_ELEVATOR; case 'V': return PK_VENT; case 'F': return PK_PROPELLER; case 'T': return PK_TUBE; case 'W': return PK_WINDOW; default: return -1; } }
 static char LetterOf(int kind) { static const char L[PK_COUNT] = {'P', 'L', 'V', 'F', 'T', 'W'}; return kind >= 0 && kind < PK_COUNT ? L[kind] : '?'; }
-static void Defaults(Piece& p) {
+void PieceDefaults(Piece& p);
+static void Defaults(Piece& p) { PieceDefaults(p); }
+void PieceDefaults(Piece& p) {
     switch (p.kind) {
         case PK_PISTON: p.dx = 0; p.dy = -1; p.travel = 3; p.period = 2.5f; p.on = 0.8f; break;
         case PK_ELEVATOR: p.dx = 0; p.dy = 1; p.travel = 4; p.period = 6; break;

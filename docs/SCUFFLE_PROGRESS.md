@@ -68,7 +68,30 @@ The user is away (order of 2026-10-04: build it after A Night Off, don't stop). 
   39 s a round, no draws; deaths: falls 30%, the wall 26%, guns about 35%, fists and kicks 13% (the doc's targets
   are weapons 55%, hazards 30%, fists 10%, the wall 5%: the balance pass is stage 9).
 
+## Stage 3: the Nautilus world, its hazards, codes and the editor (done)
+- Tiles: stone, wood, ice (accel x0.12: you slide on), glass (breaks 0.6 s under weight), rope (one-way: land from
+  above, hold down to drop through), electrified rail (live 1.6 s in 4: a touch kills), conveyors < and >. A 0.36 m
+  step-up so sticks don't snag on one-tile ledges. Wrapping stages (off one edge, in at the other).
+- Pieces (`Piece`, `scuffle_pieces.cpp`): pistons (slam on a rhythm, push, crush against stone), elevators (carry
+  riders), steam vents (an updraft column while live), the propeller (sucks in, shreds), the torpedo tube (fires a
+  stick who walks into its mouth across the stage), windows (glass that blows out at a set second).
+- The text format (`scuffle_stage.cpp`: letters `# w i g - e < > S C P L V F T W`, `@n key=value` piece lines),
+  codes (`StageToCode` "SCF1-..." and packs "SCP1-...": compressed, base64, an FNV checksum checked before
+  decompressing, so garbage is refused instead of crashing raylib's inflate), `CheckReachable` (a BFS over landings
+  with the real jump arcs: every spawn must reach every other).
+- The Nautilus world (`scuffle_packs.cpp`, `BuildNautilus`): 20 layouts and their mirrors = 40 stages, written to
+  `data/scuffle/stages/nautilus.txt` by `--scuffle-build-packs`; all 40 pass `--scuffle-verify-all`. The match's
+  playlist is that pack (the stone stages are the fallback).
+- **The editor** (`scuffle_editor.inl`, included at the end of `scuffle_game.cpp`; the arcade's Scuffle panel, "The
+  editor"): paint tiles (left), clear (right), drag out a piece, place spawns (up to 8) and crate zones, select a piece
+  and tune its numbers (dx/dy, travel, period, phase, on, power), rename, the world, wraps, New, the built-ins (< >, to
+  see how they work), Mirror, Check, Copy code (to the clipboard), Paste code (a stage or a pack), Save (to
+  `scuffle_library.txt` next to the exe, gitignored), Library >, Play (P: a match with bots on it; P again or "Back to
+  the editor" returns with the edits). A stage only saves or shares once every spawn reaches every other.
+- Checks: `--scuffle-test` (stage 3 adds the code round-trip, a garbage code refused, reachability failing on a cut-off
+  spawn, pistons, the elevator, vents, the rail, the propeller, the tube, glass, rope, ice, conveyors, wrapping),
+  `--scuffle-verify-all`, `--scuffle-verify <code>`. Shots `scuffle_editor`, `scuffle_editor_engine`.
+
 ## Next
-Stage 3: the editor (instant play, the reachability check, codes) and the Nautilus world's 40 stages with its hazards
-(steam vents, pistons, the propeller, electrified rails, the flooding bulkheads). Gate: a stage round-trips through a
-code.
+Stage 4: multiplayer (host-authoritative snapshots on the arcade session, `G_SCUFFLE` built, eight players on a LAN).
+Gate: eight players at 100 ms with no visible correction.

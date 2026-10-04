@@ -881,6 +881,8 @@ void SceneFlight(Game& g);    // The Flight, arcade game 7: the Founder flown ov
 void SceneScuffle(Game& g);    // Scuffle, arcade game 9: the stick fight (scuffle_game.cpp)
 void StartScuffle(Game& g, int bots = 3, int skill = 2, int toWin = 5);
 void LeaveScuffle(Game& g);
+void StartScuffleEditor(Game& g);   // the level editor (doc p. 17): paint, check, share by code, play now
+void DebugScuffleEditorShot(Game& g, int which);
 void DebugScuffleShot(Game& g, int which);
 void SceneNightOff(Game& g);  // A Night Off, arcade game 6: one night ashore at the Sodden Gull (nightoff_game.cpp)
 void StartNightOff(Game& g, int crew = 0, int mode = 0, int crowd = 1, int bar = 0, int season = 0);

@@ -64,7 +64,7 @@ std::vector<Stage> StagePlaylist() {
 void Match::Start(int nPlayers, int roundsToWin, uint32_t s, int ars) {
     players = std::clamp(nPlayers, 1, MAX_STICKS); toWin = std::max(1, roundsToWin); seed = s ? s : 1; arsenal = ars;
     wins.assign(players, 0); score.assign(players, 0); roundKills.assign(players, 0);
-    playlist = StagePlaylist(); round = 0; draws = 0; champion = -1; log.clear();
+    playlist = custom.empty() ? StagePlaylist() : custom; round = 0; draws = 0; champion = -1; log.clear();
     // the rotation: shuffled by the seed (no stage twice until the list runs out)
     uint32_t r = seed;
     for (int i = (int)playlist.size() - 1; i > 0; i--) { r = r * 1664525u + 1013904223u; int j = (int)((r >> 8) % (uint32_t)(i + 1)); std::swap(playlist[i], playlist[j]); }
