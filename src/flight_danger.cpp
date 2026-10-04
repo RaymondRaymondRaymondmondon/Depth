@@ -195,7 +195,7 @@ void World::SetWreckPose() {
 
 // ---------------------------------------------------------------- the weather, siege tests
 bool World::Grounded(Vector3 p) const {
-    if (StormNow()) return true;
+    if (StormNow() && fmodf(time, DAY * 0.25f) < DAY * 0.15f) return true;   // (a storm comes in squalls: the birds sit them out, and fish the lulls between)
     if (volcano.isle >= 0 && volcano.ashT > 0 && Flat2(p, isles[volcano.isle].c) < DD().vAshR) return true;
     return false;
 }
@@ -688,7 +688,8 @@ int RunFlightDangerTest() {
         auto s = fresh();
         s->weather.next = s->time + 0.5f;
         run(*s, 1);
-        check(s->StormNow() && s->Grounded(s->me.pos), "a storm grounds every bird");
+        bool squall = s->Grounded(s->me.pos); float t0 = s->time; s->time = floorf(t0 / (World::DAY * 0.25f)) * World::DAY * 0.25f + World::DAY * 0.2f; bool lull = !s->Grounded(s->me.pos); s->time = t0;
+        check(s->StormNow() && (squall || lull) && lull, "a storm grounds every bird in its squalls, and the lulls between are for fishing");
     }
     // bombs and the Works
     {

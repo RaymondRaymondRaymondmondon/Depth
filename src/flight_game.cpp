@@ -1755,6 +1755,7 @@ void DrawLongPanel(fl::World& w) {
         Txt(w.SideName(lwith), x + 46, ly + 2, 14, w.SideColor(lwith));
         if (w.col.league < 0 || !w.Leagued(w.cur, lwith)) { if (SmallBtn({x + 180, ly, 210, 20}, "propose a league (a pearl)")) { Writer o; fl::OrderLeague(o, lwith); Order(o); } }
         if (w.col.league >= 0 && SmallBtn({x + 400, ly, 200, 20}, "leave the league (oathbroken)")) { Writer o; fl::OrderLeaveLeague(o); Order(o); }
+        if (w.col.league < 0 && SmallBtn({x + 400, ly, 200, 20}, "marry the heir (truce, a Ferrier)")) { Writer o; fl::OrderMarry(o, lwith); Order(o); }
         ly += 26;
         TxtBold("The Council", x + 16, ly, 17, ink);
         int nextDay = 31; while (nextDay <= w.GameDay() && w.council.meeting < 0) nextDay += 6;

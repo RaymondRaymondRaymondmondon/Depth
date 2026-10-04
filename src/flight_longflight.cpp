@@ -28,6 +28,7 @@
 #include <cmath>
 #include <cstdio>
 #include <chrono>
+#include <map>
 
 namespace fl {
 
@@ -735,7 +736,28 @@ void World::JoinLeague(int a, int b) {
     for (int s = 0; s <= (int)sides.size(); s++) SayTo(s, SideName(a) + " and " + SideName(b) + " form a league (bound in a day).");
     Chronicle(a, CK_MARRIAGE, "We bound ourselves in a league with " + SideName(b) + "."); Chronicle(b, CK_MARRIAGE, "We bound ourselves in a league with " + SideName(a) + ".");
 }
-bool World::LeaveLeague() {
+bool World::Marry(int to) {
+    // a dynastic marriage (doc p4): the heir sent to another colony's nest by a Ferrier, under a truce; a chick both
+    // colonies treat as their own, and no war between them for a season
+    if (!LongFlight() || to < 0 || to > (int)sides.size() || to == cur) return false;
+    if (!Truce(cur, to)) { Say("A marriage wants a truce first."); return false; }
+    bool ferrier = false; for (const auto& b : col.birds) ferrier |= b.alive && b.stage == BStage::Adult && b.role == Role::Ferrier;
+    if (!ferrier) { Say("A Ferrier carries the heir to the other colony's nest."); return false; }
+    Bird* h = col.heirId >= 0 ? FindBird(cur, col.heirId) : nullptr;
+    if (!h) { Say("There's no heir to marry."); return false; }
+    if (time - col.marriedT < 6 * DAY) { Say("One marriage a season."); return false; }
+    Colony& O = ColOf(to);
+    int other = FounderOf(to).def;
+    auto chick = [&](Colony& C, int kin, Vector3 at, int nest) { Bird c; c.id = C.nextId++; c.stage = BStage::Chick; c.nest = nest; c.pos = at; c.hunger = 1; c.kin = kin; c.genes = h->genes; C.birds.push_back(c); };
+    int myNest = -1, theirNest = -1; for (int k = 0; k < (int)col.nests.size(); k++) if (col.nests[k].built) { myNest = k; break; } for (int k = 0; k < (int)O.nests.size(); k++) if (O.nests[k].built) { theirNest = k; break; }
+    if (myNest < 0 || theirNest < 0) { Say("Both colonies need a nest."); return false; }
+    chick(col, other, col.nests[myNest].pos, myNest); chick(O, me.def, O.nests[theirNest].pos, theirNest);
+    size_t N = sides.size() + 1; truceUntil.resize(N * N, -1); truceUntil[cur * N + to] = truceUntil[to * N + cur] = std::max(truceUntil[cur * N + to], time + 6 * DAY);
+    col.marriages++; O.marriages++; col.marriedT = O.marriedT = time;
+    for (int s = 0; s <= (int)sides.size(); s++) SayTo(s, DynastyOf(cur) + " and " + DynastyOf(to) + " are joined by a marriage: a chick for each, and no war between them for a season.");
+    Chronicle(cur, CK_MARRIAGE, "Our heir was married into " + DynastyOf(to) + "."); Chronicle(to, CK_MARRIAGE, DynastyOf(cur) + "'s heir was married into our colony.");
+    return true;
+}bool World::LeaveLeague() {
     if (col.league < 0) return false;
     col.league = -1; col.fervour = std::max(0.0f, col.fervour - CD().leaveFervour);
     OathBreak(cur, "it left its league");
@@ -1060,6 +1082,7 @@ std::vector<std::pair<std::string, int>> World::Titles(int side) const {
     bool wonder = false; for (int w = 0; w < WD_COUNT; w++) wonder |= wonderBy[w] == side;
     if (wonder) v.push_back({"the Wonder-builder", 50});
     if (C.legend == LG_DODO && C.legendAlive) v.push_back({"the Dodo's Keeper", 75});
+    if (C.marriages >= 5) v.push_back({"the Matchmaker", 50});
     bool last = FounderOf(side).deaths == 0; for (int s = 0; s < N && last; s++) if (s != side && FounderOf(s).deaths == 0) last = false;
     if (last && N > 1) v.push_back({"the Last Founder", 100});
     return v;
@@ -1228,6 +1251,7 @@ int World::ReckoningScore(int side) const {
     if (C.gen >= 1 && !C.regentEver) s += (int)D.dynasty;
     s += (int)(Elders(side) * D.elder);
     if (C.reckonSurvived) s += (int)D.survived;
+    s += 50 * C.marriages;   // (a dynastic marriage: 50 each)
     return s;
 }
 void World::StepReckoning(float dt) {
@@ -1594,6 +1618,24 @@ int RunFlightLongFlightTest() {
         check(saved && same, "the Long Flight saves the whole world (every colony, its Chronicle) and loads it back");
         v->founderBot = true; for (float t = 0; t < World::DAY; t += 0.2f) v->Step(0.2f, FounderInput{});
         check(v->time > w->time + World::DAY * 0.3f && !v->mirror, "and the resumed match plays on");
+    }    // ---- dynastic marriages; the war deck
+    {
+        auto w = std::make_unique<World>(); { MapOpts o; o.players = 2; o.seasons = 8; w->Init("taloned", 41, o); w->ape.isle = -1; w->kraken.isle = -1; w->weather.next = 1e9f; }
+        Bird ch; ch.id = w->col.nextId++; ch.stage = BStage::Chick; ch.nest = 0; ch.pos = w->col.nests[0].pos; ch.hunger = 1; w->col.birds.push_back(ch); w->col.heirId = ch.id;
+        adult(*w, Role::Ferrier, w->col.caches[0].pos);
+        bool noTruce = !w->Marry(1);
+        size_t N = w->sides.size() + 1; w->truceUntil.assign(N * N, -1); w->truceUntil[1] = w->truceUntil[N] = w->time + World::DAY;
+        int c0 = 0, c1 = 0; for (const auto& b : w->ColOf(1).birds) c1 += b.alive && b.stage == BStage::Chick;
+        bool wed = w->Marry(1);
+        int c1b = 0; for (const auto& b : w->ColOf(1).birds) c1b += b.alive && b.stage == BStage::Chick;
+        check(noTruce && wed && c1b == c1 + 1 && w->col.marriages == 1 && w->ColOf(1).marriages == 1 && w->Truce(0, 1) && w->ReckoningScore(0) >= 50,
+              "a dynastic marriage (a truce, a Ferrier, the heir): a chick for each colony, no war between them for a season, 50 to the score");
+        (void)c0;
+        // the war deck: in the Great War, the dawn's three decrees come from it
+        w->council.war = true; w->council.warFrom = 0; w->council.warUntil = 1e9f; w->col.dealtDay = -1; w->time = 30 * World::DAY + 1;
+        w->StepDecrees(0.1f);
+        bool allWar = true; for (int k = 0; k < 3; k++) if (w->col.offer[k] >= 0 && w->col.offer[k] != DecreeIndex("day_of_rest")) allWar &= Decrees()[w->col.offer[k]].war;
+        check(allWar && w->col.offer[0] >= 0, "in the Great War the war deck replaces the decrees (Muster, Scorched Grounds, Night March, Last Stand)");
     }    printf(fails ? "flight-longflight-test: %d check(s) failed\n" : "flight-longflight-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }
@@ -1601,12 +1643,12 @@ int RunFlightLongFlightTest() {
 // ---------------------------------------------------------------- --flight-long <days> [players] [seed] [runs]: a full bot Long Flight
 int RunFlightLongSim(int argc, char** argv) {
     int days = argc > 2 ? std::max(1, atoi(argv[2])) : 48, players = argc > 3 ? std::clamp(atoi(argv[3]), 2, 6) : 6;
-    uint32_t seed = argc > 4 ? (uint32_t)atoi(argv[4]) : 1; int runs = argc > 5 ? std::max(1, atoi(argv[5])) : 1;
+    uint32_t seed = argc > 4 ? (uint32_t)atoi(argv[4]) : 1; int runs = argc > 5 ? std::max(1, atoi(argv[5])) : 1; int seasonsArg = argc > 6 ? atoi(argv[6]) : 8;
     std::string why; if (!rt::DataOk(&why)) { printf("no data: %s\n", why.c_str()); return 1; }
     printf("The Flight, the Long Flight: %d bot colonies, %d days, %d run(s)\n", players, days, runs);
     int wars = 0, totalWonders = 0, wondersBy24 = 0, specs = 0; float spreadSum = 0, reckLoss = 0; int reckN = 0;
     for (int run = 0; run < runs; run++) {
-        auto w = std::make_unique<World>(); MapOpts o; o.players = players; o.seasons = 8; w->Init("taloned", seed + run * 101, o);
+        auto w = std::make_unique<World>(); MapOpts o; o.players = players; o.seasons = seasonsArg; w->Init("taloned", seed + run * 101, o);
         w->founderBot = true;
         int N = (int)w->sides.size() + 1;
         std::vector<int> pre(N, 0);
@@ -1618,6 +1660,8 @@ int RunFlightLongSim(int argc, char** argv) {
                 int d = w->GameDay();
                 if (d == 46) for (int s = 0; s < N; s++) { pre[s] = 0; for (const auto& n : w->ColOf(s).nests) pre[s] += n.built; }
                 if (d == 47) for (int s = 0; s < N; s++) { int now = 0; for (const auto& n : w->ColOf(s).nests) now += n.built; if (pre[s] > 0) { reckLoss += 1.0f - (float)now / pre[s]; reckN++; } }
+                if (getenv("DEPTH_LFTRACE")) { int birds = 0, fish = 0, caught = 0; float mouths = 0; for (int s = 0; s < N; s++) { const Colony& C = w->ColOf(s); for (const auto& b : C.birds) birds += b.alive; for (const auto& c : C.caches) fish += (int)c.fish.size(); if (!C.days.empty()) { caught += C.days.back().caught; mouths += C.days.back().mouths; } }
+                    printf("    day %2d %-7s birds %4d cached %4d caught %4d mouths %5.0f  event %d great %d weather %d decree0 %s\n", d, w->SeasonNow().name.c_str(), birds, fish, caught, mouths, w->seasonEvent, w->GreatNow(w->greatEvent) ? w->greatEvent : -1, w->weather.kind, w->col.decree >= 0 ? Decrees()[w->col.decree].key.c_str() : "-"); }
                 if (d % 6 == 1) { int birds = 0; for (int s = 0; s < N; s++) for (const auto& b : w->ColOf(s).birds) birds += b.alive; printf("  [run %d day %2d] %d birds on the map, %.0f s\n", run, d, birds, std::chrono::duration<float>(std::chrono::steady_clock::now() - t0).count()); fflush(stdout); }
             }
         }
@@ -1632,6 +1676,9 @@ int RunFlightLongSim(int argc, char** argv) {
                    birds, C.speciesTrait[0] >= 0 ? (C.speciesName + TextFormat(" (day %d)", C.speciesDay)).c_str() : "-", w->Elders(s), C.league, C.pearls, C.tradeEarned, (int)C.chronicle.size(), w->scores[s].total);
             specs += C.speciesTrait[0] >= 0;
         }
+        { std::map<std::string, int> causes; for (int s = 0; s < N; s++) for (const auto& d : w->ColOf(s).deaths) causes[d.first] += d.second;
+          std::vector<std::pair<int, std::string>> top; for (const auto& c : causes) top.push_back({c.second, c.first}); std::sort(top.rbegin(), top.rend());
+          printf("    deaths:"); for (size_t k = 0; k < top.size() && k < 10; k++) printf(" %s %d;", top[k].second.c_str(), top[k].first); printf("\n"); }
         int nw = 0; std::string wl; for (int k = 0; k < WD_COUNT; k++) if (w->wonderBy[k] >= 0) { nw++; if (w->wonderDay[k] <= 24) wondersBy24++; wl += TextFormat(" %s (%s, day %d);", Wonders()[k].name.c_str(), w->SideName(w->wonderBy[k]).c_str(), w->wonderDay[k]); }
         totalWonders += nw;
         printf("    wonders: %d%s\n", nw, wl.c_str());

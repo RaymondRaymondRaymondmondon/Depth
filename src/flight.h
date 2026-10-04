@@ -113,7 +113,7 @@ struct DecreeFx {
          dangersIgnore = false, extraEgg = false, noMates = false, visible = false, hidden = false, scoutsBlind = false, noDesert = false, thermalHome = false, salvage = false,
          silentRaids = false, tradersKnown = false, rest = false;
 };
-struct DecreeDef { std::string key, name, effect, tradeoff; DecreeFx fx; DecreeFx tomorrow; };
+struct DecreeDef { std::string key, name, effect, tradeoff; DecreeFx fx; DecreeFx tomorrow; bool war = false; };   // (war: the Long Flight's war deck, dealt only in the Great War)
 const std::vector<DecreeDef>& Decrees();
 int DecreeIndex(const std::string& key);
 enum VetTrait { VT_FEARLESS = 0, VT_LUCKY, VT_KEEN, VT_GREEDY, VT_LOYAL, VT_COUNT };
@@ -480,6 +480,7 @@ struct Colony {
     int speciesTrait[2] = {-1, -1}; std::string speciesName; int speciesDay = -1;
     bool stormCrossed = false, rocEgg = false, fleetBoarded = false;
     float templeT = -1e9f, arkT = -1e9f; int chainMark = -1, windPick = -1;   // (the wonders' hands)
+    int marriages = 0; uint32_t decreesY1 = 0; float marriedT = -1e9f;   // (the Long Flight: dynastic marriages; year one's decrees, so year two can deal them again)
     int league = -1, oathsBroken = 0, warsWon = 0, huntScore = 0; float leagueFrom = 0, oathUntil = -1e9f;
     int wares[WR_COUNT] = {}; std::vector<TradeRoute> routes; int tradeEarned = 0;   // (trade empires)
     bool catchUp = false, regentEver = false, reckonSurvived = false; int coveCatch = 0, tributePaid = 0;   // (the Reckoning's accounts)
@@ -717,7 +718,7 @@ struct World {
     CouncilState council; int nextLeague = 0;   // (leagues, the Council, the Great War)
     bool Leagued(int a, int b) const; bool Oathbroken(int side) const; bool Embargoed(int side) const; bool PeaceNow() const; bool Sanctuary(int isle) const;
     int WarSide(int side) const; int VoteWeight(int side) const; void OathBreak(int side, const std::string& what);
-    int OfferLeague(int to); void JoinLeague(int a, int b); bool LeaveLeague();
+    int OfferLeague(int to); void JoinLeague(int a, int b); bool LeaveLeague(); bool Marry(int to);
     bool Propose(int kind, int target); bool Vote(int idx, bool yes); void BotCouncil(int side); void StepCouncil(float dt);
     void HuntKilled(int beast, int side); void ShareLeagueScores();
     MarketState market;                         // (trade empires)

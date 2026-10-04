@@ -614,6 +614,7 @@ void World::BotGovern(float dt) {
     // the colony can feed them, idle hands retrained, a hedge round home and a tower when it's big enough
     int mates = Count(BStage::Mate), alive = Alive();
     col.nestsWanted = std::min((int)col.sites.size(), std::max(2, mates + 1));
+    if (seasons > 0 && Season() >= SEASON_AUTUMN && DaysOfFood() < 1.0f) col.nestsWanted = std::max(2, mates);   // (the long match: no new nests going into winter without stores)
     float fpd = FeedPerDayEstimate(), mouths = MouthsPerDay();
     float fish = fpd < mouths * 1.15f ? 0.8f : 0.6f;
     for (int r = 0; r < (int)Role::COUNT; r++) col.plan[r] = 0;

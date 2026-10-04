@@ -105,6 +105,7 @@ void OrderUncharter(Writer& w, int k) { w.U8(FA_UNCHARTER); w.I32(k); }
 void OrderHallFee(Writer& w, int fee) { w.U8(FA_HALL_FEE); w.I32(fee); }
 void OrderTame(Writer& w, int beast) { w.U8(FA_TAME); w.I32(beast); }
 void OrderMirror(Writer& w) { w.U8(FA_MIRROR); }
+void OrderMarry(Writer& w, int to) { w.U8(FA_MARRY); w.I32(to); }
 void OrderHallEmbargo(Writer& w, int side) { w.U8(FA_HALL_EMBARGO); w.I32(side); }
 void OrderPropose(Writer& w, int kind, int target) { w.U8(FA_PROPOSE); w.I32(kind); w.I32(target); }
 void OrderVote(Writer& w, int idx, bool yes) { w.U8(FA_VOTE); w.I32(idx); w.U8(yes ? 1 : 0); }
@@ -264,6 +265,7 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
     case FA_BEACON: return w.LightBeacon();
     case FA_TAME: { int b = r.I32(); if (r.bad) return false; return w.Tame(b); }
     case FA_MIRROR: return w.MirrorSignal();
+    case FA_MARRY: { int t = r.I32(); if (r.bad) return false; return w.Marry(t); }
     case FA_EXCHANGE: { int ware = r.I32(), q = r.I32(); bool sell = r.U8() != 0; if (r.bad || q < 1 || q > 999) return false; return w.Exchange(ware, q, sell); }
     case FA_CHARTER: { int a = r.I32(), b = r.I32(), ware = r.I32(); if (r.bad) return false; return w.Charter(a, b, ware); }
     case FA_UNCHARTER: { int k = r.I32(); if (r.bad) return false; return w.Uncharter(k); }
@@ -494,6 +496,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     { int tl = (int)c.tools; a.i(tl); c.tools = (uint32_t)tl; } a.i(c.taming); a.i(c.tamed); a.i(c.tameDays); a.i(c.tamedId);
     for (int& v : c.seasonCatch) a.i(v); a.i(c.chicksStarved); a.b(c.peacemaker); a.vec(c.songs, [&](Song& g) { int sd = (int)g.seed; a.i(sd); g.seed = (uint32_t)sd; a.s(g.name); a.i(g.season); });
     a.vec(c.routes, [&](TradeRoute& r) { a.i(r.from); a.i(r.to); a.i(r.ware); a.i(r.traders); a.i(r.trips); a.f(r.t); a.f(r.since); a.b(r.repDone); });
+    a.i(c.marriages); { int y = (int)c.decreesY1; a.i(y); c.decreesY1 = (uint32_t)y; }
     a.i(c.league); a.i(c.oathsBroken); a.i(c.warsWon); a.i(c.huntScore); a.f(c.leagueFrom); a.f(c.oathUntil);
     a.i(c.gen); a.i(c.heirId); a.i(c.heirTrait); a.i(c.succChoice); a.i(c.keepPerk); a.i(c.dynastyPick); a.b(c.regent); a.f(c.genStart); a.f(c.successionT); { int rk = (int)c.relicsKept; a.i(rk); c.relicsKept = (uint32_t)rk; } a.s(c.dynasty);
     if (own) a.vec(c.chronicle, [&](ChronLine& l) { a.i(l.day); a.i(l.season); a.i(l.year); a.i(l.kind); a.s(l.text); });   // (the Long Flight: a colony's own Chronicle)

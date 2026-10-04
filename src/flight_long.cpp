@@ -169,7 +169,7 @@ std::vector<DecreeDef> LoadDecrees() {
         f.silentRaids = d[K("silent_raids")].Bool0(f.silentRaids); f.tradersKnown = d[K("traders_known")].Bool0(f.tradersKnown); f.rest = d[K("rest")].Bool0(f.rest);
     };
     for (const Json& d : j["decrees"].a) {
-        DecreeDef x; x.key = d["key"].Str0(); x.name = d["name"].Str0(x.key); x.effect = d["effect"].Str0(); x.tradeoff = d["tradeoff"].Str0();
+        DecreeDef x; x.key = d["key"].Str0(); x.name = d["name"].Str0(x.key); x.effect = d["effect"].Str0(); x.tradeoff = d["tradeoff"].Str0(); x.war = d["war"].Bool0(false);
         fill(d, x.fx, ""); fill(d, x.tomorrow, "tomorrow_");
         v.push_back(x);
     }
@@ -255,7 +255,10 @@ void World::StepDecrees(float dt) {
             Colony& C = col;
             if (C.dealtDay != day) {   // dawn: yesterday's decree passes; three new ones from the deck (no repeats in a match)
                 C.yesterday = C.decree; C.decree = -1; C.dealtDay = day;
-                std::vector<int> pool; for (int i = 0; i < n && i < 32; i++) if (!((C.decreesUsed >> i) & 1) && i != rest) pool.push_back(i);
+                if (LongFlight() && day == YearDays() + 1 && !C.decreesY1) C.decreesY1 = C.decreesUsed | 1u;   // (year two deals the deck again)
+                uint32_t used = LongFlight() && Year() == 2 ? C.decreesUsed & ~C.decreesY1 : C.decreesUsed;
+                bool warNow = council.war && time >= council.warFrom;   // (the Great War: the war deck replaces the decrees)
+                std::vector<int> pool; for (int i = 0; i < n && i < 32; i++) if (!((used >> i) & 1) && i != rest && D[i].war == warNow) pool.push_back(i);
                 for (int k = 0; k < 3; k++) {
                     if (pool.empty()) { C.offer[k] = k == 0 && rest >= 0 ? rest : -1; continue; }
                     int q = (int)(Rand() * pool.size()) % (int)pool.size(); C.offer[k] = pool[q]; pool.erase(pool.begin() + q);
@@ -1176,7 +1179,8 @@ int RunFlightLongTest() {
     {
         const auto& D = Decrees();
         std::map<std::string, int> keys; bool uniq = true; for (const auto& d : D) uniq &= ++keys[d.key] == 1;
-        check(D.size() == 24 && uniq && DecreeIndex("day_of_rest") >= 0, TextFormat("the deck holds 24 decrees (%d), each its own", (int)D.size()));
+        int nw = 0; for (const auto& x : D) nw += x.war;
+        check(D.size() - nw == 24 && nw == 4 && uniq && DecreeIndex("day_of_rest") >= 0, TextFormat("the deck holds 24 decrees and the Long Flight's war deck 4 (%d), each its own", (int)D.size()));
         auto w = make(4, 17);
         w->ape.isle = -1; w->kraken.isle = -1;
         w->time = 0.05f * World::DAY; w->StepDecrees(0.1f);
