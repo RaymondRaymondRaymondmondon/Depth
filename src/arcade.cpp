@@ -188,7 +188,7 @@ void DrawReels(Game& g) {
     Glow(c, 360, Color{60, 220, 210, 50});
     TxtBold("THE DEEP ARCADE", c.x - MeasureTxt("THE DEEP ARCADE", 30, true) / 2.0f, c.y - 250, 30, SCREEN_INK);
     struct Reel { int game; const char* players; const char* length; const char* line; };
-    const int NREELS = 8;
+    const int NREELS = 9;
     const Reel reels[NREELS] = {
         {G_FLATS_DUEL, "2 players", "8-12 min", "Flats against a person: a best of three at the table."},
         {G_TRAWL, "1-6 co-op", "30-35 min", "Work a steam trawler by night: catch it, kill it, cook it, sell it, and meet the Owners' quota."},
@@ -198,6 +198,7 @@ void DrawReels(Game& g) {
         {G_FLIGHT, "2-6 players, or solo with bots", "20-45 min", "Be the bird: fly your Founder in person, fish the living sea, and grow a colony."},
         {G_MOUTHFUL, "up to 12 mouths (solo with bots)", "10-20 min", "Start as a fry, eat your way up the food chain, pick a path at each fork, and wear the crown."},
         {G_NIGHT_OFF, "1-6 players", "25-40 min", "One night ashore at the Sodden Gull: drink, play, flirt, fight, and make it to the morning with both kidneys."},
+        {G_SCUFFLE, "2-8 players (solo with bots)", "10-20 min", "Stick figures, ragdolls, and whatever falls from the sky: the last stick standing wins the round."},
     };
     gDrum += (gSel - gDrum) * std::min(1.0f, GetFrameTime() * 8);
     float wheel = GetMouseWheelMove();
@@ -212,7 +213,7 @@ void DrawReels(Game& g) {
         DrawRectangleRounded(r, 0.25f, 8, on ? Color{30, 120, 118, 255} : Color{16, 60, 64, 255});
         DrawRectangleRoundedLinesEx(r, 0.25f, 8, 2, on ? Pal::Brass : Pal::BrassDk);
         DrawTextCenteredBold(Info(reels[i].game).name, c.x, r.y + 8 * sc, (int)(26 * sc), on ? Color{220, 255, 244, 255} : SCREEN_DIM);
-        if (on) DrawTextCentered(TextFormat("%s   -   %s%s", reels[i].players, reels[i].length, Info(reels[i].game).built || reels[i].game == G_TRAWL || reels[i].game == G_RED_TIDE || reels[i].game == G_FLIGHT || reels[i].game == G_MOUTHFUL || reels[i].game == G_NIGHT_OFF ? "": "   -   coming aboard later"), c.x, r.y + 40, 15, Color{180, 230, 220, 255});
+        if (on) DrawTextCentered(TextFormat("%s   -   %s%s", reels[i].players, reels[i].length, Info(reels[i].game).built || reels[i].game == G_TRAWL || reels[i].game == G_RED_TIDE || reels[i].game == G_FLIGHT || reels[i].game == G_MOUTHFUL || reels[i].game == G_NIGHT_OFF || reels[i].game == G_SCUFFLE ? "": "   -   coming aboard later"), c.x, r.y + 40, 15, Color{180, 230, 220, 255});
         if (CheckCollisionPointRec(GetMousePosition(), r) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gSel = i;
     }
     DrawWrapped(reels[gSel].line, {c.x - 200, c.y + 100, 400, 50}, 17, Color{200, 240, 232, 255});
@@ -297,6 +298,22 @@ void DrawReels(Game& g) {
         if (FlightResumable() && Button({c.x - 110, c.y + 280, 220, 30}, "Resume the Long Flight", true, 13)) { if (ResumeFlight(g)) return; }
         if (Button({c.x + 120, c.y + 236, 170, 36}, "Roost wardrobe", true, 14)) { gFlWardrobe = true; return; }
         DrawTextCentered("Host or Join to fly with friends (2-6; the host picks the map and the length in the lobby)", c.x, c.y + 280, 13, SCREEN_DIM);
+    }
+    if (selGame == G_SCUFFLE) {   // solo: you and the bots on the stone stage (stage 1; LAN comes with stage 4)
+        static int sfBots = 3, sfSkill = 2, sfToWin = 1;
+        static const char* SKILL[3] = {"Stumble bots", "Scrap bots", "Sharp bots"};
+        static const int TOWIN[3] = {5, 10, 20};
+        auto row = [&](float y, const char* text, int& v, int n, int lo) {
+            Rectangle l{c.x - 190, y, 30, 26}, r{c.x + 160, y, 30, 26};
+            DrawTextCenteredBold(text, c.x, y + 2, 19, Color{230, 200, 150, 255});
+            DrawTextCenteredBold("<", l.x + 15, l.y, 22, Pal::Brass); DrawTextCenteredBold(">", r.x + 15, r.y, 22, Pal::Brass);
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = lo + (v - lo + n - 1) % n; PlayCue("ui.click"); }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = lo + (v - lo + 1) % n; PlayCue("ui.click"); }
+        };
+        row(c.y - 10, TextFormat("%d bot%s", sfBots, sfBots == 1 ? "" : "s"), sfBots, 7, 1);
+        row(c.y + 16, SKILL[sfSkill], sfSkill, 3, 0);
+        row(c.y + 42, TextFormat("first to %d", TOWIN[sfToWin]), sfToWin, 3, 0);
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Fight (solo)", true, 15)) { StartScuffle(g, sfBots, sfSkill, TOWIN[sfToWin]); return; }
     }
     if (selGame == G_NIGHT_OFF) {   // solo: one sailor, the bar, the night (the modes that make sense alone; Host above for friends)
         static const char* CREW[6] = {"the Diver", "the Whaler", "the Stowaway", "the Mechanic", "the Captain", "the Nurse"};

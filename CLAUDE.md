@@ -514,3 +514,8 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   the token spin (`nightoff_skins.cpp`, the cloakroom `NightCloakroomPage`), the profile (`nightoff_profile.cpp`,
   `nightoff_profile.txt`; both bartenders remember you separately). `gTravelRolls` is off in the earlier stages'
   checks. `--net-loop night series [lagMs] [mem]` is the three-night gate. Details in docs/NIGHTOFF_PROGRESS.md.
+## Scuffle (arcade game 9; build log in docs/SCUFFLE_PROGRESS.md)
+- **Design:** `Reference_For_Future_MP_Games/Scuffle — Arcade Game 9 Design Document (a Stick Fight game).pdf` (OCR in `docs/scuffle_pdf_pages/`). A 2D physics brawler for 2-8 players; the build order is the doc's nine stages.
+- **Code (namespace `sf`):** `scuffle.h/.cpp` (headless: the stage, our own particle physics at a fixed 120 Hz, the active-ragdoll stick = a platformer controller + an eleven-particle figure pulled toward `PoseOffset`, fists, the bot), `scuffle_game.cpp` (`Scene::Scuffle`: the match, the ink drawing, the camera).
+- **All play goes through `sf::Input`** (the scene's `Gather`, `BotInput`); determinism matters (the doc's netcode): keep the step's float math in a fixed order and check with `--scuffle-determinism <seed>`.
+- **Checks:** `--scuffle-test`, `--scuffle-determinism <seed>`, `--scuffle-sim <players> <rounds>`. Shots `scuffle_*`, `arcade_scuffle`.

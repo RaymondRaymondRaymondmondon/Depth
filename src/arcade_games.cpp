@@ -39,6 +39,7 @@ const GameInfo& Info(int g) {
         {"The Flight", 2, 6, true, 20, true, false},
         {"Mouthful", 1, 6, true, 20, true, false},
         {"A Night Off", 1, 6, true, 20, true, false},
+        {"Scuffle", 2, 8, true, 30, false, false},
     };
     static const GameInfo DRIFT = {"Drift (test)", 2, 6, true, 20, true};
     static const GameInfo NONE = {"?", 2, 2, false, 0, false};

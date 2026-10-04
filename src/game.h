@@ -35,7 +35,7 @@ const Color Bad     = {225, 70, 70, 255};
 const Color Stress  = {170, 120, 230, 255};
 }  // namespace Pal
 
-enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade, RedTide, Trawl, Flight, Mouthful, NightOff };
+enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade, RedTide, Trawl, Flight, Mouthful, NightOff, Scuffle };
 
 // Workshop upgrades. Each has levels 0..UPGRADE_MAX.
 enum Upgrade { UP_REFLECTOR, UP_BUNKS, UP_SONAR, UP_INFIRMARY, UP_CARGO, UP_COUNT };
@@ -878,6 +878,10 @@ void LeaveTrawlMatch(Game& g);                                                 /
 void TrawlMenuTick(float dt);                                                  // (the game menu is open) a networked Trawl keeps talking   // crew 1-6 (the rest are bots), botSkill 0 Green, 1 Able, 2 Old Hand   // firstPerson: the 3D version (trawl_view3d.cpp); V switches in game
 void DebugTrawlShot(Game& g, int which);   // --shots: 0 the deck, 1 the engine room, 2 the wheelhouse, 3 a squall
 void SceneFlight(Game& g);    // The Flight, arcade game 7: the Founder flown over the tropical island (flight_game.cpp)
+void SceneScuffle(Game& g);    // Scuffle, arcade game 9: the stick fight (scuffle_game.cpp)
+void StartScuffle(Game& g, int bots = 3, int skill = 2, int toWin = 5);
+void LeaveScuffle(Game& g);
+void DebugScuffleShot(Game& g, int which);
 void SceneNightOff(Game& g);  // A Night Off, arcade game 6: one night ashore at the Sodden Gull (nightoff_game.cpp)
 void StartNightOff(Game& g, int crew = 0, int mode = 0, int crowd = 1, int bar = 0, int season = 0);
 namespace arcade { class Session; }
