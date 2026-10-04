@@ -124,16 +124,19 @@ void Night::Init(const Opts& o) {
     }
     InitPatrons();
     InitProps();
+    ScheduleEvents();
     Say(o.mode == MD_SOLO ? "The bartender looks up. \"Just you tonight? I'll keep you company.\"" : "The Sodden Gull, 7 p.m. The bartender looks up.");
     // a night can start late (the tests' short nights): the regulars due by then are already in
     if (o.startMinutes > 0) { t = o.startMinutes * SECONDS_PER_GAME_MINUTE; for (int k = 0; k < 40; k++) StepPatrons(0.5f); }
 }
 const Band& Night::BandOf(const Player& p) const { const auto& b = D().bands; int k = 0; for (int i = 0; i < (int)b.size(); i++) if (p.drunk >= b[i].from) k = i; return b[k]; }
 float Night::Charisma(const Player& p) const { return BandOf(p).charisma * (1 + (p.charBuffT > 0 ? p.charBuff : 0)) * (p.kidneys < 2 ? 1.0f : 1.0f); }
-float Night::Toughness(const Player& p) const { return BandOf(p).toughness * (1 + (p.toughBuffT > 0 ? p.toughBuff : 0)); }
+float Night::Toughness(const Player& p) const { return BandOf(p).toughness * (1 + (p.toughBuffT > 0 ? p.toughBuff : 0)) * (p.jacket ? 1.2f : 1.0f); }   // (a biker's jacket: +20%)
 float Night::PriceOf(int i) const {
     if (i < 0 || i >= (int)D().drinks.size()) return 0;
+    if (freeDrinks) return 0;   // (the shotgun fired at the cartel: the bar is yours)
     float p = D().drinks[i].price, h = Hour();
+    if (lockIn && D().drinks[i].drunk > 0) p *= 2;   // (the lock-in: double prices)
     if (h >= 22) p *= D().rise10;                                   // (prices rise 20% at 10 p.m.)
     if (h >= D().lastCallHour) p *= D().lastCallMult;               // (and double at last call)
     if (bar.mood >= 80) p *= 0.9f; else if (bar.mood < 30) p *= 1.2f;   // (the bartender's mood: Delighted cheaper, Annoyed dearer)
@@ -325,7 +328,12 @@ void Night::StepPlayer(Player& p, float dt) {
     if (in.gameAct) { GameAction(p); in.gameAct = 0; }
     // the menu and the door
     if (in.order >= 0) { std::string why; if (!Order(p, in.order, &why) && !why.empty() && p.id == 0) Say(why); in.order = -1; }
-    if (in.leave && NearDoor(p)) Leave(p, E_WALKED, "");
+    if (in.leave && NearDoor(p)) {
+        if (lockIn) Say("The door's bolted till four. (There's always the toilet window.)");
+        else if (p.adopted && EventOn("bachelor")) Say("The groom hauls you back in: \"ONE MORE! YOU'RE MY BEST FRIEND!\"");
+        else Leave(p, E_WALKED, "");
+    }
+    if (in.evAct) { EventAction(p, in.evAct, in.evArg); in.evAct = 0; in.evArg = -1; }
     in.leave = false;
 }
 void Night::Step(float dt) {
@@ -342,9 +350,10 @@ void Night::Step(float dt) {
     StepGames(dt);
     StepBrawls(dt);
     StepModes(dt);
+    StepEvents(dt);
     // 3 a.m., or every night over
     bool anyone = false; for (const auto& p : players) anyone |= p.st != State::Gone && p.st != State::PassedOut;
-    if (Minutes() >= NIGHT_MINUTES) { for (auto& p : players) if (p.st != State::Gone && p.st != State::PassedOut) Leave(p, p.st == State::Down ? E_KNOCKED_OUT : E_CLOSING, p.st == State::Down ? "on the floor of the Gull with a black eye" : "on the pavement outside the Gull at 3 a.m., swept out with the glass"); anyone = false; }
+    if (Minutes() >= endMinutes) { for (auto& p : players) if (p.st != State::Gone && p.st != State::PassedOut) Leave(p, p.st == State::Down ? E_KNOCKED_OUT : E_CLOSING, p.st == State::Down ? "on the floor of the Gull with a black eye" : "on the pavement outside the Gull at 3 a.m., swept out with the glass"); anyone = false; }
     if (!anyone) over = true;
 }
 // ---------------------------------------------------------------- the morning (doc pp. 3-4)
@@ -354,6 +363,7 @@ std::string Night::MorningLine(const Player& p) const { auto s = MorningStory(p)
 int NightGamesChecks();
 int NightBrawlChecks();
 int NightFlirtChecks();
+int NightEventChecks();
 int RunNightTest() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
@@ -405,7 +415,7 @@ int RunNightTest() {
     check(m.Order(w, water) && w.tab == 0, "water is free (and the bartender judges you)");
     // ---- stage 2: a dead night with the patrons (its gate: a dead night is playable alone)
     {
-        Night e; Opts eo; eo.players = 1; eo.crowd = 0; eo.seed = 21; e.Init(eo);
+        Night e; Opts eo; eo.players = 1; eo.crowd = 0; eo.seed = 21; eo.events = false; e.Init(eo);
         Player& y = e.players[0];
         int max8 = 0, max23 = 0, sat = 0;
         for (int i = 0; i < (int)(5 * 60 * SECONDS_PER_GAME_MINUTE / 0.05f); i++) {   // (7 p.m. to midnight)
@@ -444,6 +454,8 @@ int RunNightTest() {
     fails += NightBrawlChecks();
     // ---- stage 5: flirting, going home, the morning
     fails += NightFlirtChecks();
+    // ---- stage 7: the events
+    fails += NightEventChecks();
     printf(fails ? "A Night Off: %d check(s) FAILED\n" : "A Night Off: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

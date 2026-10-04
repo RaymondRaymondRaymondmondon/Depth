@@ -181,6 +181,11 @@ void DrawProps(const no::Night& n) {
         }
         if (k == "window") { if (broken) { rt::DrawWorldCube({at.x, at.y, 0.2f}, {1.5f, 1.2f, 0.08f}, {14, 18, 26, 255}); for (int j = 0; j < 5; j++) cubeR({at.x - 0.6f + j * 0.3f, at.y + 0.5f - (j % 3) * 0.15f, 0.22f}, {0.04f, 0.3f + 0.1f * (j % 2), 0.04f}, 0, 0.5f * (j % 3 - 1), {150, 180, 210, 255}); for (int j = 0; j < 6; j++) rt::DrawWorldCube({at.x - 0.7f + j * 0.28f, 0.02f, 0.6f + (j % 3) * 0.25f}, {0.12f, 0.02f, 0.08f}, {150, 180, 210, 255}); } continue; }
         if (k == "slot") { if (broken) { rt::DrawWorldCube({at.x + 0.42f, 1.3f, at.z}, {0.06f, 0.5f, 0.62f}, {20, 16, 16, 255}); if (fmodf(S.t + h * 3, 1.3f) < 0.08f) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.08f, 0.08f), MatrixTranslate(at.x + 0.5f, 1.4f, at.z)), {255, 230, 140, 255}, 2.0f); } continue; }
+        if (k == "kitty") { if (p.state == no::PS_OK) { rt::DrawWorldCube({at.x, at.y + 0.05f, at.z}, {0.3f, 0.1f, 0.2f}, {200, 180, 120, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.26f, 0.04f, 0.16f), MatrixTranslate(at.x, at.y + 0.12f, at.z)), {120, 200, 120, 255}, 0.5f); } continue; }
+        if (k == "bike") { if (p.state != no::PS_OK) continue; Color m{40, 40, 46, 255}, chrome{180, 180, 190, 255};
+            cubeR({at.x, 0.55f, at.z}, {1.6f, 0.35f, 0.3f}, p.yaw, 0, m); cubeR({at.x + cosf(p.yaw) * 0.75f, 0.32f, at.z + sinf(p.yaw) * 0.75f}, {0.6f, 0.6f, 0.12f}, p.yaw, 0, {20, 20, 20, 255});
+            cubeR({at.x - cosf(p.yaw) * 0.75f, 0.32f, at.z - sinf(p.yaw) * 0.75f}, {0.6f, 0.6f, 0.12f}, p.yaw, 0, {20, 20, 20, 255}); cubeR({at.x + cosf(p.yaw) * 0.6f, 0.95f, at.z + sinf(p.yaw) * 0.6f}, {0.08f, 0.08f, 0.7f}, p.yaw, 0, chrome); continue; }
+        if (k == "coffin") { if (p.state == no::PS_OK) { rt::DrawWorldCube({at.x, at.y + 0.18f, at.z}, {2.0f, 0.36f, 0.6f}, {50, 34, 26, 255}); rt::DrawWorldCube({at.x, at.y + 0.37f, at.z}, {2.05f, 0.04f, 0.65f}, {170, 140, 70, 255}); } continue; }
         if (k == "mirror") { rt::DrawWorldCube({at.x, at.y, at.z}, {0.9f, 0.7f, 0.04f}, broken ? Color{60, 64, 70, 255} : Color{170, 190, 200, 255}); continue; }
         if (k == "piano") { if (broken) for (int j = 0; j < 6; j++) cubeR({at.x - 1 + j * 0.4f, 0.1f, at.z + (j % 2) * 0.4f}, {0.5f, 0.12f, 0.2f}, j, 0.3f, {24, 20, 22, 255}); continue; }
         // the small things: glasses, bottles, the weapons
@@ -195,6 +200,19 @@ void DrawProps(const no::Night& n) {
         else if (k == "pan") { cubeR({at.x, y + 0.03f, at.z}, {0.3f, 0.05f, 0.3f}, p.yaw, tilt, {40, 40, 44, 255}); cubeR({at.x + cosf(p.yaw) * 0.3f, y + 0.04f, at.z + sinf(p.yaw) * 0.3f}, {0.3f, 0.03f, 0.04f}, p.yaw, 0, {40, 40, 44, 255}); }
         else if (k == "knife") cubeR({at.x, y + 0.02f, at.z}, {0.28f, 0.02f, 0.04f}, p.yaw, 0, {200, 205, 215, 255});
         else if (k == "shotgun") cubeR({at.x, y + 0.05f, at.z}, {0.95f, 0.08f, 0.08f}, p.yaw, p.state == no::PS_HELD ? -0.15f : 0, {70, 50, 36, 255});
+    }
+    if (n.goatOn) {
+        Color wool{226, 222, 210, 255}, horn{120, 110, 90, 255}; float gy = n.goatYaw, st = sinf(n.goatPh * 6) * 0.1f;
+        auto gp = [&](float fx, float fy, float fz, Vector3 s, Color c) { Vector2 f{cosf(gy), sinf(gy)}, r{-sinf(gy), cosf(gy)}; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(s.x, s.y, s.z), MatrixRotateY(-gy)), MatrixTranslate(n.goatPos.x + f.x * fx + r.x * fz, fy, n.goatPos.y + f.y * fx + r.y * fz)), c); };
+        gp(0, 0.55f, 0, {0.75f, 0.32f, 0.32f}, wool); gp(0.45f, 0.78f, 0, {0.26f, 0.24f, 0.2f}, wool); gp(0.5f, 0.96f, 0.06f, {0.05f, 0.18f, 0.05f}, horn); gp(0.5f, 0.96f, -0.06f, {0.05f, 0.18f, 0.05f}, horn); gp(0.62f, 0.66f, 0, {0.06f, 0.14f, 0.06f}, wool);
+        for (int j = 0; j < 4; j++) gp((j < 2 ? 0.25f : -0.25f) + (j % 2 ? st : -st), 0.2f, (j % 2 ? 0.1f : -0.1f), {0.06f, 0.4f, 0.06f}, {90, 80, 70, 255});
+    }
+    // rain over the yard (and on the street): streaks near the camera
+    if (n.raining) for (int j = 0; j < 160; j++) {
+        float u = fmodf(j * 0.6180339f, 1.0f), v = fmodf(j * 0.7548777f, 1.0f), fall = fmodf(S.t * 7 + j * 0.37f, 4.0f);
+        Vector3 at{S.cam.position.x - 10 + u * 20, 4 - fall, S.cam.position.z - 10 + v * 20};
+        if (!(at.z > 30 || at.z < 0 || at.x < 0)) continue;   // (outside only)
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.01f, 0.35f, 0.01f), MatrixTranslate(at.x, at.y, at.z)), {170, 190, 220, 255}, 0.5f);
     }
     // the alley dog: a scruffy brown dog of boxes, asleep by the bins until someone shares their chips
     const no::Dog& d = n.dog;
@@ -231,7 +249,9 @@ void DrawPeople(const no::Night& n) {
         float lean = sinf(S.t * 0.9f + c.id) * 0.06f * std::clamp(c.drunk / 100, 0.0f, 1.0f);
         FightPose(c.fight, P, lean);
         if (Floored(c.fight)) P.sit = 0;
-        Vector3 feet{c.pos.x, P.sit > 0 ? 0.0f : 0.0f, c.pos.y};
+        float fy = 0; for (const auto& b : no::D().bar.boxes) if (b.kind == "stage" && CheckCollisionPointRec(c.pos, {b.r.x, b.r.y, b.r.width, b.r.height})) fy = b.h;
+        if (fy > 0 && c.ev >= 0) { P.reach = 0.5f; P.elbow = 0.6f + 0.3f * sinf(S.t * 8 + c.id); P.grip = 0.9f; P.nod = 0.15f * sinf(S.t * 4 + c.id); }   // (playing)
+        Vector3 feet{c.pos.x, fy, c.pos.y};
         DrawPerson(m, cl, feet, c.yaw, P, lean, 0, Floored(c.fight));
     }
     if (S.walkPh.size() < n.players.size()) S.walkPh.resize(n.players.size(), 0);
@@ -537,6 +557,20 @@ void DrawHud() {
         if (Vector2Distance(p.pos, n.dog.pos) < 1.6f && n.dog.owner != p.id) DrawTextCenteredBold(TextFormat("E: share your chips with the dog (5)  [%d of %d]", n.dog.fed[std::clamp(p.id, 0, 5)], no::FD().dogFeeds), SCREEN_W / 2.0f, SCREEN_H - 90, 18, brass);
     }
     if (p.fight.held >= 0 && n.props[p.fight.held].kind == "bottle" && p.pos.x > 12 && p.pos.x < 21.5f && p.pos.y > 7.6f && p.pos.y < 9.2f) DrawTextCentered("C: smash it on the bar", SCREEN_W / 2.0f, SCREEN_H - 64, 15, Color{255, 170, 130, 255});
+    {   // tonight's events, top left under the room
+        int shown = 0; for (size_t i = 0; i < n.events.size(); i++) { const auto& e = n.events[i]; if (!e.started || e.done) continue; std::string label = "?";
+            for (int id : e.people) if (id >= 0 && id < (int)n.patrons.size()) { label = n.patrons[id].secret.size() > 9 ? n.patrons[id].secret.substr(9) : n.patrons[id].secret; break; }
+            if (e.people.empty()) label = n.lockIn ? "The lock-in" : n.goatOn ? "The goat" : "Something";
+            TxtBold(label, 18, 40.0f + shown * 18, 14, Color{255, 200, 140, 255}); shown++; }
+        if (n.raining) TxtBold("Rain", 18, 40.0f + shown * 18, 14, Color{170, 200, 240, 255});
+    }
+    if (p.st == no::State::Active && !S.menu && p.talk.patron < 0 && p.flirt.patron < 0 && !nog::Blocking(p)) {
+        auto opts = n.EventOptions(p);
+        for (int k = 0; k < (int)opts.size() && k < 3; k++) {
+            DrawTextCenteredBold(TextFormat("F%d: %s", k + 1, opts[k].label.c_str()), SCREEN_W / 2.0f, SCREEN_H - 150.0f + k * 22, 16, Color{255, 210, 150, 255});
+            if (IsKeyPressed(KEY_F1 + k)) { p.in.evAct = opts[k].act; p.in.evArg = opts[k].arg; }
+        }
+    }
     // the bar games: the opponent-and-stake menu, or the game being played
     nog::Frame(n, p, S.shot ? 1 / 60.0f : GetFrameTime());
 }
@@ -711,6 +745,18 @@ void DebugNightOffShot(Game& g, int which) {
         S.camYaw = me.yaw; S.camAt = {me.pos.x, 1.55f, me.pos.y}; S.camPitch = -0.3f; S.camDist = 4.0f;
         for (int k = 0; k < 30; k++) StepCamera(1 / 60.0f);
         return;
+    }
+    if (which >= 21 && which <= 24) {   // the events: 21 the biker gang at the pool tables, 22 the robbery, 23 the band and the dance floor, 24 the police
+        static const char* KEY[4] = {"bikers", "robbery", "band", "police"};
+        n.events.clear(); n.rainH = which == 21 ? 21.0f : 99;
+        n.ForceEvent(KEY[which - 21], 22.0f);
+        for (int i = 0; i < (int)(3 * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f) + 60; i++) n.Step(0.1f);
+        for (int i = 0; i < (which == 22 ? 30 : 400); i++) n.Step(0.05f);
+        if (which == 21) { at(7.5f, 9.0f, -PI * 0.7f, -PI * 0.72f, 20); S.camPitch = -0.35f; S.camDist = 4.5f; }
+        if (which == 22) { at(18.5f, 4.5f, PI * 0.5f, PI * 0.5f, 25); S.camPitch = -0.25f; S.camDist = 4.0f; }
+        if (which == 23) { at(16, 15, PI * 0.5f, PI * 0.5f, 30); S.camPitch = -0.2f; n.StartGame(p, no::GK_DANCE, 0, -1, 0); }
+        if (which == 24) { at(16.5f, 6.0f, PI * 0.5f, PI * 0.45f, 15); S.camPitch = -0.25f; S.camDist = 4.0f; }
+        for (int k = 0; k < 30; k++) StepCamera(1 / 60.0f);
     }
     if (which == 17) {   // the alley dog, fed and following you in
         p.pos = Vector2Add(n.dog.pos, {0.6f, 0}); for (int k = 0; k < 3; k++) { p.in.feedDog = true; n.Step(0.02f); }

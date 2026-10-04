@@ -115,6 +115,8 @@ template <class A> void VisitPlayer(A& a, Player& p, bool own, bool over) {
     VisitCombat(a, p.fight);
     a.f(p.leavingT); a.i(p.leavingWith); a.i(p.carrying); a.i(p.carriedBy); a.b(p.faceDrawn);
     a.s(p.homeWith); a.s(p.homeKind); a.b(p.homeBad); a.s(p.card); a.i(p.gamesWon); a.i(p.fightsWon); a.i(p.fightsWonSober);
+    a.i(p.dare); a.i(p.daresDone); a.b(p.adopted); a.b(p.jacket); a.b(p.bribed); a.b(p.checked); a.b(p.promised); a.b(p.helpingRobbers); a.b(p.gaveRobbers);
+    a.f(p.debt); a.f(p.roundT); a.f(p.damageCaused); a.f(p.lastFightT); a.i(p.cartelDue); a.b(p.watchingSafe); a.i(p.eventsSurvived);
     if (own || over) a.i(p.wager);
     if (!own) return;
     { Talk& t = p.talk; a.i(t.patron); a.i(t.exchanges); a.i(t.wins); a.i(t.losses); a.i(t.target); a.s(t.theirLine); a.s(t.myCaption); a.s(t.result); a.b(t.over); a.f(t.overT); a.f(t.listenT); a.i(t.lastOption); a.b(t.lastWin); a.b(t.substituted); }
@@ -129,6 +131,7 @@ template <class A> void VisitPatron(A& a, Patron& c, const Player* viewer) {
     a.i(c.look.model); Col(a, c.look.top); Col(a, c.look.hat); a.f(c.look.build); a.f(c.look.height);
     bool known = viewer && std::find(viewer->known.begin(), viewer->known.end(), c.name) != viewer->known.end();
     if (known) a.s(c.secret);
+    a.i(c.ev); a.s(c.role); a.f(c.backAt);
     VisitCombat(a, c.fight); a.b(c.outForNight); int fo = c.friendOf; a.i(fo); if constexpr (A::reading) c.friendOf = (uint8_t)fo;
 }
 template <class A> void Visit(A& a, Night& n, int viewer) {
@@ -145,6 +148,8 @@ template <class A> void Visit(A& a, Night& n, int viewer) {
     if constexpr (A::reading) for (int k = 0; k < (int)n.patrons.size(); k++) { n.patrons[k].id = k; n.patrons[k].mem.resize(n.players.size()); }
     a.vec(n.props, [&](Prop& p) { a.s(p.kind); P3(a, p.pos); a.f(p.yaw); a.f(p.tilt); int st = p.state; a.i(st); if constexpr (A::reading) p.state = (uint8_t)std::clamp(st, 0, (int)PS_GONE); W(a, p.holder); a.i(p.weapon); a.i(p.brawl); F2(a, p.size); });
     a.vec(n.pops, [&](Pop& p) { a.f(p.pos.x); a.f(p.pos.y); a.f(p.pos.z); a.s(p.text); a.f(p.t); Col(a, p.col); });
+    a.vec(n.events, [&](Night::EventRun& e) { a.i(e.def); a.f(e.startH); a.f(e.endH); a.b(e.started); a.b(e.done); a.i(e.stage); a.f(e.a); a.f(e.b); a.i(e.target); a.s(e.outcome); a.vec(e.people, [&](int& k) { a.i(k); }); });
+    a.b(n.raining); a.b(n.lockIn); a.b(n.freeDrinks); a.b(n.scratchEaten); a.b(n.safeOpened); a.b(n.goatOn); a.b(n.partied); a.f(n.rainH); a.f(n.endMinutes); P2(a, n.goatPos); a.f(n.goatYaw); a.f(n.goatPh);
     { Dog& d = n.dog; P2(a, d.pos); a.f(d.yaw); a.f(d.walkPh); a.i(d.owner); a.b(d.sleeping); for (int& f : d.fed) a.i(f); }
     // the morning: the host's headline, stories and scoreboards (a guest draws them as they are)
     if (n.over) {
@@ -302,7 +307,7 @@ int RunNightNetTest() {
     printf("A Night Off: the network layer\n");
     Input in; in.moveX = 0.5f; in.order = 3; in.attack = MV_HAYMAKER; in.gameAim = {12, -40}; in.buyRound = true; in.flirtSay = 2;
     { Writer w; WriteInput(in, w); Reader r(w.b); r.U8(); Input o; check(ReadInput(r, o) && o.moveX == 0.5f && o.order == 3 && o.attack == MV_HAYMAKER && o.gameAim.y == -40 && o.buyRound && o.flirtSay == 2 && o.talkTo == -1, "an input frame round-trips"); }
-    Night N; Opts o; o.players = 3; o.seed = 77; o.startMinutes = 150; N.Init(o);
+    Night N; Opts o; o.players = 3; o.seed = 77; o.startMinutes = 150; o.events = false; N.Init(o);
     for (auto& p : N.players) { p.bot = true; p.botStyle = p.id % 2; }
     for (int i = 0; i < 600; i++) { for (auto& p : N.players) N.BotPlayer(p, 0.1f); N.Step(0.1f); }
     auto mir = std::make_unique<Night>();
@@ -310,7 +315,7 @@ int RunNightNetTest() {
     { Writer a; WriteNight(N, 1, a); Writer b; WriteNight(*mir, 1, b); check(a.b == b.b, TextFormat("the mirror writes back byte for byte (%d bytes)", (int)a.b.size())); }
     { Writer a; PackNight(N, 1, a); Reader r(a.b); check(ReadNight(r, *mir) && mir->players[1].name == N.players[1].name, TextFormat("a packed snapshot reads (%.1f KB)", a.b.size() / 1024.0f)); }
     // a pool shot on the host replays itself on the guest
-    { Player& p = N.players[1]; p.bot = false; p.st = State::Active; p.pos = {3.3f, 5.0f}; p.in = Input{}; p.in.startGame = GK_POOL; p.in.gameOpp = -1; N.Step(0.02f);
+    { Player& p = N.players[1]; p.bot = false; N.EndTalk(p); N.EndFlirt(p); N.EndGame(p); p.fight = Combat{}; p.leavingT = 0; p.st = State::Active; p.pos = {3.3f, 5.0f}; p.in = Input{}; p.in.startGame = GK_POOL; p.in.gameOpp = -1; N.Step(0.02f);
       pool::Shot s; GRng rr; rr.s = 3; s = pool::BotShot(p.game.pool, 1, rr, true); p.in.gameAct = 1; p.in.gameAim = {s.ang, 0}; p.in.gamePower = s.power; N.Step(0.02f);
       Writer a; PackNight(N, 1, a); Reader r(a.b); bool ok = ReadNight(r, *mir);
       const auto& hf = N.players[1].game.pool.t.frames; const auto& gf = mir->players[1].game.pool.t.frames;

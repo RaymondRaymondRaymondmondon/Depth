@@ -84,6 +84,11 @@ void Night::StartFlirt(Player& p, int idx) {
     // a packed bar after 10 p.m. lowers the bar by one; the kidney thieves make their offer early
     F.need = (opts.crowd == 2 && Hour() >= 22) || c.home == "kidney" ? 2 : 3;
     c.talkingTo = p.id;
+    if (EventOn("wake")) {   // flirting at a wake is -30 with everyone, and the Reverend notices
+        for (auto& o : patrons) if (o.inside && !o.gone && Vector2Distance(o.pos, p.pos) < 12) o.mood = std::max(0.0f, o.mood - 30);
+        for (auto& o : patrons) if (o.name == "The Reverend" && o.inside) o.mood = 0;
+        Say("Flirting. At a wake. The Reverend has noticed.");
+    }
     if (c.mood < 20) { F.theirLine = "Not tonight, sailor. Not ever."; F.over = true; F.overT = 1.8f; F.result = c.name + " isn't interested."; }
     else F.theirLine = c.type == T_FLIRT ? "Well, hello, sailor." : "Oh? Go on, then.";
     p.flirt = F;
@@ -233,6 +238,8 @@ std::string Night::Headline() const {
         else if (w == "no_drinks") hit = drinks == 0;
         else if (w == "all_walked") hit = walked == n && passed == 0;
         else if (w == "any") hit = true;
+        else if (w.rfind("ev_", 0) == 0) { int ei = EventIndex(w.substr(3).c_str()); hit = ei >= 0 && events[ei].started; }
+        else hit = flagged(w.c_str(), &who);
         if (!hit) continue;
         std::string out = h.text;
         out = Replace(out, "{N}", Words(n)); out = Replace(out, "{S}", n == 1 ? "" : "S"); out = Replace(out, "{n}", TextFormat("%d", w == "any" ? drinks : n));
@@ -284,13 +291,13 @@ int NightFlirtChecks() {
     auto find = [](Night& n, const char* name) { for (auto& c : n.patrons) if (c.name == name) return c.id; return -1; };
     auto setup = [&](Night& n, int who, Player& p) { Patron& c = n.patrons[who]; c.inside = true; c.gone = false; c.leaving = false; c.talkingTo = -1; c.mood = 70; c.pos = {18, 5}; c.goal = c.pos; c.nextGoalT = 1e9f; p.st = State::Active; p.pos = {18.8f, 5}; p.drunk = 25; };
     // the fit: a romantic patron likes a compliment far more than a dance
-    { Night n; Opts o; o.seed = 9; n.Init(o); Player& p = n.players[0]; int w = find(n, "Nellie Bright"); setup(n, w, p);
+    { Night n; Opts o; o.events = false; o.seed = 9; n.Init(o); Player& p = n.players[0]; int w = find(n, "Nellie Bright"); setup(n, w, p);
       float a = n.FlirtOdds(p, n.patrons[w], 0), b = n.FlirtOdds(p, n.patrons[w], 3);
       check(a > b + 0.2f, TextFormat("Nellie Bright (romantic) likes a compliment (%.0f%%) more than a dance (%.0f%%)", a * 100, b * 100));
       int d = find(n, "Dottie Finch"); setup(n, d, p);
       check(n.FlirtOdds(p, n.patrons[d], 1) > 0.85f, "and the kidney thieves are the best flirts in the bar"); }
     // the whole flirt: open, build, the offer, the kidney; the headline is the funny one
-    { Night n; Opts o; o.seed = 11; n.Init(o); Player& p = n.players[0]; p.name = "You"; int d = find(n, "Dottie Finch"); setup(n, d, p);
+    { Night n; Opts o; o.events = false; o.seed = 11; n.Init(o); Player& p = n.players[0]; p.name = "You"; int d = find(n, "Dottie Finch"); setup(n, d, p);
       p.in.flirtWith = d; n.Step(0.02f);
       check(p.flirt.patron == d && !p.flirt.theirLine.empty(), "a flirt opens: \"" + p.flirt.theirLine + "\"");
       for (int k = 0; k < 8 && !p.flirt.offer && !p.flirt.over; k++) { p.in.flirtSay = 1; n.Step(0.02f); }
@@ -304,26 +311,26 @@ int NightFlirtChecks() {
       int sc = n.Score(p), sum = 0; for (const auto& l : n.ScoreBreakdown(p)) sum += l.points;
       check(sc == sum && sc >= 50, TextFormat("the score adds up (%d)", sc)); }
     // a dog at your side and the thieves think again
-    { Night n; Opts o; o.seed = 12; n.Init(o); Player& p = n.players[0]; int d = find(n, "Jasper Coil"); setup(n, d, p); n.dog.owner = 0;
+    { Night n; Opts o; o.events = false; o.seed = 12; n.Init(o); Player& p = n.players[0]; int d = find(n, "Jasper Coil"); setup(n, d, p); n.dog.owner = 0;
       n.GoHome(p, d, "kidney");
       check(p.kidneys == 2 && p.homeKind == "dog", "nobody steals a kidney in front of a dog"); }
     // a teammate at the door stops a bad night
-    { Night n; Opts o; o.seed = 13; o.players = 2; n.Init(o); Player& p = n.players[0]; Player& q = n.players[1]; int d = find(n, "Harrow"); setup(n, d, p);
+    { Night n; Opts o; o.events = false; o.seed = 13; o.players = 2; n.Init(o); Player& p = n.players[0]; Player& q = n.players[1]; int d = find(n, "Harrow"); setup(n, d, p);
       q.st = State::Active; q.pos = {40, 40};
       p.flirt.patron = d; p.flirt.offer = true; n.patrons[d].talkingTo = 0; p.in.offer = 1; n.Step(0.02f);
       check(p.leavingT > 0 && p.st == State::Active, "a bad night waits 30 s at the door when there are friends in the bar");
       q.pos = D().bar.door; for (int k = 0; k < 50; k++) n.Step(0.02f);
       check(p.st == State::Active && p.leavingT <= 0 && p.money > 0, "a teammate at the door stops it: the thief runs"); }
     // a sincere night: +100
-    { Night n; Opts o; o.seed = 14; n.Init(o); Player& p = n.players[0]; int d = find(n, "Old Marlow"); setup(n, d, p); n.GoHome(p, d, "sincere");
+    { Night n; Opts o; o.events = false; o.seed = 14; n.Init(o); Player& p = n.players[0]; int d = find(n, "Old Marlow"); setup(n, d, p); n.GoHome(p, d, "sincere");
       int pts = 0; for (const auto& l : n.ScoreBreakdown(p)) if (l.what.find("Went home") == 0) pts = l.points;
       check(pts == 100 && !p.homeBad, "a sincere night: breakfast and 100"); }
     // decline: a friend who backs you in a fight
-    { Night n; Opts o; o.seed = 15; n.Init(o); Player& p = n.players[0]; int d = find(n, "Nellie Bright"); setup(n, d, p);
+    { Night n; Opts o; o.events = false; o.seed = 15; n.Init(o); Player& p = n.players[0]; int d = find(n, "Nellie Bright"); setup(n, d, p);
       p.flirt.patron = d; p.flirt.offer = true; n.patrons[d].talkingTo = 0; p.in.offer = 2; n.Step(0.02f);
       check((n.patrons[d].friendOf & 1) && n.patrons[d].mood > 80, "decline the offer and keep a friend"); }
     // the bartender's warning: one true name and one false
-    { Night n; Opts o; o.seed = 16; n.Init(o); Player& p = n.players[0]; p.st = State::Active; p.pos = D().bar.serve; for (auto& c : n.patrons) if (c.home == "kidney") c.inside = true;
+    { Night n; Opts o; o.events = false; o.seed = 16; n.Init(o); Player& p = n.players[0]; p.st = State::Active; p.pos = D().bar.serve; for (auto& c : n.patrons) if (c.home == "kidney") c.inside = true;
       p.in.askTrouble = true; n.Step(0.02f); bool told = false; for (const auto& s : n.say) told |= s.find("Keep an eye on") != std::string::npos;
       check(told && p.tab > 0, "ask the bartender who's trouble: " + (n.say.empty() ? std::string() : n.say.back())); }
     return fails;

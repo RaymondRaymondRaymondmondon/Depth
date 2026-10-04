@@ -86,6 +86,7 @@ struct Input {
     bool fortuneYes = false;                          // the fortune teller asks you home
     // what players do to each other (doc p. 23): a round, a spiked pint, carrying a friend out, a drawn moustache
     bool buyRound = false, carry = false, drawFace = false; int spike = -1; int wager = -1;
+    int evAct = 0, evArg = -1;                        // an event's action (Night::EventOptions: a dare, the book, a bribe, the robbers, the cartel...)
     // the bar games (nightoff_games.cpp): start one at a station, then act in it
     int startGame = -1, gameMachine = 0, gameOpp = -1, gameStake = 0;   // GK_*; the table or machine; a patron id (-1 alone, -2 the bartender); the stake
     int gameAct = 0;                                  // 1 throw / shoot / pull / reveal / read, 2 place the cue ball, 3 leave, 4 again, 5 buy another
@@ -117,6 +118,9 @@ struct Player {
     int gamesWon = 0, fightsWon = 0, fightsWonSober = 0, eventsSurvived = 0;   // (the morning's scoreboard)
     std::string homeWith, homeKind, card; bool homeBad = false; float leavingT = 0; int leavingWith = -1;   // going home: with whom, how it went; a bad night's 30 s at the door
     bool fortuneAsked = false;
+    // the events (nightoff_events.cpp)
+    int dare = -1, daresDone = 0; bool adopted = false, jacket = false, bribed = false, checked = false, promised = false, helpingRobbers = false, gaveRobbers = false;
+    float debt = 0, roundT = -1e9f, damageCaused = 0, lastFightT = -1e9f; int cartelDue = 0; bool watchingSafe = false;
     // the bot's mind (an AI seat, a dropped player, --night-sim): a style, a goal, a path, a pause
     int botStyle = 0; float botT = 0, botDrinkTo = 40, botLeaveH = 25.5f, botFightT = 0; int botGoal = -1, botArg = 0; Vector2 botTarget{}; std::vector<int> botPath;
     int wager = -1, crew2 = 0; bool faceDrawn = false; int carrying = -1, carriedBy = -1; float lostOnPass = 0;   // (the Wager's bet; a rival crew; the drawn face; carrying a friend)   // items given; secrets learned (patron names whose secret you know)
@@ -138,7 +142,8 @@ struct Patron {
     std::vector<int> path; Vector2 goal{}; std::string seatKind; int seat = -1; float nextGoalT = 0; bool sitting = false;
     float drunk = 0, drinkT = 0; int talkingTo = -1, playing = -1;   // playing: a game with that player
     Combat fight; bool outForNight = false;           // (thrown through a window: out for the night)
-    std::string home = "sincere"; uint8_t friendOf = 0;   // where going home ends up; players they'll back in a fight (a declined offer)
+    std::string home = "sincere"; uint8_t friendOf = 0;
+    int ev = -1; std::string role; float backAt = 0;      // an event's people (the groom, a biker, the inspector...); sent home for 20 minutes   // where going home ends up; players they'll back in a fight (a declined offer)
     Look look; std::vector<Memory> mem;               // a memory per player
     bool Has(int trait) const { return trait >= 0 && ((traits >> trait) & 1); }
 };
@@ -149,7 +154,7 @@ const char* ModeName(int m);
 const char* ModeRule(int m);
 enum Wager { WG_HOME, WG_RICH, WG_SOBER_FIGHT, WG_SURVIVE, WG_COUNT };   // (the Wager: go home with someone, win 500, win a fight sober, survive the cartel)
 const char* WagerName(int w);
-struct Opts { int players = 1; uint32_t seed = 1; int crowd = 1; int mode = MD_NIGHT_OFF; bool pvp = true; float startMinutes = 0; };   // crowd: 0 Dead, 1 Normal, 2 Packed, 3 Random; startMinutes: tests start the night late
+struct Opts { int players = 1; uint32_t seed = 1; int crowd = 1; int mode = MD_NIGHT_OFF; bool pvp = true; float startMinutes = 0; bool events = true; };   // (events: the tests of earlier stages turn them off)   // crowd: 0 Dead, 1 Normal, 2 Packed, 3 Random; startMinutes: tests start the night late
 
 struct Night {
     Opts opts; uint32_t rng = 1;
@@ -204,6 +209,23 @@ struct Night {
     void BotPlayer(Player& p, float dt);
     void StepModes(float dt);
     void PlayerTricks(Player& p);
+    // the events (nightoff_events.cpp, data nightoff_events.json): two or three a night, rolled against the hour and the crowd
+    struct EventRun { int def = -1; float startH = 99, endH = 99; bool started = false, done = false; std::vector<int> people; int stage = 0; float a = 0, b = 0; int target = -1; std::string outcome; };
+    std::vector<EventRun> events;
+    bool raining = false, lockIn = false, freeDrinks = false, scratchEaten = false, safeOpened = false, goatOn = false, partied = false;
+    float rainH = 99, endMinutes = NIGHT_MINUTES; Vector2 goatPos{}, goatVel{}; float goatYaw = 0, goatPh = 0;
+    struct EvOption { int act = 0, arg = -1; std::string label; };
+    void ScheduleEvents();
+    void StepEvents(float dt);
+    void StartEvent(int i);
+    void EndEvent(int i, const std::string& outcome = "");
+    int EventIndex(const char* key) const;            // the scheduled run of that event, or -1
+    bool EventOn(const char* key) const;               // that event is under way
+    int ForceEvent(const char* key, float hour);       // (tests and shots: schedule one now)
+    std::vector<EvOption> EventOptions(const Player& p) const;
+    void EventAction(Player& p, int act, int arg);
+    void SendHome(float share);                        // a fight or the police: a share of the room goes home for 20 minutes
+    int AddEventPatron(int run, const std::string& role, Vector2 at, Color top);
     int NearGame(const Player& p, int* machine = nullptr) const;   // the game station within reach (GK_*), or -1
     std::vector<int> Challengers(const Player& p, int kind) const; // patrons who'd play you: the named ones first
     bool StartGame(Player& p, int kind, int machine, int opponent, int stake, std::string* why = nullptr);

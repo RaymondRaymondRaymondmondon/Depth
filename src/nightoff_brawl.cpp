@@ -144,6 +144,7 @@ void Night::BreakProp(int i, Who by, int brawl, const char* how) {
     if (p.kind == "table") for (int k = 0; k < (int)props.size(); k++) { Prop& q = props[k]; if ((q.kind == "glass" || q.kind == "bottle") && q.state == PS_OK && fabsf(q.pos.x - p.pos.x) < p.size.x / 2 + 0.1f && fabsf(q.pos.z - p.pos.z) < p.size.y / 2 + 0.1f && q.pos.y > 0.5f) BreakProp(k, by, brawl, "swept off the table"); }
     if (price <= 0) return;
     damage += price;
+    if (by.kind == 0 && by.idx >= 0 && by.idx < (int)players.size()) players[by.idx].damageCaused += price;
     bar.mood = std::max(0.0f, bar.mood + FD().barPerBreak);
     std::string what = p.kind == "window" ? "a window" : p.kind == "piano" ? "the piano" : p.kind == "glass" ? "a glass" : p.kind == "bottle" ? "a bottle" : p.kind == "cue" ? "a pool cue" : p.kind == "slot" ? "a slot machine" : p.kind == "mirror" ? "the mirror" : p.kind == "table" ? "a table" : p.kind == "stool" ? "a stool" : "a chair";
     if (brawl >= 0 && brawl < (int)brawls.size()) { brawls[brawl].bill += price; brawls[brawl].broke.push_back(what + (how ? std::string(" (") + how + ")" : std::string())); }
@@ -154,11 +155,13 @@ void Night::BreakProp(int i, Who by, int brawl, const char* how) {
 // ---------------------------------------------------------------- a brawl
 int Night::StartBrawl(Who a, Who b, Who starter) {
     Combat* A = CombatOf(a); Combat* Bc = CombatOf(b); if (!A || !Bc) return -1;
+    if (EventOn("wake")) { Say("Not at a wake. Everyone looks at the coffin."); return -1; }   // (fights are impossible at a wake)
     int id = A->brawl >= 0 ? A->brawl : Bc->brawl;
     if (id < 0 || brawls[id].over) {
         Brawl br; br.id = (int)brawls.size(); br.starter = starter; br.at = *PosOf(a); br.room = RoomAt(br.at);
         brawls.push_back(br); id = br.id;
         bar.mood = std::max(0.0f, bar.mood + FD().barPerFight);
+        SendHome(0.33f);   // (a fight sends a third of the room home for twenty minutes)
         std::string who = NameOf(starter);
         Say(who + (who == "You" ? " start a fight in " : " starts a fight in ") + br.room + ".");
     }
@@ -213,6 +216,7 @@ void Night::Strike(Who att, Who def, float dmg, int weapon, bool hay) {
 }
 void Night::Attack(Who w, int move) {
     Combat* C = CombatOf(w); if (!C || C->Busy() || C->windT > 0 || C->recT > 0) return;
+    if (EventOn("wake") && move != MV_THROW) { if (w.kind == 0) AddPop(*PosOf(w), 2.0f, "Not at a wake", {200, 200, 220, 255}); return; }
     Vector2 pos = *PosOf(w); float yaw = *YawOf(w);
     if (move == MV_THROW) {   // throw what you hold, along your facing (the drunker, the wilder)
         if (C->held < 0 || C->held >= (int)props.size()) return;
@@ -385,6 +389,7 @@ void Night::StepBrawls(float dt) {
         }
         C.blockT = std::max(0.0f, C.blockT - dt); C.dodgeT = std::max(0.0f, C.dodgeT - dt); C.stunT = std::max(0.0f, C.stunT - dt); C.fallT = std::max(0.0f, C.fallT - dt);
         C.hitT = std::max(0.0f, C.hitT - dt); C.swingT = std::max(0.0f, C.swingT - dt * 3); C.recT = std::max(0.0f, C.recT - dt); C.afterT = std::max(0.0f, C.afterT - dt);
+        if (w.kind == 0 && C.brawl >= 0) players[w.idx].lastFightT = t;
         if (C.bleedT > 0) { C.bleedT -= dt; C.hp -= 2 * dt; if (C.hp <= 0 && !C.Down()) { C.hp = 0.01f; Strike(w, w, 1, -1, false); } }
         if (C.downT > 0) {
             C.downT -= dt;
@@ -543,7 +548,10 @@ void Night::StepBrawls(float dt) {
         if (done || b.quietT > 8) EndBrawl(b);
     }
     // the police: due after an armed fight; while they're in, anyone fighting or armed is arrested
-    if (policeT > 0 && (policeT -= dt) <= 0) { policeT = -1; policeInT = 90; Say("The police come in. The room goes very quiet."); }
+    if (policeT > 0 && (policeT -= dt) <= 0) {   // (the police inspection event: StartEvent sets how long they stay)
+        policeT = -1;
+        if (!lockIn) { int pi = EventIndex("police"); if (pi >= 0 && !events[pi].started) events[pi].startH = Hour(); else ForceEvent("police", Hour()); StepEvents(0); }
+    }
     if (policeInT > 0) {
         policeInT -= dt;
         for (auto& p : players) {
@@ -560,7 +568,7 @@ void Night::StepBrawls(float dt) {
 int NightBrawlChecks() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
-    Night n; Opts o; o.players = 1; o.seed = 77; o.crowd = 1; n.Init(o);
+    Night n; Opts o; o.players = 1; o.seed = 77; o.crowd = 1; o.events = false; n.Init(o);
     for (int i = 0; i < (int)(4 * 60 * SECONDS_PER_GAME_MINUTE / 0.1f); i++) n.Step(0.1f);   // (11 p.m.)
     Player& p = n.players[0]; p.st = State::Active; p.drunk = 30; p.pos = {5, 8}; p.yaw = 0; p.tab = 0;
     int props0 = 0; for (const auto& q : n.props) props0 += q.state == PS_OK;
@@ -613,7 +621,7 @@ int NightBrawlChecks() {
     check(n.damage - dmg0 >= b.bill, "the night's damage counts it");
     check(n.bar.mood < 55, TextFormat("the bartender's sour about it (%.0f)", n.bar.mood));
     // the after-fight swing, knockouts, Sister Ash, the police
-    { Night m; Opts mo; mo.players = 1; mo.seed = 5; m.Init(mo); Player& q = m.players[0]; q.st = State::Active; q.pos = {18, 5};
+    { Night m; Opts mo; mo.players = 1; mo.seed = 5; mo.events = false; m.Init(mo); Player& q = m.players[0]; q.st = State::Active; q.pos = {18, 5};
       int a = -1, c2 = -1; for (auto& c : m.patrons) { if (a < 0 && c.reg >= 0 && c.name != "Sister Ash" && c.type != T_STAFF) a = c.id; else if (c2 < 0 && c.reg >= 0 && c.name != "Sister Ash" && c.type != T_STAFF) c2 = c.id; }
       Patron& A = m.patrons[a]; A.inside = true; A.pos = {19, 5}; A.nextGoalT = 1e9f;
       m.Step(0.02f); m.StartBrawl(PlayerW(0), PatronW(a), PlayerW(0));

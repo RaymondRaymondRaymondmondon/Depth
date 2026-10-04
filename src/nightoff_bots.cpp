@@ -57,7 +57,9 @@ void Night::PlayerTricks(Player& p) {
         int n = 0; float price = PriceOf(DrinkIndex("pint"));
         for (auto& c : patrons) if (c.inside && !c.gone && Vector2Distance(c.pos, p.pos) < 5) { c.mood = std::min(100.0f, c.mood + 10); n++; }
         for (auto& q : players) if (q.id != p.id && (q.st == State::Active) && Vector2Distance(q.pos, p.pos) < 5) { q.drunk = std::min(100.0f, q.drunk + 20); q.drinks++; n++; }
-        p.tab += price * (n + 1); bar.mood = std::min(100.0f, bar.mood + 3);
+        p.tab += price * (n + 1); bar.mood = std::min(100.0f, bar.mood + 3); p.roundT = t;
+        for (const auto& c : patrons) if (c.role == "a rival sailor" && c.inside && Vector2Distance(c.pos, p.pos) < 6) partied = true;
+        if (partied) for (auto& c : patrons) if (c.role == "a rival sailor") c.mood = 90;
         Say(TextFormat("%s buys a round (%d drinks).", p.name.c_str(), n + 1)); Note(p, 1, TextFormat("Bought a round of %d.", n + 1));
     }
     // a Gull in a friend's pint when they're not looking: +35 and a story
@@ -129,6 +131,7 @@ void Night::BotPlayer(Player& p, float dt) {
             case GK_GOLF: if (g.golf.turn == 0 && g.replayT <= 0 && p.botT <= 0) { float a, pw; golf::BotShot(g.golf, sk, r, a, pw); in.gameAim = {a, 0}; in.gamePower = pw; in.gameAct = 1; p.botT = 1.0f; } break;
             case GK_SLOTS: if (p.botT <= 0) { in.gameAct = (g.pulls < 6 + p.botStyle * 10 && p.money > 20) ? 1 : 3; p.botT = 1.2f; } break;
             case GK_SCRATCH: case GK_PIP: if (p.botT <= 0) { in.gameAct = !g.haveTicket ? 5 : !g.paid ? 1 : 3; p.botT = 1.5f; } break;
+            case GK_DANCE: if (p.botT <= 0) { if (g.captionT <= 0 && !g.over) { in.gameAct = 1; in.gamePower = 0.4f + Rand() * 0.55f - p.drunk / 300; } else in.gameAct = 3; p.botT = 8; } break;
             case GK_FORTUNE: if (p.botT <= 0) { in.gameAct = !g.haveReading ? 1 : 3; if (g.haveReading && p.fortuneAsked && p.botStyle && Rand() < 0.5f) in.fortuneYes = true; p.botT = 3.0f; } break;
         }
         return;
@@ -146,6 +149,11 @@ void Night::BotPlayer(Player& p, float dt) {
                 return;
             }
         }
+    }
+    // an event's offer: now and then the bot takes one (the careful never the piano or the kitty)
+    if (p.botT <= 0 && Rand() < 0.04f) {
+        auto opts = EventOptions(p);
+        for (const auto& o : opts) { bool risky = o.act == 11 || o.act == 16 || o.act == 17 || o.act == 7 || o.act == 3; if (risky && p.botStyle == 0) continue; if (Rand() < 0.5f) { in.evAct = o.act; in.evArg = o.arg; p.botT = 2; return; } }
     }
     // the reckless pick fights when they're hammered
     if (p.botStyle == 1 && p.drunk >= 60 && (p.botFightT -= dt) <= 0) {
@@ -209,7 +217,7 @@ void Night::BotPlayer(Player& p, float dt) {
 // ---------------------------------------------------------------- --night-sim <crowd> <players> [runs] [careful|reckless|mixed] [mode]
 int RunNightSim(int crowd, int players, int runs, int style, int mode) {
     printf("A Night Off: %d bot night(s), crowd %d, %d player(s), %s, mode %s\n", runs, crowd, players, style == 0 ? "careful" : style == 1 ? "reckless" : "mixed", ModeName(mode));
-    std::map<std::string, int> heads, ends;
+    std::map<std::string, int> heads, ends, evs; double evN = 0;
     double drinks = 0, fights = 0, money = 0, homeGood = 0, homeAny = 0, kept300 = 0, kidneyLost = 0, arrested = 0, score = 0, games = 0, brawls = 0, wagers = 0, wagerHit = 0;
     int n = 0;
     for (int run = 0; run < runs; run++) {
@@ -224,11 +232,13 @@ int RunNightSim(int crowd, int players, int runs, int style, int mode) {
             if (p.wager >= 0) { wagers++; for (const auto& l : N.ScoreBreakdown(p)) wagerHit += l.what.find("The wager") == 0; }
         }
         brawls += N.brawls.size();
+        for (const auto& e : N.events) if (e.started) { evN++; std::string nm = "?"; for (int id : e.people) if (id < (int)N.patrons.size()) { nm = N.patrons[id].secret; break; } if (e.people.empty()) nm = N.lockIn ? "here for The lock-in" : "here for The goat"; evs[nm.size() > 9 ? nm.substr(9) : nm]++; }
         heads[N.Headline()]++;
     }
     printf("  per player: %.1f drinks, %.2f games won, %.2f fights won, money %+.0f, score %.0f\n", drinks / n, games / n, fights / n, money / n, score / n);
     printf("  brawls a night %.2f; went home with someone %.0f%% (well %.0f%%); kidney lost %.0f%%; arrested %.0f%%; kept 300+ with both kidneys %.0f%%\n", brawls / runs, 100 * homeAny / n, 100 * homeGood / n, 100 * kidneyLost / n, 100 * arrested / n, 100 * kept300 / n);
     if (wagers > 0) printf("  wagers hit %.0f%%\n", 100 * wagerHit / wagers);
+    printf("  events a night %.2f:", evN / runs); for (const auto& e : evs) printf(" %s %d;", e.first.c_str(), e.second); printf("\n");
     printf("  endings:"); for (const auto& e : ends) printf(" %s %d;", e.first.c_str(), e.second); printf("\n");
     printf("  headlines:\n"); for (const auto& h : heads) printf("    %3d  %s\n", h.second, h.first.c_str());
     return 0;

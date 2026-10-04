@@ -9,7 +9,7 @@
 namespace no {
 
 const char* GameName(int k) {
-    static const char* N[GK_COUNT] = {"darts", "pool", "mini golf", "the slot machine", "a scratch-off", "the fortune teller", "Pip's scratch-offs"};
+    static const char* N[GK_COUNT] = {"darts", "pool", "mini golf", "the slot machine", "a scratch-off", "the fortune teller", "Pip's scratch-offs", "the dance floor"};
     return k >= 0 && k < GK_COUNT ? N[k] : "?";
 }
 static float RectDist(Vector2 p, Rectangle r) { float dx = std::max({r.x - p.x, 0.0f, p.x - (r.x + r.width)}), dz = std::max({r.y - p.y, 0.0f, p.y - (r.y + r.height)}); return sqrtf(dx * dx + dz * dz); }
@@ -80,6 +80,8 @@ bool Night::StartGame(Player& p, int kind, int machine, int opp, int stake, std:
             for (const auto& o : OppsOf(kind)) if (o.name == c.name) { g.oppSkill = o.skill; g.tell = o.tell; g.hustler = o.hustler; if (o.stake > 0) g.stake = std::max(g.stake, std::min(o.stake, (int)p.money));
                 // a hustler who sandbags misses the first game against you on purpose
                 g.sandbag = o.sandbag && (p.id >= (int)c.mem.size() || c.mem[p.id].games == 0); }
+            if (c.role == "a rival sailor") g.stake = std::max(g.stake, std::min(40, (int)p.money));   // (the rival crew plays for their wages)
+            if (c.role == "the leader" && kind == GK_POOL) g.tell = "The biker leader racks up. \"Beat me and the jacket's yours.\"";
             c.playing = p.id; c.goal = GameSpot(kind, machine); c.path = NavPath(c.pos, c.goal); c.seatKind = "stand"; c.sitting = false; c.nextGoalT = 1e9f;
         } else g.opp = -1;
         if (kind == GK_DARTS) g.darts.Start(false, 0);
@@ -91,6 +93,8 @@ bool Night::StartGame(Player& p, int kind, int machine, int opp, int stake, std:
     if (kind == GK_SLOTS) g.caption = "Two a pull. Three kidneys pays a kidney.";
     if (kind == GK_SCRATCH || kind == GK_PIP) g.caption = kind == GK_PIP ? "Pip opens his coat: \"Five. Luckier than the machine's.\"" : "The dispenser hums. Five a ticket.";
     if (kind == GK_FORTUNE) g.caption = "\"Ten, and sit. The cards don't lie, love; people do.\"";
+    if (kind == GK_SCRATCH && scratchEaten) return no("The dispenser's empty: the goat ate them.");
+    if (kind == GK_DANCE) { if (!EventOn("band")) return no("There's no band."); g.caption = "The band counts you in: hit the beats."; }
     if (!g.caption.empty() && g.captionT <= 0) g.captionT = 5;
     p.game = g;
     return true;
@@ -107,7 +111,9 @@ static void Settle(Night& n, Player& p, int result) {
         if (g.opp < (int)n.patrons.size() && p.id < (int)c.mem.size()) c.mem[p.id].games += 1;
         if (result == 0) {
             p.gamesWon++;
-            p.money += g.stake; g.caption = TextFormat("You win %d off %s.", g.stake, c.name.c_str());
+            p.money += g.stake;
+            if (c.role == "the leader" && g.kind == GK_POOL && !p.jacket) { p.jacket = true; p.items.push_back("a biker's jacket"); n.Note(p, 5, "Beat the biker leader at pool and won his jacket."); }
+            if (c.role == "a mourner" && g.kind == GK_DARTS) { p.money += 100; n.Note(p, 5, "Won the dead man's darts tournament, in his honour."); } g.caption = TextFormat("You win %d off %s.", g.stake, c.name.c_str());
             if (c.Has(D().Trait("bad loser"))) { c.mood = std::max(0.0f, c.mood - 20); g.caption += " They don't take it well."; }
             else if (c.Has(D().Trait("good loser"))) { c.mood = std::min(100.0f, c.mood + 5); g.caption += " They shake your hand."; }
             if (g.stake > 0) n.Note(p, 3, TextFormat("Won %d at %s off %s.", g.stake, what, c.name.c_str()));
@@ -203,6 +209,15 @@ void Night::GameAction(Player& p) {
             }
             break;
         }
+        case GK_DANCE:
+            if (act == 1 && !g.over) {   // the song's done: how many beats you hit (a guest's screen judges its own timing)
+                float frac = std::clamp(in.gamePower, 0.0f, 1.0f); g.over = true; g.result = frac >= 0.6f ? 0 : 1;
+                if (frac >= 0.6f) { p.charBuff = std::max(p.charBuff, 0.15f); p.charBuffT = std::max(p.charBuffT, 5 * SECONDS_PER_GAME_MINUTE); g.caption = TextFormat("%.0f%% of the beats: the floor loves you (+15%% charisma).", frac * 100); }
+                else g.caption = TextFormat("%.0f%% of the beats.", frac * 100);
+                if (p.drunk >= 60) { p.charBuff = std::max(p.charBuff, 0.05f); p.charBuffT = std::max(p.charBuffT, 5 * SECONDS_PER_GAME_MINUTE); g.caption += " You dance terribly, and they love you for it."; }
+                g.captionT = 5; Note(p, 0, "Danced to the band.");
+            }
+            break;
         case GK_FORTUNE:
             if (act == 1) {
                 if (p.money < d.fortuneCost) { g.caption = "\"Ten, love. The cards don't read for free.\""; g.captionT = 3; break; }
@@ -267,7 +282,7 @@ void Night::StepGames(float dt) {
 int NightGamesChecks() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
-    Night n; Opts o; o.players = 1; o.seed = 33; o.crowd = 1; n.Init(o);
+    Night n; Opts o; o.players = 1; o.seed = 33; o.crowd = 1; o.events = false; n.Init(o);
     for (int i = 0; i < (int)(3 * 60 * SECONDS_PER_GAME_MINUTE / 0.1f); i++) n.Step(0.1f);   // (10 p.m.)
     Player& p = n.players[0]; p.st = State::Active; p.drunk = 0; p.money = 200;
     // darts against whoever's in the games room: play it out through Input, as the screen would

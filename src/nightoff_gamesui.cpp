@@ -380,6 +380,33 @@ void Scratch(no::Night& n, no::Player& p) {
     if (Btn({r.x + r.width / 2 - 100, r.y + 410, 200, 40}, TextFormat("Buy a ticket (%d)", d.scratchCost), (!g.haveTicket || g.paid) && p.money >= d.scratchCost)) { p.in.gameAct = 5; U.masked = false; }
     if (Btn({r.x + r.width / 2 - 80, r.y + r.height - 50, 160, 36}, "Done") || IsKeyPressed(KEY_ESCAPE)) p.in.gameAct = 3;
 }
+struct DanceState { float t = -1; int hits = 0, beat = 0; bool judged[16] = {}; };
+DanceState gDance;
+void Dance(no::Night& n, no::Player& p) {
+    // sixteen beats at the band's tempo; press Space as each one crosses the line (the drunker you are, the more the line sways)
+    no::GameSeat& g = p.game;
+    Rectangle r{SCREEN_W / 2.0f - 360, SCREEN_H - 250.0f, 720, 200}; GPanel(r);
+    DrawTextCenteredBold("The dance floor", r.x + r.width / 2, r.y + 10, 20, BRASS);
+    if (g.over) { DrawTextCentered(g.caption, r.x + r.width / 2, r.y + 90, 16, INK); if (Btn({r.x + r.width / 2 - 80, r.y + 140, 160, 36}, "Off the floor") || IsKeyPressed(KEY_ESCAPE)) { p.in.gameAct = 3; gDance = DanceState{}; } return; }
+    if (gDance.t < 0) { gDance = DanceState{}; gDance.t = 0; }
+    gDance.t += GetFrameTime();
+    const float BEAT = 0.5f, LEAD = 2.0f; float sway = std::clamp(p.drunk / 100, 0.0f, 1.0f) * 40 * sinf(gDance.t * 2.1f);
+    float lineX = r.x + 160 + sway;
+    DrawLineEx({lineX, r.y + 50}, {lineX, r.y + 150}, 3, BRASS);
+    for (int k = 0; k < 16; k++) {
+        float due = LEAD + k * BEAT, x = lineX + (due - gDance.t) * 260;
+        if (x < r.x + 20 || x > r.x + r.width - 20) continue;
+        Color c = gDance.judged[k] ? Color{120, 220, 130, 255} : Color{240, 200, 140, 255};
+        DrawCircleV({x, r.y + 100}, 14, c);
+    }
+    if (IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        int k = (int)lroundf((gDance.t - LEAD) / BEAT);
+        if (k >= 0 && k < 16 && !gDance.judged[k] && fabsf(gDance.t - (LEAD + k * BEAT)) < 0.12f) { gDance.judged[k] = true; gDance.hits++; }
+    }
+    DrawTextCentered(TextFormat("%d beats", gDance.hits), r.x + r.width - 80, r.y + 16, 15, DIM);
+    DrawTextCentered("Space on the beat", r.x + r.width / 2, r.y + 165, 14, DIM);
+    if (gDance.t > LEAD + 16 * BEAT + 0.4f) { p.in.gameAct = 1; p.in.gamePower = gDance.hits / 16.0f; gDance.t = -1; }
+}
 void Fortune(no::Night& n, no::Player& p) {
     no::GameSeat& g = p.game; const auto& d = no::GD();
     Rectangle r{SCREEN_W / 2.0f - 420, 70, 840, 560}; GPanel(r);
@@ -440,6 +467,7 @@ void Frame(no::Night& n, no::Player& p, float dt) {
         case no::GK_SLOTS: Slots(n, p); break;
         case no::GK_SCRATCH: case no::GK_PIP: Scratch(n, p); break;
         case no::GK_FORTUNE: Fortune(n, p); break;
+        case no::GK_DANCE: Dance(n, p); break;
     }
     Caption(p.game);
 }

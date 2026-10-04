@@ -138,6 +138,41 @@ Build order is the doc's p. 29 (nine stages).
   300-500 half the time; a reckless one loses a kidney 1 in 5 and is arrested 1 in 6; 2.4 events and 3 fights a night)
   need stage 7's events and stage 8's poker money before they can be tuned.
 
+## Stage 7: the events, rain, the crowd (done)
+- `nightoff_events.cpp`, data `nightoff_events.json`. `ScheduleEvents` rolls 1-2 (dead), 2-3 (normal) or 3-4 (packed)
+  events a night against each event's hours and its weight for the crowd, plus the goat at 5%; rain on about a third of
+  nights. An event's people are ordinary patrons with `ev` and a `role` (so they walk, talk, play and fight); the event's
+  own rules are in `StepEvents`, and what a player can do about it is `EventOptions`/`EventAction` (Input `evAct`, keys
+  F1-F3 in the scene).
+- The eleven: the bachelor party (free rounds, darts and golf challengers, a kitty of 300 that can be pocketed - in
+  sight of them it's a brawl -, the best man's 60 for keeping the groom out of trouble, the groom who won't let his new
+  best friend leave, the groom and Little Ruth); the bachelorette party (dares: the bartender's hat, kiss the Reverend,
+  win a scratch-off, take the shotgun; 50 and charisma per dare); the biker gang (twelve, the pool tables, a book club:
+  ask about Moby-Dick for charisma and a free drink, beat the leader at pool for his jacket (+20% toughness); touch the
+  piano or a bike and it's twelve on six, and someone runs for the police); the police inspection (they arrest whoever
+  was fighting in the last ten minutes, then the inspector walks the rooms: the armed, the wrecked, anyone under the
+  stairs and whoever the bartender points at go in the van; hide in the toilets, bribe a constable for 50, or Sister Ash
+  vouches if you've been good); the robbery (the room freezes; robbers come round for 50, or take it the hard way; the
+  bartender's shotgun ends it if it's still under the till, a sailor holding it ends it with a shout; help them for a
+  third of the safe and a feud with the bar; watch the safe upstairs; Old Marlow's secret or Pip's map opens the safe:
+  500); the cartel (collects from Harrow and Bartholomew and any sailor who borrowed from Harrow; pay, point them at
+  someone else, or wake in the alley minus a kidney - a dog stops them); the rival crew (5-8 of Vane's sailors, stakes
+  of 40, and Cutter Jones starts the midnight brawl unless a round made it a party); the lock-in (the door bolted till
+  four, double prices, everyone honest, out through the toilet window); the wake (a coffin on the bar, everyone
+  grieving, no fights, rounds expected, flirting is -30 with everyone and the Reverend notices, the dead man's darts
+  tournament pays 100); the band (on the stage: the dance floor's rhythm game, +15% charisma, and the drunk are loved for
+  dancing badly; request a song for 10); the goat (it wanders in and eats the scratch-offs).
+- Surviving the police, the robbery or the cartel with money and both kidneys scores 50. A fight or the police send a
+  third of the room home for twenty minutes (they come back); rain empties the yard and floats the golf balls; last call
+  empties the games room first; an event's people sit on top of the crowd curve.
+- Event headlines (the shotgun caught, robbery foiled, the piano, the safe, the kitty, the goat, the lock-in, the bikers'
+  book club, the wake, the stag night, the band).
+- The gate (in `--night-test`): a packed night (40 in the bar), the biker gang in the games room with their bikes in the
+  yard, a sailor asks about the book and then touches the piano, twelve bikers against the crew, the police come for the
+  brawl and the brawlers go in the van. Every one of the eleven events starts and resolves on its own; the shotgun ends a
+  robbery; an unpaid cartel takes a kidney; fights are impossible at a wake. Shots `night_ev_bikers|robbery|band|police`.
+- `--night-sim 1 2 20 mixed`: 1.8 events a night actually happen (some are scheduled after both sailors have gone home).
+
 ## Next
-7. Events (all eleven), the crowd curves, the rest of the regulars.  8. Poker and bullshit, cheating, side bets, the
-cartel's kidney pot.  9. Sound, the profile, the bartender's memory, internet play.
+8. Poker and bullshit, cheating, side bets, the cartel's kidney pot.  9. Sound, the profile, the bartender's memory,
+internet play.

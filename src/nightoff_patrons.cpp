@@ -120,17 +120,21 @@ void Night::StepPatrons(float dt) {
     const Data& d = D();
     float h = Hour();
     // the generator tops the room up to the crowd curve (and the extras drift home as it falls)
-    int inside = 0; for (const auto& c : patrons) inside += (c.inside || (!c.gone && c.arriveH <= h && c.reg < 0)) && !c.gone && !c.leaving;
+    int inside = 0; for (const auto& c : patrons) inside += (c.inside || (!c.gone && c.arriveH <= h && c.reg < 0)) && !c.gone && !c.leaving && c.ev < 0;   // (an event's people are on top of the curve)
     int want = CrowdTarget();
-    if (inside < want && Rand() < dt * 0.4f && patrons.size() < 60) { int id = AddPatron(-1); (void)id; }
-    if (inside > want + 2 && Rand() < dt * 0.15f) for (auto& c : patrons) if (c.inside && c.reg < 0 && !c.leaving && c.talkingTo < 0) { c.leaveH = h; break; }
+    if (inside < want && Rand() < dt * 0.4f && patrons.size() < 90) { int id = AddPatron(-1); (void)id; }
+    if (inside > want + 2 && Rand() < dt * 0.15f) for (auto& c : patrons) if (c.inside && c.reg < 0 && c.ev < 0 && !c.leaving && c.talkingTo < 0) { c.leaveH = h; break; }
     for (auto& c : patrons) {
-        if (c.gone) continue;
+        if (c.gone) {   // (sent home by a fight or the police: back in twenty minutes)
+            if (c.backAt > 0 && h >= c.backAt && !c.outForNight) { c.gone = false; c.inside = false; c.leaving = false; c.arriveH = h; c.backAt = 0; c.leaveH = std::max(c.leaveH, h + 1); }
+            else continue;
+        }
         if (!c.inside) {
             if (h < c.arriveH) continue;
             c.inside = true; c.pos = d.bar.nav.empty() ? Vector2{19.5f, -3} : d.bar.nav[0]; ChooseGoal(*this, c);
         }
         if (c.fight.brawl >= 0 || c.fight.Down() || c.fight.Busy()) continue;   // (in a fight: StepBrawls moves them)
+        if (c.ev < 0 && EventOn("robbery") && c.inside) { c.vel = {0, 0}; continue; }        // (the room is held: everyone freezes)
         // the hour (doc p. 10): everyone loosens after 10 p.m. and sours after 1 a.m.
         if (h >= 22 && h < 25) c.mood = std::min(100.0f, c.mood + dt * 0.03f);
         if (h >= 25) c.mood = std::max(0.0f, c.mood - dt * 0.03f);

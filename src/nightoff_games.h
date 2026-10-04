@@ -126,7 +126,7 @@ Reading Read(const Night& n, const Player& p, GRng& r);           // three cards
 }
 
 // ---------------------------------------------------------------- a player's seat at a game (Player::game)
-enum GameKind { GK_DARTS, GK_POOL, GK_GOLF, GK_SLOTS, GK_SCRATCH, GK_FORTUNE, GK_PIP, GK_COUNT };   // (GK_PIP: a scratch-off from Pip's coat)
+enum GameKind { GK_DARTS, GK_POOL, GK_GOLF, GK_SLOTS, GK_SCRATCH, GK_FORTUNE, GK_PIP, GK_DANCE, GK_COUNT };   // (GK_DANCE: the band's rhythm game)   // (GK_PIP: a scratch-off from Pip's coat)
 const char* GameName(int kind);
 struct GameSeat {
     int kind = -1, machine = 0, opp = -1, stake = 0;             // opp: a patron id, -1 alone, -2 the bartender
