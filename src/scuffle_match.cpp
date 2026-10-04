@@ -97,6 +97,7 @@ void Match::Start(int nPlayers, int roundsToWin, uint32_t s, int ars) {
     NewRound();
 }
 void Match::NewRound() {
+    if (playlist.empty()) playlist.push_back(StoneStage());   // (a match read from a snapshot carries no playlist: never index an empty one)
     round++;
     bool matchPoint = false; for (int x : wins) matchPoint |= x >= toWin - 1;
     stageIdx = (round - 1) % std::max(1, (int)playlist.size());

@@ -442,7 +442,7 @@ bool LoadReplay(const std::string& path, Replay& r) {
 
 int RunScuffleNetTest() {
     int fails = 0;
-    auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
+    auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); fflush(stdout); if (!ok) fails++; };
     printf("Scuffle: the network layer\n");
     {   // an input frame round-trips quantised, and a guest predicts with exactly what the host will read
         Input in; in.moveX = 0.73f; in.moveY = -1; in.aim = Vector2Normalize({0.3f, 0.8f}); in.jump = true; in.taunt = true;
@@ -475,7 +475,7 @@ int RunScuffleNetTest() {
         for (int f = 0; f < 120 * 8; f++) { for (int i = 0; i < n; i++) BotInput(X.w, i, X.w.sticks[i].in, r2[i], 2); X.Step(); }
         std::vector<std::string> xn(n, "x"), yn; Match Y;
         Writer a; WriteMatch(X, xn, 0, 1, a); Reader r(a.b); bool ok = ReadMatch(r, Y, yn); Writer b; WriteMatch(Y, yn, 0, 1, b);
-        for (int f = 0; f < 240; f++) { X.Step(); Y.Step(); }
+        for (int f = 0; f < 240 && X.phase != Match::P_WIN && X.phase != Match::P_OVER; f++) { X.Step(); Y.Step(); }   // (within the round the snapshot came from)
         check(ok && a.b == b.b && Y.mode == md && X.w.Hash() == Y.w.Hash() && Y.w.pts == X.w.pts, TextFormat("%s: the snapshot carries the mode, and the mirror stays in step", ModeName(md)));
     }
     {   // the mirror steps on exactly as the host does (same inputs: same world)
@@ -540,7 +540,7 @@ int RunScuffleNetLoop(int lagMs, bool forceMemory) {
     std::string addr = real ? "127.0.0.1:" + std::to_string(port) : "mem:" + std::to_string(port);
     printf("net-loop scuffle over %s%s: a host and seven guests, first to 2\n", real ? "GameNetworkingSockets (loopback UDP)" : "the in-memory transport", real && lagMs > 0 ? TextFormat(", %d ms each way", lagMs) : "");
     int fails = 0;
-    auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
+    auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); fflush(stdout); if (!ok) fails++; };
     const int NG = 7;
     Session host, gs[NG];
     Profile ph{"Host", 90};
