@@ -613,6 +613,8 @@ void World::StepWonders(float dt) {
             if (!st.raising && wonderBy[st.wonder] >= 0) continue;   // (someone else finished it first)
             float mul = st.raising ? D.raiseMul : 1.0f;
             int pearls = (int)lroundf(W.pearls * mul), sulfur = (int)lroundf(W.sulfur * mul);
+            // (a shell-poor island: twigs beyond the frame's need are woven in, three for a shell's worth)
+            if (st.twigs > StTwigs(st) + 3 && st.shells < StShells(st)) { int x = std::min((int)(st.twigs - StTwigs(st)) / 3, StShells(st) - st.shells); st.shells += x; st.twigs -= x * 3; }
             if (st.twigs < StTwigs(st) || st.shells < StShells(st) || time - st.startT < D.minDays * DAY) continue;
             if (C.pearls < pearls || C.sulfur < sulfur) { if (dayTick) SayTo(s, TextFormat("%s waits on the stores: %d pearls and %d sulfur.", W.name.c_str(), pearls, sulfur)); continue; }
             C.pearls -= pearls; C.sulfur -= (float)sulfur;
@@ -659,6 +661,7 @@ void World::StepWonders(float dt) {
 void World::BotWonders() {
     if (!LongFlight() || fmodf(time, DAY) >= 0.2f || HumanOf(cur) || GameDay() < 7) return;
     int alive = 0; for (const auto& b : col.birds) alive += b.alive && b.stage == BStage::Adult;
+    if (getenv("DEPTH_WONDERTRACE")) { printf("    [wonders] day %d side %d: %d adults (need %d), pearls %d sulfur %.0f, home %d:", GameDay(), cur, alive, std::min(25, 10 + GameDay() / 3), col.pearls, col.sulfur, home); for (const auto& s : col.builds) if (s.kind == ST_WONDER) printf(" [%s twigs %d/%d shells %d/%d built %d]", Wonders()[s.wonder].name.c_str(), (int)s.twigs, StTwigs(s), s.shells, StShells(s), (int)s.built); printf("\n"); }
     if (alive < std::min(25, 10 + GameDay() / 3)) return;   // (a bot colony starts its wonder once it has hands to spare: 25 adults, or fewer as the year goes on)
     for (const auto& s : col.builds) if (s.kind == ST_WONDER && !s.built) return;   // (one at a time)
     for (int wd = 0; wd < WD_COUNT; wd++) {
@@ -1316,7 +1319,8 @@ void World::StepReckoning(float dt) {
             int watchers = 0; for (const auto& b : C.birds) watchers += b.alive && b.stage == BStage::Adult && b.role == Role::Watcher;
             bool prepared = watchers >= 3 || BuiltOf(C, ST_HEDGE) || BuiltOf(C, ST_TOWER);
             int built = 0; for (const auto& n : C.nests) built += n.built;
-            int lose = std::max(prepared ? 0 : 1, (int)ceilf(built * (prepared ? D.lossPrepared : D.lossUnprepared)));
+            float want = built * (prepared ? D.lossPrepared : D.lossUnprepared);
+            int lose = (int)floorf(want) + (Rand() < want - floorf(want) ? 1 : 0);
             int lost = 0;
             for (int ni = 0; ni < (int)C.nests.size() && lost < lose; ni++) {
                 Nest& n = C.nests[ni]; if (!n.built) continue;
@@ -1599,7 +1603,7 @@ int RunFlightLongFlightTest() {
         int before = w->WonderScore(0); w->time = 43 * World::DAY; w->StepReckoning(0.1f);
         check(w->weather.kind == 1 && w->WonderScore(0) == before / 2, "the Great Storm of the Year: two days of storm; an unhedged wonder is damaged (half its score)");
         // the Kraken's Reckoning: each colony's debt; a prepared one loses less
-        for (int s = 0; s < 3; s++) w->WithSide(s, [&] { for (auto& n : w->col.nests) n.built = true; });
+        for (int s = 0; s < 3; s++) w->WithSide(s, [&] { while (w->col.nests.size() < 10) w->col.nests.push_back(w->col.nests.empty() ? Nest{} : w->col.nests[0]); for (auto& n : w->col.nests) n.built = true; });
         w->col.coveCatch = 50;
         int built0 = 0; for (const auto& n : w->col.nests) built0 += n.built;
         w->time = 45 * World::DAY; w->StepReckoning(0.1f);
