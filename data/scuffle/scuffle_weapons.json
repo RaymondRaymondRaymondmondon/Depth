@@ -59,7 +59,7 @@
     "snakes":  {"only": ["snakegun", "snakejar"]},
     "random":  {"gun": 1.0, "melee": 0.5,  "thrown": 0.5}
   },
-  "crates": {"first": 3, "every": 5, "parachute_fall": 2.0, "crush": 30, "thrown_dmg": 20, "gear_chance": 0.1, "trap_chance": 0.033},
+  "crates": {"first": 1.5, "every": 3.5, "parachute_fall": 2.0, "crush": 30, "thrown_dmg": 20, "gear_chance": 0.1, "trap_chance": 0.033},
   "empty_throw_dmg": 10,
   "block_window": 0.15,
   "wall": {"start": 45, "center": 60, "all": 70, "finale_start": 30}

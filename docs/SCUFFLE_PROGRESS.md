@@ -316,7 +316,36 @@ The user is away (order of 2026-10-04: build it after A Night Off, don't stop). 
 - Shots: `scuffle_boss_<lobster|kraken|wyrm|sungod|goliath|bouncer>[_late]` (`DEPTH_BOSST` = the second to
   catch it from).
 
+## Stage 9: cosmetics, the crate, replays, sound, internet play, the balance pass (done, with the gaps logged)
+- **Skins and hats** (`scuffle_cosmetics.cpp`, data `scuffle_cosmetics.json`, art `scuffle_cosart.inl`): the doc's
+  shop (10 skins 50-200, 10 hats 50-200) and crate (one token: 15 common hats 60%, 10 rare skins 25%, 10 super rare
+  hats 12%, 5 special skins 3%; a duplicate gives a banana). Each skin restyles the stick's line (Ink Blot wobbles,
+  Chalk, Brass rivets, Skeleton bones, Ghost see-through, Wire, Neon glows in Blackout, Noodle, Dotted, Golden; the
+  crate's Crayon to the Golden Kidney); the seat colour stays on the head ring. Hats are their own body: a headshot
+  knocks one off (`World::KnockHat`, `TH_HAT`) and any bare head that walks over it wears it; the Lantern lights the
+  dark. Bots are dressed by the seed. The locker page (`ScuffleLockerPage`, from the arcade's Scuffle panel) has the
+  shop, the crate (it parachutes in and bursts), a live preview and the replays; `scuffle_profile.txt` (gitignored).
+  **Payout (our call):** 3 tokens a match, +1 a round won, +5 for the match, +2 a boss, +1 a Gauntlet stage.
+- **Replays** (`Replay` in scuffle_net): a round's packed start snapshot plus every stick's exact input each step,
+  re-simulated (a 20 s round is about 10 KB). In solo, R during a round's end watches the last 10 s, the last two in
+  slow motion on the kill; a match's best three rounds (kills, a quick finish) are saved to `scuffle_replays/`
+  (gitignored) and watched from the locker. `--scuffle-net-test` proves a replay re-simulates exactly, also from file.
+  Networked matches aren't recorded yet (the host steps inside the GameHost).
+- **Sound** (`sound_scuffle.inl`): a brass-and-drum loop per world (its own key and tempo) that thins out as the wall
+  closes in and returns as a riff on a win; the boss's ostinato (heavier per phase); a clock under the Gauntlet; world
+  beds; 31 percussive effects with a yelp pitched per player; `--audio-test` covers 10 states and every effect.
+- **Internet play**: the arcade layer as it is (Host / Join by address over ZeroTier, UDP 47777/47778); the netcode
+  gate passed at 100 ms in stage 4. **Not built (logged): join-in-progress between rounds, and spectating** (they need
+  the shared session to admit seats mid-game, and every arcade game's tests ride on it).
+- **The balance pass** (`--scuffle-sim`, bots): crates now come at 1.5 s and every 3.5 s (were 3 and 5).
+  Against the doc's targets:
+  - met: draws 2-3% (target under 8%); no weapon over 12% of kills (top: bees, 5%);
+  - about met: eight sticks 29 s a round (30-60); the wall 7% of deaths (5%);
+  - short: four sticks 20 s a round (25-45); fists and kicks about 20% of deaths (10%); hazards about 45% (30%,
+    mostly bots falling off); weapons about 30% (55%).
+  The fist numbers are the doc's own (the stage-1 checks hold them). Bots brawl more and fall off more than people
+  do, so these need a human playtest before more tuning.
+- Shots: `scuffle_locker`, `scuffle_locker_hats`, `scuffle_wardrobe_0..4`, `scuffle_replay`.
+
 ## Next
-Stage 9: cosmetics (skins and hats; hats fly off), the crate, replays, sound, internet play, the balance pass (the
-doc's targets: round length 25-45 s with four, 30-60 with eight, draws under 8%; deaths weapons 55%, hazards 30%,
-fists and throws 10%, the wall 5%; no weapon over 12% of kills on Random). Gate: all targets met or logged.
+Playtest. Open: join-in-progress and spectating; replays for networked matches; balance from real matches.
