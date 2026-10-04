@@ -51,6 +51,8 @@ src/flight_long.cpp
     src/nightoff_bots.cpp
     src/nightoff_net.cpp
     src/nightoff_events.cpp
+    src/nightoff_cards.cpp
+    src/nightoff_cardroom.cpp
     src/nightoff_game.cpp
     src/data.cpp
     src/ui.cpp

@@ -351,6 +351,7 @@ void Night::Step(float dt) {
     StepBrawls(dt);
     StepModes(dt);
     StepEvents(dt);
+    StepCards(dt);
     // 3 a.m., or every night over
     bool anyone = false; for (const auto& p : players) anyone |= p.st != State::Gone && p.st != State::PassedOut;
     if (Minutes() >= endMinutes) { for (auto& p : players) if (p.st != State::Gone && p.st != State::PassedOut) Leave(p, p.st == State::Down ? E_KNOCKED_OUT : E_CLOSING, p.st == State::Down ? "on the floor of the Gull with a black eye" : "on the pavement outside the Gull at 3 a.m., swept out with the glass"); anyone = false; }
@@ -364,6 +365,7 @@ int NightGamesChecks();
 int NightBrawlChecks();
 int NightFlirtChecks();
 int NightEventChecks();
+int NightCardChecks();
 int RunNightTest() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
@@ -456,6 +458,8 @@ int RunNightTest() {
     fails += NightFlirtChecks();
     // ---- stage 7: the events
     fails += NightEventChecks();
+    // ---- stage 8: the card room, cheating, side bets
+    fails += NightCardChecks();
     printf(fails ? "A Night Off: %d check(s) FAILED\n" : "A Night Off: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

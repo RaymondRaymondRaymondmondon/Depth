@@ -26,7 +26,9 @@
   "headlines": [
     {"when": "shotgun",      "text": "ONE SHOT FIRED AT THE SODDEN GULL; THE SILENCE AFTER IT WAS LOUDER"},
     {"when": "shotgun_caught", "text": "SAILOR FOUND HOLDING THE BARTENDER'S SHOTGUN; 'JUST LOOKING', SAYS SAILOR"},
+    {"when": "kidney_back",  "text": "SAILOR WINS KIDNEY BACK IN A HAND OF POKER; THE QUIET MAN 'IMPRESSED'"},
     {"when": "kidney",       "text": "{N} SAILOR{S}, ONE KIDNEY, A TRIUMPHANT {thing}"},
+    {"when": "poker_cheat",  "text": "CHEAT CAUGHT AT THE GULL'S CARD TABLE; THE MARKED DECK 'NOT EVEN SUBTLE'"},
     {"when": "robbery_foiled", "text": "{who} FOILS ROBBERY AT THE SODDEN GULL WITH ONE SHOUT AND SOMEONE ELSE'S SHOTGUN"},
     {"when": "piano",        "text": "SAILOR TOUCHES BIKER GANG'S PIANO; TWELVE-ON-SIX; CHAPTER NINE POSTPONED"},
     {"when": "safe",         "text": "UPSTAIRS SAFE AT THE GULL FOUND OPEN; OLD MARLOW 'NOT SURPRISED'"},

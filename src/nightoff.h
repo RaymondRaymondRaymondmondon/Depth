@@ -17,6 +17,7 @@
 #include <vector>
 #include "nightoff_games.h"
 #include "nightoff_brawl.h"
+#include "nightoff_cards.h"
 
 namespace no {
 
@@ -86,7 +87,8 @@ struct Input {
     bool fortuneYes = false;                          // the fortune teller asks you home
     // what players do to each other (doc p. 23): a round, a spiked pint, carrying a friend out, a drawn moustache
     bool buyRound = false, carry = false, drawFace = false; int spike = -1; int wager = -1;
-    int evAct = 0, evArg = -1;                        // an event's action (Night::EventOptions: a dare, the book, a bribe, the robbers, the cartel...)
+    int evAct = 0, evArg = -1;
+    bool cheat = false;                               // held: cheat at whatever you're playing (a weighted dart, a moved ball, a marked deck...)                        // an event's action (Night::EventOptions: a dare, the book, a bribe, the robbers, the cartel...)
     // the bar games (nightoff_games.cpp): start one at a station, then act in it
     int startGame = -1, gameMachine = 0, gameOpp = -1, gameStake = 0;   // GK_*; the table or machine; a patron id (-1 alone, -2 the bartender); the stake
     int gameAct = 0;                                  // 1 throw / shoot / pull / reveal / read, 2 place the cue ball, 3 leave, 4 again, 5 buy another
@@ -120,7 +122,9 @@ struct Player {
     bool fortuneAsked = false;
     // the events (nightoff_events.cpp)
     int dare = -1, daresDone = 0; bool adopted = false, jacket = false, bribed = false, checked = false, promised = false, helpingRobbers = false, gaveRobbers = false;
-    float debt = 0, roundT = -1e9f, damageCaused = 0, lastFightT = -1e9f; int cartelDue = 0; bool watchingSafe = false;
+    float debt = 0, roundT = -1e9f, damageCaused = 0, lastFightT = -1e9f;
+    int cartelDue = 0; bool watchingSafe = false;
+    int cheatsCaught = 0, cheatsDone = 0; int bsSel = 0;   // (the card room)
     // the bot's mind (an AI seat, a dropped player, --night-sim): a style, a goal, a path, a pause
     int botStyle = 0; float botT = 0, botDrinkTo = 40, botLeaveH = 25.5f, botFightT = 0; int botGoal = -1, botArg = 0; Vector2 botTarget{}; std::vector<int> botPath;
     int wager = -1, crew2 = 0; bool faceDrawn = false; int carrying = -1, carriedBy = -1; float lostOnPass = 0;   // (the Wager's bet; a rival crew; the drawn face; carrying a friend)   // items given; secrets learned (patron names whose secret you know)
@@ -226,6 +230,17 @@ struct Night {
     void EventAction(Player& p, int act, int arg);
     void SendHome(float share);                        // a fight or the police: a share of the room goes home for 20 minutes
     int AddEventPatron(int run, const std::string& role, Vector2 at, Color top);
+    // the card room (nightoff_cardroom.cpp): hold'em, bullshit, the cartel's kidney hand; cheating; side bets
+    cards::Poker poker, cartelHand; cards::Bullshit bs; bool bsOn = false; float bsT = 0;
+    struct SideBet { int bettor = -1, on = -1; int stake = 10; bool forWin = true; };
+    std::vector<SideBet> sideBets;
+    void StepCards(float dt);
+    bool CardAction(Player& p);                        // a player's move at a card table (Input gameAct); true if handled
+    bool SitAtCards(Player& p, int kind, int machine, std::string* why);
+    void LeaveCards(Player& p);
+    float CheatChance(const Player& p) const;
+    bool TryCheat(Player& p, const char* what, int watcher);   // true if it worked; caught: the watcher reacts
+    void SettleSideBets(int playerId, bool won);
     int NearGame(const Player& p, int* machine = nullptr) const;   // the game station within reach (GK_*), or -1
     std::vector<int> Challengers(const Player& p, int kind) const; // patrons who'd play you: the named ones first
     bool StartGame(Player& p, int kind, int machine, int opponent, int stake, std::string* why = nullptr);

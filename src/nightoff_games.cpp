@@ -1,6 +1,7 @@
 // A Night Off's bar games (see nightoff_games.h), stage 3: the rules, the physics and the bots. Headless.
 #include "nightoff_games.h"
 #include "nightoff.h"
+#include "nightoff_cards.h"
 #include "json.h"
 #include "redtide.h"
 #include "raymath.h"
@@ -554,6 +555,7 @@ int RunGameCheck(const std::string& game, int games) {
         bool ok = true; for (int m = 0; m < (int)GD().slotWeights.size(); m++) ok &= (m == GD().slotHonest) == (slots::ReturnRate(m) >= 1);
         check(ok, "the machines are rigged in the house's favour, all but one");
     }
+    if (game == "poker" || game == "bullshit" || game == "all") fails += RunCardCheck(game, std::max(20, games / 2));
     printf(fails ? "game-check: %d check(s) FAILED\n" : "game-check: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

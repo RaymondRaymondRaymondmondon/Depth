@@ -242,7 +242,7 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"night_guest", [](Game& g) { DebugNightOffShot(g, 20); }}, {"arcade_night", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(7); }},
         {"night_flirt", [](Game& g) { DebugNightOffShot(g, 18); }},
         {"night_ev_bikers", [](Game& g) { DebugNightOffShot(g, 21); }}, {"night_ev_robbery", [](Game& g) { DebugNightOffShot(g, 22); }},
-        {"night_ev_band", [](Game& g) { DebugNightOffShot(g, 23); }}, {"night_ev_police", [](Game& g) { DebugNightOffShot(g, 24); }}, {"night_morning_kidney", [](Game& g) { DebugNightOffShot(g, 19); }},
+        {"night_ev_band", [](Game& g) { DebugNightOffShot(g, 23); }}, {"night_cards_poker", [](Game& g) { DebugNightOffShot(g, 25); }}, {"night_cards_bullshit", [](Game& g) { DebugNightOffShot(g, 26); }}, {"night_ev_police", [](Game& g) { DebugNightOffShot(g, 24); }}, {"night_morning_kidney", [](Game& g) { DebugNightOffShot(g, 19); }},
         {"mouthful_wardrobe", [](Game& g) { DebugMouthfulWardrobe(); g.scene = Scene::Arcade; DebugArcadeReel(206); }},
         {"arcade_mouthful", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(6); }},
         {"flight_dawn", [](Game& g) { DebugFlightShot(g, 0); }},

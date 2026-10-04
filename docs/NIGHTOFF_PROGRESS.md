@@ -173,6 +173,27 @@ Build order is the doc's p. 29 (nine stages).
   robbery; an unpaid cartel takes a kidney; fights are impossible at a wake. Shots `night_ev_bikers|robbery|band|police`.
 - `--night-sim 1 2 20 mixed`: 1.8 events a night actually happen (some are scheduled after both sailors have gone home).
 
+## Stage 8: the card room, cheating, side bets, the cartel's kidney pot (done)
+- `nightoff_cards.h/.cpp` (headless): a 7-card evaluator; hold'em with side pots, heads-up blinds, all-ins and the board
+  run out; a Monte Carlo bot (equity against the live hands, noise by skill and drink, courage that calls wider, the
+  wrecked misreading their cards, and a sober player at a drunk table who calls them down and stops bluffing); bullshit
+  (shed 1-4 cards face down, claim the rank, aces to kings; a 3 s window to call it; the caller or the liar takes the
+  pile; the very drunk and the honest say what they really played; liars have a straight face).
+- `nightoff_cardroom.cpp`: hold'em in the card room (buy-in 50, the regulars sit in with their own tells - Sly
+  Pennick's ear, a ring, a cough - shown only to a sailor under 60; blinds rise every hour; bust out or cash out),
+  bullshit (20 each, three to five at the table, the winner takes the pot), the cartel's hand (heads up with the quiet
+  man; 100 or a kidney in the middle; win and the kidney comes back; a bluff he folds to pays double), cheating at every
+  game with V held (a charisma-plus-sobriety roll: a weighted dart, a moved cue ball, a nudged golf ball or slot
+  machine, a marked deck, a peek at the bullshit pile; caught, the watcher swings or the whole table turns on you), and
+  side bets of 10 on (or against) another sailor's match, settled with it (a broke sailor's loss goes on the tab).
+- Screens: cards drawn with suits; the hold'em table (seats round the felt, bets, the board, your cards, a marked hand
+  glowing, the showdown, fold / call / raise with a +/- and the wheel); the bullshit table (your hand to pick from, the
+  pile, the claim, the call window, the reveal). The snapshot sends only what the viewer may see.
+- `--game-check poker|bullshit`: poker against the hustler 56/46/16% (targets 55/35/10), bullshit 38/23/8% for you at
+  a table of three. The gate (in `--night-test`): down a kidney, sit in the quiet man's hand, win: the kidney comes
+  back ("SAILOR WINS KIDNEY BACK IN A HAND OF POKER; THE QUIET MAN 'IMPRESSED'"). Also: hold'em hands with rising
+  blinds and a cash-out, a bullshit hand to its end, a side bet settling, a wrecked cheat caught far more than a sober
+  one. Shots `night_cards_poker`, `night_cards_bullshit`.
+
 ## Next
-8. Poker and bullshit, cheating, side bets, the cartel's kidney pot.  9. Sound, the profile, the bartender's memory,
-internet play.
+9. Sound, the profile, the bartender's memory, internet play.

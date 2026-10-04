@@ -356,6 +356,14 @@ std::vector<Night::EvOption> Night::EventOptions(const Player& p) const {
         if (m) for (const auto& c : patrons) if (c.name == "Harrow" && c.inside && !c.gone) { o.push_back({5, 100 + c.id, "Point them at Harrow"}); break; }
     }
     for (const auto& c : patrons) if (c.name == "Harrow" && c.inside && !c.gone && Vector2Distance(c.pos, p.pos) < 1.8f && p.money < 20 && p.debt <= 0) o.push_back({3, -1, "Borrow 100 from Harrow"});
+    // the cartel's hand at the poker table; side bets on the other sailors' matches
+    if (EventOn("cartel") && p.game.kind < 0 && cartelHand.seats.empty() && Vector2Distance(p.pos, {34.5f, 14.5f}) < 3.2f) o.push_back({40, -1, p.money >= 100 ? "Sit in the quiet man's hand (100, a kidney in the pot)" : "Sit in the quiet man's hand (stake a kidney)"});
+    for (const auto& q : players) {
+        if (q.id == p.id || q.game.kind < 0 || q.game.over || q.game.opp < 0 || (q.game.kind != GK_DARTS && q.game.kind != GK_POOL && q.game.kind != GK_GOLF) || Vector2Distance(q.pos, p.pos) > 5) continue;
+        bool already = false; for (const auto& b : sideBets) already |= b.bettor == p.id && b.on == q.id;
+        if (!already) { o.push_back({30, q.id, "Side bet 10 on " + q.name}); o.push_back({31, q.id, "Side bet 10 against " + q.name}); }
+        break;
+    }
     // the piano, the bikes, the band, the safe, the toilet window
     for (const auto& b : D().bar.boxes) if (b.kind == "piano" && Vector2Distance(p.pos, {b.r.x + b.r.width / 2, b.r.y + b.r.height / 2}) < 2.9f) o.push_back({11, -1, "Play the piano"});   // (it stands on the stage: reach up to it)
     if (EventOn("bikers")) for (const auto& pr : props) if (pr.kind == "bike" && pr.state == PS_OK && Vector2Distance({pr.pos.x, pr.pos.z}, p.pos) < 1.4f) { o.push_back({17, -1, "Sit on a biker's bike"}); break; }
@@ -404,6 +412,8 @@ void Night::EventAction(Player& p, int act, int arg) {
                    int bc = EventIndex("bachelor"); bool seen = false; if (bc >= 0) for (int id : events[bc].people) if (id < (int)patrons.size() && patrons[id].inside && Vector2Distance(patrons[id].pos, p.pos) < 6) seen = true;
                    if (seen && bc >= 0) { Say("\"OI! THE KITTY!\""); int bm = events[bc].people.size() > 1 ? events[bc].people[1] : events[bc].people[0]; int b = StartBrawl(PatronW(bm), PlayerW(p.id), PatronW(bm)); if (b >= 0) for (int id : events[bc].people) if (id < (int)patrons.size() && patrons[id].inside && patrons[id].fight.brawl < 0) { patrons[id].fight.brawl = b; patrons[id].fight.side = patrons[bm].fight.side; patrons[id].fight.foe = PlayerW(p.id); brawls[b].size++; } } } break;
         case 17: EventAction(p, 11, -1); break;   // (the bikes are as sacred as the piano)
+        case 30: case 31: { SideBet b; b.bettor = p.id; b.on = arg; b.stake = 10; b.forWin = act == 30; sideBets.push_back(b); Note(p, 0, std::string("Side bet of 10 ") + (act == 30 ? "on " : "against ") + players[std::clamp(arg, 0, (int)players.size() - 1)].name + "."); } break;
+        case 40: { std::string why; StartGame(p, GK_POKER, 1, -1, 0, &why); if (!why.empty()) Say(why); } break;
         case 18: p.watchingSafe = true; Note(p, 0, "Hid upstairs during the robbery and watched the safe."); break;
     }
 }

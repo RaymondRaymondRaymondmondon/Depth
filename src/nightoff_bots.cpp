@@ -106,6 +106,8 @@ static Vector2 Station(int goal, const Night& n, int arg) {
         case 7: case 8: { int c = std::clamp(arg, 0, (int)n.patrons.size() - 1); return n.patrons.empty() ? B.serve : n.patrons[c].pos; }   // a patron (talk, flirt)
         case 9: return B.door;
         case 10: return B.hatch;
+        case 11: return {34.5f, 11.9f};    // the poker table
+        case 12: return {34.5f, 21.2f};    // the bullshit table
     }
     return B.serve;
 }
@@ -131,6 +133,19 @@ void Night::BotPlayer(Player& p, float dt) {
             case GK_GOLF: if (g.golf.turn == 0 && g.replayT <= 0 && p.botT <= 0) { float a, pw; golf::BotShot(g.golf, sk, r, a, pw); in.gameAim = {a, 0}; in.gamePower = pw; in.gameAct = 1; p.botT = 1.0f; } break;
             case GK_SLOTS: if (p.botT <= 0) { in.gameAct = (g.pulls < 6 + p.botStyle * 10 && p.money > 20) ? 1 : 3; p.botT = 1.2f; } break;
             case GK_SCRATCH: case GK_PIP: if (p.botT <= 0) { in.gameAct = !g.haveTicket ? 5 : !g.paid ? 1 : 3; p.botT = 1.5f; } break;
+            case GK_POKER: {
+                cards::Poker& P = g.machine == 1 ? cartelHand : poker; int me = -1; for (int k = 0; k < (int)P.seats.size(); k++) if (P.seats[k].kind == 0 && P.seats[k].idx == p.id && !P.seats[k].out) me = k;
+                if (me < 0 || g.over) { in.gameAct = 3; break; }
+                if (P.turn == me && P.street <= 3 && p.botT <= 0) { int amt = 0; int a = P.BotChoose(me, amt, p.drunk); in.gameAct = 20 + a; in.gamePower = (float)amt; p.botT = 1.0f; }
+                if (P.street == 5 && P.hand >= 8 + p.botStyle * 10 && p.botT <= 0) { in.gameAct = 3; p.botT = 1; }
+            } break;
+            case GK_BULLSHIT: {
+                int me = -1; for (int k = 0; k < (int)bs.seats.size(); k++) if (bs.seats[k].kind == 0 && bs.seats[k].idx == p.id) me = k;
+                if (g.over || (!bsOn && p.botT <= 0 && g.captionT <= 0)) { in.gameAct = 3; p.botT = 1; break; }
+                if (me < 0 || !bsOn) break;
+                if (bs.turn == me && bs.window <= 0 && bs.winner < 0 && p.botT <= 0) { std::vector<int> v; bs.BotPlay(me, v); int mask = 0; for (int x : v) mask |= 1 << x; in.gameAct = 25; in.gameStake = mask; p.botT = 1.2f; }
+                else if (bs.window > 0 && bs.window < 2.5f && bs.lastSeat != me && p.botT <= 0) { if (Rand() < bs.BotDoubt(me) * 0.5f) in.gameAct = 26; p.botT = 3; }
+            } break;
             case GK_DANCE: if (p.botT <= 0) { if (g.captionT <= 0 && !g.over) { in.gameAct = 1; in.gamePower = 0.4f + Rand() * 0.55f - p.drunk / 300; } else in.gameAct = 3; p.botT = 8; } break;
             case GK_FORTUNE: if (p.botT <= 0) { in.gameAct = !g.haveReading ? 1 : 3; if (g.haveReading && p.fortuneAsked && p.botStyle && Rand() < 0.5f) in.fortuneYes = true; p.botT = 3.0f; } break;
         }
@@ -168,7 +183,7 @@ void Night::BotPlayer(Player& p, float dt) {
         if (h >= p.botLeaveH || (p.botStyle == 0 && p.money - p.tab < 30)) g = 9;
         else if (p.drunk < p.botDrinkTo && opts.mode != MD_SOBER && Rand() < 0.55f) g = 0;
         else if (p.drunk > 70 && Rand() < 0.4f) g = 10;
-        else { float u = Rand(); g = u < 0.18f ? 1 : u < 0.32f ? 2 : u < 0.38f && h < 26 ? 3 : u < 0.46f ? 4 : u < 0.5f ? 5 : u < 0.54f ? 6 : u < 0.8f ? 7 : 8; }
+        else { float u = Rand(); g = u < 0.16f ? 1 : u < 0.28f ? 2 : u < 0.33f && h < 26 ? 3 : u < 0.4f ? 4 : u < 0.43f ? 5 : u < 0.46f ? 6 : u < 0.52f ? 11 : u < 0.57f ? 12 : u < 0.8f ? 7 : 8; }
         p.botGoal = g; p.botArg = (int)(Rand() * 1000);
         if (g == 7 || g == 8) {   // someone to talk to (or flirt with): a patron in the bar who's free
             std::vector<int> c; for (const auto& q : patrons) if (q.inside && !q.gone && !q.leaving && q.talkingTo < 0 && q.playing < 0 && q.type != T_STAFF && q.fight.brawl < 0 && (g == 7 || q.home != "none")) c.push_back(q.id);
@@ -211,6 +226,8 @@ void Night::BotPlayer(Player& p, float dt) {
         case 8: in.flirtWith = p.botArg; break;
         case 9: in.leave = true; p.botGoal = 9; break;
         case 10: in.order = DrinkIndex(Rand() < 0.5f ? "chips" : "stew"); break;
+        case 11: if (NearGame(p) == GK_POKER && p.money >= 50) in.startGame = GK_POKER; break;
+        case 12: if (NearGame(p) == GK_BULLSHIT && p.money >= 20) in.startGame = GK_BULLSHIT; break;
     }
 }
 

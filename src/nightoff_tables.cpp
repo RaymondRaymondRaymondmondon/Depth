@@ -9,7 +9,7 @@
 namespace no {
 
 const char* GameName(int k) {
-    static const char* N[GK_COUNT] = {"darts", "pool", "mini golf", "the slot machine", "a scratch-off", "the fortune teller", "Pip's scratch-offs", "the dance floor"};
+    static const char* N[GK_COUNT] = {"darts", "pool", "mini golf", "the slot machine", "a scratch-off", "the fortune teller", "Pip's scratch-offs", "the dance floor", "poker", "bullshit"};
     return k >= 0 && k < GK_COUNT ? N[k] : "?";
 }
 static float RectDist(Vector2 p, Rectangle r) { float dx = std::max({r.x - p.x, 0.0f, p.x - (r.x + r.width)}), dz = std::max({r.y - p.y, 0.0f, p.y - (r.y + r.height)}); return sqrtf(dx * dx + dz * dz); }
@@ -28,6 +28,8 @@ int Night::NearGame(const Player& p, int* machine) const {
     if (Vector2Distance(p.pos, B.scratch) < 1.0f) return GK_SCRATCH;
     if (Vector2Distance(p.pos, B.fortune) < 1.8f) return GK_FORTUNE;
     if (Vector2Distance(p.pos, B.golf) < 1.8f) return GK_GOLF;
+    if (RectDist(p.pos, {33, 13, 3, 3}) < 1.4f) return GK_POKER;
+    if (RectDist(p.pos, {33, 17.5f, 3, 3}) < 1.4f) return GK_BULLSHIT;
     for (const auto& c : patrons) if (c.inside && !c.gone && c.name == "Pip" && c.playing < 0 && c.talkingTo < 0 && Vector2Distance(c.pos, p.pos) < 1.6f) return GK_PIP;
     return -1;
 }
@@ -64,6 +66,11 @@ bool Night::StartGame(Player& p, int kind, int machine, int opp, int stake, std:
     if (kind < 0 || kind >= GK_COUNT) return false;
     bool match = kind == GK_DARTS || kind == GK_POOL || kind == GK_GOLF;
     if (kind == GK_GOLF && Hour() >= GD().golfCloses) return no("The yard's closed: the course shuts at 2 a.m.");
+    if (kind == GK_POKER || kind == GK_BULLSHIT) {   // the card room (nightoff_cardroom.cpp)
+        if (!SitAtCards(p, kind, machine, why)) return false;
+        GameSeat c; c.kind = kind; c.machine = machine; c.caption = kind == GK_BULLSHIT ? "Twenty in the pot. Shed your cards, claim the rank, call the liars." : machine == 1 ? "One hand with the quiet man." : "Fifty in chips. The blinds go up every hour."; c.captionT = 4;
+        p.game = c; return true;
+    }
     GameSeat g; g.kind = kind; g.machine = machine; g.rng.s = rng ^ (0x9e37u * (p.id + 1)) ^ (uint32_t)(t * 1000); if (!g.rng.s) g.rng.s = 7;
     if (match) {
         if (opp == -2) {
@@ -109,6 +116,7 @@ static void Settle(Night& n, Player& p, int result) {
     } else if (g.opp >= 0) {
         Patron& c = n.patrons[g.opp];
         if (g.opp < (int)n.patrons.size() && p.id < (int)c.mem.size()) c.mem[p.id].games += 1;
+        n.SettleSideBets(p.id, result == 0);
         if (result == 0) {
             p.gamesWon++;
             p.money += g.stake;
@@ -135,6 +143,7 @@ void Night::EndGame(Player& p) {
 void Night::GameAction(Player& p) {
     GameSeat& g = p.game; Input& in = p.in;
     if (g.kind < 0) return;
+    if (CardAction(p)) return;   // (poker and bullshit)
     int act = in.gameAct;
     if (act == 3) {   // leave: walking out of a match you're losing is losing it
         bool live = (g.kind == GK_DARTS || g.kind == GK_POOL || g.kind == GK_GOLF) && !g.over && g.opp != -1;
@@ -154,6 +163,7 @@ void Night::GameAction(Player& p) {
         case GK_DARTS:
             if (act == 1 && !g.over && g.darts.turn == 0 && g.botT <= 0) {
                 int b0 = g.darts.big[0];
+                if (in.cheat) { if (TryCheat(p, "darts", g.opp)) in.gameAim = Vector2Lerp(in.gameAim, g.darts.BotAim(), 0.7f); else { g.darts.turn = 1; g.darts.dart = 0; g.botT = 1.2f; break; } }   // (a weighted dart)
                 g.darts.Throw(in.gameAim);
                 if (g.darts.big[0] > b0) { Note(p, 5, "Threw a 180."); Flag("one_eighty", p.name); }
                 if (g.darts.winner >= 0) Settle(*this, p, g.darts.winner == 0 ? 0 : 1);
@@ -169,6 +179,7 @@ void Night::GameAction(Player& p) {
             }
             if (act == 1 && !g.pool.ballInHand) {
                 bool miss = p.drunk > d.poolMissFrom && g.rng.U() < (p.drunk - d.poolMissFrom) / 150;
+                if (in.cheat) { if (TryCheat(p, "pool", g.opp)) g.pool.t.b[0].p = pool::BotPlace(g.pool, g.rng); else { g.pool.turn = 1; g.pool.ballInHand = true; g.pool.last = "was caught moving the cue ball"; g.botT = 1.5f; break; } }   // (moving your ball)
                 pool::Shot s; s.ang = in.gameAim.x; s.power = in.gamePower; s.english = in.gameEnglish;
                 g.shotTable = g.pool.t; g.shotTable.frames.clear(); g.shot = s; g.shotMiss = miss; g.shotSerial++;
                 g.pool.Play(s, miss);
@@ -178,6 +189,7 @@ void Night::GameAction(Player& p) {
             break;
         case GK_GOLF:
             if (act == 1 && !g.over && g.golf.turn == 0 && g.replayT <= 0) {
+                if (in.cheat) { const golf::Hole& hh = golf::Course()[g.golf.hole]; if (TryCheat(p, "mini golf", g.opp)) { Vector2 to = Vector2Subtract(hh.cup, g.golf.ball[0].p); float L = Vector2Length(to); if (L > 0.7f) g.golf.ball[0].p = Vector2Add(g.golf.ball[0].p, Vector2Scale(to, 0.6f / L)); } else { g.golf.strokes[0][g.golf.hole] += 2; } }   // (a nudge with the foot; caught: two strokes)
                 g.golfPath.clear(); g.golfWho = 0; g.golfHole = g.golf.hole;
                 g.golfPath.push_back(g.golf.ball[0].p);
                 g.shotBall = g.golf.ball[0]; g.shotSim = g.golf.sim; g.shot.ang = in.gameAim.x; g.shot.power = in.gamePower; g.shotRain = g.golf.rain; g.shotSerial++;
@@ -190,7 +202,8 @@ void Night::GameAction(Player& p) {
         case GK_SLOTS:
             if (act == 1 && g.spinT <= 0) {
                 if (p.money < d.slotCost) { g.caption = "You're out of coins."; g.captionT = 3; break; }
-                p.money -= d.slotCost; g.pull = slots::Spin(g.machine, g.rng); g.pulls++; g.spinT = std::max(0.35f, 1.1f - p.drunk / 140);   // (pulls get faster)
+                p.money -= d.slotCost; g.pull = slots::Spin(g.machine, g.rng); g.pulls++;
+                if (in.cheat && g.pull.pays == 0) { bool watched = Vector2Distance(p.pos, bar.pos) < 10; if (TryCheat(p, "the slot machine", watched ? -2 : -3)) { slots::Pull again = slots::Spin(g.machine, g.rng); if (again.pays > g.pull.pays) g.pull = again; } }   // (a nudge) g.spinT = std::max(0.35f, 1.1f - p.drunk / 140);   // (pulls get faster)
                 p.money += g.pull.pays;
                 if (g.pull.kidney) { p.kidneys = std::min(2, p.kidneys + 1); Note(p, 5, "Hit the kidney line on the slot machine."); Flag("slots_kidney", p.name); }
                 if (g.pull.pays >= 200) Note(p, 3, TextFormat("Won %d on the slots.", g.pull.pays));

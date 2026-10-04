@@ -380,6 +380,112 @@ void Scratch(no::Night& n, no::Player& p) {
     if (Btn({r.x + r.width / 2 - 100, r.y + 410, 200, 40}, TextFormat("Buy a ticket (%d)", d.scratchCost), (!g.haveTicket || g.paid) && p.money >= d.scratchCost)) { p.in.gameAct = 5; U.masked = false; }
     if (Btn({r.x + r.width / 2 - 80, r.y + r.height - 50, 160, 36}, "Done") || IsKeyPressed(KEY_ESCAPE)) p.in.gameAct = 3;
 }
+// ---------------------------------------------------------------- the card room: hold'em and bullshit
+void DrawSuit(float cx, float cy, float k, int s) {
+    Color c = (s == 1 || s == 2) ? Color{200, 40, 40, 255} : Color{24, 24, 28, 255};
+    if (s == 1) { DrawCircleV({cx - 3.5f * k, cy - 2 * k}, 4 * k, c); DrawCircleV({cx + 3.5f * k, cy - 2 * k}, 4 * k, c); DrawTri({cx - 7.5f * k, cy - 0.5f * k}, {cx + 7.5f * k, cy - 0.5f * k}, {cx, cy + 8 * k}, c); }
+    else if (s == 2) { DrawTri({cx, cy - 8 * k}, {cx + 6 * k, cy}, {cx - 6 * k, cy}, c); DrawTri({cx, cy + 8 * k}, {cx + 6 * k, cy}, {cx - 6 * k, cy}, c); }
+    else if (s == 0) { DrawTri({cx, cy - 8 * k}, {cx + 7 * k, cy + 2 * k}, {cx - 7 * k, cy + 2 * k}, c); DrawCircleV({cx - 3.5f * k, cy + 2 * k}, 3.8f * k, c); DrawCircleV({cx + 3.5f * k, cy + 2 * k}, 3.8f * k, c); DrawRectangleV({cx - 1 * k, cy + 2 * k}, {2 * k, 7 * k}, c); }
+    else { DrawCircleV({cx, cy - 4 * k}, 3.6f * k, c); DrawCircleV({cx - 4 * k, cy + 1.5f * k}, 3.6f * k, c); DrawCircleV({cx + 4 * k, cy + 1.5f * k}, 3.6f * k, c); DrawRectangleV({cx - 1 * k, cy + 1 * k}, {2 * k, 8 * k}, c); }
+}
+void DrawCard(float x, float y, float w, no::cards::Card c, bool up, bool lit = false) {
+    float h = w * 1.4f;
+    DrawRectangleRounded({x + 2, y + 3, w, h}, 0.15f, 6, Fade(BLACK, 0.4f));
+    if (!up || c.r < 2) { DrawRectangleRounded({x, y, w, h}, 0.15f, 6, Color{120, 30, 36, 255}); DrawRectangleRoundedLinesEx({x + 4, y + 4, w - 8, h - 8}, 0.15f, 6, 1.5f, Color{220, 190, 120, 255}); return; }
+    DrawRectangleRounded({x, y, w, h}, 0.15f, 6, Color{248, 244, 232, 255});
+    if (lit) DrawRectangleRoundedLinesEx({x - 2, y - 2, w + 4, h + 4}, 0.15f, 6, 2, Color{200, 160, 255, 255});
+    static const char* RN[15] = {"", "", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"};
+    Color ink = (c.s == 1 || c.s == 2) ? Color{200, 40, 40, 255} : Color{24, 24, 28, 255};
+    TxtBold(RN[std::clamp((int)c.r, 0, 14)], x + 5, y + 3, (int)(w * 0.36f), ink);
+    DrawSuit(x + w / 2, y + h * 0.6f, w / 32, c.s);
+}
+int gRaise = 0;
+void Poker(no::Night& n, no::Player& p) {
+    no::GameSeat& g = p.game; no::cards::Poker& P = g.machine == 1 ? n.cartelHand : n.poker;
+    Rectangle r{40, 40, SCREEN_W - 80.0f, SCREEN_H - 80.0f}; GPanel(r);
+    Vector2 c{SCREEN_W / 2.0f, r.y + 270};
+    DrawEllipse((int)c.x, (int)c.y, 430, 200, Color{90, 52, 30, 255}); DrawEllipse((int)c.x, (int)c.y, 410, 182, Color{26, 92, 60, 255});
+    TxtBold(g.machine == 1 ? "The quiet man's hand: a kidney in the middle" : TextFormat("Hold'em   blinds %d/%d", P.sb, P.bb), r.x + 24, r.y + 16, 18, BRASS);
+    int me = -1; for (int k = 0; k < (int)P.seats.size(); k++) if (P.seats[k].kind == 0 && P.seats[k].idx == p.id) me = k;
+    int N = (int)P.seats.size();
+    bool showdown = P.street == 5 && P.result.find(" with ") != std::string::npos;
+    for (int k = 0; k < N; k++) {
+        const no::cards::Seat& s = P.seats[k];
+        int rel = me >= 0 ? (k - me + N) % N : k;
+        float a = PI / 2 + rel * 2 * PI / std::max(1, N);
+        Vector2 at{c.x + cosf(a) * 400, c.y + sinf(a) * 190};
+        bool turn = P.turn == k && P.street <= 3;
+        DrawRectangleRounded({at.x - 80, at.y - 30, 160, 60}, 0.3f, 6, turn ? Color{90, 70, 30, 240} : Color{30, 22, 16, 230});
+        DrawTextCenteredBold(s.name, at.x, at.y - 26, 15, s.out ? DIM : INK);
+        DrawTextCentered(s.out ? "out" : s.folded ? "folded" : TextFormat("%d chips%s", s.stack, s.allIn ? " (all in)" : ""), at.x, at.y - 8, 13, DIM);
+        if (!s.last.empty() && P.street <= 3) DrawTextCentered(s.last, at.x, at.y + 8, 12, Color{240, 210, 150, 255});
+        if (s.tellNow && p.drunk < 60 && k != me) DrawTextCentered(s.name + " " + s.tell, at.x, at.y - 48, 14, Color{200, 190, 255, 255});
+        if (s.bet > 0) DrawTextCentered(TextFormat("%d", s.bet), at.x + (c.x - at.x) * 0.3f, at.y + (c.y - at.y) * 0.3f, 15, Color{255, 230, 140, 255});
+        bool mine = k == me, peek = (s.peeked >> p.id) & 1, up = mine || peek || (showdown && !s.folded && !s.out);
+        if (!s.out && !s.folded && (P.street <= 3 || up)) { float cx = mine ? c.x - 60 : at.x - 34, cy = mine ? r.y + r.height - 230 : at.y + 34; float cw = mine ? 56 : 32; DrawCard(cx, cy, cw, s.hole[0], up, peek); DrawCard(cx + cw + 6, cy, cw, s.hole[1], up, peek); }
+    }
+    for (int k = 0; k < P.boardN; k++) DrawCard(c.x - 150 + k * 62, c.y - 40, 54, P.board[k], true);
+    DrawTextCentered(TextFormat("pot %d", P.Pot() + (P.street == 5 ? 0 : 0)), c.x, c.y + 50, 16, Color{255, 230, 140, 255});
+    if (P.street == 5 && !P.result.empty()) DrawTextCenteredBold(P.result, c.x, c.y + 72, 18, Color{255, 220, 120, 255});
+    LeaveButton(p, r, false);
+    if (g.over) { DrawTextCenteredBold(g.caption, r.x + r.width / 2, r.y + r.height - 110, 18, INK); if (Btn({r.x + r.width / 2 - 80, r.y + r.height - 70, 160, 36}, "Leave the table")) p.in.gameAct = 3; return; }
+    if (me < 0 || P.turn != me || P.street > 3) { gRaise = 0; return; }
+    const no::cards::Seat& ms = P.seats[me];
+    int owe = P.toCall - ms.bet, minTo = P.toCall + P.minRaise;
+    if (gRaise < minTo) gRaise = minTo;
+    gRaise = std::clamp(gRaise + (int)GetMouseWheelMove() * P.bb, minTo, ms.bet + ms.stack);
+    float by = r.y + r.height - 70;
+    if (Btn({r.x + 260, by, 130, 38}, "1 Fold") || IsKeyPressed(KEY_ONE)) p.in.gameAct = 21;
+    if (Btn({r.x + 400, by, 150, 38}, owe > 0 ? TextFormat("2 Call %d", std::min(owe, ms.stack)) : "2 Check") || IsKeyPressed(KEY_TWO)) p.in.gameAct = 22;
+    if (Btn({r.x + 560, by, 34, 38}, "-")) gRaise = std::max(minTo, gRaise - P.bb);
+    if (Btn({r.x + 600, by, 170, 38}, gRaise >= ms.bet + ms.stack ? "3 All in" : TextFormat("3 Raise to %d", gRaise)) || IsKeyPressed(KEY_THREE)) { p.in.gameAct = 23; p.in.gamePower = (float)gRaise; }
+    if (Btn({r.x + 776, by, 34, 38}, "+")) gRaise = std::min(ms.bet + ms.stack, gRaise + P.bb);
+    if (Btn({r.x + 830, by, 190, 38}, "V: mark the deck", true, 14) || IsKeyPressed(KEY_V)) p.in.gameAct = 24;
+}
+void Bullshit(no::Night& n, no::Player& p) {
+    no::GameSeat& g = p.game; no::cards::Bullshit& B = n.bs;
+    Rectangle r{40, 40, SCREEN_W - 80.0f, SCREEN_H - 80.0f}; GPanel(r);
+    Vector2 c{SCREEN_W / 2.0f, r.y + 230};
+    DrawEllipse((int)c.x, (int)c.y, 380, 160, Color{70, 40, 26, 255}); DrawEllipse((int)c.x, (int)c.y, 360, 144, Color{40, 70, 90, 255});
+    TxtBold(TextFormat("Bullshit   pot %d", B.pot), r.x + 24, r.y + 16, 18, BRASS);
+    int me = -1; for (int k = 0; k < (int)B.seats.size(); k++) if (B.seats[k].kind == 0 && B.seats[k].idx == p.id) me = k;
+    LeaveButton(p, r, n.bsOn);
+    if (!n.bsOn && !g.over) { DrawTextCenteredBold("Waiting for players...", c.x, c.y, 20, INK); return; }
+    int N = (int)B.seats.size();
+    for (int k = 0; k < N; k++) {
+        if (k == me) continue;
+        int rel = me >= 0 ? (k - me + N) % N : k; float a = PI / 2 + rel * 2 * PI / std::max(1, N);
+        Vector2 at{c.x + cosf(a) * 360, c.y + sinf(a) * 160};
+        DrawRectangleRounded({at.x - 80, at.y - 24, 160, 48}, 0.3f, 6, B.turn == k && B.window <= 0 ? Color{90, 70, 30, 240} : Color{30, 22, 16, 230});
+        DrawTextCenteredBold(B.seats[k].name, at.x, at.y - 20, 15, INK);
+        DrawTextCentered(TextFormat("%d cards", (int)B.seats[k].hand.size()), at.x, at.y, 13, DIM);
+    }
+    // the pile, the claim, the call
+    for (int k = 0; k < std::min(6, (int)B.pile.size()); k++) DrawCard(c.x - 40 + k * 3, c.y - 50 - k * 2, 50, {}, false);
+    DrawTextCentered(TextFormat("%d in the pile", (int)B.pile.size()), c.x, c.y + 26, 14, DIM);
+    if (B.lastSeat >= 0 && !B.claim.empty()) DrawTextCenteredBold(TextFormat("%s: \"%s\"", B.seats[B.lastSeat].name.c_str(), B.claim.c_str()), c.x, c.y + 50, 18, INK);
+    if (B.revealT > 0) { for (int k = 0; k < (int)B.lastCards.size(); k++) DrawCard(c.x + 120 + k * 46, c.y - 40, 42, B.lastCards[k], true); }
+    if (!B.result.empty()) DrawTextCentered(B.result, c.x, c.y + 76, 15, Color{255, 220, 150, 255});
+    if (g.over) { DrawTextCenteredBold(g.caption, c.x, r.y + r.height - 120, 18, INK); if (Btn({c.x - 170, r.y + r.height - 70, 160, 36}, "Again (20)", p.money >= 20)) p.in.gameAct = 4; if (Btn({c.x + 10, r.y + r.height - 70, 160, 36}, "Leave")) p.in.gameAct = 3; return; }
+    if (me < 0) return;
+    // your hand: click to pick up to four
+    auto& hand = B.seats[me].hand; int nh = (int)hand.size(); float cw = std::min(56.0f, 900.0f / std::max(1, nh)), x0 = c.x - nh * cw / 2;
+    static int sel = 0;
+    for (int k = 0; k < nh; k++) {
+        bool on = (sel >> k) & 1; float x = x0 + k * cw, y = r.y + r.height - 200 - (on ? 18 : 0);
+        DrawCard(x, y, 54, hand[k], true, on);
+        if (Clicked() && CheckCollisionPointRec(GetMousePosition(), {x, y, cw, 76})) { int cnt = 0; for (int b = 0; b < 24; b++) cnt += (sel >> b) & 1; if (on) sel &= ~(1 << k); else if (cnt < 4) sel |= 1 << k; }
+    }
+    bool myTurn = B.turn == me && B.window <= 0 && B.winner < 0;
+    int cnt = 0; for (int b = 0; b < 24; b++) cnt += (sel >> b) & 1;
+    std::string claim = cnt > 0 ? no::cards::RankWord(B.rank, cnt) : no::cards::RankWord(B.rank, 2);
+    if (myTurn) { if (Btn({c.x - 150, r.y + r.height - 70, 300, 38}, cnt > 0 ? TextFormat("Play: \"%s\"", claim.c_str()) : TextFormat("Pick cards (it's %s)", claim.substr(claim.find(' ') + 1).c_str()), cnt > 0)) { p.in.gameAct = 25; p.in.gameStake = sel; sel = 0; } }
+    else if (B.window > 0 && B.lastSeat != me) {
+        DrawRectangle((int)(c.x - 150), (int)(r.y + r.height - 86), (int)(300 * B.window / 3), 6, Color{240, 140, 120, 255});
+        if (Btn({c.x - 150, r.y + r.height - 76, 200, 40}, "BULLSHIT! (B)", true, 17) || IsKeyPressed(KEY_B)) p.in.gameAct = 26;
+        if (Btn({c.x + 60, r.y + r.height - 76, 120, 40}, "V: peek", true, 14) || IsKeyPressed(KEY_V)) p.in.gameAct = 27;
+    } else DrawTextCentered(TextFormat("%s to play %s", B.seats[B.turn].name.c_str(), no::cards::RankWord(B.rank, 2).c_str()), c.x, r.y + r.height - 64, 15, DIM);
+}
 struct DanceState { float t = -1; int hits = 0, beat = 0; bool judged[16] = {}; };
 DanceState gDance;
 void Dance(no::Night& n, no::Player& p) {
@@ -452,6 +558,8 @@ const char* Prompt(const no::Night& n, const no::Player& p, int kind) {
         case no::GK_SCRATCH: return "E: buy a scratch-off";
         case no::GK_FORTUNE: return "E: have your fortune read";
         case no::GK_PIP: return "E: buy a scratch-off from Pip";
+        case no::GK_POKER: return "E: sit down at hold'em (buy-in 50)";
+        case no::GK_BULLSHIT: return "E: play bullshit (20 a hand)";
     }
     (void)p; return nullptr;
 }
@@ -468,6 +576,8 @@ void Frame(no::Night& n, no::Player& p, float dt) {
         case no::GK_SCRATCH: case no::GK_PIP: Scratch(n, p); break;
         case no::GK_FORTUNE: Fortune(n, p); break;
         case no::GK_DANCE: Dance(n, p); break;
+        case no::GK_POKER: Poker(n, p); break;
+        case no::GK_BULLSHIT: Bullshit(n, p); break;
     }
     Caption(p.game);
 }

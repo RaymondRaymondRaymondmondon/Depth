@@ -350,7 +350,7 @@ void Render(float dt) {
 void Gather(float dt) {
     no::Player& p = Me();
     no::Input& in = p.in;
-    in.moveX = in.moveZ = 0; in.run = false; in.faceYaw = S.camYaw;
+    in.moveX = in.moveZ = 0; in.run = false; in.faceYaw = S.camYaw; in.cheat = IsKeyDown(KEY_V);
     if (IsKeyPressed(KEY_H)) S.help = !S.help;
     bool canMove = p.st == no::State::Active && !S.menu && !S.shot && p.talk.patron < 0 && p.flirt.patron < 0 && p.leavingT <= 0 && !nog::Blocking(p);
     if (p.talk.patron >= 0 && IsKeyPressed(KEY_ESCAPE)) in.say = 6;
@@ -757,6 +757,24 @@ void DebugNightOffShot(Game& g, int which) {
         if (which == 23) { at(16, 15, PI * 0.5f, PI * 0.5f, 30); S.camPitch = -0.2f; n.StartGame(p, no::GK_DANCE, 0, -1, 0); }
         if (which == 24) { at(16.5f, 6.0f, PI * 0.5f, PI * 0.45f, 15); S.camPitch = -0.25f; S.camDist = 4.0f; }
         for (int k = 0; k < 30; k++) StepCamera(1 / 60.0f);
+    }
+    if (which == 25 || which == 26) {   // the card room: 25 hold'em with the regulars (a hand under way), 26 bullshit (a claim on the table)
+        for (int i = 0; i < (int)(3 * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f); i++) n.Step(0.1f);
+        p.st = no::State::Active; p.money = 200;
+        if (which == 25) { at(34.5f, 11.8f, PI * 0.5f, PI * 0.5f, 25); n.StartGame(p, no::GK_POKER, 0, -1, 0);
+            for (int k = 0; k < 2000 && !(n.poker.street >= 1 && n.poker.street <= 3 && n.poker.turn >= 0 && n.poker.seats[n.poker.turn].kind == 0); k++) {
+                int me = -1; for (int s = 0; s < (int)n.poker.seats.size(); s++) if (n.poker.seats[s].kind == 0) me = s;
+                if (me >= 0 && n.poker.turn == me && n.poker.street == 0) p.in.gameAct = 22;
+                n.Step(0.05f);
+            }
+            for (auto& s : n.poker.seats) if (s.kind == 1 && !s.tell.empty() && !s.folded) { s.tellNow = true; break; } }
+        if (which == 26) { at(34.5f, 21.2f, -PI * 0.5f, -PI * 0.5f, 25); n.StartGame(p, no::GK_BULLSHIT, 0, -1, 0);
+            for (int k = 0; k < 2000 && !(n.bsOn && n.bs.window > 0 && n.bs.lastSeat >= 0 && n.bs.seats[n.bs.lastSeat].kind == 1); k++) {
+                int me = -1; for (int s = 0; s < (int)n.bs.seats.size(); s++) if (n.bs.seats[s].kind == 0) me = s;
+                if (me >= 0 && n.bsOn && n.bs.turn == me && n.bs.window <= 0) { std::vector<int> v; n.bs.BotPlay(me, v); int mask = 0; for (int x : v) mask |= 1 << x; p.in.gameAct = 25; p.in.gameStake = mask; }
+                n.Step(0.05f);
+            } }
+        p.game.captionT = 0;
     }
     if (which == 17) {   // the alley dog, fed and following you in
         p.pos = Vector2Add(n.dog.pos, {0.6f, 0}); for (int k = 0; k < 3; k++) { p.in.feedDog = true; n.Step(0.02f); }
