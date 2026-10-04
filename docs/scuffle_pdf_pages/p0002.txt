@@ -1,0 +1,40 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+6. Gear beyond guns: the grappling hook, the shield, the jetpack, the decoy.
+7. Modes: teams, king of the plank, the egg, hot potato, co-op boss arenas, the gauntlet.
+8. A level editor with instant play and sharing by code.
+Design pillars
+1. Thirty seconds of panic, then laughter. Rounds are short; the stage is the joke; death
+is a punchline, never a penalty.
+2. Physics over stats. Everything is a body with mass. A punch moves you; a shotgun
+moves you more; a black hole moves everyone.
+3. Easy to join, impossible to finish learning. Two buttons and a stick play it; the ninetieth
+round still surprises.
+4. Depth's world, Depth's ink. Stick figures drawn in the ink style, stages from the game's
+locations, weapons that are Depth's relics with a trigger.
+Session. A match is first to 10 rounds (lobby: 5 / 10 / 20), 10-20 minutes; 2-8 players, bots
+fill. Score pays arcade tokens; tokens buy skins and hats or spin the crate.
+Tone. Fast, loud, inked. The stick figures have one face (two dots and a line) and it conveys
+everything.
+The feel
+Everything in Scuffle is a physics body, including you. The stick figure is an active ragdoll: a
+torso, a head, two arms, two legs, driven by motors toward a target pose while you're alive
+and limp the moment you aren't. The movement code's job is to make a body that's always
+slightly out of control feel exactly controllable.
+Movement
+Action
+Run
+Jump
+Wall
+climb
+Wall jump
+Input
+Stick or AID
+A or space
+Hold toward a wall
+Jump from a wall
+What happens
+8 m/s with a lean; running into a wall is a small bonk
+A 3 m hop; hold for height; the body tucks
+Hands grab; climb at 3 m/s for 1.5 s, then slide
+A push off at 45 degrees; chainable
+Page 2 of 24

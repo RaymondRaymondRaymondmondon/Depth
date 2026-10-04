@@ -1,0 +1,127 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Weapon
+Needler
+Carbine
+Scatter gun
+Harpoon rifle
+Sniper
+Minigun
+Grenade
+launcher
+Rocket
+launcher
+Bazooka of
+Bees
+Flamethrower
+Ice gun
+Tesla gun
+Snake gun
+Black hole gun
+Bubble gun
+Gravity gun
+Laser
+Damage
+12
+40
+15 x 8
+70
+100
+10
+60 area
+90 area
+5 x many
+8/s while in
+the cone
+30 chain
+20 (a snake)
+Pulls
+501s beam
+Rate
+121s
+21s
+l/s
+0.7/s
+0.5/s
+251s
+l/s
+0.5/s
+hold
+hold
+Ils
+21s
+1
+21s
+hold
+hold
+Ammo
+60
+10
+6
+5
+3
+200
+6
+3
+4
+100
+units
+100
+8
+10
+20
+100
+Knockback
+Small, constant
+Medium
+Big
+Big; pins to walls
+Rocks you
+Pushes you
+backward constantly
+Big
+Huge
+None
+None
+None
+Small
+None
+Everything
+Lifts
+Flips
+None
+The wrong use
+Hold it down on a wall to climb
+by recoil
+A headshot (the head is a
+separate body) is 80
+Point it down and fly
+Pin a stick to the ceiling
+Shoot through three sticks in a
+line
+A jetpack if you aim down
+Bounce it off two walls
+Rocket jump; block-deflect it
+back
+Bees follow the nearest stick,
+which is sometimes you
+Set the stage on fire (wood
+burns)
+Freeze a stick (it's a statue for
+2 s; it shatters into a ragdoll);
+freeze lava into a bridge
+Chains through water (and
+anyone standing in it)
+Snakes bite whoever they land
+on, then slither; a stage can fill
+with snakes
+Everything within 6 m is pulled
+in, including crates, weapons,
+and you; the hole lasts 4 s
+Bubbles carry anything they
+hit upward for 3 s; pop them
+with a punch
+Reverses gravity for whatever
+it's pointed at
+Reflects off ice and mirrors;
+cuts ropes
+Page 6 of 24

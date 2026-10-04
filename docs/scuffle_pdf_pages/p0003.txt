@@ -1,0 +1,39 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Action
+Duck
+Dive
+Get up
+Input
+Down
+Down in the air
+Any input while
+ragdolled
+What happens
+Head under the shot line; can't move
+A headfirst dash; lands prone; a prone stick is
+harder to hit and slower to get up
+0.4 s if the body is still; longer if it's tumbling
+There is no double jump by default (a trinket gives it). Knockback is real: a shotgun blast is
+6 m of flight; a punch is 1.5 m; falling 10 m stuns for 0.5 s.
+Fists
+• Punch (fire with no weapon): a jab with the lead arm, 10 damage, 1.5 m knockback, 0.25
+s. Three in a row is a haymaker (20, 3 m).
+• Block: a punch thrown at a bullet in the 0.15 s before it lands deflects it (it flies off at
+the punch's angle). Blocking a rocket deflects the rocket. Blocking is the skill ceiling
+and the reason unarmed is never hopeless.
+• Grab (hold fire while touching): hold a stick or a crate; throw it with a direction. A
+thrown stick is a projectile (15 damage to both). Grabbing a weapon's owner can pull
+the weapon loose.
+• Kick (fire while diving): 15, 4 m knockback, the thing you do to someone standing on a
+ledge.
+Health
+100 HP; most bullets do 25-40; a melee weapon 30-50; hazards kill outright. No
+regeneration during a round. Low health shows as a wobble and a red tint on the stick;
+dead sticks are ragdolls that stay on the stage as obstacles and can be thrown.
+Weapons in hand
+• You hold one weapon; picking up a second drops the first. Weapons have ammo and are
+dropped empty (they're still a thrown object: 10 damage).
+• Aim is a free 360-degree arm; recoil moves the body (a minigun pushes you backward;
+a sniper rocks you).
+• Weapons are bodies too: a dropped shotgun falls, slides, and can be shot off a ledge.
+Page 3 of 24

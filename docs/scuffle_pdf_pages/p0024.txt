@@ -1,0 +1,14 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Every trinket picked between 3% and 15% of the time by Sharp bots (none dominant,
+none dead).
+• A Sharp bot beats a new human about 60% and loses to a good one about 70%.
+Open questions for the designer
+Friendly fire in Teams: on as written, or a lobby toggle?
+Should the wall be on by default in Custom, or off (Stick Fight's rounds can run long
+without one)?
+Is rollback netcode worth the build cost over plain host-authoritative with prediction?
+o
+It's the difference between the game feeling local and feeling fine.
+Should editor codes be shareable across the arcade (a Scuffle stage inside The Trawl's
+lobby chat, say), or kept to Scuffle's lobby?
+Page 24 of 24

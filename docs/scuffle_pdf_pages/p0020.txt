@@ -1,0 +1,34 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Tier
+Rare (10)
+Super Rare (IO)
+Special (5)
+Items
+Skins: Crayon, Marker, Pencil Sketch, Blueprint,
+Rust, Barnacled, Candy Stripe, Pixel (the
+parkour's), Stitched, Wet Paint (drips while
+running)
+Hats: the Matriarch (an orca), the Sand Worm
+Puppet (yes, again), the Goat, the Lantern (lights
+Blackout), the Bathtub, the Slot Machine, the
+Dealer's Visor, the Nautilus, the Reacher Coral
+(grabs nothing), the Chandelier
+Skins: Red Tide (bleeds ink when hit), Lightning
+(the Tesla line), Molten (sets wood on fire when
+standing on it; visual only, it does not), the Blobfish
+(a blob with limbs), the Golden Kidney (one gold
+kidney, sewn on)
+Skins and hats are data ( scuffle _ cosmetics . json ); the crate shares the arcade token.
+Presentation, physics, technology, and netcode
+Look
+• Depth's ink in 2D: stick figures are three-pixel black lines with round joints on
+parchment-toned stages; the worlds are drawn in the expedition backgrounds' style
+(inked, hatched, a little painterly) with the stage's physics pieces outlined heavier so
+what's solid is obvious.
+• Deaths are ink: a stick that dies goes limp and grey; blood is an ink splash; fire is ink
+that curls; ice is a white hatch.
+• Weapons are drawn as Depth's relics: the harpoon rifle from Red Tide, the frying pan
+from the Gull, the Tesla gaff.
+The camera frames all living sticks with a minimum and maximum zoom; replays use a
+free camera.
+Page 20 of 24

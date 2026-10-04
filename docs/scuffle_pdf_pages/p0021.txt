@@ -1,0 +1,31 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Physics
+• A2D rigid-body engine (Box2D-style, written in the codebase or vendored) at 120 Hz
+with fixed steps; sticks are 6-body ragdolls with motor joints driven toward animation
+poses (run, jump, climb, aim, taunt) by strength that drops to zero on death, stun, or
+freeze.
+• Everything on the stage is a body: crates, weapons, hats, snakes, bees, bubbles, water
+(a fluid approximation: buoyancy volumes), ropes (chains of segments), breakables
+(bodies with health).
+• Determinism matters here more than in any other arcade game, because physics is the
+game: fixed-point or carefully ordered float math so that the host and clients agree.
+Netcode
+• Host-authoritative with rollback for inputs (the fighting-game approach): clients
+predict their own stick from inputs, the host confirms, mismatches roll back and replay
+up to 6 frames. Eight sticks and a few hundred bodies is small enough for this to feel
+local at 100 ms.
+Physics on the host is the truth; clients run the same deterministic simulation from the
+same inputs and only correct on divergence.
+• The shared arcade layer handles lobby, join codes, LAN, relay, and profiles. Bots run on
+the host.
+Performance
+A stage has under 500 bodies at the worst (Crate Rain plus snakes plus bees); the target
+is 120 Hz physics and 60 fps on a laptop with eight players.
+Replays
+Every round's inputs are recorded; the end-of-round replay re-simulates the last 10 s with
+a slow-motion camera on the kill; a match's best three rounds are saved to the profile as
+replay files that re-simulate on demand (small, because they're inputs).
+Sound design
+Scuffle's sound is percussion: every impact is a hit, every stick has a yelp, and the stage
+has a rhythm you can play to.
+Page 21 of 24

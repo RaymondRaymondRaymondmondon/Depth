@@ -1,0 +1,58 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Trinket
+Magnet Palms
+Cat Legs
+Big Lungs
+Quick Draw
+Pack Rat
+Thick Coat
+Loud Mouth
+Second Wind
+Snake
+Charmer
+Deadweight
+None
+Mutators
+Effect
+Wall climb never slides
+No fall stun
+Drown time doubled; shoot
+underwater
+Pick-ups are instant and the first
+shot has no spread
+Carry two weapons (swap)
+Fire and ice don't stick
+Your taunts (emotes) push sticks
+within 1m
+Once a round, survive a killing hit at
+Snakes don't bite you
+Knockback -50%
+A clean stick
+The cost
+Can't dive
+Lighter: knockback +20%
+Slower swim
+Ammo -20%
+Run speed -10%
+Can't climb
+Everyone can hear where you are in
+Blackout
+You're on fire for 2 s after
+Everyone else's snakes come to you
+Can't be bubbled or lifted; you fall
+straight through bubbles
+Round wins pay +10
+Lobby rules that change the match. Any number can stack; a Random mutator picks one
+per round.
+Mutator
+Low Gravity
+Moon Shot
+Ricochet
+Big Heads
+What changes
+Jumps are twice as high; everything floats
+Bullets are slow and visible; blocking is easy and so
+is dodging
+Every bullet bounces once
+Headshots are easy; heads are physics balloons
+Page 12 of 24

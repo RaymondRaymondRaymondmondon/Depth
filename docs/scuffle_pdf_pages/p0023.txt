@@ -1,0 +1,49 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Stage Work
+2
+3
+4
+5
+6
+7
+8
+9
+Tests
+Crates, the first 12 weapons, the wall,
+rounds and matches, bots
+The editor with the reachability check
+and codes; the Nautilus world's 40
+stages built in it
+Multiplayer: rollback netcode through
+the shared layer; eight players on LAN
+The other five worlds and their stages;
+the generator; finale stages
+The full arsenal, gear, trinkets, mutators,
+Modes: teams, objectives, Hunt, Duel;
+the Gauntlet
+Boss Arena: six bosses with phases
+Cosmetics, crate, replays, sound,
+internet play, balance pass
+Four bots finish a 10-round match
+A stage round-trips through a code
+Eight players, 100 ms, no visible
+correction
+Every world's wall and set piece works
+--scuffle-arsenal shows every
+weapon wins somewhere
+Each mode finishes with bots
+A duo beats the Lobster
+All targets met or logged
+--scuffle-sim <players> <rounds> <arsenal> runs bots and reports: round length,
+kills by weapon, deaths by hazard, draws, and the wall's share of deaths.
+--scuffle-arsenal fights every weapon against every other on three stage shapes
+(open, corridor, vertical) and asserts every weapon has a shape it wins on.
+--scuffle-verify <stage code> runs the reachability check; --scuffle-verify-
+all on the 240 built-ins.
+--scuffle-determinism <seed> runs the same inputs twice and asserts identical
+physics.
+Balance targets
+• Round length 25-45 s with four players; 30-60 with eight; draws under 8%.
+• Deaths: weapons 55%, hazards 30%, fists and throws 10%, the wall 5%.
+• No weapon over 12% of kills across a 100-round sample on Random arsenal.
+Page 23 of 24

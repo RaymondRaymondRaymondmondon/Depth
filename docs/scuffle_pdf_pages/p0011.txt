@@ -1,0 +1,42 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Movers: elevators, conveyors, rotating beams, pendulums, pistons, the slipstream, the
+tide.
+• Breakers: crumbling floors (a timer after the first step), explosive barrels, the salon's
+chandelier.
+• Water: sticks swim slowly, can't shoot guns underwater (harpoons and tesla work), and
+drown after 8 s; electricity in water hits everyone in it.
+• Wrap: some stages wrap left-right (a stick off one edge comes in the other); the Void's
+never do.
+The generator
+For endless play: it picks a world, lays 3-7 platforms on a grid with the world's pieces,
+guarantees every spawn can reach every other, adds 1-3 hazards and 1-2 movers, and rt-Jns
+a reachability check with the real movement code (the parkour side's
+- -verify
+approach). Generated stages are marked and can be saved to the editor if the group liked
+one.
+Finale stages
+Each world has three finales: twice the size, the wall at 30 s, and a set piece (the propeller
+starts, the Lobster rises, the kraken reaches up from the drop-off, the Wyrm surfaces in
+the plaza, the leviathan's lure appears, closing time with the whole bar thrown in).
+New features
+Trinkets
+Each stick picks one trinket in the lobby for the match (or lets the game pick). A trinket is
+one small, visible edge; everyone can see what everyone took, so the counter-play is open.
+Trinket
+Spring Heels
+Thick Skull
+Lucky Crate
+Long Arms
+Effect
+Double jump
+Headshots do normal damage
+The first crate of each round lands
+on you
+Punch reach +50%
+The cost
+Shorter first jump
+Slower get-up
+It also lands on you (30) if you don't
+move
+Punches are 0.1 s slower
+Page 11 of 24

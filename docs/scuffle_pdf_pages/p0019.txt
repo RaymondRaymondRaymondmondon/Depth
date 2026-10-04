@@ -1,0 +1,51 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+The token shop (10 skins, 10 hats)
+Skin
+Ink Blot
+Chalk
+Brass
+Skeleton
+Ghost
+Wire
+Neon
+Noodle
+Dotted
+Golden
+Cost
+50
+60
+80
+100
+100
+120
+120
+150
+150
+200
+Look
+A thicker, wobblier line
+White chalk on the stage's black
+Riveted limbs
+Bones for lines
+Translucent
+A bent-coat-hanger stick
+Glows in Blackout (a disadvantage, worn on
+purpose)
+Limbs are wet noodles (purely visual; the ragdoll is
+the same)
+A dotted-line stick
+Gold leaf
+Hats: the Sailor Cap (50), the Diver's Helmet (80), the Top Hat (80), the Crown (100), the
+Traffic Cone (100), the Frying Pan (120), the Jellyfish (150), the Tiny Kraken (150), the
+Lighthouse (200), the Fish (200: it's a fish).
+The crate (40 items)
+One token, one crate (a weapon crate on a parachute that opens on the menu). Duplicates
+give a banana. Odds: Common 60% (15, 4% each), Rare 25% (10, 2.5%), Super Rare 12%
+(10, 1.2%), Special 3% (5, 0.6%).
+Tier
+Common (15)
+Items
+Hats: Beanie, Bandana, Bucket, Paper Hat,
+Headband, Sombrero, Beret, Hard Hat, Party Hat,
+Flower, Antenna, Goggles, Monocle, Eyepatch, Bow
+Page 19 of 24

@@ -1,0 +1,32 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Scuffle — Arcade Game 9 Design Document
+(a Stick Fight game)
+Oct 4, 2026 • @Phillip Argall
+Overview
+Scuffle is Depth's Stick Fight: a 2D physics brawler for 2-8 players in which stick figures
+fight on small, dangerous stages with whatever falls from the sky, and the last one
+standing wins the round. It keeps everything that makes Stick Fight work (one-screen
+stages, ragdoll bodies, weapons that drop in crates, rounds that last thirty seconds, levels
+that try to kill you) and adds the things a group that plays it for a year wants: more players,
+more worlds, a level editor with sharing, trinkets that make each stick a little different,
+mutators, mid-round events, objective modes, co-op boss arenas, and a gauntlet.
+What it keeps from Stick Fight
+• Stick figures with full ragdoll physics: every death is a tumble, every hit is a flail, every
+bullet moves a body.
+One-screen stages that are the real opponent: lava, saws, spikes, snakes, collapsing
+floors, black holes.
+• Weapon crates from the sky at a timer; everyone starts with fists.
+• Fists that punch, block bullets with a timed punch, and knock people into hazards.
+• Rounds of about thirty seconds; first to a score wins the match; the stage changes
+every round.
+• Chaos as the design: the balance is that nothing is balanced for long.
+What Scuffle adds
+1. Eight players on bigger stages, with camera zoom that follows the pack.
+2. Six worlds from Depth (the Nautilus, the Cave, the Reef, Atlantis, the Void, the Salon)
+with their own hazards, and a stage generator alongside hand-built stages.
+3. Trinkets: one small perk each stick picks per match (a double jump, a thick skull, a
+lucky crate).
+4. Mutators: lobby rules that change the physics or the arsenal for a match (low gravity,
+bullets bounce, everything's a snake).
+5. Events: mid-round surprises (the floor floods, the kraken reaches up, the lights go out).
+Page 1 of 24

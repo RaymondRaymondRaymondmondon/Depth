@@ -1,0 +1,94 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Weapon
+Chum cannon
+Net gun
+Boomerang
+pistol
+Confetti
+cannon
+Portal gun
+Melee
+Weapon
+Boarding axe
+Cutlass
+Trident
+Frying pan
+Pool cue
+Baseball bat
+Sledgehammer
+Whip
+Fish
+Oar
+Damage
+30
+5
+Damage
+50
+35
+40, reach
+30
+25
+40
+80
+15
+30
+Rate
+l/s
+l/s
+l/s
+2
+shots
+Ammo
+5
+4
+infinite
+10
+2
+Swing
+Slow
+Fast
+Medium
+Medium
+Fast
+Medium
+Very slow
+Fast
+Fast
+Medium
+Knockback
+Small
+None
+Small
+Big
+None
+The wrong use
+The wrong use
+Fires chum; the stage's fish
+(Reef, Void) come to it
+Holds a stick 3 s; nets a crate
+before it lands
+It comes back; it hits you if you
+miss
+Pure knockback; a party
+Two portals; sticks, bullets,
+and lava go through
+20, long reach
+Throw it (it spins; 60)
+Deflects bullets on a timed swing
+Pole vault
+Blocks everything; cooks bees
+Breaks into two halves (two weapons)
+Bat a grenade back
+Breaks any floor tile
+Grab a ledge or a stick and pull
+A slap; it's a fish
+Row through water twice as fast
+Thrown and placed
+Item
+Limpet charges
+(3)
+Effect
+Stick to anything; 60 area on a 2 s fuse
+The wrong use
+Stick one to a stick
+Page 7 of 24

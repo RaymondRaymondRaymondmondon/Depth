@@ -1,0 +1,46 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Event
+Crate Rain
+Earthquake
+Swap
+The Dog
+Gravity Flip
+The Bouncer
+Fish Storm
+Gear
+What happens
+Twenty crates at once
+Every breakable breaks; every mover stops
+Every stick swaps position with another
+The alley dog runs through and bites whoever's
+closest
+Up is down for 4 s
+The Salon's bouncer throws the stick with the most
+round wins into the hazards
+Fish fall from the sky; they're weapons; they're
+everywhere
+One crate in ten is gear: an item used from a second slot (the gear button) that lasts the
+round.
+Gear
+Grappling hook
+Shield
+Jetpack
+Decoy
+Parachute
+Spring
+Rope
+What it does
+Fire a line at anything (10 m); reel in; swing. The
+best movement in the game and the best way into a
+hazard
+A buckler on the off arm; blocks bullets from the
+front while held; melts to fire
+3 s of thrust, recharges on the ground; burns
+anyone under you
+Drops a stick-shaped dummy that turrets, bees,
+and snakes prefer
+Slow falls; steer; the way to survive the abyss once
+A placed trampoline
+A placed rope between two points: a bridge or a
+tripwire
+Page 14 of 24

@@ -1,0 +1,95 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+World
+The Reef
+Atlantis
+The Void
+The
+Salon
+Look
+Coral, sand,
+sunlight, the
+surge
+Marble, columns,
+the god-pool, the
+plaza
+Black rock, vents,
+the abyss on one
+side
+The Sodden Gull:
+the bar, the pool
+table, the stage,
+the yard
+Hazards
+Reacher coral
+(grabs), eel holes
+(bite), urchins, the
+surge channel (a
+current every 10 s),
+sharks in the water
+below
+Grates (the Wyrm
+strikes from them),
+tuna crossing (a
+ram), the sluice
+(floods a terrace),
+falling columns
+The abyss (fall and
+you're gone), brine
+pools, the
+leviathan's lure (a
+light that pulls),
+low gravity
+pockets, the sand
+worm's line
+Thrown bottles
+from the crowd,
+the dartboard
+(darts fly), the
+pool balls, the
+bouncer (throws
+anyone who
+touches the bar
+out), the dog
+Signature stages
+The Bommie (a
+pinnacle), The
+Flats (open; no
+cover; sharks), The
+Drop-off (a cliff
+into blue water)
+The Plaza (the
+tuna lane), The
+Baths (slippery; a
+hypocaust boils),
+The Cisterns
+(grates
+everywhere)
+The Rim (the worm
+takes the edges),
+The Overlook (a
+ledge over
+nothing), The
+Reactor (vents on
+a timer)
+The Bar (the
+counter is the
+stage), The Pool
+Table (the balls are
+hazards), The Yard
+(mini golf
+windmills)
+The wall
+The tide comes
+in
+The city sinks
+The abyss
+widens
+Closing time:
+the bouncer
+clears the
+room
+Stage pieces
+• Platforms: stone (permanent), wood (burns, breaks under a sledgehammer), ice
+(slippery; melts under fire), glass (breaks under weight), rope bridges (cut with a laser
+or a cutlass), chains (swing).
+Page IO of 24

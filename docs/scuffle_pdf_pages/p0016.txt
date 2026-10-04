@@ -1,0 +1,53 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Mode
+Duel
+Boss Arena (co-
+op)
+The Gauntlet
+(co-op)
+Chaos
+Custom
+Bots
+Players Rule
+2
+2-8
+1-8
+2-8
+2-8
+Best of 7 on finale stages; both pick a
+weapon before the round from the
+same three
+Everyone against a Depth boss on its
+stage: the Lobster (claws sweep;
+crystal falls), the Kraken (arms over
+the edge; the eye is the weak point),
+the Wyrm (surfaces from grates),
+the Sun God (fire beams), the
+Goliath (inhales), the Bouncer
+(throws); bosses have phases and
+the stage changes with them;
+players respawn on a timer until the
+wall
+A run of 20 generated stages with no
+other sticks: traps, movers, hazards,
+and a timer; a group races the clock
+and each other's deaths; stages get
+worse; a leaderboard per world
+Random mutator every round,
+Random arsenal, events every round
+Any mutators, any arsenal, any
+playlist (hand-built, generated,
+editor), any score to win, the wall on
+or off
+Why
+A real fight
+A raid
+Parkour with guns
+The party setting
+Whatever the group
+wants
+Bots play every mode with three levels (Stumble, Scrap, Sharp) and personalities (a bot
+that always rushes, one that camps crates, one that only Uses melee, one that taunts).
+They fill lobbies, they're named like pub regulars, and in Boss Arena they're competent
+enough to carry a duo.
+Page 16 of 24

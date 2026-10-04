@@ -27,6 +27,7 @@
 #include "nightoff.h"
 #include "nightoff_games.h"
 #include "nightoff_net.h"
+#include "scuffle.h"
 #include "flight_costumes.h"
 #include "study.h"
 #include "course.h"
@@ -814,6 +815,9 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--mouthful-skins-test") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulSkinsTest(); }
     // A Night Off (arcade game 6)
     if (argc >= 2 && strcmp(argv[1], "--night-test") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunNightTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--scuffle-test") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--scuffle-determinism") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleDeterminism(argc >= 3 ? (uint32_t)atoi(argv[2]) : 1); }
+    if (argc >= 2 && strcmp(argv[1], "--scuffle-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleSim(argc >= 3 ? atoi(argv[2]) : 2, argc >= 4 ? atoi(argv[3]) : 50); }
     if (argc >= 2 && strcmp(argv[1], "--patron-check") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunPatronCheck(); }
     if (argc >= 2 && strcmp(argv[1], "--night-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunNightNetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--night-sim") == 0) {   // --night-sim <crowd 0-2> <players> [runs] [careful|reckless|mixed] [mode 0-6]

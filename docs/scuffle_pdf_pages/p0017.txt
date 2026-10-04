@@ -1,0 +1,29 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Join-in-progress
+Anyone can join a match between rounds; a spectator can watch any round with the
+replay camera.
+The level editor
+Stick Fight's long life came from its Workshop. Scuffle's editor is built in, instant, and
+shares by code so that no Steam is needed.
+Building
+A grid of tiles the size of a stick's torso; the stage is 32 x 18 tiles (or 64 x 18 for eight
+players), with the camera showing it all.
+A palette by world: platforms (stone, wood, ice, glass, rope, chain), movers (elevators
+with waypoints, conveyors, rotators, pendulums, pistons on a timer), hazards (every
+world's), water, breakables, crate zones, spawn points (2-8), the wall's style, wrap on or
+off, and decoration.
+• Properties per piece: timers, speeds, ranges, trigger links (a switch opens a door; a
+crate landing starts a piston).
+• Play now: one key drops you into the stage with bots; the editor stays open; edits apply
+live.
+• The check: the stage won't save until every spawn can reach every other spawn in the
+reachability test (the real movement code), so no stage is unwinnable by accident.
+Sharing
+• A stage exports as a short text code (the tile data compressed and encoded) that fits
+in a chat message; paste it into the lobby and it's in the playlist. No server, no account.
+A pack is up to 20 stages in one code.
+• The arcade profile keeps a library of stages and packs with names and authors; a stage
+played in a match is offered to everyone in the lobby to save.
+• Stages carry a world tag so the wall and the crate weights know what to do, and a
+difficulty tag the generator's checker estimates (hazard count, platform area, movers).
+Page 17 of 24

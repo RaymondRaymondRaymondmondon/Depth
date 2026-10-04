@@ -1,0 +1,15 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Scripting, lightly
+No code. Triggers and links cover what people build: switches, timed doors, a trap that
+fires when a crate lands, a platform that falls after the third step, a boss-arena piece that
+spawns a hazard on a timer. An event tile lets a stage call one of the mid-round events at a
+chosen second.
+Built-in packs
+The six worlds' 40 stages each are built in the same editor and ship as packs, so the first
+thing a player can do is open one and see how it works.
+Skins, hats, and the crate
+A stick is a color and a hat. Colors are free (eight, by player slot, and the lobby lets you
+pick). Skins change the stick's line style and body; hats sit on the head (a separate physics
+body, so hats fly off on a headshot and can be picked up by someone else). Tokens buy
+them; the crate hatches them; nothing changes a stat.
+Page 18 of 24

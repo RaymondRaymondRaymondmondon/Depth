@@ -1,0 +1,46 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Mutator
+Infinite Ammo
+One Hit
+Ragdoll Royale
+Snakes
+Hot Potato
+Blackout
+Giants
+Tiny
+Mirror
+Vampire
+Sudden Wall
+Pacifist
+Fast Forward
+What changes
+Nothing runs dry
+Everything kills; fists included
+Everyone is always ragdolled; movement is flailing
+(the game's hardest mode and its funniest)
+Every crate is snakes
+A bomb that passes by touch; it goes off at 10 s
+Lights off; muzzle flashes and hazards glow
+Every stick is twice the size (and the stage isn't)
+Every stick is half the size; hazards are the same
+The stage is mirrored each round; wrap is on
+everywhere
+Kills heal 50
+The wall starts at 15 s
+Guns don't drop; melee and gear only; hazards do
+the killing
+Everything at speed
+Mid-round events
+One in four rounds has an event at a random second between 10 and 30, announced by a 1
+s tell:
+Event
+The Flood
+The Reach
+Lights Out
+What happens
+Water rises to half the stage for 10 s; guns stop;
+tesla is king
+The kraken's arm comes over the edge and sweeps
+the lowest platform
+5 s of dark
+Page 13 of 24

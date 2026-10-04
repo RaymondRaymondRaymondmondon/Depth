@@ -1,0 +1,70 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Weapon balance
+The rule is that every weapon wins a one-on-one in some situation and loses in another:
+the sniper owns long sightlines and loses in a corridor; the scatter gun is the reverse; the
+minigun wins if it starts firing first and is useless if punched; the black hole wins
+everything once and then there's a black hole. Weights, damage, and ammo are in
+scuffle _ weapons . json and are the first thing a balance pass touches.
+Levels
+A stage is one screen (two for eight players, with the camera zooming to fit the living
+sticks), built from tiles that are physics bodies: platforms, ropes, moving pieces, breakable
+pieces, and hazards. Six worlds, 40 hand-built stages each, a generator for endless ones,
+and the editor for everyone else's.
+The six worlds
+World
+The
+Nautilus
+The
+Cave
+Look
+Brass, rivets,
+pipes, portholes,
+the engine room
+Stalactites, glow-
+mould, pools, the
+Lobster's crystal
+Hazards
+Steam vents
+(knockback),
+pistons (crush),
+the propeller
+(shreds),
+electrified rails,
+flooding bulkheads
+Falling stalactites
+(triggered by
+gunfire), acid
+drips, crystal
+(shatters into
+shrapnel),
+slipstreams (one-
+way currents that
+carry sticks), the
+toad's tongue from
+a pool
+Signature stages
+The Engine Room
+(pistons on a
+rhythm), The
+Torpedo Tubes
+(tubes fire sticks
+across the stage),
+The Salon Window
+(the glass breaks
+at 20 s)
+The Chimney
+(vertical; sticks
+climb), The
+Slipstream
+(everyone's
+moving), The
+Lobster (a giant
+claw sweeps on a
+timer)
+The wall
+Bulkheads
+flood from the
+bottom
+The ceiling
+comes down
+Page g of 24

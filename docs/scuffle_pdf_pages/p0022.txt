@@ -1,0 +1,35 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+• Sticks: a yelp per hit (pitched per player color), a grunt per punch, a scream per fall, a
+squeak when frozen, a sizzle when burning, a gurgle underwater, a pop when a head
+comes off. Taunts have a voice each.
+• Weapons: every weapon has a distinct fire, hit, pickup, and empty sound; the minigun's
+spin-up, the black hole's pull (the mix bends into it), the bubble gun's giggle, the snake
+gun's hiss, the confetti cannon's party.
+• Stages: the engine room's pistons on a beat, the cave's drips and the slipstream's rush,
+the reef's surge channel on a count, the plaza's tuna whoosh, the Void's silence and the
+worm's rumble, the Salon's crowd and jukebox. Hazards have tells you can hear a half
+second before they fire.
+• The wall: each world's wall has a rising sound (water, grinding rock, the tide, the city's
+groan, the abyss's tone, the bouncer's whistle).
+• Events: al s tell each (a splash, a tentacle's slap, a fuse, a thunderclap, a bark).
+• Rounds: a countdown tick, a round-win sting, the replay's slow-motion low-pass, the
+match-win fanfare.
+• Music: a fast brass-and-drum loop per world that drops out during the wall and comes
+back as a riff on the win; Boss Arena has the boss's theme from the expeditions; the
+Gauntlet has a ticking clock under its loop.
+Build order, data, tests, and open questions
+Data files
+scuffle_weapons . json (the 48 weapons, crate weights by world and arsenal),
+scuffle _ gear .json , scuffle _ trinkets. json , scuffle _ mutators.json ,
+scuffle_events. json , scuffle_worlds. json (pieces, hazards, walls, finale set pieces),
+scuffle stages/ (the 240 built-in stages as editor codes), scuffle bosses.json ,
+scuffle bots.json , scuffle modes.json , scuffle cosmetics.json .
+Build order
+Stage Work
+1
+The ragdoll: a stick that runs, jumps,
+Gate
+Two sticks fight with fists and it's funny
+climbs, punches, blocks, and dies on one
+stone stage; deterministic physics
+Page 22 of 24

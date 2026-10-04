@@ -1,0 +1,50 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Scoring and tokens
+Score
+Round won
+Kill
+Survived to the wall
+Match won
+Stories (a triple kill with one rocket, a win
+Points
+100
+20; +10 by hazard knock (you punched them
+into it); +20 by block-deflect
+10
+300
+50 each
+with fists only, a win while on fire, surviving a
+black hole)
+Tokens: IO per match, 1 per 50 score, 20 per match won, 25 per first story. The leaderboard
+shows round wins; the end-of-match screen shows the kill feed's best moments replayed
+(a 10 s ragdoll replay of the round's most physics).
+Pace
+A 10-round match with 6 players runs 12-15 minutes with the wall; an 8-player match has
+more draws and more laughter. The design target is a round every 40 s on average.
+Weapons
+Forty-eight weapons in crates, all physics objects, all with a wrong use. They're Depth's
+arsenal with triggers: gas pistols and harpoons from Red Tide, the Nautilus's brass, the
+Flats dealer's bottles, and a few things nobody asked for. Weights drop by world so every
+match's arsenal leans a different way.
+Guns
+Weapon
+Gas pistol
+Twin pistols
+Damage
+25
+25 x 2
+Rate
+31s
+51s
+Ammo
+12
+24
+Knockback
+Small
+Small
+The wrong use
+Shoot the ground under
+someone's feet (it breaks)
+Aim in two directions (left
+stick and right stick)
+Page 5 of 24

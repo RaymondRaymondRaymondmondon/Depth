@@ -1,0 +1,30 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Why it's funny
+The ragdoll makes everything expressive: a stick that's shot spins; one that's punched
+flails; one that's frozen tips over whole; one on fire runs in circles (an Al that takes over
+the body); one that falls into lava reaches back up for a half second. Every weapon has a
+wrong way to use it that's better than the right way, and the stage is always about to
+collapse.
+Rounds and matches
+A round
+1. A stage loads (from the match's world rotation or the editor's playlist); sticks spawn at
+the stage's spawn points, evenly spaced, facing inward.
+2. A 1 s countdown (the sticks stretch).
+3. Fight. The first weapon crate falls at 3 s, then one every 5 s, from the sky, on
+parachutes, at random points over the stage (the stage can mark "crate zones"). A
+crate opens on touch; it's a weapon, or sometimes gear, or sometimes a snake.
+4. The round ends when one stick is standing (or one team). Standing means alive: a
+ragdolled living stick counts.
+5. The wall. At 45 s, if more than one stick lives, the stage starts to kill: by world, lava
+rises, the walls close, the floor crumbles from the edges, the lights go out and the
+hazards don't. By 60 s only the center is safe; at 70 s nothing is.
+6. Winner's pose (1.5 s), score, next stage.
+The match
+• First to 10 round wins (5 / 10 / 20). Draws (everyone dies at once) give nobody a point
+and are a story.
+• The stage rotation draws from the chosen worlds with no stage twice in a match; the
+last round of a match is always a finale stage (the biggest in the world, with the wall at
+30 s).
+• Players can join and leave between rounds; bots fill to the lobby's COUnt and leave
+when a human joins.
+Page 4 of 24

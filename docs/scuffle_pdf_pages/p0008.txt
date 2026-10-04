@@ -1,0 +1,52 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+Item
+Sticky bombs (3)
+Ink bomb (2)
+Flashbang (2)
+Bear trap (2)
+Turret
+Mine (3)
+Banana (3)
+Beehive
+Jar of snakes
+Crates
+Effect
+Same, 1 s fuse, bounce once
+Blinds the stage for 3 s (everyone's
+screen)
+White screen 1.5 s
+Holds a stick that steps on it until
+punched free
+A placed gun that shoots the nearest
+stick for IO s
+70 when stepped on
+Slips; O damage; a 0.8 s ragdoll
+Bees for 8 s
+Four snakes
+The wrong use
+Stick one to a crate in the
+air
+Throw it at the start of the
+wall
+Blind yourself and block
+anyway
+Put it under a crate zone
+Place it on a moving
+platform
+Throw it under someone
+jumping
+Peel order matters not at all
+Roll it
+Open it on yourself by
+mistake
+Crates fall every 5 s at random crate zones, on parachutes (shoot the parachute and
+the crate drops faster; it crushes a stick it lands on for 30).
+• Weights by world (the Reef drops more chum cannons and snakes; the Void drops
+more black holes and gravity guns; the Salon drops more frying pans and fish). A
+match's arsenal can also be chosen in the lobby: Classic (guns), Melee only, Chaos (the
+strange ones), Snakes (it's all snakes), Random.
+One crate in ten is gear (next section) and one in thirty is a trap (a snake, a bee hive, a
+flashbang that goes off on open).
+• A crate can be punched across the stage, shot (it opens where it lands), or grabbed
+and thrown as a weapon (20).
+Page 8 of 24

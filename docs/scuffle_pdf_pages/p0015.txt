@@ -1,0 +1,56 @@
+Scuffle — Arcade Game g Design Document (a Stick Fight game)
+2-8
+4-8
+3-8
+3-8
+3-8
+4-8
+Mirror
+Balloon
+Fishbowl helmet
+Taunts
+What it does
+A placed plate that reflects lasers and bullets
+Tied to you: you float up until it's popped
+Shoot underwater; breathe; +10 head HP
+Six emotes (point, laugh, flex, bow, cry, the fish slap) on the taunt wheel. A taunt is a 1 s
+animation during which the stick's guard is down. Loud Mouth makes them a weapon.
+Modes
+Mode
+Scuffle (classic)
+Teams
+King of the
+Plank
+The Egg
+Hot Potato
+Hunt
+Players
+Rule
+Last stick standing; first to 10
+2v2, 3v3, 4v4, or 2v2v2v2; friendly
+fire on (it's funnier)
+A marked platform scores 1 per
+second to whoever stands on it
+alone; first to 60; the plank moves
+every 20 s
+Hold the egg (a physics object that
+breaks if dropped from height) for
+30 s total; the holder can't shoot,
+only punch
+A bomb passes by touch; it
+detonates at 10 s; last stick wins
+One stick is the Shark (double HP, a
+harpoon, no crates); the rest have
+fists and crates; the Shark wins by
+eating everyone before the wall; a kill
+makes you a Shark too
+Why
+The game
+Shouting at a friend
+Fights over one spot
+Keep-away with a
+ragdoll
+Tag with
+consequences
+Infection
+Page 15 of 24
