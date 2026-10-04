@@ -14,7 +14,7 @@ namespace no {
 enum NoAct : uint8_t { NA_INPUT = 1, NA_HELLO = 2 };
 void WriteInput(const Input& in, Writer& w);
 bool ReadInput(Reader& r, Input& in);                 // (after the NA_INPUT byte)
-void OrderHello(Writer& w, const std::string& name, int crew);
+void OrderHello(Writer& w, const std::string& name, int crew, const std::string& profile = "");   // (profile: ProfileSummary, applied by the host)
 void WriteNight(Night& n, int viewer, Writer& out);
 void PackNight(Night& n, int viewer, Writer& out);     // compressed
 bool ReadNight(Reader& r, Night& n, int* viewerOut = nullptr);

@@ -155,7 +155,7 @@ bool Night::Order(Player& p, int i, std::string* why) {
     if (!kitchen && p.barred) { if (why) *why = "\"You're barred. Water, and then the door.\""; return false; }
     if (!kitchen && opts.mode == MD_SOBER && d.drunk > 0) { if (why) *why = "\"I'm on strike tonight. Water or coffee.\""; return false; }
     if (p.fight.brawl >= 0) { if (why) *why = "Not in the middle of a fight."; return false; }
-    float price = PriceOf(i);
+    float price = PriceOf(i) * p.priceMul;   // (the bartender's memory: a regular's price, or his window's)
     if (p.money - p.tab < price && !kitchen) { if (why) *why = "Your tab's bigger than your wages."; return false; }   // (drinks go on the tab: doc p. 19)
     if (kitchen) { if (p.money < price) { if (why) *why = "Not enough money."; return false; } p.money -= price; }
     else p.tab += price;
@@ -366,6 +366,7 @@ int NightBrawlChecks();
 int NightFlirtChecks();
 int NightEventChecks();
 int NightCardChecks();
+int NightProfileChecks();
 int RunNightTest() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
@@ -460,6 +461,8 @@ int RunNightTest() {
     fails += NightEventChecks();
     // ---- stage 8: the card room, cheating, side bets
     fails += NightCardChecks();
+    // ---- stage 9: the profile across nights
+    fails += NightProfileChecks();
     printf(fails ? "A Night Off: %d check(s) FAILED\n" : "A Night Off: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

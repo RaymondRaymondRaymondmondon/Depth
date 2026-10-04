@@ -88,7 +88,8 @@ struct Input {
     // what players do to each other (doc p. 23): a round, a spiked pint, carrying a friend out, a drawn moustache
     bool buyRound = false, carry = false, drawFace = false; int spike = -1; int wager = -1;
     int evAct = 0, evArg = -1;
-    bool cheat = false;                               // held: cheat at whatever you're playing (a weighted dart, a moved ball, a marked deck...)                        // an event's action (Night::EventOptions: a dare, the book, a bribe, the robbers, the cartel...)
+    bool cheat = false;
+    int emote = 0;                                    // 1 toast, 2 point, 3 laugh, 4 shrug, 5 fists up, 6 fall over (doc p. 25)                               // held: cheat at whatever you're playing (a weighted dart, a moved ball, a marked deck...)                        // an event's action (Night::EventOptions: a dare, the book, a bribe, the robbers, the cartel...)
     // the bar games (nightoff_games.cpp): start one at a station, then act in it
     int startGame = -1, gameMachine = 0, gameOpp = -1, gameStake = 0;   // GK_*; the table or machine; a patron id (-1 alone, -2 the bartender); the stake
     int gameAct = 0;                                  // 1 throw / shoot / pull / reveal / read, 2 place the cue ball, 3 leave, 4 again, 5 buy another
@@ -125,6 +126,7 @@ struct Player {
     float debt = 0, roundT = -1e9f, damageCaused = 0, lastFightT = -1e9f;
     int cartelDue = 0; bool watchingSafe = false;
     int cheatsCaught = 0, cheatsDone = 0; int bsSel = 0;   // (the card room)
+    float priceMul = 1; float owedAtDoor = 0; bool blackEye = false; int kidneysAtStart = 2; int emote = 0; float emoteT = 0;   // (the profile's carry-overs; an emote)
     // the bot's mind (an AI seat, a dropped player, --night-sim): a style, a goal, a path, a pause
     int botStyle = 0; float botT = 0, botDrinkTo = 40, botLeaveH = 25.5f, botFightT = 0; int botGoal = -1, botArg = 0; Vector2 botTarget{}; std::vector<int> botPath;
     int wager = -1, crew2 = 0; bool faceDrawn = false; int carrying = -1, carriedBy = -1; float lostOnPass = 0;   // (the Wager's bet; a rival crew; the drawn face; carrying a friend)   // items given; secrets learned (patron names whose secret you know)
@@ -158,6 +160,19 @@ const char* ModeName(int m);
 const char* ModeRule(int m);
 enum Wager { WG_HOME, WG_RICH, WG_SOBER_FIGHT, WG_SURVIVE, WG_COUNT };   // (the Wager: go home with someone, win 500, win a fight sober, survive the cartel)
 const char* WagerName(int w);
+// the arcade profile (doc p. 26): what a sailor carries from one night to the next. Nothing in it changes a night's
+// numbers except the hangover and the bartender's prices; the rest is memory (his, and the regulars').
+struct NightProfile {
+    std::string name; int nights = 0, best = 0, total = 0; std::vector<std::string> headlines;
+    int kidneysLost = 0, kidneysWon = 0, kidneyNights = 0;      // kidneyNights: 2 lost tonight (one night down a kidney), 1: the note comes tomorrow
+    int tabsPaid = 0; float owed = 0; bool shotWindow = false; // the bartender's memory: paid, unpaid, his window
+    bool blackEye = false; float hangover = 0; float debt = 0;  // tomorrow's face, head and creditors
+    std::vector<std::pair<std::string, int>> feuds, friends;   // regulars (and nights left: three)
+};
+NightProfile LoadNightProfile(const std::string& path);
+void SaveNightProfile(const NightProfile& pr, const std::string& path);
+std::string ProfileSummary(const NightProfile& pr);           // (a guest sends it with hello; the host applies it)
+bool ParseProfileSummary(const std::string& s, NightProfile& pr);
 struct Opts { int players = 1; uint32_t seed = 1; int crowd = 1; int mode = MD_NIGHT_OFF; bool pvp = true; float startMinutes = 0; bool events = true; };   // (events: the tests of earlier stages turn them off)   // crowd: 0 Dead, 1 Normal, 2 Packed, 3 Random; startMinutes: tests start the night late
 
 struct Night {
@@ -241,6 +256,9 @@ struct Night {
     float CheatChance(const Player& p) const;
     bool TryCheat(Player& p, const char* what, int watcher);   // true if it worked; caught: the watcher reacts
     void SettleSideBets(int playerId, bool won);
+    // the profile (nightoff_profile.cpp)
+    void ApplyProfile(Player& p, const NightProfile& pr);
+    std::vector<std::string> ProfileAfter(const Player& p, NightProfile& pr) const;   // tonight into the profile; the morning's "remembered" lines
     int NearGame(const Player& p, int* machine = nullptr) const;   // the game station within reach (GK_*), or -1
     std::vector<int> Challengers(const Player& p, int kind) const; // patrons who'd play you: the named ones first
     bool StartGame(Player& p, int kind, int machine, int opponent, int stake, std::string* why = nullptr);

@@ -23,7 +23,7 @@ void WriteInput(const Input& in, Writer& w) {
     auto I = [&](int v) { w.VarU(((uint32_t)v << 1) ^ (uint32_t)(v >> 31)); };
     I(in.order); I(in.talkTo); I(in.say); I(in.startGame); I(in.gameMachine); I(in.gameOpp); I(in.gameStake); I(in.gameAct);
     w.F32(in.gameAim.x); w.F32(in.gameAim.y); w.F32(in.gamePower); w.F32(in.gameEnglish);
-    I(in.attack); I(in.flirtWith); I(in.flirtSay); I(in.offer); I(in.spike); I(in.wager); I(in.evAct); I(in.evArg);
+    I(in.attack); I(in.flirtWith); I(in.flirtSay); I(in.offer); I(in.spike); I(in.wager); I(in.evAct); I(in.evArg); I(in.emote);
 }
 bool ReadInput(Reader& r, Input& in) {
     in.moveX = r.F32(); in.moveZ = r.F32(); in.faceYaw = r.F32();
@@ -33,18 +33,19 @@ bool ReadInput(Reader& r, Input& in) {
     auto I = [&]() { uint32_t z = r.VarU(); return (int)((z >> 1) ^ (0u - (z & 1))); };
     in.order = I(); in.talkTo = I(); in.say = I(); in.startGame = I(); in.gameMachine = I(); in.gameOpp = I(); in.gameStake = I(); in.gameAct = I();
     in.gameAim.x = r.F32(); in.gameAim.y = r.F32(); in.gamePower = r.F32(); in.gameEnglish = r.F32();
-    in.attack = I(); in.flirtWith = I(); in.flirtSay = I(); in.offer = I(); in.spike = I(); in.wager = I(); in.evAct = I(); in.evArg = I();
+    in.attack = I(); in.flirtWith = I(); in.flirtSay = I(); in.offer = I(); in.spike = I(); in.wager = I(); in.evAct = I(); in.evArg = I(); in.emote = I();
     if (r.bad || !std::isfinite(in.moveX) || !std::isfinite(in.moveZ) || !std::isfinite(in.faceYaw) || !std::isfinite(in.gameAim.x) || !std::isfinite(in.gameAim.y) || !std::isfinite(in.gamePower) || !std::isfinite(in.gameEnglish)) return false;
     in.moveX = std::clamp(in.moveX, -1.0f, 1.0f); in.moveZ = std::clamp(in.moveZ, -1.0f, 1.0f);
     in.gamePower = std::clamp(in.gamePower, 0.0f, 8.0f); in.gameEnglish = std::clamp(in.gameEnglish, -1.0f, 1.0f);
     in.gameStake = std::clamp(in.gameStake, 0, 1000); in.attack = std::clamp(in.attack, 0, (int)MV_THROW);
     return true;
 }
-void OrderHello(Writer& w, const std::string& name, int crew) { w.U8(NA_HELLO); w.Str(name.substr(0, 24)); w.U8((uint32_t)std::clamp(crew, 0, 5)); }
+void OrderHello(Writer& w, const std::string& name, int crew, const std::string& profile) { w.U8(NA_HELLO); w.Str(name.substr(0, 24)); w.U8((uint32_t)std::clamp(crew, 0, 5)); w.Str(profile.substr(0, 1500)); }
 // a press survives until a step uses it (a click between steps isn't lost); the stick is always the newest
 static void Merge(Input& q, const Input& in) {
     q.moveX = in.moveX; q.moveZ = in.moveZ; q.faceYaw = in.faceYaw; q.run = in.run; q.block = in.block; q.cheat = in.cheat;
     if (in.evAct) { q.evAct = in.evAct; q.evArg = in.evArg; }
+    if (in.emote) q.emote = in.emote;
     q.use |= in.use; q.leave |= in.leave; q.dodge |= in.dodge; q.pickUp |= in.pickUp; q.smash |= in.smash; q.feedDog |= in.feedDog; q.grabGun |= in.grabGun;
     q.askTrouble |= in.askTrouble; q.fortuneYes |= in.fortuneYes; q.buyRound |= in.buyRound; q.carry |= in.carry; q.drawFace |= in.drawFace;
     auto ev = [](int& a, int b, int none) { if (b != none) a = b; };
@@ -128,6 +129,7 @@ template <class A> void VisitPlayer(A& a, Player& p, bool own, bool over) {
     a.f(p.swayPh); a.f(p.stumbleT); a.f(p.stumbleDir); a.f(p.vomitT); a.f(p.lurch); a.i(p.drinks); a.f(p.peakDrunk); a.b(p.barred);
     VisitCombat(a, p.fight);
     a.f(p.leavingT); a.i(p.leavingWith); a.i(p.carrying); a.i(p.carriedBy); a.b(p.faceDrawn);
+    a.f(p.priceMul); a.f(p.owedAtDoor); a.b(p.blackEye); a.i(p.kidneysAtStart); a.i(p.emote); a.f(p.emoteT);
     a.s(p.homeWith); a.s(p.homeKind); a.b(p.homeBad); a.s(p.card); a.i(p.gamesWon); a.i(p.fightsWon); a.i(p.fightsWonSober);
     a.i(p.dare); a.i(p.daresDone); a.b(p.adopted); a.b(p.jacket); a.b(p.bribed); a.b(p.checked); a.b(p.promised); a.b(p.helpingRobbers); a.b(p.gaveRobbers);
     a.f(p.debt); a.f(p.roundT); a.f(p.damageCaused); a.f(p.lastFightT); a.i(p.cartelDue); a.b(p.watchingSafe); a.i(p.eventsSurvived); a.i(p.cheatsCaught); a.i(p.cheatsDone);
@@ -259,6 +261,7 @@ public:
     std::unique_ptr<Night> n = std::make_unique<Night>();
     int players = 1, mode = 0, crowd = 1; bool pvp = true, test = false; float start = 0, stepDt = 1 / 30.0f;
     std::vector<Input> pend;
+    bool applied[6] = {}, everHuman[6] = {}; float lostT[6] = {};   // (a profile applied once; a person who played; how long their seat has been lost)
     float acc = 0; uint32_t tick = 0;
     mutable std::vector<std::vector<uint8_t>> cache = std::vector<std::vector<uint8_t>>(arcade::MAX_PLAYERS);
     mutable std::vector<uint32_t> cacheTick = std::vector<uint32_t>(arcade::MAX_PLAYERS, ~0u);
@@ -274,25 +277,46 @@ public:
         n = std::make_unique<Night>(); n->Init(o);
         for (int p = 0; p < players; p++) n->players[p].name = p == 0 ? "Host" : TextFormat("Player %d", p + 1);
         pend.assign(players, Input{});
+        for (int k = 0; k < 6; k++) { applied[k] = everHuman[k] = false; lostT[k] = 0; }
         acc = 0; tick = 0; std::fill(cacheTick.begin(), cacheTick.end(), ~0u);
     }
     bool Act(int p, Reader& r) override {
         if (p < 0 || p >= players) return false;
         int kind = (int)r.U8();
         if (r.bad) return false;
-        if (kind == NA_INPUT) { Input in; if (!ReadInput(r, in)) return false; Merge(pend[p], in); return false; }
-        if (kind == NA_HELLO) { std::string nm = r.Str(); int crew = (int)r.U8(); if (r.bad || nm.empty()) return false; n->players[p].name = nm; n->players[p].crew = std::clamp(crew, 0, 5); return true; }
+        if (kind == NA_INPUT) { Input in; if (!ReadInput(r, in)) return false; Merge(pend[p], in); everHuman[p] = true; return false; }
+        if (kind == NA_HELLO) {
+            std::string nm = r.Str(); int crew = (int)r.U8(); if (r.bad || nm.empty()) return false;
+            n->players[p].name = nm; n->players[p].crew = std::clamp(crew, 0, 5);
+            std::string prof = r.Str(); NightProfile pr;
+            if (!r.bad && !prof.empty() && !applied[p] && ParseProfileSummary(prof, pr)) { applied[p] = true; n->ApplyProfile(n->players[p], pr); }
+            return true;
+        }
         return false;
     }
     bool Tick(float dt, uint32_t ai) override {
         Night& N = *n;
         // a lost (or AI) seat is played by the bot until its person comes back
-        for (int p = 0; p < players; p++) { bool aiNow = (ai >> p) & 1; Player& q = N.players[p]; if (aiNow && !q.bot) { q.bot = true; q.botGoal = -1; q.botDrinkTo = 45; q.botLeaveH = 25.5f; } else if (!aiNow && q.bot) q.bot = false; }
+        // an AI seat is played by the bot; a person who drops sits at the bar nursing a water (doc p. 25): back within five
+        // minutes and they pick up where they were; if not, their night ends as walked home
+        for (int p = 0; p < players; p++) {
+            bool aiNow = (ai >> p) & 1; Player& q = N.players[p];
+            if (aiNow && !q.bot) { q.bot = true; q.botGoal = -1; q.botDrinkTo = everHuman[p] ? 0 : 45; q.botLeaveH = everHuman[p] ? 27 : 25.5f; }
+            else if (!aiNow && q.bot) { q.bot = false; lostT[p] = 0; }
+            if (aiNow && everHuman[p]) { lostT[p] += dt; if (lostT[p] > 180 && q.st != State::Gone && q.st != State::PassedOut) { N.Note(q, 8, "Walked home while nobody was looking (the connection went)."); N.Leave(q, E_WALKED, ""); } }
+        }
         acc += std::min(dt, 0.25f);
         int steps = 0;
         while (acc >= stepDt && steps < 8) {
             acc -= stepDt; steps++;
-            for (int p = 0; p < players; p++) { Player& q = N.players[p]; if (q.bot) N.BotPlayer(q, stepDt); else { q.in = pend[p]; } }
+            for (int p = 0; p < players; p++) {
+                Player& q = N.players[p];
+                if (q.bot && everHuman[p]) {   // (nursing a water at the bar till they're back)
+                    Input w; Vector2 st{13.5f + p * 1.2f, 8.4f}; Vector2 to = Vector2Subtract(st, q.pos); float L = Vector2Length(to);
+                    if (L > 0.5f) { w.moveX = to.x / L; w.moveZ = to.y / L; } else if (q.st == State::Active && N.Rand() < stepDt * 0.02f) w.order = DrinkIndex("water");
+                    q.in = w;
+                } else if (q.bot) N.BotPlayer(q, stepDt); else { q.in = pend[p]; }
+            }
             N.Step(stepDt);
             for (int p = 0; p < players; p++) { Input keep; keep.moveX = pend[p].moveX; keep.moveZ = pend[p].moveZ; keep.faceYaw = pend[p].faceYaw; keep.run = pend[p].run; keep.block = pend[p].block; pend[p] = keep; }
             tick++;

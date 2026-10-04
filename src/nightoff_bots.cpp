@@ -89,7 +89,10 @@ void Night::PlayerTricks(Player& p) {
     if (in.drawFace) for (auto& q : players) if (q.id != p.id && q.st == State::PassedOut && !q.faceDrawn && Vector2Distance(q.pos, p.pos) < 1.6f) { q.faceDrawn = true; Note(p, 5, "Drew a moustache on " + q.name + "."); break; }
     // the Wager: a secret bet, made at 7 p.m.
     if (in.wager >= 0 && opts.mode == MD_WAGER && p.wager < 0 && Hour() < 19.5f) p.wager = std::clamp(in.wager, 0, WG_COUNT - 1);
-    in.buyRound = false; in.spike = -1; in.carry = false; in.drawFace = false; in.wager = -1;
+    // an emote (doc p. 25): toast, point, laugh, shrug, fists up, fall over
+    if (in.emote > 0 && in.emote <= 6) { p.emote = in.emote; p.emoteT = 2.5f; if (in.emote == 6 && p.st == State::Active) p.fight.fallT = 1.6f; }
+    p.emoteT = std::max(0.0f, p.emoteT - 1 / 60.0f);
+    in.buyRound = false; in.spike = -1; in.carry = false; in.drawFace = false; in.wager = -1; in.emote = 0;
 }
 
 // ---------------------------------------------------------------- the bot player
