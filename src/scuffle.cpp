@@ -13,20 +13,6 @@
 namespace sf {
 
 // ---------------------------------------------------------------- stages
-Stage StageFromText(const std::vector<std::string>& rows, const char* name) {
-    Stage s; s.name = name; s.h = (int)rows.size(); s.w = 0;
-    for (const auto& r : rows) s.w = std::max(s.w, (int)r.size());
-    s.t.assign(s.w * s.h, T_EMPTY);
-    for (int ry = 0; ry < s.h; ry++) {
-        int y = s.h - 1 - ry;   // (the text's top row is the stage's top)
-        for (int x = 0; x < (int)rows[ry].size(); x++) {
-            char c = rows[ry][x];
-            if (c == '#') s.t[y * s.w + x] = T_STONE;
-            if (c == 'S') s.spawns.push_back({(x + 0.5f) * TILE, y * TILE});
-        }
-    }
-    return s;
-}
 Stage StoneStage() {
     // one stone stage: a floor with a gap in the middle, two raised ledges, a high shelf, a wall to climb (32 x 18)
     return StageFromText({
@@ -60,7 +46,7 @@ void World::Emit(int kind, Vector2 at, int who, int by, float a) { Event e; e.ki
 bool World::BoxHits(float x0, float y0, float x1, float y1) const {
     int ix0 = (int)floorf(x0 / TILE), ix1 = (int)floorf((x1 - 1e-4f) / TILE), iy0 = (int)floorf(y0 / TILE), iy1 = (int)floorf((y1 - 1e-4f) / TILE);
     for (int y = iy0; y <= iy1; y++) for (int x = ix0; x <= ix1; x++) if (stage.Solid(x, y)) return true;
-    return false;
+    return MoverHits(x0, y0, x1, y1);
 }
 
 // ---------------------------------------------------------------- the pose: where each joint wants to be (feet-relative)
@@ -179,9 +165,13 @@ void World::StepController(Stick& k) {
     if (k.st == S_DUCK || k.st == S_PRONE || k.grabbedBy >= 0) mx = 0;
     if (fabsf(mx) > 0.2f && k.st != S_DIVE && k.punchT <= 0) k.face = mx > 0 ? 1 : -1;
     if (k.punchT > 0 && fabsf(in.aim.x) > 0.2f) k.face = in.aim.x > 0 ? 1 : -1;
+    // the floor under the feet: ice is slippery, a conveyor carries you
+    uint8_t under = stage.At((int)floorf(k.pos.x / TILE), (int)floorf((k.pos.y - 0.05f) / TILE));
     float target = mx * 8, accel = ground ? 70.0f : 34.0f;
+    if (ground && (under == T_CONV_L || under == T_CONV_R)) k.pos.x += (under == T_CONV_R ? 3.0f : -3.0f) * dt;
     if (k.st == S_DIVE) accel = 2;
     if (ground && fabsf(mx) < 0.1f) accel = 55;
+    if (ground && under == T_ICE) accel *= 0.12f;   // (ice: slow to start, slower to stop)
     if (k.knockT > 0) { k.knockT -= dt; accel = 9; target = 0; }   // (knocked back: the feet skid; no control for a moment)
     k.vel.x += Clamp(target - k.vel.x, -accel * dt, accel * dt);
     // duck and dive
@@ -209,6 +199,10 @@ void World::StepController(Stick& k) {
     Vector2 p = k.pos;
     float nx = p.x + k.vel.x * dt;
     k.wallLeft = k.wallRight = false;
+    // a low step or a ledge's lip (up to 0.36 m): step up onto it rather than stop (walking, climbing out of a pit)
+    if (Overlaps(*this, k, {nx, p.y}, k.height) && fabsf(k.vel.x) > 0.05f && k.vel.y < 4 && k.st != S_DIVE && k.st != S_PRONE) {
+        for (float up = 0.05f; up <= 0.36f; up += 0.05f) if (!Overlaps(*this, k, {nx, p.y + up}, k.height) && !Overlaps(*this, k, {p.x, p.y + up}, k.height)) { p.y += up; k.vel.y = std::max(k.vel.y, 0.0f); if (k.st == S_WALL) k.st = S_AIR; break; }
+    }
     if (Overlaps(*this, k, {nx, p.y}, k.height)) {
         if (fabsf(k.vel.x) > 6) Emit(EV_BONK, p, k.id);
         float s = Sgn(k.vel.x); if (s == 0) s = 1;
@@ -226,8 +220,13 @@ void World::StepController(Stick& k) {
         if (s < 0) landed = true;
         ny = p.y; k.vel.y = 0;
     }
+    // a rope bridge: landed on from above; held down, you drop through
+    bool dropThrough = in.moveY < -0.5f;
+    if (!landed && k.vel.y <= 0 && !dropThrough && RopeUnder(p.x - k.halfW, p.x + k.halfW, p.y, ny)) { ny = floorf(p.y / TILE + 1e-3f) * TILE; if (ny > p.y + 1e-3f) ny -= TILE; landed = true; k.vel.y = 0; }
     p.y = ny;
-    k.grounded = landed || (k.vel.y <= 0 && Overlaps(*this, k, {p.x, p.y - 0.03f}, k.height));
+    k.grounded = landed || (k.vel.y <= 0 && (Overlaps(*this, k, {p.x, p.y - 0.03f}, k.height) || (!dropThrough && RopeUnder(p.x - k.halfW, p.x + k.halfW, p.y + 0.001f, p.y - 0.03f))));
+    // a wrapping stage: off one edge, in at the other (the ragdoll comes too)
+    if (stage.wrap && (p.x < 0 || p.x > stage.Width())) { float sh = p.x < 0 ? stage.Width() : -stage.Width(); p.x += sh; for (auto& a : k.pt) { a.p.x += sh; a.q.x += sh; } }
     // standing on another stick's head
     for (const auto& o : sticks) {
         if (o.id == k.id || !o.present || !o.alive || o.st == S_RAGDOLL) continue;
@@ -272,6 +271,15 @@ void World::StepPose(Stick& k) {
 // ---------------------------------------------------------------- the particle physics (Verlet, bones, tiles, bodies)
 static void CollideTiles(const World& w, Particle& a) {
     int x0 = (int)floorf((a.p.x - a.r) / TILE), x1 = (int)floorf((a.p.x + a.r) / TILE), y0 = (int)floorf((a.p.y - a.r) / TILE), y1 = (int)floorf((a.p.y + a.r) / TILE);
+    // the movers first (a piston's block, an elevator's floor), as boxes
+    for (const auto& pc : w.stage.pieces) {
+        if (pc.kind != PK_PISTON && pc.kind != PK_ELEVATOR) continue;
+        Rectangle r{pc.x * TILE + pc.off.x, pc.y * TILE + pc.off.y, pc.w * TILE, pc.h * TILE};
+        Vector2 c{std::clamp(a.p.x, r.x, r.x + r.width), std::clamp(a.p.y, r.y, r.y + r.height)}; Vector2 d = Vector2Subtract(a.p, c); float L = Vector2Length(d);
+        if (L >= a.r) continue;
+        Vector2 n = L > 1e-5f ? Vector2Scale(d, 1 / L) : Vector2{0, 1};
+        a.p = Vector2Add(a.p, Vector2Scale(n, a.r - L)); a.q = Vector2Add(a.q, Vector2Scale(Vector2Subtract(a.p, a.q), 0.2f));
+    }
     for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) {
         if (!w.stage.Solid(x, y)) continue;
         Vector2 c{std::clamp(a.p.x, x * TILE, (x + 1) * TILE), std::clamp(a.p.y, y * TILE, (y + 1) * TILE)};
@@ -430,6 +438,7 @@ void World::Kill(Stick& k, int by, const char* cause) {
 // ---------------------------------------------------------------- the step
 void World::Step() {
     frame++; t += STEP;
+    StepPieces();
     for (auto& k : sticks) if (k.present) { StepController(k); StepFists(k); }
     for (auto& k : sticks) if (k.present) StepPose(k);
     StepParticles();
@@ -446,7 +455,8 @@ void World::Step() {
         }
         // falling out of the stage
         Vector2 c = k.pt[J_PELVIS].p;
-        if (k.alive && (c.y < -2.5f || c.x < -3 || c.x > stage.Width() + 3)) { Emit(EV_FALL_OUT, c, k.id); Kill(k, k.lastHitBy >= 0 && t - k.lastHitT < 4 ? k.lastHitBy : -1, "fell out"); }
+        if (stage.wrap && k.st == S_RAGDOLL && (c.x < -0.3f || c.x > stage.Width() + 0.3f)) { float sh = c.x < 0 ? stage.Width() : -stage.Width(); for (auto& a : k.pt) { a.p.x += sh; a.q.x += sh; } c.x += sh; }
+        if (k.alive && (c.y < -2.5f || (!stage.wrap && (c.x < -3 || c.x > stage.Width() + 3)))) { Emit(EV_FALL_OUT, c, k.id); Kill(k, k.lastHitBy >= 0 && t - k.lastHitT < 4 ? k.lastHitBy : -1, "fell out"); }
         if (!k.alive && c.y < -8) k.present = false;   // (gone off the bottom: no more body)
     }
 }
@@ -535,6 +545,7 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
 // ---------------------------------------------------------------- --scuffle-test
 static int Fails = 0;
 int ScuffleArmsChecks();
+int ScuffleStageChecks();
 static void Check(bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) Fails++; }
 static void Run(World& w, float seconds, void (*fn)(World&) = nullptr) { int n = (int)(seconds / STEP); for (int i = 0; i < n; i++) { if (fn) fn(w); w.Step(); } }
 static Stage Flat(int w = 40, int h = 18) { std::vector<std::string> rows(h, std::string(w, '.')); rows[h - 1] = std::string(w, '#'); rows[h - 2] = std::string(w, '#'); return StageFromText(rows, "Flat"); }
@@ -621,6 +632,7 @@ int RunScuffleTest() {
       }
       Check(done >= 10, TextFormat("two Sharp bots, fists only, on the stone stage: %d of 12 rounds end (%.0f s on average)%s", done, done ? total / done : 0, why.c_str())); }
     Fails += ScuffleArmsChecks();
+    Fails += ScuffleStageChecks();
     printf(Fails ? "Scuffle: %d check(s) FAILED\n" : "Scuffle: all checks passed\n", Fails);
     return Fails ? 1 : 0;
 }

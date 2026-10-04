@@ -15,7 +15,8 @@
 namespace sf {
 
 std::vector<Stage> StagePlaylist() {
-    std::vector<Stage> v;
+    std::vector<Stage> v = LoadWorldPack(WD_NAUTILUS);     // (the Nautilus world; the other five come with stage 5)
+    if (!v.empty()) return v;
     v.push_back(StoneStage());
     v.push_back(StageFromText({
         "................................",

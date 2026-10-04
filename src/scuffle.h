@@ -27,18 +27,48 @@ constexpr float STEP = 1.0f / 120;           // the physics' fixed step (doc p. 
 constexpr int MAX_STICKS = 8;
 
 // ---------------------------------------------------------------- the stage
-enum Tile : uint8_t { T_EMPTY, T_STONE, T_COUNT };
+// the pieces a stage is built from (doc pp. 10-11, 17): platforms of stone (the Nautilus's steel), wood, ice (slippery),
+// glass (breaks under weight), rope (one-way: you land on it from above, drop through holding down), electrified rails
+// (live on a rhythm), conveyors; and the moving and hazardous pieces below
+enum Tile : uint8_t { T_EMPTY, T_STONE, T_WOOD, T_ICE, T_GLASS, T_ROPE, T_RAIL, T_CONV_L, T_CONV_R, T_COUNT };
+enum PieceKind : uint8_t { PK_PISTON, PK_ELEVATOR, PK_VENT, PK_PROPELLER, PK_TUBE, PK_WINDOW, PK_COUNT };
+const char* PieceName(int kind);
+const char* TileName(int t);
+struct Piece {
+    uint8_t kind = PK_PISTON; int x = 0, y = 0, w = 1, h = 1, dx = 0, dy = 1;   // tiles; (dx, dy): which way it moves or faces
+    float travel = 3, period = 3, phase = 0, on = 0.8f, power = 1;               // tiles, seconds, 0..1, seconds, a multiplier
+    Vector2 off{}, prevOff{};                                                     // (runtime: a mover's offset in metres)
+    float cool = 0; bool broken = false;
+};
+enum World6 { WD_NAUTILUS, WD_CAVE, WD_REEF, WD_ATLANTIS, WD_VOID, WD_SALON, WD_COUNT };
+const char* WorldName(int w);
 struct Stage {
     int w = 32, h = 18; std::vector<uint8_t> t;           // row-major, row 0 at the bottom
     std::vector<Vector2> spawns;                           // in metres (feet)
-    std::string name = "Stone";
-    uint8_t At(int x, int y) const { return x < 0 || y < 0 || x >= w || y >= h ? T_EMPTY : t[y * w + x]; }
-    bool Solid(int x, int y) const { return At(x, y) != T_EMPTY; }
+    std::vector<Piece> pieces; std::vector<int> crateCols; // (crate zones: columns; empty = anywhere with a floor)
+    std::string name = "Stone", author = "Depth"; int world = WD_NAUTILUS; bool wrap = false, finale = false;
+    uint8_t At(int x, int y) const { if (wrap) x = ((x % w) + w) % w; return x < 0 || y < 0 || x >= w || y >= h ? T_EMPTY : t[y * w + x]; }
+    bool Solid(int x, int y) const { uint8_t k = At(x, y); return k != T_EMPTY && k != T_ROPE; }   // (rope is one-way: see OneWay)
+    bool OneWay(int x, int y) const { return At(x, y) == T_ROPE; }
+    void Set(int x, int y, uint8_t k) { if (x >= 0 && y >= 0 && x < w && y < h) t[y * w + x] = k; }
     float Width() const { return w * TILE; }
     float Height() const { return h * TILE; }
 };
+// the editor's text form (one char a tile; pieces by letter; a parameter line per piece is optional) and its share codes
+std::string StageToCode(const Stage& s);                   // "SCF1-..." (compressed, base64: fits a chat line)
+bool StageFromCode(const std::string& code, Stage& out, std::string* err = nullptr);
+std::string PackToCode(const std::vector<Stage>& pack);    // up to 20 stages: "SCP1-..."
+bool PackFromCode(const std::string& code, std::vector<Stage>& out, std::string* err = nullptr);
+std::vector<std::string> StageToText(const Stage& s);      // the editor's text form (rows, top first, then piece lines)
+// the check (doc p. 17): every spawn can reach every other with the real movement code
+struct Reach { bool ok = false; int spawns = 0, pairsFailed = 0, nodes = 0; std::string why; };
+Reach CheckReachable(const Stage& s);
+std::vector<Stage> LoadWorldPack(int world);               // the built-in stages (data/scuffle/stages/<world>.txt)
+std::vector<Stage> BuildNautilus();                        // (the builder behind nautilus.txt; --scuffle-build-packs writes it)
+int RunScuffleBuildPacks();
+int RunScuffleVerify(const std::string& codeOrAll);       // --scuffle-verify <code> | --scuffle-verify-all
 Stage StoneStage();                                        // stage 1's one stone stage (the doc's gate)
-Stage StageFromText(const std::vector<std::string>& rows, const char* name);   // '#' stone, 'S' a spawn (top row first)
+Stage StageFromText(const std::vector<std::string>& rows, const char* name);   // '#' stone, 'S' a spawn (top row first); see scuffle_stage.cpp for every letter
 
 // ---------------------------------------------------------------- the particles
 struct Particle { Vector2 p{}, q{}; float r = 0.1f, invMass = 1; };   // position, last position (velocity is p - q)
@@ -142,7 +172,12 @@ struct World {
     void Hit(Stick& target, int by, float dmg, Vector2 dir, float knock, bool ragdoll, const char* cause);
     void Kill(Stick& k, int by, const char* cause);
     void Emit(int kind, Vector2 at, int who = -1, int by = -1, float a = 0);
-    bool BoxHits(float x0, float y0, float x1, float y1) const;   // the box overlaps a solid tile
+    bool BoxHits(float x0, float y0, float x1, float y1) const;   // the box overlaps a solid tile or a mover
+    bool RopeUnder(float x0, float x1, float yOld, float yNew) const;   // a one-way tile's top between the box's old and new bottom
+    void StepPieces();                                     // movers, vents, rails, the propeller, tubes, glass (scuffle_pieces.cpp)
+    bool RailLive(int x, int y) const;
+    bool MoverHits(float x0, float y0, float x1, float y1, int* which = nullptr) const;
+    std::vector<float> glassT;                             // (weight on each glass tile: it breaks at 0.6 s)
 };
 Vector2 PoseOffset(const Stick& k, int joint, float t);    // where a joint wants to be, relative to the feet
 

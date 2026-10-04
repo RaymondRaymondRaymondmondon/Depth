@@ -817,6 +817,9 @@ int main(int argc, char** argv) {
     // A Night Off (arcade game 6)
     if (argc >= 2 && strcmp(argv[1], "--night-test") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunNightTest(); }
     if (argc >= 2 && strcmp(argv[1], "--scuffle-test") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--scuffle-build-packs") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleBuildPacks(); }
+    if (argc >= 2 && strcmp(argv[1], "--scuffle-verify-all") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleVerify("all"); }
+    if (argc >= 3 && strcmp(argv[1], "--scuffle-verify") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleVerify(argv[2]); }
     if (argc >= 2 && strcmp(argv[1], "--scuffle-determinism") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleDeterminism(argc >= 3 ? (uint32_t)atoi(argv[2]) : 1); }
     if (argc >= 2 && strcmp(argv[1], "--scuffle-sim") == 0) { SetTraceLogLevel(LOG_WARNING); int ar = 0; if (argc >= 5) { std::string a = argv[4]; ar = a == "melee" ? 1 : a == "chaos" ? 2 : a == "snakes" ? 3 : a == "random" ? 4 : 0; } return sf::RunScuffleSim(argc >= 3 ? atoi(argv[2]) : 4, argc >= 4 ? atoi(argv[3]) : 50, ar); }
     if (argc >= 2 && strcmp(argv[1], "--patron-check") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunPatronCheck(); }

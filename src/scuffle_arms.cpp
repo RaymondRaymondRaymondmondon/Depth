@@ -112,7 +112,8 @@ static void CollideItemTiles(const World& w, Particle& a) {
     }
 }
 void World::StepItems() {
-    for (int i = 0; i < (int)items.size(); i++) {
+    items.reserve(items.size() + 64);   // (a crate opening adds a weapon mid-loop: no reallocation under the references below)
+    for (int i = 0, n0 = (int)items.size(); i < n0; i++) {
         Item& it = items[i];
         if (!it.alive) continue;
         it.age += STEP; it.thrownT = std::max(0.0f, it.thrownT - STEP);
