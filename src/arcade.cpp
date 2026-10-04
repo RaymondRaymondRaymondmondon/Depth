@@ -26,7 +26,7 @@ void ArcadeBetFrame();
 static void DrawBetResult();
 
 namespace {
-int gNoMode = 0, gNoCrowd = 1, gNoCrew = 0, gNoBar = 0, gNoSeason = -1; bool gNoPvp = true;   // (A Night Off: the host's mode, crowd and fights; who you go ashore as)
+int gNoMode = 0, gNoCrowd = 1, gNoCrew = 0, gNoBar = 0, gNoSeason = -1; bool gNoPvp = true, gNoCloak = false;   // (A Night Off: the host's mode, crowd and fights; who you go ashore as)
 
 using namespace arcade;
 
@@ -316,6 +316,7 @@ void DrawReels(Game& g) {
         if (gNoSeason < 0) gNoSeason = no::SeasonToday();
         row(c.y + 122, gNoSeason ? TextFormat("%s %s", no::SeasonName(gNoSeason), no::SeasonWhereText(gNoSeason).c_str()) : "an ordinary night", gNoSeason, no::SeasonCount() + 1);
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Go ashore (solo)", true, 15)) { StartNightOff(g, gNoCrew, SOLO_MODES[soloMode], soloCrowd, gNoBar, gNoSeason); return; }
+        if (Button({c.x - 300, c.y + 236, 170, 36}, "The cloakroom", true, 14)) { gNoCloak = true; return; }   // (skins and the token spin)
         if (Button({c.x + 120, c.y + 241, 120, 26}, CROWD[soloCrowd], true, 12)) soloCrowd = (soloCrowd + 1) % 3;
         DrawTextCentered(no::ModeRule(SOLO_MODES[soloMode]), c.x, c.y + 280, 13, SCREEN_DIM);
     }
@@ -1079,6 +1080,8 @@ void SceneArcade(Game& g) {
     if (gFlGallery >= 0) { DrawFlightCostumeGallery(gFlGallery); return; }
     if (gFlWardrobe) { if (FlightWardrobePage(gFlSel)) gFlWardrobe = false; return; }
     if (gMfWardrobe) { if (MouthfulWardrobePage()) gMfWardrobe = false; return; }
+    if (gNoCloakShot) { gNoCloak = true; gNoCloakShot = false; }
+    if (gNoCloak) { if (NightCloakroomPage()) gNoCloak = false; return; }
     // the lobby's small noises: someone sits down, someone speaks
     static int lastSeats = 0; static size_t lastChat = 0;
     gSess.Update(GetTime(), GetFrameTime());

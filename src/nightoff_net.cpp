@@ -130,7 +130,7 @@ template <class A> void VisitPlayer(A& a, Player& p, bool own, bool over) {
     VisitCombat(a, p.fight);
     a.f(p.leavingT); a.i(p.leavingWith); a.i(p.carrying); a.i(p.carriedBy); a.b(p.faceDrawn);
     a.s(p.toast); a.f(p.toastT); { int wv = p.wares; a.i(wv); p.wares = (uint16_t)wv; } for (int w = 0; w < W_COUNT; w++) { a.f(p.wareT[w]); a.f(p.wareAfterT[w]); } a.i(p.cocktail); a.f(p.skipT); a.f(p.barkeepT); a.b(p.sureHome); a.u(p.hallucSeed);
-    a.i(p.fortuneReads); a.i(p.fatedThief); a.b(p.fateMet);
+    a.i(p.fortuneReads); a.i(p.fatedThief); a.b(p.fateMet); a.i(p.skin); a.s(p.skinText); a.b(p.lostGold);
     a.f(p.priceMul); a.f(p.owedAtDoor); a.b(p.blackEye); a.i(p.kidneysAtStart); a.i(p.emote); a.f(p.emoteT);
     a.s(p.homeWith); a.s(p.homeKind); a.b(p.homeBad); a.s(p.card); a.i(p.gamesWon); a.i(p.fightsWon); a.i(p.fightsWonSober);
     a.i(p.dare); a.i(p.daresDone); a.b(p.adopted); a.b(p.jacket); a.b(p.bribed); a.b(p.checked); a.b(p.promised); a.b(p.helpingRobbers); a.b(p.gaveRobbers);
@@ -153,7 +153,7 @@ template <class A> void VisitPatron(A& a, Patron& c, const Player* viewer) {
     VisitCombat(a, c.fight); a.b(c.outForNight); int fo = c.friendOf; a.i(fo); if constexpr (A::reading) c.friendOf = (uint8_t)fo;
 }
 template <class A> void Visit(A& a, Night& n, int viewer) {
-    a.f(n.fireworksT); a.b(n.powerOut); a.b(n.weddingFree); a.b(n.countdownDone); a.b(n.ceremonyDone); a.i(n.groom); a.i(n.bride); a.b(n.seanceDone);
+    a.f(n.policeConfusedT); a.f(n.fireworksT); a.b(n.powerOut); a.b(n.weddingFree); a.b(n.countdownDone); a.b(n.ceremonyDone); a.i(n.groom); a.i(n.bride); a.b(n.seanceDone);
     a.f(n.t); a.b(n.over); a.i(n.winner); a.f(n.policeT); a.f(n.policeInT); a.f(n.damage); a.b(n.bartenderDarts); a.b(n.midnightBrawl); a.f(n.crewTab);
     { Bartender& b = n.bar; a.f(b.mood); P2(a, b.pos); a.f(b.busyT); a.i(b.servingFor); a.f(b.polishPh); }
     std::vector<std::string> tail;

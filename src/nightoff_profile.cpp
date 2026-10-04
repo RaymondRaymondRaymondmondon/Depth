@@ -21,6 +21,10 @@ NightProfile LoadNightProfile(const std::string& path) {
         else if (k == "kidneys") s >> pr.kidneysLost >> pr.kidneysWon >> pr.kidneyNights;
         else if (k == "bar" || k == "bar1") { int b = k == "bar1" ? 1 : 0, w = 0; s >> pr.tabsPaid[b] >> pr.owed[b] >> w; pr.shotWindow[b] = w != 0; }
         else if (k == "carry") { int e = 0; s >> e >> pr.hangover >> pr.debt; pr.blackEye = e != 0; }
+        else if (k == "tokens") s >> pr.tokens >> pr.spins;
+        else if (k == "skins") { unsigned long long m = 0; s >> std::hex >> m >> std::dec >> pr.skin; pr.skins = m; }
+        else if (k == "seasons") s >> pr.seasonsDone;
+        else if (k == "best_headline") { std::getline(s, pr.bestHeadline); if (!pr.bestHeadline.empty() && pr.bestHeadline[0] == ' ') pr.bestHeadline.erase(0, 1); }
         else if (k == "headline") { std::string h; std::getline(s, h); if (!h.empty() && h[0] == ' ') h.erase(0, 1); pr.headlines.push_back(h); }
         else if (k == "feud" || k == "friend") { int n = 0; s >> n; std::string who; std::getline(s, who); if (!who.empty() && who[0] == ' ') who.erase(0, 1); (k == "feud" ? pr.feuds : pr.friends).push_back({who, n}); }
     }
@@ -32,6 +36,8 @@ void SaveNightProfile(const NightProfile& pr, const std::string& path) {
     f << "kidneys " << pr.kidneysLost << " " << pr.kidneysWon << " " << pr.kidneyNights << "\n";
     for (int b = 0; b < BAR_COUNT; b++) f << (b ? "bar1 " : "bar ") << pr.tabsPaid[b] << " " << pr.owed[b] << " " << (pr.shotWindow[b] ? 1 : 0) << "\n";
     f << "carry " << (pr.blackEye ? 1 : 0) << " " << pr.hangover << " " << pr.debt << "\n";
+    f << "tokens " << pr.tokens << " " << pr.spins << "\n" << "skins " << std::hex << (unsigned long long)pr.skins << std::dec << " " << pr.skin << "\n" << "seasons " << pr.seasonsDone << "\n";
+    if (!pr.bestHeadline.empty()) f << "best_headline " << pr.bestHeadline << "\n";
     for (const auto& h : pr.headlines) f << "headline " << h << "\n";
     for (const auto& x : pr.feuds) f << "feud " << x.second << " " << x.first << "\n";
     for (const auto& x : pr.friends) f << "friend " << x.second << " " << x.first << "\n";
@@ -43,6 +49,8 @@ std::string ProfileSummary(const NightProfile& pr) {
     for (const auto& x : pr.feuds) s << x.first << ";"; s << "|";
     for (const auto& x : pr.friends) s << x.first << ";";
     s << "|" << pr.tabsPaid[1] << "|" << pr.owed[1] << "|" << (pr.shotWindow[1] ? 1 : 0);   // (Celeste's memory)
+    std::string bh = pr.bestHeadline; for (char& c : bh) if (c == '|') c = '/';
+    s << "|" << (OwnsSkin(pr, pr.skin) ? pr.skin : -1) << "|" << bh.substr(0, 120);   // (the skin everyone sees; the Headline costume's front page)
     return s.str();
 }
 bool ParseProfileSummary(const std::string& str, NightProfile& pr) {
@@ -51,6 +59,7 @@ bool ParseProfileSummary(const std::string& str, NightProfile& pr) {
     try {
         pr.nights = std::stoi(f[0]); pr.kidneyNights = std::stoi(f[1]); pr.tabsPaid[0] = std::stoi(f[2]); pr.owed[0] = std::stof(f[3]); pr.shotWindow[0] = f[4] == "1"; pr.blackEye = f[5] == "1"; pr.hangover = std::stof(f[6]); pr.debt = std::stof(f[7]);
         if (f.size() >= 13) { pr.tabsPaid[1] = std::stoi(f[10]); pr.owed[1] = std::stof(f[11]); pr.shotWindow[1] = f[12] == "1"; }
+        if (f.size() >= 15) { pr.skin = std::stoi(f[13]); if (pr.skin < -1 || pr.skin >= (int)Skins().size()) pr.skin = -1; if (pr.skin >= 0) pr.skins |= 1ull << pr.skin; pr.bestHeadline = f[14]; }
     } catch (...) { return false; }
     auto names = [](const std::string& s, std::vector<std::pair<std::string, int>>& out) { out.clear(); std::string c; for (char ch : s) { if (ch == ';') { if (!c.empty()) out.push_back({c, 3}); c.clear(); } else c += ch; } };
     names(f[8], pr.feuds); names(f[9], pr.friends);
@@ -77,6 +86,16 @@ void Night::ApplyProfile(Player& p, const NightProfile& pr) {
     if (pr.blackEye) { p.blackEye = true; Note(p, 0, "A black eye from last night."); }
     if (pr.hangover > 0) { p.charBuff = -pr.hangover; p.charBuffT = 60 * SECONDS_PER_GAME_MINUTE; Note(p, 0, "Last night's hangover: charisma down for the first hour."); }
     ApplyBarMemory(p, pr);
+    // the skin everyone sees (and its jokes and nods)
+    if (OwnsSkin(pr, pr.skin)) {
+        p.skin = pr.skin; p.skinText = pr.bestHeadline;
+        const std::string& k = Skins()[p.skin].key;
+        if (k == "dockhand") for (auto& c : patrons) if (c.name == "Tam the Cook") c.mood = std::max(c.mood, 75.0f);
+        if (k == "croupier") for (auto& c : patrons) if (c.name == "Anselm") c.mood = std::max(c.mood, 80.0f);
+        if (k == "captain") Say("Captain Vane, across the room, to " + p.name + ": \"Nice coat. Darts. Now.\"");
+        if (k == "quietman") Say("The room goes quiet as " + p.name + " walks in. Someone puts down a glass very carefully.");
+        if (k == "gull") Say("The bartender looks at " + p.name + "'s apron, and says nothing for a long time.");
+    }
     // the regulars remember (three nights)
     for (auto& c : patrons) {
         for (const auto& x : pr.feuds) if (c.name == x.first) c.mood = std::min(c.mood, 30.0f);   // (cold tonight; tonight's own insults decide whether it carries on)
@@ -90,7 +109,10 @@ std::vector<std::string> Night::ProfileAfter(const Player& p, NightProfile& pr) 
     const int b = CurBar();
     std::vector<std::string> L;
     int score = Score(p);
+    NightTokens(*this, p, pr, L);   // (tokens: before tonight's headline is remembered, so a first is a first)
+    if (score > pr.best || pr.bestHeadline.empty()) pr.bestHeadline = Headline();
     pr.nights++; pr.total += score; pr.best = std::max(pr.best, score);
+    if (p.lostGold) { pr.skins &= ~(1ull << SkinIndex("goldkidney")); if (pr.skin == SkinIndex("goldkidney")) pr.skin = -1; L.push_back("The Golden Kidney costume is gone. You still have the real ones."); }
     std::string h = Headline(); if (!h.empty()) { pr.headlines.push_back(h); if (pr.headlines.size() > 20) pr.headlines.erase(pr.headlines.begin()); }
     // the kidney
     if (pr.kidneyNights >= 2) { pr.kidneyNights = 1; }

@@ -57,6 +57,7 @@ src/flight_long.cpp
     src/nightoff_wares.cpp
     src/nightoff_monkey.cpp
     src/nightoff_seasons.cpp
+    src/nightoff_skins.cpp
     src/nightoff_game.cpp
     src/data.cpp
     src/ui.cpp

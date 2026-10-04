@@ -160,6 +160,9 @@ void Night::GoHome(Player& p, int idx, const std::string& kindIn) {
     const HomeDef* h = HomeOf(kind);
     p.homeWith = who; p.homeKind = kind; p.homeBad = kind == "dog" || (h && !h->good);
     if (kind == "robbery") { p.items.clear(); p.items.push_back("no coat"); Note(p, 4, "Robbed by " + who + ": the money, the coat, the hat."); }
+    if (kind == "kidney" && p.skin >= 0 && p.skin < (int)Skins().size() && Skins()[p.skin].key == "goldkidney") {   // (the Golden Kidney: the thieves can't take what's on the outside, so they take the costume)
+        p.lostGold = true; p.skin = -1; Note(p, 5, "Woke in a bathtub of ice with both kidneys: " + who + " took the Golden Kidney costume instead."); Flag("goldkidney", p.name); kind = "goldkidney";
+    }
     if (kind == "kidney") { p.kidneys = 1; Note(p, 5, "Lost a kidney to " + who + "."); Flag("kidney", p.name); }
     if (kind == "married") { p.items.push_back("one shoe"); Note(p, 7, "Went home with " + who + "; their spouse came home early."); Flag("married", p.name); }
     if (kind == "rich") { Flag("rich", p.name); }

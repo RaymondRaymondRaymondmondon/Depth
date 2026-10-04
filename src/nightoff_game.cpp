@@ -199,6 +199,64 @@ void DrawBar(const no::Night& n) {
     for (float x : {6.0f, 30.0f}) { rt::DrawWorldCube({x, 1.6f, -5}, {0.12f, 3.2f, 0.12f}, {30, 30, 34, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.3f, 0.4f, 0.3f), MatrixTranslate(x, 3.3f, -5)), {255, 210, 140, 255}, 1.8f); }
     (void)n;
 }
+// a sailor's skin (doc pp. 37-40): the colours, and a costume built from boxes in the sailor's own frame (x forward, z right)
+void DrawSkin(const no::Player& p, float lean) {
+    if (p.skin < 0 || p.skin >= (int)no::Skins().size() || p.st == no::State::PassedOut || p.st == no::State::Down || p.fight.fallT > 0) return;
+    const no::SkinDef& s = no::Skins()[p.skin]; const std::string& k = s.shape;
+    Vector2 f{cosf(p.yaw), sinf(p.yaw)}, r{-sinf(p.yaw), cosf(p.yaw)};
+    auto at = [&](float lx, float ly, float lz) { return Vector3{p.pos.x + f.x * lx + r.x * lz + f.x * lean * ly * 0.3f, ly, p.pos.y + f.y * lx + r.y * lz + f.y * lean * ly * 0.3f}; };
+    auto B = [&](float lx, float ly, float lz, float sx, float sy, float sz, Color c, float rz = 0) { Vector3 w = at(lx, ly, lz); rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(sx, sy, sz), MatrixRotateZ(rz)), MatrixRotateY(-p.yaw)), MatrixTranslate(w.x, w.y, w.z)), c); };
+    auto G = [&](float lx, float ly, float lz, float sz, Color c, float k2) { Vector3 w = at(lx, ly, lz); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(sz, sz, sz), MatrixTranslate(w.x, w.y, w.z)), c, k2); };
+    Color top = s.top, hat = s.hat, dark{24, 22, 22, 255}, white{240, 238, 232, 255}, gold{230, 190, 70, 255};
+    float t = S.t;
+    if (k == "bowler") { B(0, 1.86f, 0, 0.3f, 0.13f, 0.3f, hat); B(0, 1.8f, 0, 0.42f, 0.03f, 0.42f, hat); }
+    else if (k == "cap") { B(0, 1.83f, 0, 0.3f, 0.08f, 0.3f, hat); B(0.2f, 1.8f, 0, 0.18f, 0.03f, 0.26f, hat); }
+    else if (k == "cardigan") { B(0, 1.2f, 0, 0.44f, 0.5f, 0.52f, top); for (int i = 0; i < 4; i++) B(0.22f, 1.0f + i * 0.12f, 0, 0.02f, 0.04f, 0.04f, gold); }
+    else if (k == "bowtie") { B(0.17f, 1.48f, 0, 0.04f, 0.07f, 0.18f, Color{150, 20, 30, 255}); for (float sd : {-1.0f, 1.0f}) B(0, 1.22f, sd * 0.27f, 0.16f, 0.05f, 0.06f, Color{180, 40, 40, 255}); }
+    else if (k == "hooks") { B(0, 1.84f, 0, 0.36f, 0.12f, 0.36f, hat); B(0, 1.79f, 0, 0.5f, 0.03f, 0.5f, hat); for (int i = 0; i < 6; i++) { float a = i * 1.05f; B(cosf(a) * 0.2f, 1.86f, sinf(a) * 0.2f, 0.02f, 0.08f, 0.02f, Color{190, 190, 200, 255}); } B(0, 0.45f, 0, 0.36f, 0.9f, 0.44f, Color{40, 60, 40, 255}); }
+    else if (k == "veil") { B(-0.12f, 1.5f, 0, 0.03f, 0.55f, 0.38f, white); B(0.17f, 1.15f, 0, 0.03f, 0.09f, 0.5f, Color{230, 120, 160, 255}, 0.6f); }
+    else if (k == "helmet") { B(0, 1.9f, 0, 0.3f, 0.24f, 0.28f, hat); B(0, 2.04f, 0, 0.16f, 0.06f, 0.16f, hat); G(0.15f, 1.9f, 0, 0.05f, gold, 1.2f); }
+    else if (k == "apron") { B(0.15f, 1.0f, 0, 0.04f, 0.7f, 0.4f, Color{236, 230, 214, 255}); B(0, 1.5f, -0.2f, 0.3f, 0.04f, 0.12f, white); }
+    else if (k == "coat") { B(0, 0.75f, 0, 0.42f, 0.62f, 0.5f, top); for (float sd : {-1.0f, 1.0f}) B(0, 1.5f, sd * 0.26f, 0.2f, 0.04f, 0.12f, gold); B(0, 1.88f, 0, 0.36f, 0.1f, 0.3f, hat); }
+    else if (k == "glass") { float fill = std::clamp(p.drunk / 100, 0.0f, 1.0f) * 1.5f; G(0, 0.06f + fill / 2, 0, 0.0f, Color{0, 0, 0, 0}, 0); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.62f, std::max(0.02f, fill), 0.62f), MatrixTranslate(p.pos.x, 0.05f + fill / 2, p.pos.y)), Color{230, 170, 60, 255}, 0.35f); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.66f, 0.1f, 0.66f), MatrixTranslate(p.pos.x, 0.08f + fill, p.pos.y)), white, 0.6f); for (float sd : {-1.0f, 1.0f}) { B(0, 0.85f, sd * 0.33f, 0.62f, 1.7f, 0.02f, Color{200, 220, 230, 255}); B(sd * 0.32f, 0.85f, 0, 0.02f, 1.7f, 0.62f, Color{200, 220, 230, 255}); } }
+    else if (k == "claws" || k == "crab") { for (float sd : {-1.0f, 1.0f}) { B(0.3f, 1.05f, sd * 0.38f, 0.32f, 0.18f, 0.14f, top); B(0.45f, 1.12f, sd * 0.38f, 0.14f, 0.08f, 0.12f, top); B(0.18f, 1.95f, sd * 0.08f, 0.02f, 0.25f, 0.02f, top); } if (k == "crab") for (float sd : {-1.0f, 1.0f}) G(0.18f, 2.08f, sd * 0.08f, 0.05f, dark, 0.2f); }
+    else if (k == "pig") { B(0.21f, 1.6f, 0, 0.1f, 0.1f, 0.14f, Color{240, 150, 160, 255}); for (float sd : {-1.0f, 1.0f}) B(0, 1.8f, sd * 0.12f, 0.08f, 0.1f, 0.06f, Color{230, 140, 150, 255}); }
+    else if (k == "barnacles") { for (int i = 0; i < 14; i++) { float a = i * 2.4f, y = 0.9f + (i % 5) * 0.15f; B(cosf(a) * 0.2f, y, sinf(a) * 0.24f, 0.07f, 0.07f, 0.07f, Color{170, 166, 150, 255}); } }
+    else if (k == "cone") { for (int i = 0; i < 5; i++) B(0, 1.88f + i * 0.14f, 0, 0.42f - i * 0.08f, 0.14f, 0.42f - i * 0.08f, (i % 2) ? hat : Color{150, 100, 50, 255}); }
+    else if (k == "ears") { for (float sd : {-1.0f, 1.0f}) B(-0.02f, 1.58f, sd * 0.16f, 0.1f, 0.24f, 0.04f, hat, sd * 0.2f); G(0.2f, 1.62f, 0, 0.05f, dark, 0.2f); }
+    else if (k == "fish") { B(0, 1.65f, 0, 0.52f, 0.42f, 0.38f, top); B(-0.36f, 1.68f, 0, 0.2f, 0.34f, 0.04f, top); for (float sd : {-1.0f, 1.0f}) G(0.12f, 1.75f, sd * 0.19f, 0.06f, white, 0.5f); }
+    else if (k == "sack") { B(0, 0.95f, 0, 0.56f, 1.55f, 0.56f, top); for (float sd : {-1.0f, 1.0f}) B(0.29f, 1.6f, sd * 0.09f, 0.02f, 0.06f, 0.06f, dark); }
+    else if (k == "straw") { B(0, 1.84f, 0, 0.5f, 0.05f, 0.5f, hat); B(0, 1.9f, 0, 0.28f, 0.12f, 0.28f, hat); for (int i = 0; i < 6; i++) B(0.1f, 0.95f + (i % 2) * 0.06f, (i < 3 ? -0.33f : 0.33f), 0.04f, 0.12f, 0.03f, Color{220, 190, 80, 255}, 0.4f * (i - 3)); }
+    else if (k == "stripes") { for (int i = 0; i < 5; i++) B(0, 0.95f + i * 0.12f, 0, 0.3f, 0.035f, 0.4f, Color{60, 80, 160, 255}); B(0, 1.88f, 0, 0.24f, 0.18f, 0.24f, hat); B(-0.1f, 1.96f, 0.08f, 0.1f, 0.1f, 0.1f, white); }
+    else if (k == "ring") { for (int i = 0; i < 10; i++) { float a = i * PI / 5; B(cosf(a) * 0.25f, 1.0f + sinf(a) * 0.25f, 0.36f, 0.1f, 0.1f, 0.08f, (i % 2) ? white : Color{220, 50, 40, 255}); } }
+    else if (k == "bell") { B(0, 1.68f, 0, 0.56f, 0.56f, 0.56f, hat); G(0.29f, 1.68f, 0, 0.14f, Color{120, 180, 200, 255}, 0.4f); for (float sd : {-1.0f, 1.0f}) G(0.0f, 1.68f, sd * 0.29f, 0.1f, Color{120, 180, 200, 255}, 0.3f); }
+    else if (k == "gullsuit") { B(0.22f, 1.62f, 0, 0.18f, 0.06f, 0.08f, Color{240, 170, 40, 255}); for (float sd : {-1.0f, 1.0f}) B(-0.05f, 1.2f, sd * 0.4f, 0.3f, 0.5f, 0.06f, white, sd * 0.3f); }
+    else if (k == "board") { for (float sd : {-1.0f, 1.0f}) B(sd * 0.2f, 1.05f, 0, 0.03f, 0.8f, 0.52f, Color{236, 226, 190, 255}); B(0.22f, 1.25f, 0, 0.01f, 0.08f, 0.4f, Color{150, 40, 30, 255}); B(0.22f, 1.05f, 0, 0.01f, 0.08f, 0.34f, Color{150, 40, 30, 255}); }
+    else if (k == "bottle") { B(0, 0.95f, 0, 0.5f, 1.6f, 0.5f, top); B(0, 1.86f, 0, 0.2f, 0.3f, 0.2f, top); B(0, 2.04f, 0, 0.22f, 0.06f, 0.22f, hat); B(0.26f, 1.0f, 0, 0.01f, 0.4f, 0.36f, Color{230, 220, 170, 255}); }
+    else if (k == "horns") { for (float sd : {-1.0f, 1.0f}) { B(-0.04f, 1.92f, sd * 0.1f, 0.06f, 0.24f, 0.06f, hat, -0.5f); B(-0.14f, 2.02f, sd * 0.12f, 0.12f, 0.06f, 0.06f, hat); } B(0.18f, 1.42f, 0, 0.06f, 0.16f, 0.08f, white); }
+    else if (k == "tentacles") { for (int i = 0; i < 6; i++) { float a = i * PI / 3 + 0.3f * sinf(t * 2 + i); for (int j = 0; j < 3; j++) B(cosf(a) * (0.25f + j * 0.14f), 1.0f - j * 0.12f + 0.06f * sinf(t * 3 + i + j), sinf(a) * (0.25f + j * 0.14f), 0.1f, 0.06f, 0.1f, top); } }
+    else if (k == "robes") { B(0, 0.6f, 0, 0.5f, 1.2f, 0.56f, top); for (int i = 0; i < 6; i++) G(0.26f, 0.2f + i * 0.14f, -0.2f + (i % 3) * 0.2f, 0.04f, gold, 1.0f); B(0, 1.86f, 0, 0.32f, 0.12f, 0.32f, hat); }
+    else if (k == "jacket") { B(0, 1.2f, 0, 0.44f, 0.56f, 0.52f, top); B(-0.23f, 1.25f, 0, 0.01f, 0.2f, 0.3f, Color{200, 190, 160, 255}); }
+    else if (k == "kidney" || k == "goldkidney") { Color kc = k == "goldkidney" ? gold : top; if (k == "goldkidney") { Vector3 w = at(0, 1.05f, 0); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.74f, 1.3f, 0.6f), MatrixTranslate(w.x, w.y, w.z)), kc, 0.5f); } else B(0, 1.05f, 0, 0.72f, 1.3f, 0.6f, kc); B(0.1f, 1.05f, 0.32f, 0.6f, 0.5f, 0.1f, kc); for (float sd : {-1.0f, 1.0f}) G(0.36f, 1.4f, sd * 0.12f, 0.07f, white, 0.6f); B(0.37f, 1.2f, 0, 0.02f, 0.03f, 0.16f, dark); }
+    else if (k == "tail") { B(0, 0.45f, 0, 0.4f, 0.9f, 0.4f, top); B(0.1f, 0.06f, 0, 0.36f, 0.06f, 0.5f, s.trousers); }
+    else if (k == "sheet") { B(0, 0.95f, 0, 0.6f, 1.75f, 0.6f, Color{236, 236, 240, 255}); for (float sd : {-1.0f, 1.0f}) B(0.31f, 1.6f, sd * 0.1f, 0.02f, 0.08f, 0.07f, dark); }
+    else if (k == "lure") { B(0.12f, 2.0f, 0, 0.03f, 0.3f, 0.03f, dark, -0.6f); G(0.3f, 2.12f, 0, 0.12f + 0.02f * sinf(t * 4), Color{120, 255, 200, 255}, 2.0f); }
+    else if (k == "pirate") { B(0, 1.88f, 0, 0.36f, 0.12f, 0.46f, hat); B(0.1f, 1.92f, 0, 0.1f, 0.06f, 0.5f, hat); B(0.2f, 1.66f, 0.07f, 0.02f, 0.06f, 0.08f, dark); }
+    else if (k == "tub") { B(0, 0.75f, 0, 0.95f, 0.5f, 0.62f, Color{236, 236, 240, 255}); for (int i = 0; i < 6; i++) G(-0.3f + i * 0.12f, 1.02f, -0.15f + (i % 3) * 0.15f, 0.08f, Color{200, 230, 255, 255}, 0.6f); B(0.48f, 0.85f, 0, 0.01f, 0.18f, 0.14f, Color{250, 250, 230, 255}); }
+    else if (k == "worm") { B(0, 1.45f, 0, 0.52f, 0.95f, 0.52f, top); for (int i = 0; i < 8; i++) { float a = i * PI / 4; B(cosf(a) * 0.2f, 1.94f, sinf(a) * 0.2f, 0.04f, 0.08f, 0.04f, white); } }
+    else if (k == "marlin") { B(-0.22f, 1.3f, 0, 0.04f, 0.5f, 0.36f, hat); B(0.1f, 1.8f, 0, 0.6f, 0.2f, 0.18f, top); B(0.55f, 1.82f, 0, 0.4f, 0.03f, 0.03f, top); B(-0.2f, 1.92f, 0, 0.26f, 0.26f, 0.03f, top); }
+    else if (k == "cake") { for (int i = 0; i < 3; i++) B(0, 0.4f + i * 0.45f, 0, 0.9f - i * 0.22f, 0.4f, 0.9f - i * 0.22f, i % 2 ? hat : white); B(0, 1.95f, 0.05f, 0.05f, 0.14f, 0.05f, dark); B(0, 1.95f, -0.05f, 0.05f, 0.14f, 0.05f, white); }
+    else if (k == "pooltable") { B(0, 0.85f, 0, 0.9f, 0.16f, 0.6f, top); B(0, 0.76f, 0, 0.96f, 0.08f, 0.66f, s.trousers); for (float sd : {-1.0f, 1.0f}) B(0.2f, 1.25f, sd * 0.3f, 0.03f, 0.03f, 0.9f, Color{200, 170, 110, 255}, 0.3f); }
+    else if (k == "slot") { B(0, 1.1f, 0, 0.5f, 0.9f, 0.56f, top); for (int i = 0; i < 3; i++) G(0.26f, 1.28f, -0.14f + i * 0.14f, 0.1f, (int)(p.swayPh * 3 + i) % 2 ? Color{255, 220, 100, 255} : Color{255, 120, 120, 255}, 1.0f); B(0, 1.2f, 0.3f, 0.04f, 0.4f, 0.04f, Color{200, 200, 210, 255}); }
+    else if (k == "cthulhu") { G(0.2f, 1.62f, 0, 0.28f, hat, 0.8f); for (int i = 0; i < 4; i++) B(0.2f, 1.4f - i * 0.02f, -0.12f + i * 0.08f, 0.04f, 0.3f, 0.04f, top, 0.2f * sinf(t * 2 + i)); }
+    else if (k == "shark") { B(-0.12f, 1.75f, 0, 0.24f, 0.3f, 0.04f, top, -0.4f); B(-0.42f, 0.9f + 0.05f * sinf(t * 5), 0, 0.44f, 0.12f, 0.12f, top); B(-0.66f, 0.95f, 0, 0.08f, 0.36f, 0.04f, top); for (int i = 0; i < 5; i++) B(0.21f, 1.5f, -0.12f + i * 0.06f, 0.02f, 0.05f, 0.02f, white); }
+    else if (k == "uber") { B(0, 1.83f, 0, 0.3f, 0.08f, 0.3f, hat); B(0.2f, 1.8f, 0, 0.18f, 0.03f, 0.26f, hat); B(0.3f, 0.75f, 0.3f, 0.3f, 0.26f, 0.22f, Color{60, 120, 200, 255}); B(0.3f, 0.9f, 0.3f, 0.32f, 0.05f, 0.24f, white); }
+    else if (k == "suit") { B(0.25f, 1.0f, 0.28f, 0.22f, 0.3f, 0.06f, Color{80, 30, 30, 255}); B(0, 1.88f, 0, 0.3f, 0.13f, 0.3f, dark); }
+    else if (k == "sub") { B(0, 1.2f, 0, 1.1f, 0.5f, 0.5f, top); B(0.6f, 1.2f, 0, 0.16f, 0.36f, 0.36f, top); B(0, 1.95f, 0, 0.06f, 0.4f, 0.06f, hat); B(0.06f, 2.15f, 0, 0.14f, 0.06f, 0.06f, hat); for (int i = 0; i < 3; i++) G(0.1f + i * 0.18f, 1.25f, 0.26f, 0.06f, Color{255, 220, 140, 255}, 0.8f); }
+    else if (k == "bar") { B(0, 0.95f, 0, 0.9f, 0.14f, 0.9f, Color{84, 48, 30, 255}); B(0, 0.75f, 0.42f, 0.9f, 0.3f, 0.06f, Color{100, 60, 36, 255}); B(0.3f, 1.1f, 0.25f, 0.08f, 0.2f, 0.08f, Color{230, 220, 200, 255}); G(-0.3f, 1.08f, -0.3f, 0.06f, Color{230, 170, 60, 255}, 0.6f); }
+    else if (k == "orca") { B(0.2f, 1.25f, 0, 0.04f, 0.5f, 0.3f, white); B(-0.15f, 1.8f, 0, 0.22f, 0.32f, 0.04f, top, -0.3f); for (int i = 0; i < 3; i++) { Vector3 w = at(-0.3f + 0.25f * sinf(t + i * 2), 2.6f + 0.2f * i + 0.08f * sinf(t * 1.3f + i), -0.4f + i * 0.4f); rt::DrawCubeM(MatrixMultiply(MatrixScale(0.36f, 0.16f, 0.16f), MatrixTranslate(w.x, w.y, w.z)), dark); rt::DrawWorldCube({(w.x + p.pos.x) / 2, (w.y + 1.0f) / 2, (w.z + p.pos.y) / 2}, {0.01f, w.y - 1.0f, 0.01f}, white); } }
+    else if (k == "newspaper") { B(0, 1.1f, 0, 0.46f, 0.8f, 0.52f, Color{232, 228, 212, 255}); B(0.24f, 1.4f, 0, 0.01f, 0.08f, 0.44f, dark); for (int i = 0; i < 4; i++) B(0.24f, 1.2f - i * 0.1f, -0.1f + (i % 2) * 0.1f, 0.01f, 0.03f, 0.22f, Color{120, 116, 106, 255}); }
+}
 // a fighter's pose: fists up in a brawl, the haymaker's windup (seen coming), the swing, a block, a flinch
 void FightPose(const no::Combat& C, fig::Pose& P, float& lean) {
     if (C.brawl >= 0) { P.grip = 1; P.elbow = std::max(P.elbow, 0.75f); P.reach = std::max(P.reach, 0.2f); }
@@ -334,7 +392,11 @@ void DrawPeople(const no::Night& n) {
         float pitch = p.st == no::State::Vomiting ? 0.5f : p.lurch * 0.2f;
         FightPose(p.fight, P, lean);
         if (p.emoteT > 0) { switch (p.emote) { case 1: P.reach = 0.35f; P.elbow = 1; P.grip = 1; break; case 2: P.reach = 1; P.elbow = 0; break; case 3: P.shout = 0.8f; P.nod = -0.2f; lean -= 0.1f; break; case 4: P.elbow = 0.6f; P.reach = 0.15f; P.nod = 0.1f; break; case 5: P.grip = 1; P.elbow = 1; P.reach = 0.4f; break; } }
-        DrawPerson(CrewModel(p.crew), ShoreClothes(p.crew), {p.pos.x, 0, p.pos.y}, p.yaw, P, lean, pitch, p.st == no::State::PassedOut || p.st == no::State::Down || p.fight.fallT > 0);
+        Clothes cl = ShoreClothes(p.crew);
+        if (p.skin >= 0 && p.skin < (int)no::Skins().size()) { const no::SkinDef& sk = no::Skins()[p.skin]; cl.top = sk.top; cl.trousers = sk.trousers; cl.hat = sk.hat; }
+        bool hidden = p.skin >= 0 && p.skin < (int)no::Skins().size() && (no::Skins()[p.skin].shape == "sack" || no::Skins()[p.skin].shape == "sheet" || no::Skins()[p.skin].shape == "bottle");
+        if (!hidden || p.st == no::State::PassedOut || p.st == no::State::Down || p.fight.fallT > 0) DrawPerson(CrewModel(p.crew), cl, {p.pos.x, 0, p.pos.y}, p.yaw, P, lean, pitch, p.st == no::State::PassedOut || p.st == no::State::Down || p.fight.fallT > 0);
+        DrawSkin(p, lean);
         // a glass in the hand while drinking
         if (p.st == no::State::Drinking) { Vector3 h{p.pos.x + cosf(p.yaw) * 0.3f, 1.2f + 0.3f * std::clamp((1 - p.actT / 2.5f) * 3, 0.0f, 1.0f), p.pos.y + sinf(p.yaw) * 0.3f}; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.14f, 0.08f), MatrixTranslate(h.x, h.y, h.z)), {230, 170, 60, 255}, 0.5f); }
     }
@@ -1071,10 +1133,110 @@ void DebugNightOffShot(Game& g, int which) {
         else if (!strcmp(k, "storm")) { at(18, 5.0f, PI * 0.5f, PI * 0.45f, 20); S.camPitch = -0.2f; }
         else at(18, 5.5f, PI * 0.5f, PI * 0.42f, 25);
     }
+    if (which >= 60 && which < 69) {   // the skins gallery: six sailors a page on the dance floor, facing you
+        no::Opts o = n.opts; o.players = 6; S.N.Init(o); no::Night& m = S.N;
+        for (int i = 0; i < 6; i++) { no::Player& q = m.players[i]; int sk = (which - 60) * 6 + i; q.skin = sk < (int)no::Skins().size() ? sk : -1; q.pos = i < 3 ? Vector2{15.4f + i * 1.6f, 3.6f} : Vector2{16.2f + (i - 3) * 1.6f, 6.2f}; q.yaw = -PI * 0.5f; q.crew = i; q.drunk = 30 + i * 10; q.name = q.skin >= 0 ? no::Skins()[q.skin].name : "-"; q.skinText = "SAILOR WINS KIDNEY BACK IN A HAND OF POKER"; }
+        for (auto& c : m.patrons) { c.inside = false; c.gone = true; }
+        S.me = 0; Vector2 keep = m.players[0].pos; m.players[0].pos = {17.0f, 5.0f}; S.camYaw = PI * 0.5f; S.camAt = {17.0f, 1.1f, 5.0f}; S.camPitch = -0.12f; S.camDist = 4.6f;
+        for (int k = 0; k < 30; k++) StepCamera(1 / 60.0f);
+        m.players[0].pos = keep; return;
+    }
     if (which == 27) {   // emotes: you raise a glass, a shipmate laughs
         for (int i = 0; i < (int)(2 * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f); i++) n.Step(0.1f);
         at(18, 5.5f, PI * 0.5f, PI * 0.42f, 20); S.camPitch = -0.22f; p.emote = 1; p.emoteT = 2;
     }
     if (which == 5) { p.drinks = 7; p.peakDrunk = 88; n.Leave(p, no::E_PASSED_OUT, ""); n.over = true; }
     for (int i = 0; i < 30; i++) StepCamera(1 / 60.0f);
+}
+
+// ---------------------------------------------------------------- the cloakroom (doc pp. 37-40): the store, the brass wheel, the wardrobe
+namespace {
+struct Cloak { bool loaded = false; no::NightProfile pr; int pick = -1, crew = 0; float spinT = 0, t = 0; int landed = -1; bool dup = false; std::string msg; float msgT = 0; };
+Cloak gCk;
+void CloakSave() { no::SaveNightProfile(gCk.pr, "nightoff_profile.txt"); }
+}
+bool gNoCloakShot = false;
+bool NightCloakroomPage() {
+    if (!gCk.loaded) { gCk.pr = gShotStart ? gCk.pr : no::LoadNightProfile("nightoff_profile.txt"); gCk.loaded = true; gCk.pick = gCk.pr.skin; }
+    float dt = std::min(GetFrameTime(), 1 / 30.0f); gCk.t += dt; S.t += dt; gCk.msgT -= dt;
+    const auto& SK = no::Skins();
+    // the wheel lands: the skin it gave is what you're looking at
+    if (gCk.spinT > 0) { gCk.spinT -= dt; if (gCk.spinT <= 0 && gCk.landed >= 0) { gCk.pick = gCk.landed; gCk.msg = gCk.dup ? "A duplicate. The wheel laughs; nothing is refunded." : std::string("The wheel gives you ") + SK[gCk.landed].name + "!"; gCk.msgT = 5; } }
+    // ---- the 3D: your sailor in the cloakroom mirror, turning slowly
+    Camera3D cam{}; cam.position = {0, 1.3f, 5.2f}; cam.target = {0, 0.95f, 0}; cam.up = {0, 1, 0}; cam.fovy = 32; cam.projection = CAMERA_PERSPECTIVE;
+    rt::SceneLight L; L.fog = {30, 22, 18, 255}; L.fogDensity = 0.01f; L.fill = {70, 54, 44, 255}; L.rim = {90, 120, 160, 255}; L.key = {255, 210, 160, 255}; L.surfaceY = 1e5f; L.time = S.t;
+    L.lampPos = {1.2f, 3.0f, 2.0f}; L.lampDir = Vector3Normalize({-0.4f, -1, -0.6f}); L.lampRange = 9; L.lampCone = 0.9f; L.moonDir = Vector3Normalize({0.3f, -1, 0.4f}); L.moon = {255, 210, 160, 255}; L.moonK = 0.4f;
+    L.ambK = 0.8f; L.skyAmb = {130, 100, 80, 255}; L.seaAmb = {50, 40, 34, 255}; L.outline = 0.7f; L.outlineTint = {24, 16, 12, 255}; L.stipple = 0.3f; L.grain = 0.3f; L.filmic = 0.3f; L.saturation = 1.1f;
+    L.AddPoint({0.8f, 2.4f, 1.2f}, 6, {255, 200, 140, 255}, 1.0f);
+    rt::ApplyGameQuality(); rt::RenderBegin(cam, L);
+    rt::DrawWorldCube({0, -0.05f, 0}, {8, 0.1f, 8}, {96, 40, 40, 255});
+    rt::DrawWorldCube({0, 1.7f, -1.6f}, {6, 3.4f, 0.2f}, {62, 82, 64, 255});
+    for (int i = 0; i < 9; i++) { rt::DrawWorldCube({-2.6f + i * 0.65f, 2.1f, -1.4f}, {0.05f, 0.05f, 0.25f}, {210, 170, 80, 255}); rt::DrawWorldCube({-2.6f + i * 0.65f, 1.5f, -1.38f}, {0.4f, 1.1f, 0.12f}, i % 3 == 0 ? Color{60, 40, 40, 255} : i % 3 == 1 ? Color{40, 50, 70, 255} : Color{80, 70, 50, 255}); }   // (the coats on their pegs)
+    no::Player me; me.pos = {0, 0}; me.yaw = PI * 0.5f + 0.7f * sinf(gCk.t * 0.6f); me.crew = gCk.crew; me.skin = gCk.pick; me.drunk = 35; me.swayPh = gCk.t; me.skinText = gCk.pr.bestHeadline;
+    fig::Pose P; P.breathe = gCk.t; P.look = 0.2f * sinf(gCk.t * 0.4f);
+    Clothes cl = ShoreClothes(me.crew);
+    if (me.skin >= 0 && me.skin < (int)SK.size()) { cl.top = SK[me.skin].top; cl.trousers = SK[me.skin].trousers; cl.hat = SK[me.skin].hat; }
+    bool hidden = me.skin >= 0 && me.skin < (int)SK.size() && (SK[me.skin].shape == "sack" || SK[me.skin].shape == "sheet" || SK[me.skin].shape == "bottle");
+    if (!hidden) DrawPerson(CrewModel(me.crew), cl, {0, 0, 0}, me.yaw, P, 0, 0, false);
+    DrawSkin(me, 0);
+    rt::RenderEnd();
+    // ---- the panels
+    Color ink{250, 238, 214, 255}, dim{210, 190, 160, 255}, brass{230, 190, 110, 255};
+    DrawTextCenteredBold("The cloakroom", SCREEN_W / 2.0f, 16, 28, brass);
+    DrawTextCentered(TextFormat("%d arcade tokens", gCk.pr.tokens), SCREEN_W / 2.0f, 50, 18, ink);
+    if (me.skin >= 0 && me.skin < (int)SK.size()) { DrawTextCenteredBold(SK[me.skin].name, SCREEN_W / 2.0f, SCREEN_H - 150.0f, 22, ink); DrawTextCentered(SK[me.skin].look, SCREEN_W / 2.0f, SCREEN_H - 122.0f, 14, dim); }
+    else DrawTextCenteredBold("Shore clothes", SCREEN_W / 2.0f, SCREEN_H - 150.0f, 22, ink);
+    // the store: ten to save up for
+    Rectangle L1{20, 80, 330, 450}; DrawRectangleRounded(L1, 0.04f, 6, Fade(Color{20, 14, 10, 255}, 0.85f));
+    TxtBold("The store", L1.x + 14, L1.y + 10, 18, brass);
+    int row = 0;
+    for (int i = 0; i < (int)SK.size(); i++) {
+        if (SK[i].tier != "store") continue;
+        float y = L1.y + 40 + row * 42; row++;
+        bool own = no::OwnsSkin(gCk.pr, i);
+        Rectangle hit{L1.x + 8, y - 4, 200, 36};
+        if (CheckCollisionPointRec(GetMousePosition(), hit) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gCk.pick = i;
+        TxtBold(SK[i].name, L1.x + 14, y, 15, gCk.pick == i ? brass : ink); Txt(own ? "owned" : TextFormat("%d tokens", SK[i].cost), L1.x + 14, y + 17, 12, dim);
+        if (own) { if (Button({L1.x + 220, y, 96, 28}, gCk.pr.skin == i ? "Worn" : "Wear", gCk.pr.skin != i, 13)) { gCk.pr.skin = i; gCk.pick = i; CloakSave(); } }
+        else if (Button({L1.x + 220, y, 96, 28}, "Buy", gCk.pr.tokens >= SK[i].cost, 13)) { std::string why; if (no::BuySkin(gCk.pr, i, &why)) { gCk.pr.skin = i; gCk.pick = i; CloakSave(); gCk.msg = "Bought " + SK[i].name + "."; } else gCk.msg = why; gCk.msgT = 4; }
+    }
+    // the wheel's forty: what you own, and what's still out there
+    Rectangle R1{SCREEN_W - 360.0f, 80, 340, 470}; DrawRectangleRounded(R1, 0.04f, 6, Fade(Color{20, 14, 10, 255}, 0.85f));
+    TxtBold("From the wheel", R1.x + 14, R1.y + 10, 18, brass);
+    static const char* TIERS[4] = {"common", "rare", "super", "special"}; static const Color TC[4] = {{200, 200, 190, 255}, {120, 170, 240, 255}, {200, 120, 240, 255}, {255, 210, 90, 255}};
+    int n = 0;
+    for (int tr = 0; tr < 4; tr++) for (int i = 0; i < (int)SK.size(); i++) {
+        if (SK[i].tier != TIERS[tr]) continue;
+        float x = R1.x + 12 + (n % 2) * 164, y = R1.y + 40 + (n / 2) * 21; n++;
+        bool own = no::OwnsSkin(gCk.pr, i);
+        Rectangle hit{x, y, 160, 19};
+        bool hov = CheckCollisionPointRec(GetMousePosition(), hit);
+        if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && own) { gCk.pick = i; gCk.pr.skin = i; CloakSave(); }
+        Txt(own ? SK[i].name : "? ? ?", x, y, 12, own ? (gCk.pr.skin == i ? brass : TC[tr]) : Fade(TC[tr], 0.4f));
+    }
+    // the brass wheel
+    {
+        Vector2 c{120, 600}; float R = 44, spin = gCk.spinT > 0 ? gCk.spinT * gCk.spinT * 9 : 0;
+        static float ang = 0; ang += spin * dt;
+        static const float SEG[4] = {0.6f, 0.25f, 0.12f, 0.03f};
+        float a0 = ang * RAD2DEG;
+        for (int k = 0; k < 4; k++) { DrawCircleSector(c, R, a0, a0 + SEG[k] * 360, 24, TC[k]); a0 += SEG[k] * 360; }
+        DrawRing(c, R, R + 5, 0, 360, 48, brass); DrawCircleV(c, 8, brass);
+        DrawTriangle({c.x - 7, c.y - R - 14}, {c.x + 7, c.y - R - 14}, {c.x, c.y - R + 2}, Color{200, 40, 40, 255});
+        if (Button({c.x + R + 20, c.y - 16, 150, 32}, TextFormat("Spin (%d token)", no::SpinCost()), gCk.pr.tokens >= no::SpinCost() && gCk.spinT <= 0, 14)) {
+            gCk.landed = no::SpinWheel(gCk.pr, (uint32_t)GetRandomValue(1, 1 << 30), &gCk.dup); gCk.spinT = 1.6f; CloakSave();
+        }
+    }
+    if (gCk.msgT > 0) DrawTextCenteredBold(gCk.msg, SCREEN_W / 2.0f, SCREEN_H - 96.0f, 16, Color{255, 220, 150, 255});
+    if (Button({SCREEN_W / 2.0f - 200, SCREEN_H - 60.0f, 120, 34}, "Wear nothing", gCk.pr.skin >= 0, 13)) { gCk.pr.skin = -1; gCk.pick = -1; CloakSave(); }
+    if (Button({SCREEN_W / 2.0f + 80, SCREEN_H - 60.0f, 120, 34}, "Back", true, 14) || IsKeyPressed(KEY_ESCAPE)) { gCk.loaded = false; return true; }
+    return false;
+}
+void DebugNightCloakroom(int which) {   // (--shots: a profile with tokens and a few skins)
+    static const char* DEMO[6] = {"goat", "pint", "bathtub", "headline", "captain", "matriarch"};
+    int pick = no::SkinIndex(DEMO[std::clamp(which, 0, 5)]);
+    gCk = Cloak{}; gCk.loaded = true; gCk.pr.tokens = 37; gCk.pr.skins = 1ull << pick;
+    for (const char* k : {"shoreleave", "dockhand", "pint", "lobster", "goat", "kidney", "bathtub", "headline"}) gCk.pr.skins |= 1ull << no::SkinIndex(k);
+    gCk.pr.bestHeadline = "SAILOR WINS KIDNEY BACK IN A HAND OF POKER";
+    gCk.pick = pick; gCk.pr.skin = pick;
 }

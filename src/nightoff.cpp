@@ -244,6 +244,9 @@ static void Finish(Night& n, Player& p, int i) {
 }
 void Night::Leave(Player& p, int ending, const std::string& where) {
     if (p.st == State::Gone || p.st == State::PassedOut) return;
+    if (ending == E_ARRESTED && policeConfusedT > 0 && p.skin >= 0 && p.skin < (int)Skins().size() && Skins()[p.skin].key == "constable") {   // (the Constable skin's joke)
+        Say("A constable salutes " + p.name + ", confused, and arrests the coat stand instead."); return;
+    }
     p.ending = ending;
     if (ending == E_PASSED_OUT) {
         // passed out: you wake somewhere, minus some money (doc p. 3); the bartender takes the tab first
@@ -405,6 +408,7 @@ void Night::Step(float dt) {
     StepCards(dt);
     StepMonkey(dt);
     StepSeason(dt);
+    policeConfusedT = std::max(0.0f, policeConfusedT - dt);
     // 3 a.m., or every night over
     bool anyone = false; for (const auto& p : players) anyone |= p.st != State::Gone && p.st != State::PassedOut;
     if (Minutes() >= endMinutes) { for (auto& p : players) if (p.st != State::Gone && p.st != State::PassedOut) Leave(p, p.st == State::Down ? E_KNOCKED_OUT : E_CLOSING, p.st == State::Down ? (CurBar() == BAR_MONKEY ? "on the Monkey's marble floor with a black eye" : "on the floor of the Gull with a black eye") : std::string("on the pavement outside ") + (CurBar() == BAR_MONKEY ? "the Monkey" : "the Gull") + " at 3 a.m., swept out with the glass"); anyone = false; }
@@ -423,6 +427,7 @@ int NightProfileChecks();
 int NightWaresChecks();
 int NightMonkeyChecks();
 int NightSeasonChecks();
+int NightSkinChecks();
 int RunNightTest() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
@@ -527,6 +532,8 @@ int RunNightTest() {
     fails += NightMonkeyChecks();
     // ---- stage 10d: seasonal nights
     fails += NightSeasonChecks();
+    // ---- stage 10e: skins and the token spin
+    fails += NightSkinChecks();
     printf(fails ? "A Night Off: %d check(s) FAILED\n" : "A Night Off: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

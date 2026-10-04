@@ -882,7 +882,10 @@ void SceneNightOff(Game& g);  // A Night Off, arcade game 6: one night ashore at
 void StartNightOff(Game& g, int crew = 0, int mode = 0, int crowd = 1, int bar = 0, int season = 0);
 namespace arcade { class Session; }
 void StartNightOffNet(Game& g, arcade::Session* net, const char* name, int crew);   // a networked night (host or guest)
-std::string NightOffOpts(int mode, int crowd, bool pvp, int bar = 0, int season = 0);                           // the host's options for the session
+std::string NightOffOpts(int mode, int crowd, bool pvp, int bar = 0, int season = 0);
+bool NightCloakroomPage();                           // A Night Off's cloakroom over the arcade: the store, the brass wheel, the wardrobe (true: Back)
+void DebugNightCloakroom(int which);                 // (--shots: 0-5, a demo skin)
+extern bool gNoCloakShot;                            // (--shots: open the cloakroom over the arcade)                           // the host's options for the session
 void LeaveNightOff(Game& g);
 void NightOffMenuTick(float dt);
 void DebugNightOffShot(Game& g, int which);

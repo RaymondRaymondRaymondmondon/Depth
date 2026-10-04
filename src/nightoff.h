@@ -155,7 +155,8 @@ struct Player {
     int cheatsCaught = 0, cheatsDone = 0; int bsSel = 0;   // (the card room)
     // the cartel's wares: which you've had, each one's effect and its catch afterwards (s), the Cocktail's roll, and its odder results
     std::string toast; float toastT = 0, steadyT = 0; bool letIn = false, ropeIn = false, juniperTold = false, ferried = false;
-    bool kissed = false, ate = false, toasted = false, objected = false; int ladderWins = 0;   // (the seasonal nights)   // (the Monkey's rope: bribed in; came from the street)   // (a private line for this player: why the cartel wouldn't sell, and so on)
+    bool kissed = false, ate = false, toasted = false, objected = false; int ladderWins = 0;
+    int skin = -1; bool lostGold = false; std::string skinText;   // (a skin; the Golden Kidney taken; the Headline costume's front page)   // (the seasonal nights)   // (the Monkey's rope: bribed in; came from the street)   // (a private line for this player: why the cartel wouldn't sell, and so on)
     uint16_t wares = 0; float wareT[W_COUNT] = {}, wareAfterT[W_COUNT] = {}; int cocktail = 0; float skipT = 0, sirenT = 0, bumpT = 0, barkeepT = 0; bool sureHome = false; uint32_t hallucSeed = 0;
     float priceMul = 1; float owedAtDoor = 0; bool blackEye = false; int kidneysAtStart = 2; int emote = 0; float emoteT = 0;   // (the profile's carry-overs; an emote)
     // the bot's mind (an AI seat, a dropped player, --night-sim): a style, a goal, a path, a pause
@@ -201,7 +202,19 @@ struct NightProfile {
     int tabsPaid[BAR_COUNT] = {}; float owed[BAR_COUNT] = {}; bool shotWindow[BAR_COUNT] = {};   // each bartender's memory (the Gull's, Celeste's): paid, unpaid, the window
     bool blackEye = false; float hangover = 0; float debt = 0;  // tomorrow's face, head and creditors
     std::vector<std::pair<std::string, int>> feuds, friends;   // regulars (and nights left: three)
+    // the arcade tokens and the skins (doc pp. 37-40; nightoff_skins.cpp)
+    int tokens = 0, skin = -1, spins = 0; uint64_t skins = 0; uint32_t seasonsDone = 0; std::string bestHeadline;
 };
+struct SkinDef { std::string key, name, tier, shape, look; int cost = 0; Color top{}, trousers{}, hat{}; };
+const std::vector<SkinDef>& Skins();
+int SkinIndex(const std::string& key);
+int SpinCost();
+int SpinSkin(uint32_t& rng);                                    // a roll of the wheel (by the tiers' odds)
+bool OwnsSkin(const NightProfile& pr, int skin);
+bool BuySkin(NightProfile& pr, int skin, std::string* why);
+int SpinWheel(NightProfile& pr, uint32_t seed, bool* duplicate);   // one token, one skin (-1: no tokens)
+struct Night;
+int NightTokens(const Night& n, const Player& p, NightProfile& pr, std::vector<std::string>& lines);
 NightProfile LoadNightProfile(const std::string& path);
 void SaveNightProfile(const NightProfile& pr, const std::string& path);
 std::string ProfileSummary(const NightProfile& pr);           // (a guest sends it with hello; the host applies it)
@@ -230,6 +243,7 @@ struct Night {
     float Charisma(const Player& p) const;
     // the cartel's wares (nightoff_wares.cpp)
     int goatOwner = -1;                               // (the Cocktail's fourth outcome: the goat is yours)
+    float policeConfusedT = 0;                        // (a Constable skin: the police are confused for 10 s)
     // the Brass Monkey's house rules (nightoff_monkey.cpp)
     bool seanceDone = false;
     bool AtRope(const Player& p) const;

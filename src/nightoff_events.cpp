@@ -139,6 +139,7 @@ void Night::StartEvent(int i) {
     if (k == "bikers") for (int b = 0; b < 6; b++) { Prop bike; bike.kind = "bike"; bike.pos = {24.0f + b * 1.6f, 0, 44.5f}; bike.yaw = 0.3f; props.push_back(bike); }
     if (k == "wake") { Prop coffin; coffin.kind = "coffin"; coffin.pos = {17, 1.15f, 9.5f}; props.push_back(coffin); for (auto& c : patrons) if (c.inside && !c.gone && c.ev < 0) c.mood = std::min(c.mood, 45.0f); }
     if (k == "police") {
+        for (const auto& q : players) if (q.skin >= 0 && q.skin < (int)Skins().size() && Skins()[q.skin].key == "constable" && q.st == State::Active) { policeConfusedT = 10; Say("The inspector sees " + q.name + "'s uniform and stops. \"...Sergeant?\""); break; }
         policeT = -1; policeInT = e.N("minutes", 25) * SECONDS_PER_GAME_MINUTE; for (auto& p : players) p.checked = false; SendHome(ED().sendHome);
         // they come for the brawl: anyone who was fighting in the last ten minutes (unless hiding in the toilets, or bribed)
         for (auto& p : players) if ((p.st == State::Active || p.st == State::Down || p.st == State::Drinking) && t - p.lastFightT < 10 * SECONDS_PER_GAME_MINUTE && RoomAt(p.pos) != std::string("The toilets") && !p.bribed) {
