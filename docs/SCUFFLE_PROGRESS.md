@@ -92,6 +92,41 @@ The user is away (order of 2026-10-04: build it after A Night Off, don't stop). 
   spawn, pistons, the elevator, vents, the rail, the propeller, the tube, glass, rope, ice, conveyors, wrapping),
   `--scuffle-verify-all`, `--scuffle-verify <code>`. Shots `scuffle_editor`, `scuffle_editor_engine`.
 
+## Stage 4: multiplayer (done)
+- **The arcade seats eight now** (`arcade::MAX_PLAYERS` 8, `PROTOCOL` 4; every other game still caps itself through
+  `Info().maxPlayers`; the lobby draws slimmer rows when a game seats more than six; two more AI seat names).
+- `scuffle_net.h/.cpp`: the host (`G_SCUFFLE` is built; 30 snapshots a second) runs the real `Match` at 120 Hz. Every
+  person's play, the host's own included, is a stream of numbered, quantised inputs (`InputFrame`, `QuantizeInput`,
+  `WriteInputs`: moves as signed bytes, the aim as a 16-bit angle, jump/fire/taunt bits). The host plays each seat's
+  inputs in order, one a step (a backlog over 12 is caught up by dropping the oldest), and a seat that goes quiet for
+  1.5 s, or an AI seat, is fought by the bot. Each snapshot is the whole match (one templated `Visit`: the stage with
+  its live tiles and pieces, every stick's every field, items, bullets, the last 32 events) for one viewer, with the
+  number of that viewer's last played input (the ack); compressed and checksummed (about 2.6 KB).
+- **The guest predicts** (`Predictor`): it steps its mirror with its own inputs at once; on each snapshot it starts again
+  from the host's match and replays the inputs the host hasn't played yet. Everyone else is carried on their last
+  movement but never their last attack (a punch or a shot the host hasn't seen would land here and be taken back).
+  The scene then glides whatever the snapshot moved (`S.vis`, fading in about a tenth of a second); the splashes come
+  only from the host's events.
+- The scene: `StartScuffleNet` (the arcade starts it for host and guests), names from the session over the sticks and
+  on the scoreboard, your box lit, "Waiting for a lost player", the match's end (the host: Rematch / Back to the lobby;
+  a guest: Leave the table), the game menu keeps the session talking (`ScuffleMenuTick`: your stick stands and the bot
+  takes over after 1.5 s). The lobby: the host picks first to 3/5/10, the arsenal, and the AI seats' skill.
+- Calls made: a lost player doesn't pause the fight (`pauseOnLost` false; the bot stands in at once, and the player
+  can rejoin with their token); friendly fire, teams and modes arrive with stage 7.
+- **The gate:** `depth.exe --net-loop scuffle 100` (GameNetworkingSockets on loopback, 100 ms added to every packet
+  each way: 200 ms round trip, harsher than the doc's "100 ms"): a host and seven guests whose inputs come from a
+  bot's mind on their own mirror; the match is played out and every guest agrees on the rounds and the champion.
+  Own-stick corrections with no one in reach: 99th percentile 0.000 m, worst 0.03 m, none over 10 cm. In a fight
+  (someone within 3 m, a shot or blast near, or hit), corrections are real and unavoidable at that lag (another
+  stick's next punch can't be known); the scene glides them.
+- Checks: `--scuffle-net-test` (inputs round-trip quantised the same on both ends; the mirror writes back byte for
+  byte; a packed snapshot reads to the same world; the mirror steps exactly like the host; damaged or cut-short
+  snapshots refused; a guest's numbered inputs drive its stick with zero correction; hello names; a quiet guest's bot),
+  `--net-loop scuffle [lagMs] [mem]`. Shots `scuffle_guest`, `arcade_lobby_scuffle`. `DEPTH_NETTRACE=1` prints every
+  large correction made while free.
+- For stage 9 (internet play): snapshots are full floats at 30 Hz, about 80 KB/s for each guest; quantising the
+  particles would roughly halve it.
+
 ## Next
-Stage 4: multiplayer (host-authoritative snapshots on the arcade session, `G_SCUFFLE` built, eight players on a LAN).
-Gate: eight players at 100 ms with no visible correction.
+Stage 5: the other five worlds (the Cave, the Reef, Atlantis, the Void, the Salon) with their hazards, the generator,
+and each world's finale.

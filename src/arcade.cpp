@@ -3,6 +3,7 @@
 //  The session and the rules live in arcade_session.* and scuttle.* (no raylib); this file only draws and clicks.
 // ============================================================================
 #include "mouthful.h"
+#include "scuffle.h"
 #include "game.h"
 #include "nightoff.h"
 #include "arcade_session.h"
@@ -236,7 +237,7 @@ void DrawReels(Game& g) {
             gError.clear();
             if (k == 0) {
                 std::string err;
-                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason) : ""; }
+                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason) : selGame == G_SCUFFLE ? ScuffleOpts(5, 0, 2) : ""; }
                 else gError = "Couldn't host: " + err;
             } else if (k == 1) { gMode = MODE_JOIN; gJoinFocus = true; }
             else gMode = MODE_BROWSE;
@@ -299,7 +300,7 @@ void DrawReels(Game& g) {
         if (Button({c.x + 120, c.y + 236, 170, 36}, "Roost wardrobe", true, 14)) { gFlWardrobe = true; return; }
         DrawTextCentered("Host or Join to fly with friends (2-6; the host picks the map and the length in the lobby)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
-    if (selGame == G_SCUFFLE) {   // solo: you and the bots on the stone stage (stage 1; LAN comes with stage 4)
+    if (selGame == G_SCUFFLE) {   // solo: you and the bots (Host or Join above for friends: up to eight sticks)
         static int sfBots = 3, sfSkill = 2, sfToWin = 1;
         static const char* SKILL[3] = {"Stumble bots", "Scrap bots", "Sharp bots"};
         static const int TOWIN[3] = {5, 10, 20};
@@ -315,6 +316,7 @@ void DrawReels(Game& g) {
         row(c.y + 42, TextFormat("first to %d", TOWIN[sfToWin]), sfToWin, 3, 0);
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Fight (solo)", true, 15)) { StartScuffle(g, sfBots, sfSkill, TOWIN[sfToWin]); return; }
         if (Button({c.x - 110, c.y + 278, 220, 30}, "The editor", true, 13)) { StartScuffleEditor(g); return; }
+        DrawTextCentered("Host or Join to fight friends (2-8; the host picks the rounds and the arsenal in the lobby)", c.x, c.y + 316, 13, SCREEN_DIM);
     }
     if (selGame == G_NIGHT_OFF) {   // solo: one sailor, the bar, the night (the modes that make sense alone; Host above for friends)
         static const char* CREW[6] = {"the Diver", "the Whaler", "the Stowaway", "the Mechanic", "the Captain", "the Nurse"};
@@ -516,28 +518,30 @@ void DrawLobby() {
     }
     float y = p.y + 110;
     int maxP = Info(gSess.game).maxPlayers;
+    const float rowH = maxP > 6 ? 34 : 52, rowStep = maxP > 6 ? 38 : 60;   // (eight seats: slimmer rows)
     for (int i = 0, shown = 0; i < MAX_PLAYERS && shown < maxP; i++) {
         const SeatInfo& s = gSess.seats[i];
         if (!s.used) continue;
         shown++;
-        Rectangle row{p.x + 30, y, p.width - 60, 52};
+        Rectangle row{p.x + 30, y, p.width - 60, rowH};
         DrawRectangleRounded(row, 0.2f, 6, i == gSess.mySeat ? Color{24, 96, 96, 255} : Color{16, 70, 74, 255});
-        DrawCrab({row.x + 32, row.y + 30}, CRAB[std::min(shown - 1, 3)], (float)GetTime(), 0, false, 0.8f);
-        TxtBold(s.name + (s.host ? "  (host)" : s.ai ? "  (AI)" : ""), row.x + 66, row.y + 8, 20, SCREEN_INK);
-        Txt(s.lost ? "lost connection" : s.ready ? "ready" : "not ready", row.x + 66, row.y + 30, 15, s.lost ? Pal::Coral : s.ready ? Pal::Good : SCREEN_DIM);
-        if (!s.ai && !s.host && s.ping) Txt(TextFormat("%d ms", s.ping), row.x + row.width - 220, row.y + 17, 15, SCREEN_DIM);
+        bool slim = rowH < 40;
+        DrawCrab({row.x + 32, row.y + rowH * 0.58f}, CRAB[std::min(shown - 1, 3)], (float)GetTime(), 0, false, slim ? 0.55f : 0.8f);
+        TxtBold(s.name + (s.host ? "  (host)" : s.ai ? "  (AI)" : ""), row.x + 66, row.y + (slim ? 7 : 8), slim ? 18 : 20, SCREEN_INK);
+        Txt(s.lost ? "lost connection" : s.ready ? "ready" : "not ready", slim ? row.x + 300 : row.x + 66, row.y + (slim ? 9 : 30), 15, s.lost ? Pal::Coral : s.ready ? Pal::Good : SCREEN_DIM);
+        if (!s.ai && !s.host && s.ping) Txt(TextFormat("%d ms", s.ping), row.x + row.width - 220, row.y + rowH / 2 - 9, 15, SCREEN_DIM);
         if (i == gSess.mySeat && BetWallet(gSess.game) >= 0 && gSess.stage == S_LOBBY) DrawBetControls(row);
         else if (s.bet > 0 && s.betOn >= 0 && gSess.seats[s.betOn].used) Txt(TextFormat("bets %d on %s", s.bet, gSess.seats[s.betOn].name.c_str()), row.x + 270, row.y + 30, 14, Pal::Brass);
-        if (host && i != 0 && Button({row.x + row.width - 120, row.y + 8, 108, 36}, s.ai ? "Remove" : "Give away", true, 15)) gSess.RemoveSeat(i);
-        y += 60;
+        if (host && i != 0 && Button({row.x + row.width - 120, row.y + (rowH - 36) / 2, 108, 36}, s.ai ? "Remove" : "Give away", true, 15)) gSess.RemoveSeat(i);
+        y += rowStep;
     }
     int used = 0; for (auto& s : gSess.seats) used += s.used;
     for (int k = used; k < maxP; k++) {
-        Rectangle row{p.x + 30, y, p.width - 60, 52};
+        Rectangle row{p.x + 30, y, p.width - 60, rowH};
         DrawRectangleRoundedLinesEx(row, 0.2f, 6, 1.5f, Fade(SCREEN_DIM, 0.4f));
-        Txt("an empty seat", row.x + 66, row.y + 17, 16, Fade(SCREEN_DIM, 0.6f));
-        if (host && k == used && Button({row.x + row.width - 120, row.y + 8, 108, 36}, "Add AI", true, 15)) gSess.AddAI();
-        y += 60;
+        Txt("an empty seat", row.x + 66, row.y + rowH / 2 - 9, 16, Fade(SCREEN_DIM, 0.6f));
+        if (host && k == used && Button({row.x + row.width - 120, row.y + (rowH - 36) / 2, 108, 36}, "Add AI", true, 15)) gSess.AddAI();
+        y += rowStep;
     }
     if (gSess.game == G_RED_TIDE && host) {
         // the host picks the water (the guests hear it in the chat)
@@ -618,6 +622,27 @@ void DrawLobby() {
         gSess.gameOpts = MouthfulOpts(LENS[mfLen], mfLevel, 12, gMfMode, gMfPath);
         if (ch) gSess.Chat(TextFormat("The round: %s, %d minutes, %s filling the water to twelve", mf::ModeName(gMfMode), LENS[mfLen], LEVELS[mfLevel]));
     }
+    if (gSess.game == G_SCUFFLE && host) {
+        // the host picks the rounds to win, the arsenal (doc p. 6) and how sharp the AI seats fight
+        static int sfWin = 1, sfArs = 0, sfSkill = 2;
+        static const int WINS[3] = {3, 5, 10};
+        static const char* SKILLS[3] = {"Stumble AI", "Scrap AI", "Sharp AI"};
+        auto pick = [&](float x, float y, const char* text, int& v, int n) {
+            Rectangle l{x - 130, y, 26, 26}, r{x + 104, y, 26, 26};
+            DrawTextCenteredBold("<", l.x + 13, l.y + 2, 20, Pal::Brass); DrawTextCenteredBold(">", r.x + 13, r.y + 2, 20, Pal::Brass);
+            DrawTextCenteredBold(text, x, y + 3, 16, Color{230, 200, 150, 255});
+            bool ch = false;
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = (v + n - 1) % n; ch = true; }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = (v + 1) % n; ch = true; }
+            return ch;
+        };
+        float yy = p.y + p.height - 100;
+        bool ch = pick(p.x + 170, yy, TextFormat("first to %d", WINS[sfWin]), sfWin, 3);
+        ch |= pick(p.x + 170, yy + 32, TextFormat("%s arsenal", sf::ArsenalName(sfArs)), sfArs, sf::AR_COUNT);
+        ch |= pick(p.x + 440, yy, SKILLS[sfSkill], sfSkill, 3);
+        gSess.gameOpts = ScuffleOpts(WINS[sfWin], sfArs, sfSkill);
+        if (ch) gSess.Chat(TextFormat("The fight: first to %d, the %s arsenal", WINS[sfWin], sf::ArsenalName(sfArs)));
+    }
     if (gSess.game == G_NIGHT_OFF) {
         // the host picks the mode (doc p. 24), the crowd (Dead, Normal, Packed, Random) and whether sailors may fight each other;
         // everyone picks who they go ashore as
@@ -649,7 +674,7 @@ void DrawLobby() {
     if (host) {
         std::string why;
         bool can = gSess.CanLaunch(&why);
-        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : gSess.game == G_MOUTHFUL ? "Into the water" : gSess.game == G_NIGHT_OFF ? "Go ashore" : "Start the race";
+        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : gSess.game == G_MOUTHFUL ? "Into the water" : gSess.game == G_NIGHT_OFF ? "Go ashore" : gSess.game == G_SCUFFLE ? "Fight!" : "Start the race";
         if (Button({p.x + p.width - 250, p.y + p.height - 66, 220, 50}, go, can, 20)) { std::string w2; gSess.Launch(&w2); }
         if (!can) Txt(why, p.x + 30, p.y + p.height - 50, 15, SCREEN_DIM);
     } else if (gSess.mySeat >= 0) {
@@ -1072,6 +1097,7 @@ void DrawRoom(Game& g) {
             if (gSess.game == G_FLIGHT) { StartFlightNet(g, &gSess, FlightFounderKey(gFlSel), gProfile.name.c_str()); return; }   // into the air (host or guest)
             if (gSess.game == G_MOUTHFUL) { StartMouthfulNet(g, &gSess, gProfile.name.c_str()); return; }                            // into the water (host or guest)
             if (gSess.game == G_NIGHT_OFF) { StartNightOffNet(g, &gSess, gProfile.name.c_str(), gNoCrew); return; }                  // ashore (host or guest)
+            if (gSess.game == G_SCUFFLE) { StartScuffleNet(g, &gSess, gProfile.name.c_str()); return; }                              // into the ring (host or guest)
             DrawTable(g);
             break;
         case S_ENDED: {
@@ -1156,8 +1182,9 @@ void DebugArcadeShot(int which) {
     if (!gProfileLoaded) LoadProfile();
     std::string err;
     SetAudioSuppressed(true);
-    gSess.Host(gProfile, which == 10 ? G_RED_TIDE : G_SCUTTLE, &err, 47791, net::MakeMemoryTransport(), false);
+    gSess.Host(gProfile, which == 10 ? G_RED_TIDE : which == 11 ? G_SCUFFLE : G_SCUTTLE, &err, 47791, net::MakeMemoryTransport(), false);
     gSess.AddAI(); gSess.AddAI();
+    if (which == 11) { for (int k = 0; k < 4; k++) gSess.AddAI(); gSess.Chat("Eight sticks: who's first in?"); gMode = MODE_ROOM; SetAudioSuppressed(false); return; }   // (11: a Scuffle lobby, six AI seats and one empty)
     gSess.Chat("Ahoy!");
     gMode = MODE_ROOM;
     if (which == 10) { gSess.seats[1].betOn = 2; gSess.seats[1].bet = 15; gSess.PlaceBet(1, 20); return; }   // (10: a Red Tide lobby with bets: mine on the first AI, one shown for the second)

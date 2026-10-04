@@ -881,6 +881,9 @@ void SceneFlight(Game& g);    // The Flight, arcade game 7: the Founder flown ov
 void SceneScuffle(Game& g);    // Scuffle, arcade game 9: the stick fight (scuffle_game.cpp)
 void StartScuffle(Game& g, int bots = 3, int skill = 2, int toWin = 5);
 void LeaveScuffle(Game& g);
+void StartScuffleNet(Game& g, arcade::Session* net, const char* name);   // a networked match (host or guest; scuffle_net.cpp)
+void ScuffleMenuTick(float dt);                                          // (the game menu is open: the fight goes on)
+std::string ScuffleOpts(int toWin, int arsenal, int skill);
 void StartScuffleEditor(Game& g);   // the level editor (doc p. 17): paint, check, share by code, play now
 void DebugScuffleEditorShot(Game& g, int which);
 void DebugScuffleShot(Game& g, int which);

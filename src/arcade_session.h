@@ -14,12 +14,12 @@
 
 namespace arcade {
 
-constexpr int MAX_PLAYERS = 6;
+constexpr int MAX_PLAYERS = 8;      // (Scuffle seats eight; the other games cap themselves through Info().maxPlayers)
 constexpr int BET_CAP = 50;              // the most a player may stake on a match (tokens)
 // a bet's return: a right pick pays the stake times the players at the table, shared among the winners (a level
 // match among everyone gives the stake back); a wrong pick pays nothing
 inline int BetPayout(int stake, int players, int winners, bool right) { return right && winners > 0 ? (int)((long long)stake * players / winners) : 0; }
-constexpr uint8_t PROTOCOL = 3;   // (3: big real-time snapshots go in parts)
+constexpr uint8_t PROTOCOL = 4;   // (3: big real-time snapshots go in parts; 4: eight seats)
 constexpr double LOST_AFTER = 6.0, TAKEOVER_AFTER = 120.0, PING_EVERY = 1.0, BEACON_EVERY = 1.0;
 
 struct Profile { std::string name = "Diver"; uint64_t id = 0; };
@@ -106,7 +106,7 @@ private:
     struct Pending { int conn; double since; };
     std::vector<Pending> pending;         // host: connected, no HELLO yet
     std::unique_ptr<GameHost> truth;      // host: the real game
-    int playerSeat[MAX_PLAYERS] = {-1, -1, -1, -1, -1, -1};   // game player -> lobby seat
+    int playerSeat[MAX_PLAYERS] = {-1, -1, -1, -1, -1, -1, -1, -1};   // game player -> lobby seat
     uint32_t rng = 1, snapSeq = 0, lastSeq = 0;
     uint32_t partSeq = 0; int partsHave = 0; std::vector<std::vector<uint8_t>> parts;   // client: a big snapshot arriving in parts
     std::vector<uint8_t> snapshot;

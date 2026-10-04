@@ -4,6 +4,8 @@
 // play goes through sf::Input (Gather); the engine is scuffle.cpp.
 #include "game.h"
 #include "scuffle.h"
+#include "scuffle_net.h"
+#include "arcade_session.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -20,6 +22,9 @@ struct ScuffleScene {
     Vector2 cam{}; float zoom = 60;
     std::vector<Blot> blots; uint32_t evSeen = 0;
     std::vector<Vector2> grain;
+    // a networked match (stage 4): the host draws a copy of its real match, a guest its predicted mirror
+    arcade::Session* net = nullptr; sf::Predictor pred; int me = 0; std::vector<std::string> names;
+    Vector2 vis[sf::MAX_STICKS] = {}; int seenVersion = -1; bool helloSent = false; std::string netName; uint32_t hostSeq = 1;
 };
 ScuffleScene S;
 const Color PAPER{226, 214, 186, 255}, INK{30, 24, 20, 255}, STONE{150, 138, 120, 255};
@@ -27,7 +32,10 @@ Color StickColor(int i) {
     static const Color C[sf::MAX_STICKS] = {{200, 50, 50, 255}, {50, 90, 200, 255}, {60, 150, 70, 255}, {220, 170, 30, 255}, {140, 70, 170, 255}, {230, 120, 40, 255}, {40, 160, 160, 255}, {220, 100, 150, 255}};
     return C[std::clamp(i, 0, sf::MAX_STICKS - 1)];
 }
-const char* StickName(int i) { static const char* N[sf::MAX_STICKS] = {"You", "Old Marlow", "Big Ruth", "Sly Pennick", "Cutter Jones", "Pip", "Nellie Bright", "Boxer Mags"}; return N[std::clamp(i, 0, sf::MAX_STICKS - 1)]; }
+const char* StickName(int i) {
+    if (i >= 0 && i < (int)S.names.size() && !S.names[i].empty()) return S.names[i].c_str();
+    static const char* N[sf::MAX_STICKS] = {"You", "Old Marlow", "Big Ruth", "Sly Pennick", "Cutter Jones", "Pip", "Nellie Bright", "Boxer Mags"}; return N[std::clamp(i, 0, sf::MAX_STICKS - 1)];
+}
 Vector2 W2S(Vector2 w) { return {(w.x - S.cam.x) * S.zoom + SCREEN_W / 2.0f, SCREEN_H / 2.0f - (w.y - S.cam.y) * S.zoom}; }
 Vector2 S2W(Vector2 s) { return {(s.x - SCREEN_W / 2.0f) / S.zoom + S.cam.x, (SCREEN_H / 2.0f - s.y) / S.zoom + S.cam.y}; }
 
@@ -284,7 +292,7 @@ void DrawHud() {
     float x = 16;
     for (int i = 0; i < S.players; i++) {
         const sf::Stick& k = M.w.sticks[i];
-        DrawRectangleRounded({x, 12, 150, 38}, 0.3f, 6, ColorAlpha(Color{20, 16, 14, 255}, 0.75f));
+        DrawRectangleRounded({x, 12, 150, 38}, 0.3f, 6, ColorAlpha(i == S.me && S.net ? Color{60, 44, 30, 255} : Color{20, 16, 14, 255}, 0.75f));
         DrawCircleV({x + 13, 25}, 7, k.alive ? StickColor(i) : Color{110, 106, 100, 255});
         Txt(StickName(i), x + 26, 16, 13, Color{240, 230, 210, 255});
         Txt(TextFormat("%d", M.score[i]), x + 26, 33, 11, Color{200, 190, 170, 255});
@@ -293,15 +301,15 @@ void DrawHud() {
     }
     DrawTextCentered(TextFormat("Round %d   -   first to %d   -   %s%s", M.round, S.toWin, M.w.stage.name.c_str(), M.w.finale ? "   (match point: the wall at 30 s)" : ""), SCREEN_W / 2.0f, 58, 14, INK);
     // your weapon and its ammo
-    const sf::Stick& me = M.w.sticks[0];
+    const sf::Stick& me = M.w.sticks[std::clamp(S.me, 0, (int)M.w.sticks.size() - 1)];
     if (me.weapon >= 0 && me.weapon < (int)M.w.items.size()) { const sf::Item& it = M.w.items[me.weapon]; const sf::WeaponDef& d = sf::Weapons()[it.weapon]; DrawTextCenteredBold(d.kind == "gun" ? TextFormat("%s   %d", d.name.c_str(), it.ammo) : d.name.c_str(), SCREEN_W / 2.0f, SCREEN_H - 50.0f, 18, it.ammo == 0 && d.kind == "gun" ? Color{170, 60, 40, 255} : INK); if (it.ammo == 0 && d.kind == "gun") DrawTextCentered("(empty: click to throw it)", SCREEN_W / 2.0f, SCREEN_H - 30.0f, 12, INK); }
     if (S.wallMsgT > 0) DrawTextCenteredBold("The bulkheads are flooding!", SCREEN_W / 2.0f, 90, 26, Color{40, 70, 110, 255});
     if (M.phase == sf::Match::P_COUNT) DrawTextCenteredBold("FIGHT!", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 56, Color{40, 30, 26, (unsigned char)(255 * std::clamp(1.4f - M.phaseT, 0.0f, 1.0f))});
-    if (M.phase == sf::Match::P_WIN) DrawTextCenteredBold(M.roundWinner >= 0 ? TextFormat("%s %s the round", StickName(M.roundWinner), M.roundWinner == 0 ? "take" : "takes") : "A draw: everyone at once", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 34, M.roundWinner >= 0 ? StickColor(M.roundWinner) : INK);
+    if (M.phase == sf::Match::P_WIN) DrawTextCenteredBold(M.roundWinner >= 0 ? TextFormat("%s %s the round", StickName(M.roundWinner), M.roundWinner == S.me && !S.net ? "take" : "takes") : "A draw: everyone at once", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 34, M.roundWinner >= 0 ? StickColor(M.roundWinner) : INK);
     if (M.phase == sf::Match::P_OVER) {
         int best = std::max(0, M.champion);
         DrawRectangle(0, 0, SCREEN_W, SCREEN_H, ColorAlpha(PAPER, 0.8f));
-        DrawTextCenteredBold(TextFormat("%s %s the match", StickName(best), best == 0 ? "win" : "wins"), SCREEN_W / 2.0f, SCREEN_H / 2.0f - 90, 44, StickColor(best));
+        DrawTextCenteredBold(TextFormat("%s %s the match", StickName(best), best == S.me && !S.net ? "win" : "wins"), SCREEN_W / 2.0f, SCREEN_H / 2.0f - 90, 44, StickColor(best));
         for (int i = 0; i < S.players; i++) DrawTextCentered(TextFormat("%s: %d rounds, %d points", StickName(i), M.wins[i], M.score[i]), SCREEN_W / 2.0f, SCREEN_H / 2.0f - 30 + i * 22.0f, 16, INK);
     }
     if (M.phase != sf::Match::P_OVER) DrawTextCentered("A/D run   W or Space jump   S duck (or dive in the air; duck on a gun to swap)   mouse aims, click fires or punches (hold against someone: grab)   T taunt", SCREEN_W / 2.0f, SCREEN_H - 14.0f, 11, ColorAlpha(INK, 0.6f));
@@ -318,14 +326,105 @@ void StartScuffle(Game& g, int bots, int skill, int toWin) {
     S.cam = {S.M.w.stage.Width() / 2, S.M.w.stage.Height() / 2}; S.zoom = 60; S.lastRound = S.M.round;
     g.scene = Scene::Scuffle;
 }
+// ---------------------------------------------------------------- a networked match (stage 4)
+void StartScuffleNet(Game& g, arcade::Session* net, const char* name) {
+    S = ScuffleScene{};
+    S.active = true; S.net = net; S.netName = name ? name : "Stick"; S.me = std::max(0, net->MyPlayer());
+    uint32_t h = 99; for (int i = 0; i < 700; i++) { h = h * 1664525u + 1013904223u; float x = (float)((h >> 8) % SCREEN_W); h = h * 1664525u + 1013904223u; S.grain.push_back({x, (float)((h >> 8) % SCREEN_H)}); }
+    S.zoom = 60; S.lastRound = -1;
+    g.scene = Scene::Scuffle;
+}
+std::string ScuffleOpts(int toWin, int arsenal, int skill) { return sf::ScuffleHostOpts(toWin, arsenal, skill); }
+// the host: its own stick's inputs go through the session numbered like anyone's; it draws a copy of the real match.
+// A guest: reads each snapshot into the predictor (which replays what the host hasn't used yet), steps its own stick
+// ahead, and glides whatever the snapshot moved (S.vis fades in about a tenth of a second)
+static bool NetTick(float dt, bool steer) {
+    arcade::Session& N = *S.net;
+    N.Update(GetTime(), dt);
+    if (N.stage != arcade::S_PLAYING) return false;
+    if (!S.helloSent) { Writer o; sf::OrderHello(o, S.netName); N.Act(o); S.helloSent = true; }
+    std::vector<sf::InputFrame> box;
+    if (N.role == arcade::R_HOST) {
+        sf::Match* hm = sf::ScuffleHostMatch(N.HostGame());
+        if (!hm) return true;
+        S.me = std::clamp(N.MyPlayer(), 0, (int)hm->w.sticks.size() - 1);
+        S.acc += dt;
+        while (S.acc >= sf::STEP) { S.acc -= sf::STEP; sf::Input in; if (steer) Gather(in, hm->w.sticks[S.me]); box.push_back({S.hostSeq++, sf::QuantizeInput(in)}); }
+        if (!box.empty() && steer) { Writer w; sf::WriteInputs(box, w); N.Act(w); }
+        S.M = *hm; if (const auto* nm = sf::ScuffleHostNames(N.HostGame())) S.names = *nm;
+        return true;
+    }
+    sf::Predictor& P = S.pred;
+    if (N.stateVersion != S.seenVersion && !N.Snapshot().empty()) {
+        S.seenVersion = N.stateVersion;
+        bool had = P.have; int rb = P.m.round; Vector2 before[sf::MAX_STICKS] = {};
+        if (had) for (size_t i = 0; i < P.m.w.sticks.size() && i < (size_t)sf::MAX_STICKS; i++) before[i] = P.m.w.sticks[i].pt[sf::J_PELVIS].p;
+        Reader r(N.Snapshot());
+        if (P.Apply(r)) {
+            for (size_t i = 0; i < P.m.w.sticks.size() && i < (size_t)sf::MAX_STICKS; i++) {
+                Vector2 d = Vector2Subtract(before[i], P.m.w.sticks[i].pt[sf::J_PELVIS].p);
+                S.vis[i] = had && rb == P.m.round && Vector2Length(Vector2Add(S.vis[i], d)) < 2.0f ? Vector2Add(S.vis[i], d) : Vector2{0, 0};
+            }
+        }
+    }
+    if (!P.have) return true;
+    S.me = P.me;
+    if (steer) {
+        S.acc += dt;
+        while (S.acc >= sf::STEP) { S.acc -= sf::STEP; sf::Input in; Gather(in, P.m.w.sticks[P.me]); P.Local(in, box); }
+        if (!box.empty()) { Writer w; sf::WriteInputs(box, w); N.Act(w); }
+    }
+    return true;
+}
+static void NetFrame(Game& g, float dt) {
+    if (!NetTick(dt, true)) { S.net = nullptr; S.active = false; g.scene = Scene::Arcade; return; }
+    arcade::Session& N = *S.net;
+    bool host = N.role == arcade::R_HOST;
+    if (!host) {
+        if (!S.pred.have) { ClearBackground(PAPER); DrawTextCenteredBold("Into the ring...", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 24, INK); return; }
+        S.M = S.pred.m; S.M.w.events = S.pred.hostEvents; S.M.w.eventBase = S.pred.hostEventBase; S.names = S.pred.names;
+        // the glide: each stick (and what it holds) drawn where it was, easing to where it is
+        float k = expf(-dt * 14);
+        for (size_t i = 0; i < S.M.w.sticks.size() && i < (size_t)sf::MAX_STICKS; i++) {
+            S.vis[i] = Vector2Scale(S.vis[i], k);
+            sf::Stick& s = S.M.w.sticks[i];
+            for (auto& p : s.pt) p.p = Vector2Add(p.p, S.vis[i]);
+            if (s.weapon >= 0 && s.weapon < (int)S.M.w.items.size()) { auto& it = S.M.w.items[s.weapon]; it.a.p = Vector2Add(it.a.p, S.vis[i]); it.b.p = Vector2Add(it.b.p, S.vis[i]); }
+        }
+    }
+    S.players = S.M.players; S.toWin = S.M.toWin;
+    if (S.M.round != S.lastRound) { S.lastRound = S.M.round; S.blots.clear(); S.evSeen = S.M.w.eventBase + (uint32_t)S.M.w.events.size(); }
+    ReadEvents();
+    StepCamera(dt);
+    DrawStage();
+    for (const auto& k : S.M.w.sticks) if (!k.alive) DrawStick(k);
+    for (const auto& k : S.M.w.sticks) if (k.alive) { DrawStick(k); DrawHeld(k); }
+    DrawArms();
+    DrawBlots(dt);
+    DrawHud();
+    if (N.paused) DrawTextCenteredBold(TextFormat("Waiting for a lost player (%.0f s)", N.pauseLeft), SCREEN_W / 2.0f, 120, 18, Color{150, 50, 40, 255});
+    if (S.M.Over()) {
+        if (host) {
+            std::string why;
+            if (Button({SCREEN_W / 2.0f - 230, SCREEN_H / 2.0f + 160, 200, 40}, "Rematch", true, 16)) { N.Rematch(&why); S.lastRound = -1; S.blots.clear(); }
+            if (Button({SCREEN_W / 2.0f + 30, SCREEN_H / 2.0f + 160, 200, 40}, "Back to the lobby", true, 16)) { N.BackToLobby(); S.net = nullptr; S.active = false; g.scene = Scene::Arcade; }
+        } else {
+            DrawTextCentered("The host chooses: a rematch, or back to the lobby.", SCREEN_W / 2.0f, SCREEN_H / 2.0f + 140, 15, INK);
+            if (Button({SCREEN_W / 2.0f - 100, SCREEN_H / 2.0f + 170, 200, 40}, "Leave the table", true, 16)) { N.Leave(); S.net = nullptr; S.active = false; g.scene = Scene::Arcade; }
+        }
+    }
+}
+void ScuffleMenuTick(float dt) { if (S.active && S.net) NetTick(dt, false); }   // (my stick stands; after 1.5 s the host's bot fights for me)
+
 static bool EditorFrame(Game& g);
 static bool EditorPlaying();
 static void EditorBackFromPlay();
 void SceneScuffle(Game& g) {
+    float dt = std::min(GetFrameTime(), 1 / 20.0f);
+    if (S.active && S.net) { S.t += dt; S.wallMsgT = std::max(0.0f, S.wallMsgT - dt); NetFrame(g, dt); return; }
     if (EditorFrame(g)) return;
     if (EditorPlaying() && IsKeyPressed(KEY_P)) { EditorBackFromPlay(); return; }
     if (!S.active) { StartScuffle(g, 3, 2, 5); }
-    float dt = std::min(GetFrameTime(), 1 / 20.0f);
     if (S.shot) dt = 1 / 60.0f;
     S.t += dt; S.wallMsgT = std::max(0.0f, S.wallMsgT - dt);
     // the inputs (you and the bots), then the fixed steps (the match runs the rounds)
@@ -354,7 +453,10 @@ void SceneScuffle(Game& g) {
         if (Button({SCREEN_W / 2.0f + 30, SCREEN_H / 2.0f + 160, 200, 40}, "Back to the arcade", true, 16)) { S.active = false; g.scene = Scene::Arcade; }
     }
 }
-void LeaveScuffle(Game& g) { S.active = false; g.scene = Scene::Arcade; }
+void LeaveScuffle(Game& g) {
+    if (S.net) { if (S.net->role == arcade::R_HOST) S.net->BackToLobby(); else S.net->Leave(); S.net = nullptr; }
+    S.active = false; g.scene = Scene::Arcade;
+}
 // --shots: 0 mid-fight (four sticks, armed), 1 a haymaker or an explosion, 2 the match won, 3 the flood
 void DebugScuffleShot(Game& g, int which) {
     StartScuffle(g, 3, 2, 5); S.shot = true;
@@ -370,6 +472,15 @@ void DebugScuffleShot(Game& g, int which) {
     S.evSeen = S.M.w.eventBase > 64 ? S.M.w.eventBase : 0; ReadEvents();
     for (int i = 0; i < 90; i++) StepCamera(1 / 60.0f);
     if (which == 2) { S.M.wins = {5, 3, 2, 1}; S.M.champion = 0; S.M.phase = sf::Match::P_OVER; }
+    if (which == 4) {   // a guest's screen: eight sticks run by a host for 12 s, read from the snapshot for stick 4
+        auto h = sf::MakeScuffleHost(); h->Configure("5:0:2:test"); h->Start(8, 31337);
+        for (int f = 0; f < 120 * 12; f++) h->Tick(sf::STEP, 0xFF);
+        Writer s; h->Snapshot(3, s); Reader r(s.b);
+        sf::Predictor P; P.Apply(r);
+        S.M = P.m; S.names = P.names; S.names[3] = "Stick D (me)"; S.me = P.me; S.players = 8; S.toWin = 5;
+        S.evSeen = S.M.w.eventBase > 64 ? S.M.w.eventBase : 0; S.blots.clear(); ReadEvents();
+        for (int i = 0; i < 90; i++) StepCamera(1 / 60.0f);
+    }
 }
 
 #include "scuffle_editor.inl"

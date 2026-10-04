@@ -166,10 +166,10 @@ void Session::AddAI() {
     if (role != R_HOST || stage != S_LOBBY) return;
     int used = 0; for (auto& s : seats) used += s.used;
     if (used >= Info(game).maxPlayers) return;
-    static const char* NAMES[] = {"Bosun Bot", "Old Salt", "Crabby", "Barnacle Bill", "Deckhand"};
+    static const char* NAMES[] = {"Bosun Bot", "Old Salt", "Crabby", "Barnacle Bill", "Deckhand", "Bilge Rat", "Cookie"};
     for (int i = 0; i < MAX_PLAYERS; i++) if (!seats[i].used) {
         int nAi = 0; for (auto& s : seats) nAi += s.used && s.ai;
-        seats[i] = SeatInfo{}; seats[i].used = seats[i].ai = seats[i].ready = true; seats[i].name = NAMES[nAi % 5];
+        seats[i] = SeatInfo{}; seats[i].used = seats[i].ai = seats[i].ready = true; seats[i].name = NAMES[nAi % 7];
         Log(seats[i].name + " (AI) takes a seat.");
         SendLobby();
         return;
