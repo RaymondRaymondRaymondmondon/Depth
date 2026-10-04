@@ -429,6 +429,14 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   - Everything is gated on `seasons > 0` (the new islands appear only on long-match maps).
   - Check: `DEPTH_LONG_QUICK=1 depth.exe --flight-long-test`. Shots: `flight_long`, `flight_visitor`, `flight_isle_*`.
   - The snapshot header carries `seasons`, so a guest's mirror builds the same map. The mastery hints are kept in `flight_wardrobe.txt`.
+- **The Long Flight (the two-hour expansion) is built:**
+  - What it is: `MapOpts::seasons` 8 (48 days) or 6 (36); `World::LongFlight()`; everything gated on it.
+  - Code: `flight_longflight.cpp` holds its ten layers in the doc's build order: generations, evolution, the Far Sea, Grand Projects, leagues/Council/Great War, trade empires, culture (Chronicle, titles, songs), tools and taming, the Reckoning, save and resume.
+  - Data: `data/flight/flight_longflight.json`.
+  - Checks: `--flight-longflight-test`; `--flight-long <days> [players] [seed] [runs]` (a full bot match and its report).
+  - Details and what's simpler than the doc: docs/FLIGHT_PROGRESS.md, "The Long Flight".
+  - The long page's sub-pages are `gLongSub` (flight_game.cpp).
+  - The snapshot's position range is ±6000 m (`BX`): the Far Sea lies far out.
 - **Stage 5, multiplayer** (`flight_net.*`): `FlightHost` on the arcade session. Every order goes through `ApplyOrder` (`FA_*`; solo too, via the scene's `Order()`). The snapshot is one templated `Visit`: any new field a screen draws must be added there. Checks: `--flight-net-test`, `--net-loop flight [mem]`.
 - **Stage 6, society** (`flight_society.cpp`; data `flight_research.json`, `flight_bends.json`, `flight_towns.json`): the Roost and research, fervour, towns, barter and truces, and the founders' bends (`BendOf`, `BendOfSide`). Checks: `--flight-society-test`, `--flight-sim founders`.
 - **Stage 7, dangers** (`flight_danger.cpp`, `flight_danger.json`): `HolderOf`, outposts, the kraken, ape, volcano, wreck, weather, blockade and wall, assault, the Works (bombs and stimulants). The scene's `DrawDangers`. Checks: `--flight-danger-test`, `--flight-siege [runs]` (the gate).

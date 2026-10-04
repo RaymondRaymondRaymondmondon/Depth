@@ -668,3 +668,132 @@ Numbers are in `flight_long.json` "isles". Shots: `flight_isle_*`.
 - The Mangrove isn't burnt faster by Bombers.
 - Nests on the Whale aren't moved automatically before a dive.
 - Bots don't choose nest styles or techniques (they use the Cup and auto).
+
+## The Long Flight (the two-hour expansion), built 2026-10-03
+Design: `Reference_For_Future_MP_Games/The Flight — The Long Flight (two-hour expansion).pdf`; its OCR is in `docs/longflight_pdf_pages/`.
+Code: `src/flight_longflight.cpp`, with the Far Sea's shapes in `flight_isles.cpp`. Data: `data/flight/flight_longflight.json`.
+Checks: `depth.exe --flight-longflight-test` and `depth.exe --flight-long <days> [players] [seed] [runs]` (a full bot match and its report).
+
+**The match.** Picked in the lobby or on the solo plate as "The Long Flight" (48 days) or "Long Flight, short" (36 days).
+- Internally `MapOpts::seasons` is 8 or 6, and `World::LongFlight()` means `seasons >= 6`. Everything here is gated on it.
+- A year is the four-season match's 24 days (the user's stretch of the doc's days), and the seasons come round again in year two.
+- Each season's event happens once a year. Year two's Long Night lasts two days.
+- Perks are offered again to the heir in year two.
+
+The ten layers, in the doc's build order. Each one has its own tests in `--flight-longflight-test`.
+
+1. **Generations.**
+   - The Founder ages: young for days 0-12, in its prime for 12-18 (+10% speed and attack), then old (6.7% slower and shorter of breath each day, no size-4 fish, and the flock it leads gets a doubled bonus).
+   - It dies of age when its year is up. The heir is marked automatically as the first chick (re-mark it on the Dynasty page) and succeeds with a choice:
+     - **the Old Way:** nothing changes.
+     - **the New Broom:** the colony takes the heir's mother's founder species, if she was wild-born of another species (30% of the Long Flight's mates are).
+     - **the Pilgrimage:** a held relic's effect is kept for good.
+   - The heir keeps one perk (your choice) and its mother's trait as a permanent bonus.
+   - No heir means a regent: the oldest veteran rules without the founder's bonus until a chick grows up.
+   - Every succession brings a day of grief (fervour -20, the flocks come home), and everyone is told it's the day to raid.
+   - The dynasty is named at the first succession.
+   - Veterans that survive a year become elders: they don't fight and they teach (a Keen elder makes the scouts exact).
+   - Violent deaths still respawn the Founder, as you decided for the base game. Only age kills it in the Long Flight.
+2. **Evolution.**
+   - Twelve traits, two bits each in `Bird::genes`. The first six are the mates' traits.
+   - Ranks I to III: rank II doubles a trait's bonus and III triples it.
+   - Inheritance comes from the mother (the mate) and the nest's line (`Nest::line`, its last fledgling's genes).
+     - Where both share a trait, the chick's rank is one higher. Otherwise it gets one trait from each parent, up to three.
+     - A hybrid line (the mother of another species) doesn't rank up.
+   - 5% of chicks mutate. 1% are rare births: Albino, a Giant (twice the HP and attack, eats for three) or Crested (+5 fervour).
+   - 20 birds with one trait at III make the colony a species: it's named, and every bird has that trait at III. A second power comes at 40 birds.
+   - The look: Hardy III birds are broad, Quick III slim, Fierce III red-beaked, Giants big, Albinos white.
+   - Bots breed for one trait from day 7.
+3. **The Far Sea.** At dusk on day 24 the fog lifts.
+   - Eight places in a ring well beyond the old map:
+     - the Ice Shelf (penguins to convert, krill)
+     - the Archipelago of Thorns (twelve islets; thorn-birds to convert; brambles tear Skirmishers)
+     - the Drowned Fleet (drifts toward the loudest colony; the Drowned take eggs at night; boarded by day for twigs, powder and the Admiral's relic)
+     - the Roc's Peak (the Roc hunts flocks of more than ten at noon and carries off nests; it can be fought; a Founder who lands on the peak while it hunts takes an egg that hatches a Giant)
+     - the Mirror Lagoon (+50% to the catch; mates for the holder; a fight clouds it for a day)
+     - the Sunken City (relics, pearls and fervour; the Lost Ones keep it; it sinks a spire a week)
+     - two Far Sea ports, one with the navy's frigate (it hunts pirates, Frigatebird colonies and the embargoed)
+   - Beyond it the Storm Wall kills birds; only an Albatross crosses it (100 score).
+   - The islands exist from the start, behind a fog that turns birds back, so the sea's simulation is unchanged.
+   - The snapshot's position range was widened to ±6000 m.
+4. **Grand Projects.**
+   - Nine wonders, one per map, with the doc's costs and places. The Founder consecrates a site where it stands; builders bring the twigs and shells over at least four days; the pearls and sulfur are paid at the end.
+   - Whoever finishes first gets it, and the others' progress turns to shells.
+   - Each has its builder and map effects:
+     - **The Great Rookery:** chicks fledge together; others' courtship is slower.
+     - **The Lighthouse of Birds:** a nightly beam, seen by everyone.
+     - **The Fish Gate:** doubles a ground, with a toll of a fish in five.
+     - **The Sky Temple:** fervour 100; bless or curse.
+     - **The Great Works:** three bombs a day; turns the wind.
+     - **The Market Hall:** runs the Exchange (see 6).
+     - **The Kraken's Chain:** the kraken rises against a marked colony.
+     - **The Ark:** mates; moves a region a day.
+     - **The Monument of Feathers:** 500 score.
+   - Second tiers can be raised in year two at half the cost (the score doubles).
+   - An incendiary burns scaffolding. Bots consecrate at home once they have 25 adults.
+5. **Leagues, the Council and the Great War.**
+   - Leagues are made by Herald: a pearl from each, bound in a day. Members share sight, are at truce, and split the final score evenly. Leaving costs 30 fervour and makes you oathbroken for a season (towns -20%, no new leagues).
+   - The Council sits on day 31 and every six days after:
+     - each player proposes one motion; votes are weighted by islands held plus relics.
+     - motions: Peace of the Sea (raiding during it breaks your oath), the Hunt (300 and a relic for the kraken or the Roc), Embargo, Sanctuary, Tithe, and the Great War (the proposer's league against everyone).
+   - The Great War: no truce across the sides; every day costs 5 fervour and a fish a bird; it ends at two-thirds of the fronts, a Peace, or six days. Each winner gets 200.
+   - Bots propose, vote their interest, and seek leagues in year two.
+6. **Trade empires.**
+   - Six wares: salt fish, lamp oil, spices, iron, cloth and feathers. Their sources are wrecks and the Fleet, Lighthouse Rock, the Far Sea towns, and every colony.
+   - The Bird Exchange's board is the best price to sell and the cheapest to buy. The Market Hall's builder takes a fee (1 in 10 to 1 in 40) and can embargo one colony a season.
+   - Chartered routes (four at most) are flown by the colony's Traders. Three or more on a route is a convoy: +20%, and hunted by pirates unless a Tank or Harrier escorts it. A route kept for a season earns the towns' reputation.
+   - Market events: fish prices triple, spices vanish, a feather festival, a cornering. An Augur warns a day ahead.
+   - Bots sell their wares and charter routes.
+7. **Culture.**
+   - **The Chronicle:**
+     - **Moments it records:** foundings, the first clutch, raids given and suffered, the deaths of Founders, veterans and heirs, successions, elders, wonders, leagues, oaths, beasts, the Storm Wall, species, songs, plagues.
+     - **Chapters:** one per season.
+     - **The end of the match:** it is written to `flight_chronicle.txt` in score order.
+   - **Titles, worth score:** the Fisher King, the Stormrider, the Kraken's Bane, the Peacemaker, the Oathbreaker (-50), the Shepherd, the Wonder-builder, the Dodo's Keeper, the Last Founder.
+   - **Songs:** a Drummer and fervour over 50 write one a season, named for its best moment. It plays as a synthesized pentatonic phrase near the colony's island and over its flocks (`FlightSong`).
+8. **Tools and taming.**
+   - Three Clever III birds learn a tool a season: the Hook, the Shell Hammer, the Fire Carry, the Mirror and the Rope.
+   - Faith 3, a Priest and six days of five-fish offerings tame one beast:
+     - **Dolphins:** half the shark risk.
+     - **A sea turtle:** mates.
+     - **The Grey Wings' eagle:** a Striker that never eats.
+     - **A crocodile:** guards the home shore.
+     - **The great ape:** stones enemies near home; eats a big fish a day.
+9. **The Reckoning and year two.**
+   - **Catch-up winds:** the bottom third gets faster mates.
+   - **The grounds remember:** year two's capacity is the year-one average, between 0.5x and 1.2x.
+   - **Plagues:** in colonies over 80 birds in year two; Nurses or the Chemistry tree cut the losses.
+   - **The countdown:** on the HUD from day 37.
+   - **Day 43, the Reading:** every Chronicle is shown in score order, 15 s each; the screen can be skipped.
+   - **Days 44-45, the Great Storm of the Year:** an unhedged wonder loses half its score; the Fleet runs aground; the Storm Wall closes in.
+   - **Day 46, the Kraken's Reckoning:** the kraken, the Roc, the Grey Wings and the Drowned each come for their debtor. A prepared colony (three Watchers, a hedge or a tower) loses 5% of its nests, an unprepared one 15%.
+   - **Day 48:** Reckoning Day.
+   - **The last winter:** holdings count triple.
+   - **Score lines:** a species 200 (+200 for a second power), an unbroken dynasty 150, elders 20 each, coming through the Reckoning without losing a nest 150.
+   - **Tokens:** double, +50 for a first speciation, wonder and Great War win; the Dynast crown, worn at once.
+10. **Save and resume.**
+    - Solo matches save the whole world at each season's break (`flight_longflight_save.bin`).
+    - "Resume the Long Flight" appears on the arcade's Flight plate.
+    - The save uses the network snapshot in a save-everything mode (`gSaveAll`: every colony in full, every fish), plus the sleeping stocks.
+
+The long-match page (Tab, page 4) now has sub-pages: The year, Powers (the neutral powers, diplomacy, leagues, the Council), Building (structures, Grand Projects), Dynasty (generations, evolution), Trade, and Culture (the Chronicle, songs, tools, taming).
+
+**Not built, or simpler than the doc:**
+- Dynastic marriages, and the Matchmaker title.
+- Hybrids carrying two founder boosts at half strength.
+- The Ark carrying a project.
+- The Market Hall setting prices.
+- The Gate's wall.
+- Beasts taking sides in the Great War (only the Chain fights).
+- Route passage through others' territory.
+- Convoy gulls.
+- War decrees (the war deck).
+- The Ice Shelf advancing.
+- A networked save and resume (it is solo only).
+- The arcade marquee for the winning dynasty.
+
+**The doc's open questions** (defaults taken; the user may change them):
+- No abdication.
+- Speciated colonies aren't saved to the profile.
+- The Great War stays a Council decision.
+- The Reading is skippable.
