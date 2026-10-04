@@ -791,7 +791,7 @@ int main(int argc, char** argv) {
     // Mouthful (arcade game 8): the rules, a bot-only round, a duel of two forms
     if (argc >= 2 && strcmp(argv[1], "--mouthful-test") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulTest(); }
     if (argc >= 2 && strcmp(argv[1], "--mouthful-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulNetTest(); }
-    if (argc >= 2 && strcmp(argv[1], "--mouthful-round") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulRound(argc > 2 ? atoi(argv[2]) : 11, argc > 3 ? (float)atof(argv[3]) : 15.0f, argc > 4 ? (uint32_t)atoi(argv[4]) : 1u, argc > 5 ? atoi(argv[5]) : 1); }
+    if (argc >= 2 && strcmp(argv[1], "--mouthful-round") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulRound(argc > 2 ? atoi(argv[2]) : 11, argc > 3 ? (float)atof(argv[3]) : 15.0f, argc > 4 ? (uint32_t)atoi(argv[4]) : 1u, argc > 5 ? atoi(argv[5]) : 1, argc > 6 ? atoi(argv[6]) : 0); }
     if (argc >= 5 && strcmp(argv[1], "--mouthful-duel") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulDuel(argv[2], argv[3], (float)atof(argv[4]), argc > 5 ? atoi(argv[5]) : 40); }
     if (argc >= 2 && strcmp(argv[1], "--flight-society-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSocietyTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightNetTest(); }
@@ -1019,6 +1019,7 @@ int main(int argc, char** argv) {
                 if (g.scene != Scene::RedTide) AudioRedTide(RtAudio{});      // (and the Red Tide scene)
                 if (g.scene != Scene::Trawl) AudioTrawl(TwAudio{});          // (and the Trawl)
                 if (g.scene != Scene::Flight) AudioFlight(FlAudio{});        // (and the Flight)
+                if (g.scene != Scene::Mouthful) AudioMouthful(MfAudio{});    // (and Mouthful)
             }
             ArcadeVoiceFrame(GetFrameTime());   // the arcade's voice chat: the mic out, the table's voices in
             AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);

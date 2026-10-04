@@ -159,17 +159,45 @@ int RunMouthfulTest() {
         for (int k = 0; k < 100; k++) { still(b); e.StepEvents(0.05f); b.pos = {EEL_GARDEN.x, FloorY(EEL_GARDEN.x, EEL_GARDEN.z) + 0.3f, EEL_GARDEN.z}; }
         Check(!b.alive || b.mass < mb, "the eel garden bites a fry passing over it");
     }
+    // ---- the modes (doc p. 14)
+    {
+        World b; Opts bo; bo.humans = 1; bo.bots = 3; bo.mode = M_BLOBFISH_ONLY; bo.seed = 3; b.Init(bo);
+        Mouth& x = b.mouths[0]; SetMass(b, x, 40); b.GrowCheck(x);
+        Check(x.path == P_BLOB && x.pendingFork == 0, "Blobfish Only: the first fork is the blobfish (taken at once)");
+        SetMass(b, x, 1200); b.GrowCheck(x);
+        Check(b.over && b.winner == x.id, "Blobfish Only: the first to tier 6 wins");
+        World p; Opts po; po.humans = 1; po.bots = 0; po.mode = M_ONE_PATH; po.path = P_CRUST; po.seed = 4; p.Init(po);
+        SetMass(p, p.mouths[0], 40); p.GrowCheck(p.mouths[0]);
+        Check(p.mouths[0].path == P_CRUST, "One Path (Crab Day): everyone's fork is the crustacean");
+        World r; Opts ro; ro.humans = 1; ro.bots = 2; ro.mode = M_TRENCH_RUSH; ro.seed = 5; r.Init(ro);
+        Check(r.roundLen == 480 && r.mouths[0].tier == 4 && BandAt(r.mouths[0].pos) == B_TRENCH, "Trench Rush: eight minutes, tier 4, in the trench");
+        r.StepNpc(0.05f); Check(r.levAwakeT > 0, "Trench Rush: the leviathan is awake");
+        World c; Opts co; co.humans = 1; co.bots = 11; co.mode = M_FOOD_CHAIN; co.seed = 6; c.Init(co);
+        Mouth& c0 = c.mouths[0]; Mouth& c4 = c.mouths[4]; c0.immuneT = c4.immuneT = 0;
+        Check(c0.team == c4.team && c.mouths[1].team != c0.team, "Food Chain: teams of three");
+        SetMass(c, c0, 500); SetMass(c, c4, 100); c4.pos = Vector3Add(c0.pos, {0.5f, 0, 0}); Face(c0, c4.pos); c0.biteCd = 0; c0.swallowT = 0;
+        for (auto& g : c.eco.agents) if (g.diver < 0 && Vector3Distance(g.pos, c0.pos) < 5) g.alive = false;
+        c.Bite(c0);
+        Check(c4.alive, "Food Chain: no mouth bites its own team");
+        World k; Opts ko; ko.humans = 2; ko.bots = 0; ko.mode = M_KING_OF_REEF; ko.seed = 7; k.Init(ko);
+        Mouth& k0 = k.mouths[0]; SetMass(k, k0, 4600); k.GrowCheck(k0); k0.immuneT = 0;
+        k.KillMouth(k0, -1, -1, "npc");
+        for (int i = 0; i < 200; i++) k.StepMouth(k0, 0.05f);
+        Check(k0.out && !k0.alive, "King of the Reef: a king who loses the crown is out");
+        World s; Opts so; so.humans = 1; so.bots = 11; so.mode = M_SOLO_TANK; so.minutes = 15; so.seed = 8; s.Init(so);
+        Check(s.roundLen >= 25 * 60, "Solo Tank: a longer round for learning");
+    }
     printf(gFails ? "Mouthful: %d check(s) FAILED\n" : "Mouthful: all checks passed\n", gFails);
     return gFails ? 1 : 0;
 }
 
 // A bot-only round (doc p. 21): time to the first king, crowns changed, deaths by cause, the best tier per path,
 // whether the leviathan ate anyone.
-int RunMouthfulRound(int bots, float minutes, uint32_t seed, int runs) {
+int RunMouthfulRound(int bots, float minutes, uint32_t seed, int runs, int mode) {
     printf("Mouthful: %d bots, %.0f-minute rounds, %d run(s)\n", bots, minutes, runs);
     double firstKing = 0; int kings = 0, crowns = 0, deaths[4] = {}, levRounds = 0, best[P_COUNT] = {};
     for (int r = 0; r < runs; r++) {
-        World w; Opts o; o.humans = 0; o.bots = bots; o.minutes = minutes; o.seed = seed + r * 7919u;
+        World w; Opts o; o.humans = 0; o.bots = bots; o.minutes = minutes; o.seed = seed + r * 7919u; o.mode = mode;
         w.Init(o);
         auto t0 = std::chrono::steady_clock::now();
         int lastMin = -1;

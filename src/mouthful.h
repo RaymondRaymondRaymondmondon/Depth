@@ -101,6 +101,9 @@ struct Mouth {
     float dashT = 0; Vector3 dashV{}; int dashLeft = 0; int dashKind = 0;   // (1 lunge: bites at the end, 2 death roll: grabs, 3 ram: knocks back)
     bool ambush = false, hidden = false, airborne = false;
     int pendingFork = 0; float forkT = 0; std::vector<int> forkOpts;
+    int team = -1; bool out = false;                  // Food Chain's team; King of the Reef: a deposed king is out
+    std::string look;                                 // the skins worn, one per path ("id;id;...;id"), from the wardrobe
+    bool levTooth = false;                            // dealt a tenth of the leviathan's health (its Tooth)
     int lastPath = -1, streak = 0;
     int agent = -1;                                   // its Diver agent in the web
     // the round's score
@@ -133,7 +136,11 @@ struct OrcaPod { bool on = false; bool done = false; float t = 0, at = 0; std::v
 constexpr Vector3 EEL_GARDEN{-125, 0, 60};   // a patch of the reef floor (y from the floor)
 constexpr float EEL_GARDEN_R = 9;
 
-struct Opts { int humans = 1; int bots = 11; float minutes = 15; int mode = 0; int botLevel = 0; uint32_t seed = 1; };   // botLevel 0: a mix
+// the modes (doc p. 14)
+enum Mode { M_MOUTHFUL, M_BLOBFISH_ONLY, M_ONE_PATH, M_TRENCH_RUSH, M_FOOD_CHAIN, M_KING_OF_REEF, M_SOLO_TANK, M_COUNT };
+const char* ModeName(int m);
+const char* ModeRule(int m);
+struct Opts { int humans = 1; int bots = 11; float minutes = 15; int mode = 0; int botLevel = 0; uint32_t seed = 1; int path = P_SHARK; };   // botLevel 0: a mix; path: One Path's
 
 struct World {
     std::unique_ptr<rt::MapData> sea; rt::Ecosystem eco;
@@ -193,6 +200,9 @@ struct World {
     void OnDiverHit(int diverAgent, int attacker, float dmg);
     int Leader() const;                              // the mouth with the highest score
     std::vector<int> Board() const;                  // mouths by score
+    int teamPath[4] = {P_SHARK, P_EEL, P_CEPH, P_PUFFER};   // Food Chain: each team's shared path
+    float TeamScore(int team) const;
+    bool Friends(const Mouth& a, const Mouth& b) const { return opts.mode == M_FOOD_CHAIN && a.team >= 0 && a.team == b.team; }
 };
 
 float ScoreOf(const World& w, const Mouth& m);     // the round score so far (mass eaten, kills, the crown, tiers)
@@ -202,7 +212,7 @@ int DeathKind(const std::string& cause);           // 0 players, 1 NPC predators
 
 // tools (main.cpp)
 int RunMouthfulTest();                               // --mouthful-test
-int RunMouthfulRound(int bots, float minutes, uint32_t seed, int runs);   // --mouthful-round
+int RunMouthfulRound(int bots, float minutes, uint32_t seed, int runs, int mode = 0);   // --mouthful-round
 int RunMouthfulDuel(const std::string& a, const std::string& b, float mass, int runs);   // --mouthful-duel
 
 } // namespace mf

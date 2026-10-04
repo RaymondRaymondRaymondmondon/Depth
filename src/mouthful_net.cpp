@@ -26,7 +26,7 @@ bool ReadInput(Reader& r, Input& in) {
     in.pitch = std::clamp(in.pitch, -1.5f, 1.5f);
     return true;
 }
-void OrderHello(Writer& w, const std::string& name) { w.U8(MA_HELLO); w.Str(name.substr(0, 24)); }
+void OrderHello(Writer& w, const std::string& name, const std::string& look) { w.U8(MA_HELLO); w.Str(name.substr(0, 24)); w.Str(look.substr(0, 400)); }
 
 // ---------------------------------------------------------------- the snapshot (one Visit for writing and reading)
 namespace {
@@ -78,7 +78,7 @@ template <class A> void VisitMouth(A& a, Mouth& m, bool own) {
     T8(a, m.immuneT, 12.75f); T8(a, m.swallowT, 2.55f); T8(a, m.stunT, 5.1f); T8(a, m.morphT, 1.02f); T8(a, m.biteAnim, 0.51f); T8(a, m.hurtT, 0.51f);
     T8(a, m.tellT, 0.51f); T8(a, m.abT, 12.75f); T8(a, m.dashT, 1.02f); T8(a, m.respawnT, 12.75f); T8(a, m.stillT, 5.1f); T8(a, m.buriedT, 5.1f);
     a.f(m.score); a.f(m.massEaten); a.f(m.crownT); a.i(m.kills); a.i(m.deaths); a.i(m.bestTier); a.i(m.apexKills);
-    a.s(m.lastCause);
+    a.s(m.lastCause); a.i(m.team); a.b(m.out); a.s(m.look); a.b(m.levTooth);
     if (own) {   // what only its own screen shows: the cooldowns, the effects on it, the fork
         a.q8(m.stamina, 1); T8(a, m.abCd, 25.5f); T8(a, m.biteCd, 2.55f); T8(a, m.blindT, 5.1f); T8(a, m.reverseT, 5.1f); T8(a, m.poisonT, 5.1f); T8(a, m.bleedT, 5.1f);
         T8(a, m.holdT, 5.1f); T8(a, m.jetT, 2.55f); T8(a, m.frenzyT, 12.75f); T8(a, m.markT, 25.5f);
@@ -87,7 +87,7 @@ template <class A> void VisitMouth(A& a, Mouth& m, bool own) {
     }
 }
 template <class A> void Visit(A& a, World& w, int viewer) {
-    a.f(w.time); a.b(w.over); a.i(w.winner); a.i(w.king); a.f(w.levAwakeT); a.f(w.firstKingT); a.i(w.crownsChanged); a.b(w.levAte);
+    a.f(w.time); a.b(w.over); a.i(w.winner); a.i(w.king); for (int& p : w.teamPath) a.i(p); a.f(w.levAwakeT); a.f(w.firstKingT); a.i(w.crownsChanged); a.b(w.levAte);
     for (int& d : w.deathsBy) a.i(d);
     int n = (int)w.mouths.size(); a.i(n);
     if (n != (int)w.mouths.size()) { if constexpr (A::reading) a.r.bad = true; return; }
@@ -140,8 +140,8 @@ void WriteWorld(World& w, int viewer, Writer& out) {
     Out o{out};
     uint32_t magic = 0x3154464D; o.u(magic);   // "MFT1"
     uint32_t seed = w.opts.seed; o.u(seed);
-    int humans = w.opts.humans, bots = w.opts.bots, lvl = w.opts.botLevel; float minutes = w.opts.minutes;
-    o.i(humans); o.i(bots); o.i(lvl); o.f(minutes); o.i(viewer);
+    int humans = w.opts.humans, bots = w.opts.bots, lvl = w.opts.botLevel, mode = w.opts.mode, path = w.opts.path; float minutes = w.opts.minutes;
+    o.i(humans); o.i(bots); o.i(lvl); o.f(minutes); o.i(mode); o.i(path); o.i(viewer);
     Visit(o, w, viewer);
 }
 void PackWorld(World& w, int viewer, Writer& out) {
@@ -168,13 +168,13 @@ bool ReadWorld(Reader& r, World& w, bool keepOwn, int* viewerOut) {
         return ok;
     }
     if (magic != 0x3154464D) return false;
-    uint32_t seed = 0; int humans = 0, bots = 0, lvl = 0, viewer = 0; float minutes = 0;
-    in.u(seed); in.i(humans); in.i(bots); in.i(lvl); in.f(minutes); in.i(viewer);
-    if (r.bad || humans < 0 || humans > 12 || bots < 0 || bots > 12 || humans + bots > 12 || humans + bots < 1 || lvl < 0 || lvl > 3 || !(minutes > 0 && minutes <= 60) || viewer < 0 || viewer >= humans + bots) return false;
-    if (!w.mirror || w.opts.seed != seed || w.opts.humans != humans || w.opts.bots != bots || w.opts.botLevel != lvl || w.opts.minutes != minutes) {
+    uint32_t seed = 0; int humans = 0, bots = 0, lvl = 0, viewer = 0, mode = 0, path = 0; float minutes = 0;
+    in.u(seed); in.i(humans); in.i(bots); in.i(lvl); in.f(minutes); in.i(mode); in.i(path); in.i(viewer);
+    if (r.bad || mode < 0 || mode >= M_COUNT || path < 0 || path >= P_COUNT || humans < 0 || humans > 12 || bots < 0 || bots > 12 || humans + bots > 12 || humans + bots < 1 || lvl < 0 || lvl > 3 || !(minutes > 0 && minutes <= 60) || viewer < 0 || viewer >= humans + bots) return false;
+    if (!w.mirror || w.opts.seed != seed || w.opts.humans != humans || w.opts.bots != bots || w.opts.botLevel != lvl || w.opts.minutes != minutes || w.opts.mode != mode || w.opts.path != path) {
         std::string why;
         if (!rt::DataOk(&why)) return false;
-        Opts o; o.humans = humans; o.bots = bots; o.botLevel = lvl; o.minutes = minutes; o.seed = seed;
+        Opts o; o.humans = humans; o.bots = bots; o.botLevel = lvl; o.minutes = minutes; o.seed = seed; o.mode = mode; o.path = path;
         w.Init(o);
         w.mirror = true;
         keepOwn = false;
@@ -197,21 +197,21 @@ namespace {
 class MouthfulHost : public arcade::GameHost {
 public:
     std::unique_ptr<World> w = std::make_unique<World>();
-    int minutes = 15, botLevel = 0, fill = 12, players = 1;
+    int minutes = 15, botLevel = 0, fill = 12, players = 1, mode = 0, path = P_SHARK;
     bool test = false; float stepDt = 1 / 30.0f;
     std::vector<Input> pend;
     float acc = 0; uint32_t tick = 0;
     mutable std::vector<std::vector<uint8_t>> cache = std::vector<std::vector<uint8_t>>(arcade::MAX_PLAYERS);
     mutable std::vector<uint32_t> cacheTick = std::vector<uint32_t>(arcade::MAX_PLAYERS, ~0u);
     void Configure(const std::string& opts) override {
-        int m = 15, l = 0, f = 12;
-        if (sscanf(opts.c_str(), "%d:%d:%d", &m, &l, &f) >= 1) { minutes = std::clamp(m, 1, 60); botLevel = std::clamp(l, 0, 3); fill = std::clamp(f, 1, 12); }
+        int m = 15, l = 0, f = 12, md = 0, pa = P_SHARK;
+        if (sscanf(opts.c_str(), "%d:%d:%d:%d:%d", &m, &l, &f, &md, &pa) >= 1) { minutes = std::clamp(m, 1, 60); botLevel = std::clamp(l, 0, 3); fill = std::clamp(f, 1, 12); mode = std::clamp(md, 0, M_COUNT - 1); path = std::clamp(pa, 0, P_COUNT - 1); }
         test = opts.find(":test") != std::string::npos;
         size_t sp = opts.find(":step="); stepDt = sp != std::string::npos ? std::clamp((float)atof(opts.c_str() + sp + 6), 1 / 60.0f, 0.1f) : 1 / 30.0f;
     }
     void Start(int n, uint32_t seed) override {
         players = std::clamp(n, 1, arcade::MAX_PLAYERS);
-        Opts o; o.humans = players; o.bots = std::max(0, fill - players); o.minutes = (float)minutes; o.botLevel = botLevel; o.seed = seed ? seed : 1;
+        Opts o; o.humans = players; o.bots = std::max(0, fill - players); o.minutes = (float)minutes; o.botLevel = botLevel; o.seed = seed ? seed : 1; o.mode = mode; o.path = path;
         w = std::make_unique<World>();
         w->Init(o);
         for (int p = 0; p < players; p++) w->mouths[p].name = p == 0 ? "Host" : TextFormat("Player %d", p + 1);
@@ -230,7 +230,7 @@ public:
             q = in; q.ability = in.ability || ab; if (in.fork < 0) q.fork = fk;
             return false;
         }
-        if (kind == MA_HELLO) { std::string n = r.Str(); if (r.bad || n.empty()) return false; w->mouths[p].name = n; return true; }
+        if (kind == MA_HELLO) { std::string n = r.Str(); if (r.bad || n.empty()) return false; std::string lk = r.Str(); if (r.bad) lk.clear(); w->mouths[p].name = n; w->mouths[p].look = lk; return true; }
         return false;
     }
     bool Tick(float dt, uint32_t ai) override {
@@ -259,7 +259,7 @@ public:
 }  // namespace
 std::unique_ptr<arcade::GameHost> MakeMouthfulHost() { return std::make_unique<MouthfulHost>(); }
 World* MouthfulHostWorld(arcade::GameHost* h) { auto* m = dynamic_cast<MouthfulHost*>(h); return m ? m->w.get() : nullptr; }
-std::string MouthfulHostOpts(int minutes, int botLevel, int fill) { return TextFormat("%d:%d:%d", minutes, botLevel, fill); }
+std::string MouthfulHostOpts(int minutes, int botLevel, int fill, int mode, int path) { return TextFormat("%d:%d:%d:%d:%d", minutes, botLevel, fill, mode, path); }
 uint32_t MouthfulDataHash() {
     // every rule a peer must share: the tiers, every form, the prey's worth, the scoring
     const Data& d = D();

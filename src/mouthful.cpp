@@ -11,6 +11,13 @@ namespace mf {
 
 // ---------------------------------------------------------------- data
 const char* BandName(int b) { static const char* N[] = {"the Shallows", "the Reef", "the Wall", "the Blue", "the Trench"}; return b >= 0 && b < B_COUNT ? N[b] : "?"; }
+const char* ModeName(int m) { static const char* N[M_COUNT] = {"Mouthful", "Blobfish Only", "One Path", "Trench Rush", "Food Chain", "King of the Reef", "Solo Tank"}; return m >= 0 && m < M_COUNT ? N[m] : "?"; }
+const char* ModeRule(int m) {
+    static const char* R[M_COUNT] = {"As designed: eat, grow, fork, take the crown.", "Everyone's a blobfish; the first to tier 6 wins; nobody has abilities and everyone is sad.",
+        "The lobby picks one path for everyone.", "The round starts at tier 4 in the trench; 8 minutes; the leviathan is awake.", "Teams of three share a path and a score; a kill feeds the team.",
+        "No respawn for a king: lose the crown and you're out; last crown standing.", "You, the bots, and a longer round for learning the paths."};
+    return m >= 0 && m < M_COUNT ? R[m] : "";
+}
 const char* PathName(int p) { static const char* N[] = {"Eel", "Cephalopod", "Shark", "Crustacean", "Pufferfish", "Blobfish"}; return p >= 0 && p < P_COUNT ? N[p] : "Fry"; }
 static int PathKey(const std::string& s) {
     if (s == "eel") return P_EEL; if (s == "ceph") return P_CEPH; if (s == "shark") return P_SHARK;
@@ -205,6 +212,8 @@ static bool Touch(Rectangle a, Rectangle b, float pad) { return a.x <= b.x + b.w
 
 void World::Init(const Opts& o) {
     opts = o; rng = o.seed ? o.seed : 1; time = 0; roundLen = std::max(1.0f, o.minutes) * 60; over = false; winner = -1; king = -1;
+    if (o.mode == M_TRENCH_RUSH) roundLen = 8 * 60;
+    if (o.mode == M_SOLO_TANK) roundLen = std::max(roundLen, 25.0f * 60);
     mouths.clear(); clouds.clear(); feed.clear(); plankton.clear();
     firstKingT = -1; crownsChanged = 0; for (int& d : deathsBy) d = 0; for (int& t : bestTierByPath) t = 0;
     levAwakeT = 0; levNoise = 0; levAte = false;
@@ -272,6 +281,12 @@ void World::Init(const Opts& o) {
         int lvl = o.botLevel > 0 ? o.botLevel : 1 + (int)(Rand() * 3) % 3;
         AddMouth(D().botNames[names[i % names.size()]], true, lvl, -1);
     }
+    if (o.mode == M_FOOD_CHAIN) {   // teams of three, each on its own path
+        static const int TP[5] = {P_SHARK, P_EEL, P_CEPH, P_PUFFER, P_CRUST};
+        int start = (int)(Rand() * 5);
+        for (int k = 0; k < 4; k++) teamPath[k] = TP[(start + k) % 5];
+        for (auto& m : mouths) m.team = m.id % 4;
+    }
 }
 int World::AddMouth(const std::string& name, bool bot, int level, int seat) {
     Mouth m; m.id = (int)mouths.size(); m.name = name; m.bot = bot; m.botLevel = std::clamp(level, 1, 3); m.seat = seat;
@@ -284,11 +299,13 @@ int World::AddMouth(const std::string& name, bool bot, int level, int seat) {
 void World::Respawn(Mouth& m, bool first) {
     // a fry in the shallows with a 10 s immunity glow, 15 mass and its path memory (doc p. 10); a late joiner starts with
     // the lowest living mouth's mass, capped at tier 3 (p. 13)
+    if (m.out) { m.alive = false; m.respawnT = 1e9f; return; }
     float mass = D().startMass;
     if (first && time > 5) { float lo = 1e9f; for (const auto& o : mouths) if (o.alive && o.id != m.id) lo = std::min(lo, o.mass); if (lo < 1e8f) mass = std::clamp(lo, D().startMass, D().tiers[4].mass - 1); }
     m.alive = true; m.mass = mass; m.tier = TierOfMass(mass); m.form = 0; m.path = -1;
     m.pos = {-285 + Rand() * 70, -2 - Rand() * 4, Z0 + 20 + Rand() * (Z1 - Z0 - 40)};
     m.pos.y = std::max(m.pos.y, FloorY(m.pos.x, m.pos.z) + 1);
+    if (opts.mode == M_TRENCH_RUSH) { m.mass = D().tiers[4].mass + 10; m.tier = 4; m.pos = {Rand(150, 280), 0, Rand(-50, 50)}; m.pos.y = FloorY(m.pos.x, m.pos.z) + 8 + Rand() * 40; }
     m.vel = {0, 0, 0}; m.yaw = Rand() * 6.28f; m.pitch = 0;
     m.stamina = 1; m.biteCd = m.abCd = m.abT = 0; m.immuneT = D().immuneS; m.swallowT = m.stunT = m.blindT = m.reverseT = m.poisonT = m.bleedT = m.holdT = m.jetT = m.frenzyT = 0;
     m.dashT = 0; m.dashLeft = 0; m.ambush = m.hidden = m.airborne = false; m.pendingFork = 0; m.forkOpts.clear();
@@ -320,9 +337,10 @@ void World::Feed(Mouth& m, float mass, bool kill) {
     if (mass <= 0) return;
     if (m.bot && opts.humans > 0 && king < 0) mass = std::min(mass, std::max(0.0f, D().tiers[8].mass - 10 - m.mass));   // (a bot never takes the crown from the people: it throttles itself, doc p. 19)
     m.mass += mass; m.massEaten += mass;
-    (void)kill;
+    if (kill && opts.mode == M_FOOD_CHAIN && m.team >= 0) for (auto& o : mouths) if (o.alive && o.id != m.id && o.team == m.team && Vector3Distance(o.pos, m.pos) < 25) { o.mass += mass * 0.25f; o.massEaten += mass * 0.25f; GrowCheck(o); }   // (the team eats together)
     GrowCheck(m);
 }
+float World::TeamScore(int team) const { float s = 0; for (const auto& m : mouths) if (m.team == team) s += ScoreOf(*this, m); return s; }
 void World::GrowCheck(Mouth& m) {
     int t = TierOfMass(m.mass);
     m.tier = t;
@@ -334,6 +352,9 @@ void World::GrowCheck(Mouth& m) {
     if (FormOf(m).path == P_BLOB && ft == 6 && t >= 8) { int k = FormIndex("blob_king"); if (k >= 0) { m.form = k; m.morphT = 1; if (!m.blobKing) { m.blobKing = true; m.score += D().scoreBlobKing; Say(m.name + " is the Blobfish King. Nobody knows what to do.", Color{255, 200, 220, 255}); } } }
     if (need && t >= need && m.pendingFork == 0) {
         m.forkOpts = ForkChoices(need == 2 ? m.lastPath : m.path, need, m.form);
+        // the modes' restrictions on the first fork: everyone a blobfish, one path for all, a team's shared path
+        int only = opts.mode == M_BLOBFISH_ONLY ? P_BLOB : opts.mode == M_ONE_PATH ? opts.path : opts.mode == M_FOOD_CHAIN && m.team >= 0 ? teamPath[m.team % 4] : -1;
+        if (need == 2 && only >= 0) { std::vector<int> v; for (int fi : m.forkOpts) if (D().forms[fi].path == only) v.push_back(fi); if (!v.empty()) m.forkOpts = v; }
         if (m.forkOpts.size() == 1 || (FormOf(m).path == P_BLOB)) { PickFork(m, 0); return; }
         if (!m.forkOpts.empty()) { m.pendingFork = need; m.forkT = 10; }
         if (m.bot) {
@@ -346,8 +367,9 @@ void World::GrowCheck(Mouth& m) {
             PickFork(m, pick);
         }
     }
+    if (opts.mode == M_BLOBFISH_ONLY && t >= 6 && !over && m.alive) { over = true; winner = m.id; m.score += D().scoreWin; Say(m.name + " reached tier 6 first, which is a sentence nobody expected to hear.", Color{255, 200, 220, 255}); return; }
     // the crown: the first mouth to tier 8
-    if (t >= 8 && king < 0 && m.alive) {
+    if (t >= 8 && king < 0 && m.alive && !(opts.mode == M_KING_OF_REEF && m.out)) {
         king = m.id; m.king = true; crownsChanged++;
         if (firstKingT < 0) firstKingT = time;
         Say(m.name + " takes the crown!", Color{255, 220, 110, 255});
@@ -395,6 +417,7 @@ void World::KillMouth(Mouth& m, int byMouth, int byAgent, const char* cause) {
     std::string by = k && kind == 0 ? k->name : byAgent >= 0 && byAgent < (int)eco.agents.size() ? "a " + eco.map->species[eco.agents[byAgent].sp].name : kind == 2 ? std::string(cause) : "the sea";
     if (kind == 3) by = "the Leviathan";
     Say(by + " ate " + m.name + (m.tier >= 4 ? TextFormat(" (tier %d)", m.tier) : ""), m.bot ? Color{220, 220, 220, 255} : Color{255, 170, 150, 255});
+    if (m.king && opts.mode == M_KING_OF_REEF) { m.out = true; Say(m.name + " has lost the crown, and is out.", Color{255, 200, 150, 255}); }
     if (m.king) {
         m.king = false; king = -1;
         if (k && k->alive && kind == 0) { k->score += D().scoreKingKilled; king = k->id; k->king = true; crownsChanged++; Say(k->name + " killed the king and takes the crown!", Color{255, 220, 110, 255}); }
@@ -431,7 +454,7 @@ void World::Bite(Mouth& m, bool free) {
     float cosA = F.walker ? 0.2f : 0.45f;
     int bestM = -1, bestA = -1, bestC = -1; float bd = 1e9f, dd;
     for (auto& o : mouths) {
-        if (!o.alive || o.id == m.id) continue;
+        if (!o.alive || o.id == m.id || Friends(m, o)) continue;
         if (o.hidden && m.tier > 3 && !(FormOf(o).ps == PS_HOLE && m.tier <= 3)) continue;   // (in a hole it fits and the biter doesn't)
         if (InFront(mouthAt, fwd, o.pos, reach, BodyRadius(Length(o)), cosA, &dd) && dd < bd) { bd = dd; bestM = o.id; }
     }
@@ -756,6 +779,7 @@ void World::StepNpc(float dt) {
     // wakes to blood or noise in the trench, or to something lingering in its hollow
     int lingering = -1;
     for (const auto& m : mouths) if (m.alive && Vector3Distance(m.pos, HOLLOW) < 28 && m.immuneT <= 0) lingering = m.id;
+    if (opts.mode == M_TRENCH_RUSH && levAwakeT <= 0 && !highTide) levAwakeT = 45;
     if (levAwakeT <= 0 && !highTide && (levNoise > 12 || blood > 40 || lingering >= 0)) {
         levAwakeT = 45;
         Say("A single deep note from the trench. The Leviathan wakes.", Color{255, 140, 120, 255});
@@ -986,7 +1010,7 @@ void World::StepBot(Mouth& m, float dt) {
         // threats: anything that could swallow us
         float td = 1e9f; Vector3 tpos{};
         for (const auto& o : mouths) {
-            if (!o.alive || o.id == m.id || !SwallowOk(*this, o, m) || !Visible(m, o)) continue;
+            if (!o.alive || o.id == m.id || !SwallowOk(*this, o, m) || !Visible(m, o) || Friends(m, o)) continue;
             float dd = Vector3Distance(o.pos, m.pos);
             float omen = FormOf(o).ps == PS_OMEN ? 20 : 0;
             if (dd < std::max(sense * 0.8f, omen) && dd < td) { td = dd; tpos = o.pos; }
@@ -1042,7 +1066,7 @@ void World::StepBot(Mouth& m, float dt) {
                 if (v > best) { best = v; m.tgtAgent = i; m.tgtMouth = -1; }
             }
             if (Rand() < d.botHuntMouths[m.botLevel] + 0.15f) for (const auto& o : mouths) {
-                if (!o.alive || o.id == m.id || o.immuneT > 0 || !Visible(m, o)) continue;
+                if (!o.alive || o.id == m.id || o.immuneT > 0 || !Visible(m, o) || Friends(m, o)) continue;
                 if (m.banT > 0 && m.banId == 100000 + o.id) continue;
                 bool canEat = SwallowOk(*this, m, o);
                 bool goKing = m.botLevel >= 3 && o.king && m.mass > o.mass * 0.75f;
@@ -1182,7 +1206,12 @@ void World::Step(float dt) {
         over = true;
         for (auto& m : mouths) m.score += D().scoreTierPast4 * std::max(0, m.bestTier - 4);
         winner = Leader();
-        if (winner >= 0) { mouths[winner].score += D().scoreWin; Say(mouths[winner].name + " wins the round.", Color{255, 220, 110, 255}); }
+        if (opts.mode == M_FOOD_CHAIN) {
+            int bt = 0; for (int k = 1; k < 4; k++) if (TeamScore(k) > TeamScore(bt)) bt = k;
+            for (auto& m : mouths) if (m.team == bt) m.score += D().scoreWin;
+            Say(TextFormat("Team %d (%s) wins the round.", bt + 1, PathName(teamPath[bt])), Color{255, 220, 110, 255});
+            winner = -1; float bs = -1; for (const auto& m : mouths) if (m.team == bt && ScoreOf(*this, m) > bs) { bs = ScoreOf(*this, m); winner = m.id; }
+        } else if (winner >= 0) { mouths[winner].score += D().scoreWin; Say(mouths[winner].name + " wins the round.", Color{255, 220, 110, 255}); }
     }
 }
 float ScoreOf(const World& w, const Mouth& m) { return m.score + m.massEaten / D().scoreMassPer + (w.over ? 0 : D().scoreTierPast4 * std::max(0, m.bestTier - 4)); }

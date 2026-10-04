@@ -157,4 +157,24 @@ enum FlCue { FLC_FLAP, FLC_DIVE, FLC_SPLASH, FLC_STRUGGLE, FLC_SLAP, FLC_CALL, F
              FLC_ERUPT, FLC_THUNDER, FLC_ROCK, FLC_BELL, FLC_LAND, FLC_HATCH, FLC_EGG, FLC_DEATH, FLC_COUNT };
 void AudioFlight(const FlAudio& a);
 void FlightCue(int kind, float vol, float pan, float pitch = 1);
-void FlightSong(uint32_t seed, float pitch, float vol, float pan);   // (the Long Flight: a colony's song)   // pitch: the species' voice for calls, a bigger bird lower
+void FlightSong(uint32_t seed, float pitch, float vol, float pan);
+// ---------------------------------------------------------------- Mouthful (the Deep Arcade's eat-and-grow arena; doc pp. 19-20)
+// Set every frame by the Mouthful scene (mouthful_game.cpp MouthfulAudioFrame); main.cpp turns it off elsewhere.
+struct MfAudio {
+    bool on = false;
+    int band = 0; float depth = 0;   // where the listening mouth is (0 shallows .. 4 trench) and how deep
+    int tier = 1;                    // the music quickens with it
+    float dusk = 0;                  // 0..1 the night layer
+    float highTide = 0;              // seconds left in the final minute (0: not yet)
+    float apex = 0, apexPan = 0;     // 0..1 an apex shark within 40 m, and which side
+    float orcas = 0;                 // 0..1 the orca pod near
+    float boat = 0;                  // 0..1 a boat overhead
+    bool crown = false;              // someone wears the crown (a slow drum)
+    bool blobfish = false;           // a blobfish on screen (its four notes)
+    bool dead = false;
+    int over = 0;                    // 1 you won, 2 the round ended otherwise
+};
+enum MfCue { MFC_SNAP, MFC_CRUNCH, MFC_GULP, MFC_CHOMP, MFC_DASH, MFC_INK, MFC_FRENZY, MFC_CLAW, MFC_SLAM, MFC_INTAKE, MFC_POP,
+             MFC_HOOK, MFC_NET, MFC_LEVIATHAN, MFC_FANFARE, MFC_CRASH, MFC_RESPAWN, MFC_FORK, MFC_SWIM, MFC_COUNT };
+void AudioMouthful(const MfAudio& a);
+void MouthfulCue(int kind, float vol, float pan, float pitch = 1);   // (the Long Flight: a colony's song)   // pitch: the species' voice for calls, a bigger bird lower

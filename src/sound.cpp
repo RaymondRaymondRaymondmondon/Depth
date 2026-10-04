@@ -789,6 +789,7 @@ int gRoomWant = RR_SALON;
 #include "sound_redtide.inl"
 #include "sound_trawl.inl"
 #include "sound_flight.inl"
+#include "sound_mouthful.inl"
 float gTestBusOpen = 0;   // --audio-test: open the music and ambience buses with no scene playing
 
 // ---------------------------------------------------------------- registered cues
@@ -995,6 +996,7 @@ void Render(float* out, int frames) {
         RtUpdate(blockT);
         TwUpdate(blockT);
         FlUpdate(blockT);
+        MfUpdate(blockT);
         if (gHub.on) {
             gHub.tickT += blockT;
             while (gHub.tickT >= HubTickDur()) { gHub.tickT -= HubTickDur(); HubTick(); gHub.tick++; }
@@ -1026,7 +1028,7 @@ void Render(float* out, int frames) {
             v.env0 = EnvAt(v, v.t); v.env1 = EnvAt(v, v.t + blockT);
         }
         float voiceDuck = 1 - 0.37f * gVoiceS;   // a voice ducks everything else 4 dB
-        float roomS = std::max({gHub.s, gExp.s, gRt.s, gTw.s, gFl.s, gTestBusOpen});  // aboard, on an expedition, in the arcade games: the generated rooms
+        float roomS = std::max({gHub.s, gExp.s, gRt.s, gTw.s, gFl.s, gMf.s, gTestBusOpen});  // aboard, on an expedition, in the arcade games: the generated rooms
         float musicLevel = std::max(gScene, roomS) * (1 - 0.29f * gDuck); // combat impacts duck the music 3 dB
         float busG[5] = {gVol.sfx * voiceDuck, gVol.music * musicLevel * voiceDuck, gVol.ambience * std::max(gScene, roomS) * voiceDuck, gVol.sfx, gVol.sfx};
         for (int i = 0; i < n; i++) {
@@ -1088,6 +1090,7 @@ void Render(float* out, int frames) {
             if (gRt.s > 0.002f) { float e = RtBedSample(gClock + i * dtS, base + i) * gVol.ambience * gRt.s * voiceDuck; mL += e; mR += e * 0.92f; send += e * 0.3f; }
             if (gTw.s > 0.002f) { float e = TwBedSample(gClock + i * dtS, base + i) * gVol.ambience * gTw.s * voiceDuck; mL += e; mR += e * 0.92f; send += e * 0.3f; }
             if (gFl.s > 0.002f) { float e = FlBedSample(gClock + i * dtS, base + i) * gVol.ambience * gFl.s * voiceDuck; mL += e * 0.94f; mR += e; send += e * 0.3f; }
+            if (gMf.s > 0.002f) { float e = MfBedSample(gClock + i * dtS, base + i) * gVol.ambience * gMf.s * voiceDuck; mL += e; mR += e * 0.95f; send += e * 0.35f; }
             if (gExp.s > 0.002f) { float e = ExpBedSample(gClock + i * dtS, base + i) * gVol.ambience * gExp.s * voiceDuck; mL += e; mR += e * 0.92f; send += e * 0.3f; }
             // the music (heard through the deck from the Study)
             mL += gDeckL.Run(musL); mR += gDeckR.Run(musR);
@@ -1154,6 +1157,8 @@ void RedTideQuip(int voice, int syllables, float pan) { if (gReady && !gCueSuppr
 void AudioTrawl(const TwAudio& a) { gTw.want = a; }
 void TrawlCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) TwCueImpl(kind, vol, pan, pitch); }
 void AudioFlight(const FlAudio& a) { gFl.want = a; }
+void AudioMouthful(const MfAudio& a) { gMf.want = a; if (a.on) gRoomWant = a.band >= 3 ? RR_OPENSEA : RR_OPENSEA; }
+void MouthfulCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) MfCueImpl(kind, vol, pan, pitch); }
 void FlightCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) FlCueImpl(kind, vol * (1 - 0.6f * gFl.uwS), pan, pitch); }
 void FlightSong(uint32_t seed, float pitch, float vol, float pan) { if (gReady && !gCueSuppressed) FlSongImpl(seed, pitch, vol, pan); }
 float AudioBeat() { return gBeat; }
@@ -1484,6 +1489,38 @@ bool AudioSelfTest(const char* wavPath) {
         for (int k = 0; k < FLC_COUNT; k++) { float pk = solo([&] { FlCueImpl(k, 1, 0, 1); }); if (pk < 0.01f || pk > 0.97f) { printf("  flight effect %d is %s (peak %.3f)\n", k, pk < 0.01f ? "silent" : "clipping", pk); mute++; } }
         gTestBusOpen = 0;
         printf("flight: 10 states, %d effects: %d silent or clipping\n", (int)FLC_COUNT, mute);
+        if (mute) ok = false;
+    }
+    // Mouthful: each band, a fry and a king, dusk, an apex shark near, the orca pod, a boat, the crown, a blobfish, high tide, the end
+    {
+        auto mfPass = [&](MfAudio st, const char* label, float secs) {
+            for (auto& v : gV) v.on = false;
+            gMf = MfState{}; gMf.want = st; gMf.s = 1; gMfBedsReady = false; gRoomWant = RR_OPENSEA;
+            gMf.themeS = st.over ? 0.0f : 1.0f; gMf.apexS = st.apex; gMf.orcaS = st.orcas; gMf.nightS = st.dusk; gMf.deepS = std::clamp((st.depth - 20) / 120.0f, 0.0f, 1.0f);
+            int N = (int)(SR * secs);
+            std::vector<float> b(N * 2);
+            for (int at = 0; at < N; at += BLOCK) Render(&b[at * 2], std::min(BLOCK, N - at));
+            double sum = 0; float pk = 0; int bad = 0; for (float x : b) { if (!std::isfinite(x)) bad++; else { sum += x * x; pk = std::max(pk, fabsf(x)); } }
+            float db = 20 * log10f(std::max(1e-6f, sqrtf((float)(sum / b.size()))));
+            bool pass = !bad && db > -52.0f && pk < 0.97f;
+            printf("mouthful %-10s rms %5.1f dB  peak %.2f%s\n", label, db, pk, pass ? "" : "  FAIL");
+            if (!pass) ok = false;
+            if (wavPath) all.insert(all.end(), b.begin(), b.end());
+        };
+        MfAudio st;
+        st = MfAudio{}; st.on = true; st.band = 0; st.depth = 3; st.tier = 1; mfPass(st, "shallows", 8);
+        st = MfAudio{}; st.on = true; st.band = 1; st.depth = 20; st.tier = 3; mfPass(st, "reef", 8);
+        st = MfAudio{}; st.on = true; st.band = 3; st.depth = 50; st.tier = 6; st.apex = 1; st.apexPan = 0.4f; mfPass(st, "apex", 8);
+        st = MfAudio{}; st.on = true; st.band = 4; st.depth = 220; st.tier = 7; mfPass(st, "trench", 8);
+        st = MfAudio{}; st.on = true; st.band = 1; st.depth = 15; st.tier = 5; st.dusk = 1; st.crown = true; mfPass(st, "dusk", 8);
+        st = MfAudio{}; st.on = true; st.band = 3; st.depth = 30; st.tier = 8; st.orcas = 1; st.boat = 0.8f; mfPass(st, "orcas", 8);
+        st = MfAudio{}; st.on = true; st.band = 0; st.depth = 5; st.tier = 4; st.blobfish = true; st.highTide = 12; mfPass(st, "blobfish", 8);
+        st = MfAudio{}; st.on = true; st.over = 1; mfPass(st, "won", 5);
+        gMf = MfState{}; gMfBeds.clear(); gMfBedsReady = false; gTestBusOpen = 1;
+        int mute = 0;
+        for (int k = 0; k < MFC_COUNT; k++) { float pk = solo([&] { MfCueImpl(k, 1, 0, 1); }); if (pk < 0.01f || pk > 0.97f) { printf("  mouthful effect %d is %s (peak %.3f)\n", k, pk < 0.01f ? "silent" : "clipping", pk); mute++; } }
+        gTestBusOpen = 0;
+        printf("mouthful: 8 states, %d effects: %d silent or clipping\n", (int)MFC_COUNT, mute);
         if (mute) ok = false;
     }
     // the salon: the waltz and its bed, mourning, and each station's motif; then every registered cue on its own    gLevel = -1; gSceneTarget = 0; gScene = 0;

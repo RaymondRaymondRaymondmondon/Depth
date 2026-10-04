@@ -14,13 +14,13 @@ namespace mf {
 enum MfAct : uint8_t { MA_INPUT = 1, MA_HELLO = 2 };
 void WriteInput(const Input& in, Writer& w);
 bool ReadInput(Reader& r, Input& in);              // (after the MA_INPUT byte)
-void OrderHello(Writer& w, const std::string& name);
+void OrderHello(Writer& w, const std::string& name, const std::string& look = "");
 void WriteWorld(World& w, int viewer, Writer& out);
 void PackWorld(World& w, int viewer, Writer& out); // compressed
 bool ReadWorld(Reader& r, World& w, bool keepOwn, int* viewerOut = nullptr);
 std::unique_ptr<arcade::GameHost> MakeMouthfulHost();
 World* MouthfulHostWorld(arcade::GameHost* h);
-std::string MouthfulHostOpts(int minutes, int botLevel, int fill);
+std::string MouthfulHostOpts(int minutes, int botLevel, int fill, int mode = 0, int path = 2);
 uint32_t MouthfulDataHash();
 int RunMouthfulNetTest();                          // --mouthful-net-test
 int RunMouthfulNetLoop(bool mem);                  // --net-loop mouthful [mem]

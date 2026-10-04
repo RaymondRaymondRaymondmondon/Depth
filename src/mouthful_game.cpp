@@ -6,6 +6,7 @@
 #include "mouthful.h"
 #include "mouthful_net.h"
 #include "arcade_session.h"
+#include "sound.h"
 #include "redtide_render.h"
 #include "input.h"
 #include "sound.h"
@@ -592,7 +593,58 @@ void DrawResults(Game& g, mf::World& w) {
 
 }  // namespace
 
+// ---------------------------------------------------------------- sound: the state each frame, and the effects diffed from the world
+struct SoundMemo { std::vector<float> bite, tell, morph, hurt, mass; std::vector<bool> alive; int king = -2; bool levAwake = false, hooked = false; float swimT = 0; };
+SoundMemo gSm;
+void MouthfulAudioFrame(const mf::World& w, float dt) {
+    const mf::Mouth& me = w.mouths[std::clamp(S.me, 0, (int)w.mouths.size() - 1)];
+    MfAudio a; a.on = true;
+    Vector3 ear = S.cam.position;
+    a.band = mf::BandAt(me.alive ? me.pos : ear); a.depth = -(me.alive ? me.pos.y : ear.y); a.tier = me.tier; a.dusk = w.Dusk();
+    a.highTide = w.HighTide() && !w.over ? w.roundLen - w.time : 0; a.dead = !me.alive; a.crown = w.king >= 0;
+    a.over = w.over ? (w.winner == S.me ? 1 : 2) : 0;
+    Vector3 right = Vector3Normalize(Vector3CrossProduct(Vector3Subtract(S.cam.target, S.cam.position), {0, 1, 0}));
+    auto panOf = [&](Vector3 p) { return std::clamp(Vector3DotProduct(Vector3Normalize(Vector3Subtract(p, ear)), right), -1.0f, 1.0f); };
+    // an apex shark within 40 m; the orca pod; a boat overhead; a blobfish in view
+    for (int i = 0; i < (int)w.eco.agents.size(); i++) {
+        const rt::Agent& g = w.eco.agents[i];
+        if (!g.alive || g.diver >= 0) continue;
+        float d = Vector3Distance(g.pos, ear);
+        if (w.npcEats[g.sp] >= 6 && w.npcEats[g.sp] < 8 && d < 40 && 1 - d / 40 > a.apex) { a.apex = 1 - d / 40; a.apexPan = panOf(g.pos); }
+    }
+    if (w.orcas.on) for (int ai : w.orcas.agents) if (ai < (int)w.eco.agents.size() && w.eco.agents[ai].alive) a.orcas = std::max(a.orcas, std::clamp(1 - Vector3Distance(w.eco.agents[ai].pos, ear) / 120, 0.0f, 1.0f));
+    if (w.boat.on) a.boat = std::clamp(1 - Vector2Distance({w.boat.pos.x, w.boat.pos.z}, {ear.x, ear.z}) / 60, 0.0f, 1.0f) * std::clamp(1 + ear.y / 40, 0.2f, 1.0f);
+    for (const auto& o : w.mouths) if (o.alive && w.FormOf(o).path == mf::P_BLOB && Vector3Distance(o.pos, ear) < 25) a.blobfish = true;
+    AudioMouthful(a);
+    // the effects: every mouth near enough to hear, by what changed since the last frame
+    size_t n = w.mouths.size();
+    if (gSm.bite.size() != n) { gSm = SoundMemo{}; gSm.bite.assign(n, 0); gSm.tell.assign(n, 0); gSm.morph.assign(n, 0); gSm.hurt.assign(n, 0); gSm.mass.assign(n, 0); gSm.alive.assign(n, true); for (size_t i = 0; i < n; i++) gSm.mass[i] = w.mouths[i].mass; gSm.king = w.king; }
+    for (size_t i = 0; i < n; i++) {
+        const mf::Mouth& o = w.mouths[i];
+        float d = Vector3Distance(o.pos, ear), vol = std::clamp(1.2f - d / 35, 0.0f, 1.0f) * (o.id == S.me ? 1.0f : 0.8f);
+        float pitch = 1.6f / (0.6f + w.Length(o));   // (bigger mouths, lower)
+        if (vol > 0.02f) {
+            if (o.biteAnim > gSm.bite[i] + 0.05f) MouthfulCue(o.king ? MFC_CHOMP : (o.mass > gSm.mass[i] + 0.5f ? MFC_GULP : MFC_SNAP), vol, panOf(o.pos), pitch);
+            if (o.hurtT > gSm.hurt[i] + 0.05f) MouthfulCue(MFC_CRUNCH, vol, panOf(o.pos), pitch);
+            if (o.tellT > gSm.tell[i] + 0.05f) {
+                static const int AB[mf::AB_COUNT] = {-1, MFC_DASH, MFC_DASH, MFC_DASH, MFC_DASH, MFC_INK, MFC_INK, MFC_INK, MFC_DASH, MFC_FRENZY, MFC_DASH, MFC_CLAW, MFC_DASH, MFC_CLAW, MFC_DASH, MFC_DASH, MFC_SLAM, MFC_CLAW, MFC_INTAKE, MFC_INK, MFC_POP, -1};   // (the stonefish's ambush: no sound)
+                int k = AB[std::clamp((int)w.FormOf(o).ab, 0, mf::AB_COUNT - 1)];
+                if (k >= 0) MouthfulCue(k, vol, panOf(o.pos), pitch);
+            }
+            if (o.morphT > gSm.morph[i] + 0.3f) MouthfulCue(MFC_FORK, vol, panOf(o.pos));
+        }
+        if (o.id == S.me && gSm.alive[i] != o.alive) MouthfulCue(o.alive ? MFC_RESPAWN : MFC_GULP, 1, 0, 0.6f);
+        gSm.bite[i] = o.biteAnim; gSm.tell[i] = o.tellT; gSm.morph[i] = o.morphT; gSm.hurt[i] = o.hurtT; gSm.mass[i] = o.mass; gSm.alive[i] = o.alive;
+    }
+    // your own tail: a stroke now and then while swimming, heavier with the tier
+    if (me.alive && Vector3Length(me.vel) > 1) { gSm.swimT += dt; if (gSm.swimT > 0.35f + 0.08f * me.tier) { gSm.swimT = 0; MouthfulCue(MFC_SWIM, me.boosting ? 0.8f : 0.45f, 0, 1.6f / (0.6f + w.Length(me))); } }
+    // the crown: taken (a fanfare), lost (a crash); the leviathan's note; hooked; netted
+    if (w.king != gSm.king) { if (w.king >= 0) MouthfulCue(MFC_FANFARE, 0.9f, 0); else if (gSm.king >= 0) MouthfulCue(MFC_CRASH, 0.9f, 0); gSm.king = w.king; }
+    bool lev = w.levAwakeT > 0; if (lev && !gSm.levAwake) MouthfulCue(MFC_LEVIATHAN, mf::BandAt(ear) == mf::B_TRENCH ? 1.0f : 0.35f, 0); gSm.levAwake = lev;
+    bool hooked = false; for (const auto& hk : w.boat.hookList) hooked |= hk.held == S.me; if (hooked && !gSm.hooked) MouthfulCue(MFC_HOOK, 1, 0); gSm.hooked = hooked;
+}
 void LeaveMouthful(Game& g) {
+    AudioMouthful(MfAudio{});
     if (S.net) { if (S.net->role == arcade::R_HOST) S.net->BackToLobby(); else S.net->Leave(); }
     S.net = nullptr; S.live = nullptr;
     S.active = false; FreeModels(); g.scene = Scene::Arcade;
@@ -646,6 +698,7 @@ void SceneMouthful(Game& g) {
         if (!S.live) w.Predict(Me(), Me().in, dt);   // (a guest swims its own mouth ahead of the host)
         S.t += dt;
         Render(dt);
+        MouthfulAudioFrame(w, dt);
         DrawHud(w);
         if (w.over) DrawResults(g, w);
         return;
@@ -654,6 +707,7 @@ void SceneMouthful(Game& g) {
     if (!S.shot) WD().Step(dt);
     S.t += dt;
     Render(dt);
+    if (!S.shot) MouthfulAudioFrame(WD(), dt);
     DrawHud(WD());
     if (WD().over) DrawResults(g, WD());
 }
