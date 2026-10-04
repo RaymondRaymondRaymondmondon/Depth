@@ -19,7 +19,7 @@ void World::StepEvents(float dt) {
         B.nextT -= dt;
         if (B.nextT <= 0 && !HighTide()) {
             B.on = true;
-            bool shallows = Rand() < 0.5f;
+            bool shallows = Rand() < 0.65f;
             B.dirZ = Rand() < 0.5f ? 1.0f : -1.0f;
             B.pos = {shallows ? Rand(-270, -190) : Rand(10, 110), 0, B.dirZ > 0 ? Z0 - 20 : Z1 + 20};
             // its gear this crossing: a net, a line of hooks, a chum line (one or two of them)
@@ -53,7 +53,7 @@ void World::StepEvents(float dt) {
             Vector3 nc = B.NetCentre();
             for (auto& m : mouths) {
                 if (!m.alive || m.tier > 3 || m.immuneT > 0) continue;
-                bool in = fabsf(m.pos.x - nc.x) < 10 && m.pos.y > -13 && fabsf(m.pos.z - nc.z) < 3;
+                bool in = fabsf(m.pos.x - nc.x) < 15 && m.pos.y > -16 && fabsf(m.pos.z - nc.z) < 3.5f;
                 int k = -1; for (int i = 0; i < (int)B.netted.size(); i++) if (B.netted[i] == m.id) k = i;
                 if (in && k < 0) { B.netted.push_back(m.id); B.nettedT.push_back(0); if (!m.bot) Say("NETTED: boost to slip out under the edge!", Color{255, 170, 140, 255}); continue; }
                 if (k < 0) continue;
@@ -69,7 +69,7 @@ void World::StepEvents(float dt) {
             for (auto& a : eco.agents) if (a.alive && a.diver < 0 && fabsf(a.pos.x - nc.x) < 10 && a.pos.y > -13 && fabsf(a.pos.z - nc.z) < 3 && preyMass[a.sp] < 30) a.alive = false;
         }
         if (B.pos.z > Z1 + 25 || B.pos.z < Z0 - 25) {
-            B.on = false; B.nextT = 120 + Rand() * 60;
+            B.on = false; B.nextT = 80 + Rand() * 60;
             for (auto& hk : B.hookList) if (hk.held >= 0) mouths[hk.held].holdT = 0;
             B.hookList.clear(); B.netted.clear(); B.nettedT.clear();
         }
@@ -105,7 +105,7 @@ void World::StepEvents(float dt) {
             Vector3 goal = O.t > 0 && tgt >= 0 ? mouths[tgt].pos : Vector3{X1 + 40, -30, a.pos.z};
             if (O.t <= 0) goal.x = X1 + 40;
             Vector3 to = Vector3Subtract(goal, a.pos); float d = Vector3Length(to);
-            float sp = 8.5f;
+            float sp = 10.5f;
             if (d > 0.2f) a.vel = Vector3Lerp(a.vel, Vector3Scale(to, sp / d), std::min(1.0f, dt * 2));
             a.pos = Vector3Add(a.pos, Vector3Scale(a.vel, dt));
             a.pos.y = std::clamp(a.pos.y, FloorY(a.pos.x, a.pos.z) + 2, -1.0f);
@@ -163,7 +163,7 @@ void World::StepEvents(float dt) {
         // the apex sharks are drawn to it
         for (auto& a : eco.agents) if (a.alive && a.diver < 0 && npcEats[a.sp] >= 6 && npcEats[a.sp] < 8 && eco.map->species[a.sp].name != "Orca" && a.st != rt::State::Hunt) { a.st = rt::State::Investigate; a.goal = F.pos; a.stateT = 0; }
         int feeding = 0; for (const auto& m : mouths) if (m.alive && Vector3Distance(m.pos, F.pos) < 15) feeding++;
-        if (feeding >= 2) levNoise += dt * 0.25f * feeding;   // (a long melee down there wakes it)
+        if (feeding >= 2) levNoise += dt * 0.5f * feeding;   // (a long melee down there wakes it)
         if (F.left <= 0) { F.on = false; F.done = true; Say("The whale fall is picked to the bone.", Color{220, 210, 200, 255}); }
     }
     // ---- the eel garden: a patch of the reef floor that bites anything tier 1-2 passing within a metre of it

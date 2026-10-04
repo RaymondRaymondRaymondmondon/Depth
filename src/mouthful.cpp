@@ -709,18 +709,19 @@ bool World::DecideHook(rt::Agent& a, int idx) {
         if (reef && Vector3Distance(a.pos, CLEANING) < 10) return false;   // (calm at the cleaning station)
         int best = -1; float bd = 1e9f;
         for (const auto& m : mouths) {
-            if (!m.alive || m.immuneT > 0 || m.tier > npcEats[sp]) continue;
+            bool kingFight = m.king && npcEats[sp] >= 6 && BandAt(m.pos) == B_BLUE;   // (a king can fight one: a long fight)
+            if (!m.alive || m.immuneT > 0 || (m.tier > npcEats[sp] && !kingFight)) continue;
             if (FormOf(m).ps == PS_APEX && s.name != "Orca") continue;   // (a Great White player is ignored by them)
             if (m.hidden || m.buriedT >= 2 || m.ambush) continue;
             if (reef && Vector3Distance(m.pos, CLEANING) < 10 && m.markT <= 0) continue;
             float d = Vector3Distance(a.pos, m.pos);
-            float sense = s.sight * (0.4f + 0.6f * LightAt(m.pos, dusk)) + std::min(25.0f, eco.BloodNear(m.pos, 4) * 2);
+            float sense = s.sight * (reef ? 0.6f : 1.0f) * (0.4f + 0.6f * LightAt(m.pos, dusk)) + std::min(25.0f, eco.BloodNear(m.pos, 4) * 2);
             if (m.markT > 0) sense = 80;
             if (d > sense) continue;
             float score = d - (m.markT > 0 ? 40 : 0) - m.tier * 2;
             if (score < bd) { bd = score; best = m.id; }
         }
-        if (best >= 0 && (a.hunger > 0.25f || mouths[best].markT > 0) && a.fedT <= 0) {
+        if (best >= 0 && (a.hunger > (reef ? 0.45f : 0.3f) || mouths[best].markT > 0) && a.fedT <= 0) {
             a.st = rt::State::Hunt; a.target = mouths[best].agent; a.targetCorpse = false; if (a.stateT > 25) a.stateT = 0;
             return true;
         }
@@ -798,7 +799,7 @@ void World::StepNpc(float dt) {
         int best = -1; float bm = 0;
         for (const auto& m : mouths) if (m.alive && m.immuneT <= 0 && BandAt(m.pos) == B_TRENCH && Vector3Distance(m.pos, L.pos) < 140 && m.mass > bm) { bm = m.mass; best = m.id; }
         if (best >= 0) {
-            goal = mouths[best].pos; speed = 7.5f;
+            goal = mouths[best].pos; speed = Vector3Distance(L.pos, goal) < 30 ? 13.0f : 7.5f;
             if (Vector3Distance(L.pos, goal) < 8 + BodyRadius(Length(mouths[best]))) {
                 KillMouth(mouths[best], -1, leviathan, "leviathan");
                 levAwakeT = 0; levNoise = 0;   // (one bite, then sleep)
@@ -942,7 +943,7 @@ void World::StepMouth(Mouth& m, float dt) {
     if (in.bite) Bite(m);
     if (in.ability) UseAbility(m);
     GrowCheck(m);
-    if (m.king) m.crownT += dt;
+    if (m.king) { m.crownT += dt; if (fmodf(time, 1.0f) < dt) eco.AddBlood(m.pos, 1.5f); }
     if (m.agent >= 0) { rt::Agent& a = eco.agents[m.agent]; a.pos = m.pos; a.vel = m.vel; a.alive = m.alive; a.zone = std::max(0, eco.ZoneAt(m.pos)); }
 }
 
@@ -1016,6 +1017,7 @@ void World::StepBot(Mouth& m, float dt) {
         float td = 1e9f; Vector3 tpos{};
         for (const auto& o : mouths) {
             if (!o.alive || o.id == m.id || !SwallowOk(*this, o, m) || !Visible(m, o) || Friends(m, o)) continue;
+            if (o.king && m.tgtMouth == o.id && m.botLevel >= 2) continue;   // (on the king: no running now)
             float dd = Vector3Distance(o.pos, m.pos);
             float omen = FormOf(o).ps == PS_OMEN ? 20 : 0;
             if (dd < std::max(sense * 0.8f, omen) && dd < td) { td = dd; tpos = o.pos; }
@@ -1030,7 +1032,7 @@ void World::StepBot(Mouth& m, float dt) {
             if (dd < sense * (i == leviathan ? 2.5f : 0.8f) && dd < td) { td = dd; tpos = a.pos; }
         }
         // the net: anything tier 3 or under keeps away from it
-        if (boat.on && boat.net && m.tier <= 3) { Vector3 nc = boat.NetCentre(); float dd = Vector3Distance(nc, m.pos); if (dd < 22 && dd < td) { td = dd; tpos = nc; } }
+        if (boat.on && boat.net && m.tier <= 3 && m.botLevel >= 2) { Vector3 nc = boat.NetCentre(); float dd = Vector3Distance(nc, m.pos); if (dd < 22 && dd < td) { td = dd; tpos = nc; } }
         // a bot that knows better keeps out of the leviathan's hollow once it's big
         bool levFear = m.botLevel >= 2 && m.tier >= 6 && Vector3Distance(m.pos, HOLLOW) < 60;
         if (levFear && td > 40) { td = 40; tpos = HOLLOW; }
@@ -1074,16 +1076,20 @@ void World::StepBot(Mouth& m, float dt) {
                 if (!o.alive || o.id == m.id || o.immuneT > 0 || !Visible(m, o) || Friends(m, o)) continue;
                 if (m.banT > 0 && m.banId == 100000 + o.id) continue;
                 bool canEat = SwallowOk(*this, m, o);
-                bool goKing = m.botLevel >= 3 && o.king && m.mass > o.mass * 0.75f;
+                // regicide (doc p. 15): three tier-5s with abilities. A Shark bot goes for a king it's near the size of;
+                // a Hunter or Shark of tier 5+ joins when another is already on it
+                int onKing = 0; if (o.king) for (const auto& q : mouths) if (q.alive && q.id != m.id && q.id != o.id && q.tier >= 5 && Vector3Distance(q.pos, o.pos) < 12) onKing++;
+                bool goKing = o.king && ((m.botLevel >= 3 && m.mass > o.mass * 0.75f) || (m.botLevel >= 2 && m.tier >= 5 && (onKing >= 1 || m.botLevel >= 3)) || (m.botLevel >= 2 && m.tier >= 6));
                 if (!canEat && !goKing) continue;
                 if (F.walker && o.pos.y - FloorY(o.pos.x, o.pos.z) > 4) continue;
                 float dd = Vector3Distance(o.pos, m.pos);
-                if (dd > sense) continue;
-                float v = o.mass / (dd + 4) * (FormOf(o).path == P_BLOB ? 0.3f : 1.5f) * (goKing ? 3 : 1);
+                if (dd > (goKing ? std::max(sense, 45.0f) : sense)) continue;
+                float v = o.mass / (dd + 4) * (FormOf(o).path == P_BLOB ? 0.3f : 2.5f) * (goKing ? 3 : 1);
                 if (v > best) { best = v; m.tgtMouth = o.id; m.tgtAgent = -1; }
             }
             if (fall.on && m.tier >= 5 && !m.fleeing && Vector3Distance(fall.pos, m.pos) < 260 && best < 3) { m.tgtAgent = -1; m.tgtMouth = -1; m.goal = fall.pos; best = 3; }   // (the feast)
             if (boat.on && boat.chum && m.tier <= 4 && m.botLevel <= 2) { Vector3 c{boat.pos.x, -2, boat.pos.z - boat.dirZ * 12}; float dd = Vector3Distance(c, m.pos); if (dd < 60 && 2.0f / (dd + 4) > best) { best = 2.0f / (dd + 4); m.tgtAgent = -1; m.tgtMouth = -1; m.goal = c; } }
+            if (boat.on && m.botLevel == 1 && m.tier <= 4) for (const auto& hk : boat.hookList) if (!hk.gone && hk.held < 0) { float dd = Vector3Distance(hk.pos, m.pos); if (dd < sense && 6.0f / (dd + 4) > best) { best = 6.0f / (dd + 4); m.tgtAgent = -1; m.tgtMouth = -1; m.goal = hk.pos; } }
             if (m.tier <= 2 && best < 0.15f) for (const auto& p : plankton) { float dd = Vector3Distance(p.pos, m.pos); if (dd < sense * 2 && 1.2f / (dd + 4) > best) { best = 1.2f / (dd + 4); m.tgtAgent = -1; m.tgtMouth = -1; m.goal = p.pos; } }
             if (m.tgtAgent < 0 && m.tgtMouth < 0 && (best <= 0 || Vector3Distance(m.goal, m.pos) < 4)) {
                 if (Vector3Distance(m.goal, m.pos) < 6 || m.goal.x == 0 || Rand() < 0.02f) { m.goal = BandGoal(*this, m.tier, m.botLevel); m.goal.z = std::clamp(m.pos.z + (m.goal.z - m.pos.z) * 0.35f, Z0 + 10, Z1 - 10); m.goal.y = std::clamp(m.goal.y, FloorY(m.goal.x, m.goal.z) + 1.5f, -1.5f); }
@@ -1158,6 +1164,7 @@ void World::StepBot(Mouth& m, float dt) {
     }
     if (m.ambush && !chasing && !m.fleeing) { in.swim = false; }
     if (fall.on && !m.fleeing && Vector3Distance(m.goal, fall.pos) < 1 && Vector3Distance(m.pos, fall.pos) < Reach(m) + 4) { in.bite = true; in.swim = false; }
+    if (boat.on && m.tgtAgent < 0 && m.tgtMouth < 0 && !m.fleeing) for (const auto& hk : boat.hookList) if (Vector3Distance(m.goal, hk.pos) < 0.5f && Vector3Distance(m.pos, hk.pos) < Reach(m) + 0.5f) in.bite = true;
     if (m.dashT > 0 && chasing) in.bite = true;   // (a dash is a pass with the jaws open)
     // a walker jumps toward what's above it
     if (F.walker && !m.airborne && to.y > 2.5f && dist < 6) in.pitch = 1;

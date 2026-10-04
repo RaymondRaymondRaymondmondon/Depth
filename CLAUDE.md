@@ -463,3 +463,26 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 - **Colony checks:**
   - `depth.exe --flight-colony-test`.
   - `depth.exe --flight-sim tropical <days> [careful|lagoon] [founder] [seed]`: the gate line. Careful reaches 40 in about 15 days with no deaths; lagoon-only starves.
+
+## Mouthful (arcade game 8; build log in docs/MOUTHFUL_PROGRESS.md)
+- **Design:** `Reference_For_Future_MP_Games/Mouthful — Arcade Game 8 Design Document.pdf` (OCR in `docs/mouthful_pdf_pages/`). A 3D eat-and-grow arena: up to 12 mouths, tiers 1-8, six paths forked at tiers 2, 4 and 6, the crown at tier 8.
+- **Code:**
+  - `mouthful.h/.cpp`: the headless `mf::World`.
+  - `mouthful_events.cpp`: the boat, orcas, red tide, whale fall, dusk, the eel garden.
+  - `mouthful_skins.cpp`: skins, crate, wardrobe, tokens.
+  - `mouthful_net.*`: `MouthfulHost` and the snapshot `Visit`. **Any new field the screen draws must go in the Visit**; `--mouthful-net-test` checks the byte-identical round-trip.
+  - `mouthful_game.cpp`: the scene.
+  - `sound_mouthful.inl`: the sound.
+- **The web:** Red Tide's `rt::Ecosystem` on `data/mouthful/sea/reef/` (map key `mouthful_reef`, written by `tools/mouthful_data.ps1`). Mouths are Diver agents.
+- **Eco hooks:**
+  - `decideHook`: prey flees the mouths that can eat it; the NPC sharks hunt mouths.
+  - `onDiverHit`: an NPC's bite becomes mass.
+  - The World revives dead fish in place (the spawn rows' `respawn_s` is 0, so agent indices stay stable).
+  - The leviathan and the orcas are moved by the World (`held = 1`).
+- **Rules:**
+  - Swallow below 60% of your mass; otherwise a fight bite takes 10% of the target's mass (bite / HP).
+  - A fight bite feeds the biter 30% of what it tears off.
+  - A quicker fish on the move evades some bites.
+- **Data:** `data/mouthful/*.json` (tiers, paths/forms, sea, scoring, bots, skins).
+- **Checks:** `--mouthful-test`, `--mouthful-net-test`, `--mouthful-skins-test`, `--net-loop mouthful [mem]`, `--mouthful-round`, `--mouthful-duel`. Shots `mouthful_*`.
+- **The wardrobe:** `mouthful_wardrobe.txt` (gitignored).
