@@ -314,7 +314,25 @@ void DrawReels(Game& g) {
         row(c.y - 10, TextFormat("%d bot%s", sfBots, sfBots == 1 ? "" : "s"), sfBots, 7, 1);
         row(c.y + 16, SKILL[sfSkill], sfSkill, 3, 0);
         row(c.y + 42, TextFormat("first to %d", TOWIN[sfToWin]), sfToWin, 3, 0);
-        row(c.y + 68, ScuffleWorldChoice(sfWorld), sfWorld, 8, -1);
+        {   // the match, on a plate to the left of the drum: the world, your trinket, the rules
+            DrawRectangleRounded({28, 236, 268, 330}, 0.08f, 6, Fade(Color{8, 30, 34, 255}, 0.85f));
+            DrawRectangleRoundedLinesEx({28, 236, 268, 330}, 0.08f, 6, 2, Pal::BrassDk);
+            DrawTextCenteredBold("The match", 162, 246, 18, Color{230, 200, 150, 255});
+            auto cyc = [&](float y, const char* label, int& v, int n, int lo, const char* text) {
+                Rectangle l{40, y + 16, 24, 22}, r{260, y + 16, 24, 22};
+                DrawTextCentered(label, 162, y, 13, SCREEN_DIM);
+                DrawTextCenteredBold(text, 162, y + 17, 15, Color{180, 230, 220, 255});
+                DrawTextCenteredBold("<", l.x + 12, l.y, 18, Pal::Brass); DrawTextCenteredBold(">", r.x + 12, r.y, 18, Pal::Brass);
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = lo + (v - lo + n - 1) % n; PlayCue("ui.click"); }
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = lo + (v - lo + 1) % n; PlayCue("ui.click"); }
+            };
+            cyc(276, "the stages", sfWorld, 8, -1, ScuffleWorldChoice(sfWorld));
+            cyc(326, "your trinket (others see it)", gScuffleTrinket, sf::TK_COUNT + 1, -1, gScuffleTrinket < 0 ? "the game picks" : sf::TrinketName(gScuffleTrinket));
+            cyc(376, "the rules", gScuffleRules, sf::MU_COUNT + 2, 0, ScuffleRulesChoice(gScuffleRules));
+            const char* note = gScuffleTrinket >= 0 ? sf::TrinketText(gScuffleTrinket) : gScuffleRules >= 2 ? sf::MutatorText(gScuffleRules - 2) : "Gear is the E key (or the right mouse button).";
+            DrawWrapped(note, {40, 430, 244, 120}, 13, SCREEN_DIM);
+            if (gScuffleTrinket >= 0 && gScuffleRules >= 2) DrawWrapped(TextFormat("Rules: %s.", sf::MutatorText(gScuffleRules - 2)), {40, 500, 244, 60}, 13, SCREEN_DIM);
+        }
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Fight (solo)", true, 15)) { StartScuffle(g, sfBots, sfSkill, TOWIN[sfToWin], sfWorld); return; }
         if (Button({c.x - 110, c.y + 278, 220, 30}, "The editor", true, 13)) { StartScuffleEditor(g); return; }
         DrawTextCentered("Host or Join to fight friends (2-8; the host picks the rounds and the arsenal in the lobby)", c.x, c.y + 316, 13, SCREEN_DIM);
@@ -629,20 +647,22 @@ void DrawLobby() {
         static const int WINS[3] = {3, 5, 10};
         static const char* SKILLS[3] = {"Stumble AI", "Scrap AI", "Sharp AI"};
         auto pick = [&](float x, float y, const char* text, int& v, int n) {
-            Rectangle l{x - 130, y, 26, 26}, r{x + 104, y, 26, 26};
-            DrawTextCenteredBold("<", l.x + 13, l.y + 2, 20, Pal::Brass); DrawTextCenteredBold(">", r.x + 13, r.y + 2, 20, Pal::Brass);
-            DrawTextCenteredBold(text, x, y + 3, 16, Color{230, 200, 150, 255});
+            Rectangle l{x - 108, y, 24, 24}, r{x + 84, y, 24, 24};   // (two narrow columns: the Fight! button has the right)
+            DrawTextCenteredBold("<", l.x + 12, l.y + 2, 18, Pal::Brass); DrawTextCenteredBold(">", r.x + 12, r.y + 2, 18, Pal::Brass);
+            DrawTextCenteredBold(text, x, y + 4, 14, Color{230, 200, 150, 255});
             bool ch = false;
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = (v + n - 1) % n; ch = true; }
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = (v + 1) % n; ch = true; }
             return ch;
         };
-        float yy = p.y + p.height - 100;
-        bool ch = pick(p.x + 170, yy, TextFormat("first to %d", WINS[sfWin]), sfWin, 3);
-        ch |= pick(p.x + 170, yy + 32, TextFormat("%s arsenal", sf::ArsenalName(sfArs)), sfArs, sf::AR_COUNT);
-        ch |= pick(p.x + 440, yy, SKILLS[sfSkill], sfSkill, 3);
-        ch |= pick(p.x + 440, yy + 32, ScuffleWorldChoice(sfWorld - 1), sfWorld, 8);
-        gSess.gameOpts = ScuffleOpts(WINS[sfWin], sfArs, sfSkill, sfWorld - 1);
+        float yy = p.y + p.height - 98;
+        bool ch = pick(p.x + 140, yy, TextFormat("first to %d", WINS[sfWin]), sfWin, 3);
+        ch |= pick(p.x + 140, yy + 30, TextFormat("%s arsenal", sf::ArsenalName(sfArs)), sfArs, sf::AR_COUNT);
+        ch |= pick(p.x + 140, yy + 60, ScuffleRulesChoice(gScuffleRules), gScuffleRules, sf::MU_COUNT + 2);
+        ch |= pick(p.x + 362, yy, SKILLS[sfSkill], sfSkill, 3);
+        ch |= pick(p.x + 362, yy + 30, ScuffleWorldChoice(sfWorld - 1), sfWorld, 8);
+        DrawTextCentered(gScuffleTrinket >= 0 ? TextFormat("your trinket: %s", sf::TrinketName(gScuffleTrinket)) : "your trinket: the game picks", p.x + 362, yy + 64, 13, SCREEN_DIM);
+        gSess.gameOpts = ScuffleOpts(WINS[sfWin], sfArs, sfSkill, sfWorld - 1, ScuffleRulesMask(gScuffleRules), gScuffleRules == 1);
         if (ch) gSess.Chat(TextFormat("The fight: first to %d, the %s arsenal, %s", WINS[sfWin], sf::ArsenalName(sfArs), ScuffleWorldChoice(sfWorld - 1)));
     }
     if (gSess.game == G_NIGHT_OFF) {

@@ -57,12 +57,14 @@ void Gather(sf::Input& in, const sf::Stick& k) {
     in.jump = IsKeyDown(KEY_W) || IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_UP);
     in.fire = IsMouseButtonDown(MOUSE_BUTTON_LEFT) || IsKeyDown(KEY_J);
     in.taunt = IsKeyPressed(KEY_T);
+    in.gear = IsKeyDown(KEY_E) || IsMouseButtonDown(MOUSE_BUTTON_RIGHT);   // (the gear button)
     Vector2 m = S2W(GetMousePosition()), d = Vector2Subtract(m, k.pt[sf::J_NECK].p);
     in.aim = Vector2Length(d) > 0.05f ? Vector2Normalize(d) : Vector2{(float)k.face, 0};
     if (IsKeyDown(KEY_J) && !IsMouseButtonDown(MOUSE_BUTTON_LEFT)) in.aim = {(float)k.face, 0};   // (the keyboard's fist: straight ahead)
 }
 
 #include "scuffle_worldart.inl"
+#include "scuffle_arsenalart.inl"
 // ---------------------------------------------------------------- drawing
 void DrawBackdrop(const sf::Stage& s) {
     if (s.world != sf::WD_NAUTILUS) { WorldBackdrop(s); return; }
@@ -209,6 +211,12 @@ void ReadEvents() {
         if (e.kind == sf::EV_BLOCK) Splash(e.at, Color{250, 245, 225, 255}, 8, 3.0f, 0.05f);
         if (e.kind == sf::EV_CRATE_OPEN) Splash(e.at, Color{150, 110, 60, 255}, 8, 3.0f, 0.06f);
         if (e.kind == sf::EV_WALL) S.wallMsgT = 2.5f;
+        if (e.kind == sf::EV_EVENT) { gEventBanner = 2.2f; gEventKind = (int)e.a; }
+        if (e.kind == sf::EV_FREEZE) Splash(e.at, Color{200, 230, 245, 255}, e.a > 0 ? 14 : 6, 3, 0.06f);
+        if (e.kind == sf::EV_ZAP) Splash(e.at, Color{170, 220, 255, 255}, 6, 3, 0.04f);
+        if (e.kind == sf::EV_BUBBLE && e.a > 0) Splash(e.at, Color{250, 230, 250, 255}, 8, 2.5f, 0.05f);
+        if (e.kind == sf::EV_INK) Splash(e.at, INK, 26, 5, 0.12f);
+        if (e.kind == sf::EV_PORTAL) Splash(e.at, Color{120, 170, 250, 255}, 6, 2, 0.05f);
     }
     S.evSeen = base + (uint32_t)E.size();
 }
@@ -227,12 +235,13 @@ void StepCamera(float dt) {
     S.cam = Vector2Lerp(S.cam, want, std::min(1.0f, dt * 4));
 }
 // ---------------------------------------------------------------- the arms: crates on parachutes, weapons, bullets, the flood
-void DrawWeaponAt(int wi, Vector2 grip, Vector2 muzzle, float alpha) {
+void DrawWeaponAt(int wi, Vector2 grip, Vector2 muzzle, float alpha, int count = 0) {
     if (wi < 0 || wi >= (int)sf::Weapons().size()) return;
     const sf::WeaponDef& d = sf::Weapons()[wi];
     Vector2 a = W2S(grip), b = W2S(muzzle), dir = Vector2Normalize(Vector2Subtract(b, a)), n{-dir.y, dir.x};
     if (n.y > 0) n = Vector2Negate(n);
     float px = S.zoom * 0.055f; Color ink = ColorAlpha(INK, alpha);
+    if (DrawWeaponSpecial(d, a, b, dir, n, px, alpha, count)) return;   // (stage 6: the rest of the arsenal)
     auto line = [&](Vector2 p, Vector2 q, float w, Color c) { DrawLineEx(p, q, w + 2.5f, ink); DrawLineEx(p, q, w, ColorAlpha(c, alpha)); };
     Color brass{200, 160, 70, 255}, steel{150, 156, 160, 255}, wood{140, 96, 54, 255}, red{180, 60, 50, 255}, green{90, 130, 70, 255};
     if (d.kind == "melee") {
@@ -269,7 +278,7 @@ void DrawArms() {
             continue;
         }
         if (it.holder >= 0) continue;   // (in a hand: drawn with the stick)
-        DrawWeaponAt(it.weapon, it.a.p, it.b.p, 1);
+        DrawWeaponAt(it.weapon, it.a.p, it.b.p, 1, it.count);
     }
     for (const auto& b : w.bullets) {
         if (DrawHazardBullet(b)) continue;
@@ -283,7 +292,19 @@ void DrawArms() {
 void DrawHeld(const sf::Stick& k) {
     if (!k.present || k.weapon < 0 || k.weapon >= (int)S.M.w.items.size()) return;
     const sf::Item& it = S.M.w.items[k.weapon];
-    DrawWeaponAt(it.weapon, it.a.p, it.b.p, 1);
+    DrawWeaponAt(it.weapon, it.a.p, it.b.p, 1, it.count);
+}
+// the world, in order: the stage, burning wood, the dead, the living with what they hold and what's happening to them,
+// crates, loose weapons and bullets (and the water over all of it), the things the arsenal leaves, ink, and the screen's effects
+void DrawWorld(float dt) {
+    DrawStage();
+    DrawFires();
+    for (const auto& k : S.M.w.sticks) if (!k.alive) DrawStick(k);
+    for (const auto& k : S.M.w.sticks) if (k.alive) { DrawStick(k); DrawHeld(k); DrawStickStatus(k); }
+    DrawThings();
+    DrawArms();
+    DrawBlots(dt);
+    DrawScreenFx(dt);
 }
 void DrawHud() {
     const sf::Match& M = S.M;
@@ -295,6 +316,7 @@ void DrawHud() {
         DrawCircleV({x + 13, 25}, 7, k.alive ? StickColor(i) : Color{110, 106, 100, 255});
         Txt(StickName(i), x + 26, 16, 13, Color{240, 230, 210, 255});
         Txt(TextFormat("%d", M.score[i]), x + 26, 33, 11, Color{200, 190, 170, 255});
+        if (k.trinket != sf::TK_NONE) Txt(sf::TrinketName(k.trinket), x + 4, 0, 10, DarkWorld(M.w.stage.world) ? Color{220, 190, 120, 255} : Color{120, 80, 30, 255});   // (everyone can see what everyone took)
         for (int wn = 0; wn < S.toWin && wn < 20; wn++) DrawCircleV({x + 72 + (wn % 10) * 7.5f, 37.0f + (wn / 10) * 7}, 2.6f, wn < M.wins[i] ? StickColor(i) : Color{80, 74, 66, 255});
         x += 158;
     }
@@ -302,6 +324,8 @@ void DrawHud() {
     // your weapon and its ammo
     const sf::Stick& me = M.w.sticks[std::clamp(S.me, 0, (int)M.w.sticks.size() - 1)];
     if (me.weapon >= 0 && me.weapon < (int)M.w.items.size()) { const sf::Item& it = M.w.items[me.weapon]; const sf::WeaponDef& d = sf::Weapons()[it.weapon]; DrawTextCenteredBold(d.kind == "gun" ? TextFormat("%s   %d", d.name.c_str(), it.ammo) : d.name.c_str(), SCREEN_W / 2.0f, SCREEN_H - 50.0f, 18, it.ammo == 0 && d.kind == "gun" ? Color{170, 60, 40, 255} : NameInk()); if (it.ammo == 0 && d.kind == "gun") DrawTextCentered("(empty: click to throw it)", SCREEN_W / 2.0f, SCREEN_H - 30.0f, 12, NameInk()); }
+    if (me.gear >= 0) DrawTextCentered(TextFormat("%s%s   (E or right mouse)", sf::GearName(me.gear), me.gear == sf::GR_JETPACK ? TextFormat(": %.0f%%", me.gearFuel / 3 * 100) : ""), SCREEN_W / 2.0f, SCREEN_H - 72.0f, 13, NameInk());
+    if (me.carry >= 0 && me.carry < (int)M.w.items.size()) DrawTextCentered(TextFormat("on your back: %s (E swaps)", sf::Weapons()[M.w.items[me.carry].weapon].name.c_str()), SCREEN_W / 2.0f, SCREEN_H - 88.0f, 12, NameInk());
     if (S.wallMsgT > 0) DrawTextCenteredBold(WallLine(M.w.stage.world), SCREEN_W / 2.0f, 90, 26, DarkWorld(M.w.stage.world) ? Color{230, 210, 160, 255} : Color{40, 70, 110, 255});
     if (M.phase == sf::Match::P_COUNT) DrawTextCenteredBold("FIGHT!", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 56, Color{40, 30, 26, (unsigned char)(255 * std::clamp(1.4f - M.phaseT, 0.0f, 1.0f))});
     if (M.phase == sf::Match::P_WIN) DrawTextCenteredBold(M.roundWinner >= 0 ? TextFormat("%s %s the round", StickName(M.roundWinner), M.roundWinner == S.me && !S.net ? "take" : "takes") : "A draw: everyone at once", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 34, M.roundWinner >= 0 ? StickColor(M.roundWinner) : INK);
@@ -315,10 +339,13 @@ void DrawHud() {
 }
 } // namespace
 
+int gScuffleTrinket = -1, gScuffleRules = 0;   // (the arcade's picks: your trinket (-1: the game picks); the rules: 0 none, 1 Random each round, 2+ one mutator)
+uint32_t ScuffleRulesMask(int r) { return r >= 2 ? 1u << (r - 2) : 0; }
 void StartScuffle(Game& g, int bots, int skill, int toWin, int world) {
     S = ScuffleScene{};
     S.active = true; S.players = std::clamp(bots + 1, 2, sf::MAX_STICKS); S.skill = std::clamp(skill, 0, 2); S.toWin = std::clamp(toWin, 1, 20);
-    S.M.world = world;
+    S.M.world = world; S.M.mutators = ScuffleRulesMask(gScuffleRules); S.M.randomMutator = gScuffleRules == 1;
+    S.M.trinkets.assign(S.players, -1); S.M.trinkets[0] = gScuffleTrinket;
     S.M.Start(S.players, S.toWin, (uint32_t)GetRandomValue(1, 1 << 30), S.arsenal);
     S.botRng.resize(S.players);
     for (int i = 0; i < S.players; i++) S.botRng[i] = 1234567u + i * 7919u + (uint32_t)GetRandomValue(0, 1 << 20);
@@ -334,7 +361,9 @@ void StartScuffleNet(Game& g, arcade::Session* net, const char* name) {
     S.zoom = 60; S.lastRound = -1;
     g.scene = Scene::Scuffle;
 }
-std::string ScuffleOpts(int toWin, int arsenal, int skill, int world) { return sf::ScuffleHostOpts(toWin, arsenal, skill, world); }
+std::string ScuffleOpts(int toWin, int arsenal, int skill, int world, uint32_t mutators, bool randomMutator) { return sf::ScuffleHostOpts(toWin, arsenal, skill, world, mutators, randomMutator); }
+const char* ScuffleTrinketChoice(int t) { return t < 0 ? "the game picks your trinket" : TextFormat("trinket: %s", sf::TrinketName(t)); }
+const char* ScuffleRulesChoice(int r) { return r <= 0 ? "no mutators" : r == 1 ? "a Random mutator each round" : sf::MutatorName(r - 2); }
 const char* ScuffleWorldChoice(int w) { return w < 0 ? "all six worlds" : w >= sf::WD_COUNT ? "endless (the generator)" : sf::WorldName(w); }
 // the host: its own stick's inputs go through the session numbered like anyone's; it draws a copy of the real match.
 // A guest: reads each snapshot into the predictor (which replays what the host hasn't used yet), steps its own stick
@@ -343,7 +372,7 @@ static bool NetTick(float dt, bool steer) {
     arcade::Session& N = *S.net;
     N.Update(GetTime(), dt);
     if (N.stage != arcade::S_PLAYING) return false;
-    if (!S.helloSent) { Writer o; sf::OrderHello(o, S.netName); N.Act(o); S.helloSent = true; }
+    if (!S.helloSent) { Writer o; sf::OrderHello(o, S.netName, gScuffleTrinket); N.Act(o); S.helloSent = true; }
     std::vector<sf::InputFrame> box;
     if (N.role == arcade::R_HOST) {
         sf::Match* hm = sf::ScuffleHostMatch(N.HostGame());
@@ -397,11 +426,7 @@ static void NetFrame(Game& g, float dt) {
     if (S.M.round != S.lastRound) { S.lastRound = S.M.round; S.blots.clear(); S.evSeen = S.M.w.eventBase + (uint32_t)S.M.w.events.size(); }
     ReadEvents();
     StepCamera(dt);
-    DrawStage();
-    for (const auto& k : S.M.w.sticks) if (!k.alive) DrawStick(k);
-    for (const auto& k : S.M.w.sticks) if (k.alive) { DrawStick(k); DrawHeld(k); }
-    DrawArms();
-    DrawBlots(dt);
+    DrawWorld(dt);
     DrawHud();
     if (N.paused) DrawTextCenteredBold(TextFormat("Waiting for a lost player (%.0f s)", N.pauseLeft), SCREEN_W / 2.0f, 120, 18, Color{150, 50, 40, 255});
     if (S.M.Over()) {
@@ -441,11 +466,7 @@ void SceneScuffle(Game& g) {
     }
     ReadEvents();
     StepCamera(dt);
-    DrawStage();
-    for (const auto& k : S.M.w.sticks) if (!k.alive) DrawStick(k);
-    for (const auto& k : S.M.w.sticks) if (k.alive) { DrawStick(k); DrawHeld(k); }
-    DrawArms();
-    DrawBlots(dt);
+    DrawWorld(dt);
     DrawHud();
     if (S.M.Over() && EditorPlaying()) {
         if (Button({SCREEN_W / 2.0f - 100, SCREEN_H / 2.0f + 160, 200, 40}, "Back to the editor", true, 16)) EditorBackFromPlay();
@@ -473,6 +494,26 @@ void DebugScuffleShot(Game& g, int which) {
     S.evSeen = S.M.w.eventBase > 64 ? S.M.w.eventBase : 0; ReadEvents();
     for (int i = 0; i < 90; i++) StepCamera(1 / 60.0f);
     if (which == 2) { S.M.wins = {5, 3, 2, 1}; S.M.champion = 0; S.M.phase = sf::Match::P_OVER; }
+    if (which == 5 || which == 6) {   // the arsenal's look (5: weapons, things and statuses; 6: Blackout with an event's banner and the hot potato)
+        S = ScuffleScene{}; S.active = true; S.shot = true; S.players = 8; S.toWin = 5;
+        uint32_t h = 99; for (int i = 0; i < 700; i++) { h = h * 1664525u + 1013904223u; float x = (float)((h >> 8) % SCREEN_W); h = h * 1664525u + 1013904223u; S.grain.push_back({x, (float)((h >> 8) % SCREEN_H)}); }
+        sf::Stage st = sf::StoneStage(); for (int x = 20; x < 26; x++) st.Set(x, 6, sf::T_WOOD);
+        S.M.custom = {st}; S.M.Start(8, 5, 777); S.M.phase = sf::Match::P_FIGHT; S.M.w.nextCrate = 1e9f;
+        sf::World& w = S.M.w;
+        const char* hold[8] = {"flamethrower", "tesla", "blackhole", "trident", "beehive", "laser", "sledge", "portal"};
+        for (int i = 0; i < 8; i++) { sf::Stick& k = w.sticks[i]; w.SpawnStick(k, {1.5f + i * 2.4f, 1.2f}, i % 2 ? -1 : 1); int it = w.SpawnWeapon(sf::WeaponIndex(hold[i]), k.pt[sf::J_HAND_R].p, {0, 0}); w.Pickup(k, it); k.trinket = 1 + i; }
+        for (int f = 0; f < 60; f++) w.Step();
+        w.sticks[0].burnT = 2; w.sticks[1].frozenT = 2; w.sticks[2].bubbleT = 2; w.sticks[3].netT = 2; w.sticks[4].gear = sf::GR_JETPACK; w.sticks[4].in.gear = true; w.sticks[5].gear = sf::GR_SHIELD; w.sticks[6].trapT = 2; w.sticks[7].gear = sf::GR_PARACHUTE;
+        w.AddThing(sf::TH_SWARM, {6, 5}, {}, 5, -1); w.AddThing(sf::TH_HOLE, {14, 6.5f}, {}, 4, -1); w.Snakes({9, 1.3f}, 2, -1);
+        int t1 = w.AddThing(sf::TH_TURRET, {11.5f, 1.2f}, {}, 9, 0); w.things[t1].a = 0.4f; w.AddThing(sf::TH_MINE, {3, 1.2f}, {}, 30, -1); w.AddThing(sf::TH_PEEL, {17, 1.2f}, {}, 30, -1); w.AddThing(sf::TH_SPRING, {19, 1.2f}, {}, 30, -1); w.AddThing(sf::TH_DECOY, {1, 1.2f}, {}, 30, -1);
+        int p1 = w.AddThing(sf::TH_PORTAL, {0.3f, 3}, {}, 99, 7); w.things[p1].q = {1, 0}; int p2 = w.AddThing(sf::TH_PORTAL, {16, 4}, {}, 99, 7); w.things[p2].q = {0, -1}; w.things[p2].a = 1;
+        int b1 = w.AddThing(sf::TH_BEAM, w.sticks[1].pt[sf::J_HAND_R].p, {}, 1, 1); w.things[b1].q = w.sticks[2].pt[sf::J_NECK].p; w.things[b1].a = 1;
+        int b2 = w.AddThing(sf::TH_BEAM, w.sticks[5].pt[sf::J_HAND_R].p, {}, 1, 5); w.things[b2].q = {18, 6}; w.things[b2].a = 3;
+        w.fireT.assign(w.stage.t.size(), 0); for (int x = 20; x < 24; x++) w.fireT[6 * w.stage.w + x] = 0.5f;
+        if (which == 6) { w.mut = 1u << sf::MU_BLACKOUT; int pt = w.AddThing(sf::TH_POTATO, {}, {}, 2.5f, -1); w.things[pt].on = 3; w.things[pt].p = w.sticks[3].pt[sf::J_HAND_R].p; gEventBanner = 2; gEventKind = sf::RE_GRAVITY_FLIP; }
+        S.cam = {w.stage.Width() / 2, w.stage.Height() / 2}; S.zoom = 30; for (int i = 0; i < 120; i++) StepCamera(1 / 60.0f);
+        return;
+    }
     if (which >= 10) {   // a world's look (10 + world: a signature stage mid-fight; 20 + world: its wall closing in; 30 + world: a finale's set piece)
         int world = (which - 10) % 10, kind = (which - 10) / 10;
         std::vector<sf::Stage> pack = sf::StagePlaylist(world), fin = sf::FinalePlaylist(world);

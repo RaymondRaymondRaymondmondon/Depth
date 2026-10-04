@@ -883,8 +883,12 @@ void StartScuffle(Game& g, int bots = 3, int skill = 2, int toWin = 5, int world
 void LeaveScuffle(Game& g);
 void StartScuffleNet(Game& g, arcade::Session* net, const char* name);   // a networked match (host or guest; scuffle_net.cpp)
 void ScuffleMenuTick(float dt);                                          // (the game menu is open: the fight goes on)
-std::string ScuffleOpts(int toWin, int arsenal, int skill, int world = -1);
+std::string ScuffleOpts(int toWin, int arsenal, int skill, int world = -1, uint32_t mutators = 0, bool randomMutator = false);
 const char* ScuffleWorldChoice(int world);
+extern int gScuffleTrinket, gScuffleRules;   // (the arcade's picks: your trinket, -1 the game picks; the rules: 0 none, 1 Random, 2+ one mutator)
+const char* ScuffleTrinketChoice(int t);
+const char* ScuffleRulesChoice(int r);
+uint32_t ScuffleRulesMask(int r);
 void StartScuffleEditor(Game& g);   // the level editor (doc p. 17): paint, check, share by code, play now
 void DebugScuffleEditorShot(Game& g, int which);
 void DebugScuffleShot(Game& g, int which);
