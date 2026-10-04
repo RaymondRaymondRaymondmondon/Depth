@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <map>
 
 namespace sf {
@@ -122,6 +123,7 @@ Vector2 PoseOffset(const Stick& k, int j, float t) {
 // ---------------------------------------------------------------- spawning
 void World::Init(const Stage& s, int players, uint32_t seed) {
     stage = s; rng = seed ? seed : 1; frame = 0; t = 0; events.clear(); eventBase = 0;
+    items.clear(); bullets.clear(); nextCrate = Arms().crateFirst; wallY = -10; crates = 0;
     sticks.assign(std::clamp(players, 1, MAX_STICKS), Stick{});
     for (int i = 0; i < (int)sticks.size(); i++) {
         sticks[i].id = i;
@@ -331,11 +333,12 @@ static bool Near(const Stick& o, Vector2 at, float r) {
 void World::StepFists(Stick& k) {
     const float dt = STEP;
     k.punchT = std::max(0.0f, k.punchT - dt); k.punchCool = std::max(0.0f, k.punchCool - dt); k.comboT = std::max(0.0f, k.comboT - dt);
-    k.kickT = std::max(0.0f, k.kickT - dt); k.tauntT = std::max(0.0f, k.tauntT - dt); k.thrownT = std::max(0.0f, k.thrownT - dt);
+    k.kickT = std::max(0.0f, k.kickT - dt); k.tauntT = std::max(0.0f, k.tauntT - dt); k.thrownT = std::max(0.0f, k.thrownT - dt); k.blockT = std::max(0.0f, k.blockT - dt);
     if (!k.alive || k.st == S_RAGDOLL || k.getUpT > 0 || k.grabbedBy >= 0) { if (k.grabbing >= 0) { sticks[k.grabbing].grabbedBy = -1; k.grabbing = -1; } k.fireWas = k.in.fire; return; }
     Input& in = k.in;
-    bool press = in.fire && !k.fireWas;
     if (in.taunt && k.tauntT <= 0) k.tauntT = 1.0f;
+    if (k.weapon >= 0 && k.grabbing < 0) { Fire(k); return; }   // (armed: the trigger or the swing; fists are for the empty-handed)
+    bool press = in.fire && !k.fireWas;
     // holding someone: carry them by the collar; let go of fire to throw them where you aim
     if (k.grabbing >= 0) {
         Stick& o = sticks[k.grabbing];
@@ -368,7 +371,7 @@ void World::StepFists(Stick& k) {
         // a jab with the lead arm; every third in a row is a haymaker
         k.combo = k.comboT > 0 ? k.combo + 1 : 1; k.comboT = 0.7f;
         k.punchHay = k.combo >= 3; if (k.punchHay) k.combo = 0;
-        k.punchT = k.punchHay ? 0.35f : 0.25f; k.punchCool = k.punchHay ? 0.42f : 0.25f; k.punchHit.clear();
+        k.punchT = k.punchHay ? 0.35f : 0.25f; k.punchCool = k.punchHay ? 0.42f : 0.25f; k.punchHit.clear(); k.blockT = Arms().blockWindow;   // (a punch thrown at a bullet in time deflects it)
         Emit(k.punchHay ? EV_HAYMAKER : EV_PUNCH, k.pt[J_HAND_R].p, k.id);
     }
     // the grab: hold fire against someone (alive or dead) for a moment
@@ -417,8 +420,11 @@ void World::Kill(Stick& k, int by, const char* cause) {
     if (!k.alive) return;
     k.alive = false; k.hp = 0; k.st = S_DEAD; k.cause = cause ? cause : "";
     if (k.grabbing >= 0) { sticks[k.grabbing].grabbedBy = -1; k.grabbing = -1; }
+    if (k.weapon >= 0) DropWeapon(k, Vector2Scale(k.vel, 0.5f), false);
     if (by >= 0 && by < (int)sticks.size() && by != k.id) sticks[by].kills++;
-    Emit(EV_DIE, k.pt[J_NECK].p, k.id, by);
+    // the kill's bonus (doc p. 5): knocked into a hazard +10, a block-deflect +20
+    float bonus = (k.cause == "fell out" || k.cause == "the wall") && by >= 0 ? 1.0f : k.cause.rfind("a deflected", 0) == 0 ? 2.0f : 0.0f;
+    Emit(EV_DIE, k.pt[J_NECK].p, k.id, by, bonus);
 }
 
 // ---------------------------------------------------------------- the step
@@ -427,6 +433,7 @@ void World::Step() {
     for (auto& k : sticks) if (k.present) { StepController(k); StepFists(k); }
     for (auto& k : sticks) if (k.present) StepPose(k);
     StepParticles();
+    StepArms();
     for (auto& k : sticks) {
         if (!k.present) continue;
         // a thrown stick is a projectile: 15 to it and to whoever it hits
@@ -448,14 +455,35 @@ uint64_t World::Hash() const {
     uint64_t h = 1469598103934665603ull;
     auto mix = [&](const void* p, size_t n) { const uint8_t* b = (const uint8_t*)p; for (size_t i = 0; i < n; i++) { h ^= b[i]; h *= 1099511628211ull; } };
     for (const auto& k : sticks) { mix(&k.pos, sizeof(k.pos)); mix(&k.vel, sizeof(k.vel)); mix(&k.hp, sizeof(k.hp)); uint8_t s = k.st; mix(&s, 1); for (const auto& a : k.pt) { mix(&a.p, sizeof(a.p)); mix(&a.q, sizeof(a.q)); } }
+    for (const auto& it : items) { mix(&it.a.p, sizeof(it.a.p)); mix(&it.b.p, sizeof(it.b.p)); mix(&it.ammo, sizeof(it.ammo)); }
+    for (const auto& b : bullets) { mix(&b.p, sizeof(b.p)); mix(&b.v, sizeof(b.v)); }
     mix(&rng, sizeof(rng));
     return h;
 }
 
-// ---------------------------------------------------------------- the fists-only bot
+// ---------------------------------------------------------------- the bot (stage 2: it fetches crates and guns, keeps its weapon's range, aims with lead)
+static const WeaponDef* HeldDef(const World& w, const Stick& k) { if (k.weapon < 0 || k.weapon >= (int)w.items.size()) return nullptr; int wi = w.items[k.weapon].weapon; return wi >= 0 && wi < (int)Weapons().size() ? &Weapons()[wi] : nullptr; }
+static bool Bottomless(const World& w, int col) { for (int y = 0; y < w.stage.h; y++) if (w.stage.Solid(col, y)) return false; return true; }
+static void MoveToward(const World& w, const Stick& k, Vector2 goal, Input& in, bool careful) {
+    // never aim for a spot over a bottomless pit: the nearest column with a floor instead
+    int gc = (int)floorf(goal.x / TILE);
+    if (careful && Bottomless(w, gc)) { for (int d = 1; d < w.stage.w; d++) { int c = gc + (goal.x < k.pos.x ? d : -d), c2 = gc - (goal.x < k.pos.x ? d : -d); if (c >= 0 && c < w.stage.w && !Bottomless(w, c)) { goal.x = (c + 0.5f) * TILE; break; } if (c2 >= 0 && c2 < w.stage.w && !Bottomless(w, c2)) { goal.x = (c2 + 0.5f) * TILE; break; } } }
+    // in the air over a pit: steer for the nearer edge
+    if (!k.grounded && Bottomless(w, (int)floorf(k.pos.x / TILE))) { int c = (int)floorf(k.pos.x / TILE); for (int d = 1; d < 8; d++) { if (!Bottomless(w, c + (k.vel.x >= 0 ? d : -d))) { goal.x = (c + (k.vel.x >= 0 ? d : -d) + 0.5f) * TILE; break; } if (!Bottomless(w, c - (k.vel.x >= 0 ? d : -d))) { goal.x = (c - (k.vel.x >= 0 ? d : -d) + 0.5f) * TILE; break; } } }
+    float dx = goal.x - k.pos.x, dy = goal.y - k.pos.y;
+    if (fabsf(dx) > 0.3f) in.moveX = Sgn(dx);
+    int fx = (int)floorf((k.pos.x + Sgn(dx) * 0.55f) / TILE), fy = (int)floorf((k.pos.y - 0.1f) / TILE);
+    bool floorAhead = w.stage.Solid(fx, fy) || w.stage.Solid(fx, fy - 1) || w.stage.Solid(fx, fy - 2);
+    bool wallAhead = w.stage.Solid(fx, (int)floorf((k.pos.y + 0.3f) / TILE)) || w.stage.Solid(fx, (int)floorf((k.pos.y + 1.0f) / TILE));
+    if (k.grounded && (wallAhead || (dy > 1.2f && fabsf(dx) < 4))) in.jump = true;
+    if (k.grounded && !floorAhead && dy > -0.5f) { bool gapSmall = false; for (int s = 1; s <= 6; s++) if (w.stage.Solid(fx + (int)Sgn(dx) * s, fy)) gapSmall = true; if (gapSmall) in.jump = true; else if (careful) in.moveX = 0; }
+    if (!k.grounded && k.vel.y > 0) in.jump = true;
+    if (k.st == S_WALL) { in.moveX = (float)k.wallSide; if (k.climbT > 1.2f || dy < 0) in.jump = true; }
+}
 void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
     auto R = [&]() { rng = rng * 1664525u + 1013904223u; return ((rng >> 8) & 0xffffff) / 16777216.0f; };
     const Stick& k = w.sticks[me];
+    bool fireWas = k.fireWas;
     in = Input{};
     if (!k.alive) return;
     if (k.st == S_RAGDOLL) { in.moveX = R() < 0.5f ? 1.0f : -1.0f; return; }   // (flailing to get up)
@@ -463,26 +491,50 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
     for (const auto& o : w.sticks) if (o.id != me && o.present && o.alive) { float d = Vector2Distance(o.pos, k.pos); if (d < bd) { bd = d; tgt = o.id; } }
     if (tgt < 0) { in.taunt = R() < 0.01f; return; }
     const Stick& o = w.sticks[tgt];
-    float dx = o.pos.x - k.pos.x, dy = o.pos.y - k.pos.y;
-    in.aim = Vector2Normalize(Vector2Subtract(o.pt[J_NECK].p, k.pt[J_NECK].p));
-    float reach = 0.85f;
-    if (fabsf(dx) > reach * 0.8f) in.moveX = Sgn(dx);
-    // the ground ahead: don't walk off an edge unless the target is down there; jump walls and gaps
-    int fx = (int)floorf((k.pos.x + Sgn(dx) * 0.55f) / TILE), fy = (int)floorf((k.pos.y - 0.1f) / TILE);
-    bool floorAhead = w.stage.Solid(fx, fy) || w.stage.Solid(fx, fy - 1) || w.stage.Solid(fx, fy - 2);
-    bool wallAhead = w.stage.Solid(fx, (int)floorf((k.pos.y + 0.3f) / TILE)) || w.stage.Solid(fx, (int)floorf((k.pos.y + 1.0f) / TILE));
-    if (k.grounded && (wallAhead || (dy > 1.2f && fabsf(dx) < 4))) in.jump = true;
-    if (k.grounded && !floorAhead && dy > -0.5f) { bool gapSmall = false; for (int s = 1; s <= 6; s++) if (w.stage.Solid(fx + (int)Sgn(dx) * s, fy)) gapSmall = true; if (gapSmall) in.jump = true; else in.moveX = 0; }
-    if (!k.grounded && k.vel.y > 0) in.jump = true;   // (hold the jump for height)
-    if (k.st == S_WALL) { in.moveX = (float)k.wallSide; if (k.climbT > 1.2f || dy < 0) in.jump = R() < 0.2f; }
-    // fists: punch when in reach (a skilled bot keeps the rhythm for the haymaker), duck now and then
+    const WeaponDef* d = HeldDef(w, k);
+    float err = skill >= 2 ? 0.03f : skill == 1 ? 0.09f : 0.2f;
+    // the wall is up: get above it first
+    if (w.wallY > k.pos.y - 2.5f) {
+        float best = 1e9f; Vector2 goal = k.pos;
+        for (int x = 0; x < w.stage.w; x++) for (int y = w.stage.h - 2; y >= 0; y--) { if (!(w.stage.Solid(x, y) && !w.stage.Solid(x, y + 1) && !w.stage.Solid(x, y + 2))) continue; float top = (y + 1) * TILE; if (top > w.wallY + 2.0f) { float c = fabsf((x + 0.5f) * TILE - k.pos.x) + fabsf(top - k.pos.y) * 0.5f; if (c < best) { best = c; goal = {(x + 0.5f) * TILE, top}; } } break; }
+        if (best < 1e8f && (fabsf(goal.x - k.pos.x) > 0.5f || goal.y > k.pos.y + 0.3f)) { MoveToward(w, k, goal, in, false); in.aim = Vector2Normalize(Vector2Subtract(o.pt[J_NECK].p, k.pt[J_NECK].p)); return; }
+    }
+    // empty-handed and nobody close: fetch the nearest crate or loose weapon
+    if (!d && bd > 2.5f) {
+        int best = -1; float bdist = 14;
+        for (int i = 0; i < (int)w.items.size(); i++) { const Item& it = w.items[i]; if (!it.alive || it.holder >= 0 || it.thrownT > 0 || (!it.crate && it.ammo <= 0 && it.weapon >= 0 && Weapons()[it.weapon].kind == "gun")) continue; float dd = Vector2Distance(it.a.p, k.pos) + (it.crate && it.chute ? 3 : 0); if (dd < bdist) { bdist = dd; best = i; } }
+        if (best >= 0) { MoveToward(w, k, w.items[best].a.p, in, true); in.aim = {(float)k.face, 0}; return; }
+    }
+    Vector2 from = k.pt[J_NECK].p, at = o.pt[o.st == S_DUCK ? J_HEAD : J_NECK].p;
+    if (d && d->kind == "gun") {
+        // keep the weapon's range: close in with a scatter gun, back off with a sniper
+        float want = d->range > 0 ? d->range * 0.6f : d->key == "sniper" || d->key == "carbine" ? 7.0f : d->key == "rocket" || d->key == "grenadelauncher" ? 5.0f : 4.0f;
+        Vector2 lead = Vector2Scale(o.vel, d->speed > 0 ? Vector2Distance(from, at) / d->speed * (skill >= 1 ? 0.8f : 0.0f) : 0);
+        Vector2 aim = Vector2Normalize(Vector2Subtract(Vector2Add(at, lead), from));
+        float a = atan2f(aim.y, aim.x) + (R() - 0.5f) * 2 * err; in.aim = {cosf(a), sinf(a)};
+        bool los = w.LineOfSight(from, at);
+        if (!los || bd > want * 1.6f) MoveToward(w, k, o.pos, in, true);
+        else if (bd < want * 0.5f && skill >= 1) { MoveToward(w, k, {k.pos.x - Sgn(o.pos.x - k.pos.x) * 3, k.pos.y}, in, true); }
+        int ammo = w.items[k.weapon].ammo;
+        bool shoot = los && bd < std::max(want * 2.2f, 6.0f) && R() < (skill >= 2 ? 0.9f : skill == 1 ? 0.5f : 0.25f);
+        if (ammo <= 0) shoot = bd < 7 && los;   // (empty: throw it at them)
+        if (d->hold) in.fire = shoot; else in.fire = shoot && !fireWas;
+        if (skill >= 1 && o.punchT > 0 && bd < 1.2f && R() < 0.15f * skill) in.moveY = -1;
+        return;
+    }
+    // fists, or a melee weapon: close in and swing
+    in.aim = Vector2Normalize(Vector2Subtract(at, from));
+    float reach = d ? 0.6f + d->reach : 0.85f;
+    if (bd > reach * 0.8f) MoveToward(w, k, o.pos, in, true);
     float react = skill >= 2 ? 0.9f : skill == 1 ? 0.55f : 0.3f;
-    if (bd < reach + 0.25f && fabsf(dy) < 1.0f && R() < react) in.fire = !k.fireWas;
+    if (bd < reach + 0.25f && fabsf(o.pos.y - k.pos.y) < 1.0f && R() < react) in.fire = !fireWas;
     if (skill >= 1 && o.punchT > 0 && bd < 1.2f && R() < 0.15f * skill) in.moveY = -1;
+    // a skilled bot blocks: a punch toward an incoming bullet
+    if (skill >= 2 && !d) for (const auto& b : w.bullets) if (b.owner != me && Vector2Distance(b.p, k.pt[J_HAND_R].p) < 1.2f && Vector2DotProduct(b.v, Vector2Subtract(k.pt[J_NECK].p, b.p)) > 0 && R() < 0.5f) { in.aim = Vector2Normalize(Vector2Negate(b.v)); in.fire = !fireWas; break; }
 }
-
 // ---------------------------------------------------------------- --scuffle-test
 static int Fails = 0;
+int ScuffleArmsChecks();
 static void Check(bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) Fails++; }
 static void Run(World& w, float seconds, void (*fn)(World&) = nullptr) { int n = (int)(seconds / STEP); for (int i = 0; i < n; i++) { if (fn) fn(w); w.Step(); } }
 static Stage Flat(int w = 40, int h = 18) { std::vector<std::string> rows(h, std::string(w, '.')); rows[h - 1] = std::string(w, '#'); rows[h - 2] = std::string(w, '#'); return StageFromText(rows, "Flat"); }
@@ -564,9 +616,11 @@ int RunScuffleTest() {
       for (uint32_t seed = 1; seed <= 12; seed++) {
           World w; w.Init(StoneStage(), 2, seed); uint32_t r[2] = {seed * 7 + 1, seed * 13 + 5}; float tt = 0;
           while (w.Living() > 1 && tt < 90) { for (int i = 0; i < 2; i++) BotInput(w, i, w.sticks[i].in, r[i], 2); w.Step(); tt += STEP; }
+          if (getenv("DEPTH_SFTRACE")) for (const auto& k : w.sticks) printf("    seed %u stick %d: %s at (%.1f, %.1f) %s weapon %d\n", seed, k.id, k.alive ? "alive" : "dead", k.pt[J_PELVIS].p.x, k.pt[J_PELVIS].p.y, k.cause.c_str(), k.weapon);
           if (w.Living() <= 1) { done++; total += tt; for (const auto& k : w.sticks) if (!k.alive && seed <= 4) why += TextFormat(" [%.1fs %s]", tt, k.cause.c_str()); }
       }
       Check(done >= 10, TextFormat("two Sharp bots, fists only, on the stone stage: %d of 12 rounds end (%.0f s on average)%s", done, done ? total / done : 0, why.c_str())); }
+    Fails += ScuffleArmsChecks();
     printf(Fails ? "Scuffle: %d check(s) FAILED\n" : "Scuffle: all checks passed\n", Fails);
     return Fails ? 1 : 0;
 }
@@ -582,24 +636,6 @@ int RunScuffleDeterminism(uint32_t seed) {
     bool same = a == b;
     printf("scuffle-determinism seed %u: %d checkpoints over 40 s with four bots: %s (final %016llx)\n", seed, (int)a.size(), same ? "identical" : "DIVERGED", (unsigned long long)a.back());
     return same ? 0 : 1;
-}
-
-// ---------------------------------------------------------------- --scuffle-sim (stage 1: fists on the stone stage)
-int RunScuffleSim(int players, int rounds) {
-    players = std::clamp(players, 2, MAX_STICKS);
-    double total = 0; int draws = 0, timeouts = 0; std::vector<int> wins(players, 0); std::map<std::string, int> causes;
-    for (int r = 0; r < rounds; r++) {
-        World w; w.Init(StoneStage(), players, 1000 + r * 31); std::vector<uint32_t> rr(players); for (int i = 0; i < players; i++) rr[i] = 77 + r * 7 + i;
-        float tt = 0;
-        while (w.Living() > 1 && tt < 90) { for (int i = 0; i < players; i++) BotInput(w, i, w.sticks[i].in, rr[i], i % 3); w.Step(); tt += STEP; }
-        total += tt;
-        for (const auto& k : w.sticks) if (!k.alive) causes[k.cause]++;
-        if (w.Living() == 0) draws++; else if (w.Living() > 1) timeouts++; else for (const auto& k : w.sticks) if (k.alive && k.present) wins[k.id]++;
-    }
-    printf("scuffle-sim: %d rounds, %d sticks (fists, the stone stage): %.1f s a round, %d draws, %d past 90 s\n", rounds, players, total / std::max(1, rounds), draws, timeouts);
-    for (int i = 0; i < players; i++) printf("  stick %d (%s): %d wins\n", i, i % 3 == 0 ? "Stumble" : i % 3 == 1 ? "Scrap" : "Sharp", wins[i]);
-    printf("  deaths:"); for (const auto& c : causes) printf(" %s %d;", c.first.c_str(), c.second); printf("\n");
-    return 0;
 }
 
 } // namespace sf

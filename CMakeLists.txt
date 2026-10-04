@@ -60,6 +60,8 @@ src/flight_long.cpp
     src/nightoff_skins.cpp
     src/nightoff_game.cpp
     src/scuffle.cpp
+    src/scuffle_arms.cpp
+    src/scuffle_match.cpp
     src/scuffle_game.cpp
     src/data.cpp
     src/ui.cpp

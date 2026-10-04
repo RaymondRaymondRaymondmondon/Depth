@@ -42,6 +42,33 @@ The user is away (order of 2026-10-04: build it after A Night Off, don't stop). 
   `--scuffle-sim <players> <rounds>` (round length, wins by skill, deaths by cause). Shots `scuffle_fight`,
   `scuffle_haymaker`, `scuffle_match`, `arcade_scuffle`.
 
+## Stage 2: crates, the first twelve weapons, the wall, matches, armed bots (done)
+- `data/scuffle/scuffle_weapons.json`: all 48 weapons (the doc's 44 and four of Depth's own: the Tesla gaff, the flare
+  pistol, the speargun, the dealer's bottle) with damage, rate, ammo, knock, recoil, speed, spread, headshot multiplier,
+  explosions, and the build stage that switches each on; the arsenals' weights; crate and wall timings.
+- `scuffle_arms.cpp`: crates on parachutes (the first at 3 s, then every 5 s; shoot the parachute and it drops; a hard
+  fall crushes for 30; it opens on touch into the hand, or where it lands if it was shot); one weapon in hand (an empty
+  hand picks one up; duck on another to swap); guns (pellets, spread, recoil that moves the body, the minigun's
+  spin-up, headshots, the sniper's pierce, the harpoon's pin, bouncing fused grenades, rockets); melee swings (the
+  cutlass's timed block); the block (a punch thrown at a bullet in the last 0.15 s sends it back along the punch; the
+  frying pan stops everything); an empty gun is thrown (10); explosions; the wall (at 45 s the bulkheads flood from
+  the bottom: half the stage by 60 s, all of it by 70 s; the finale's at 30 s).
+- The stage-2 dozen: gas pistol, twin pistols, needler, carbine, scatter gun, harpoon rifle, sniper, minigun, grenade
+  launcher, rocket launcher, cutlass, frying pan.
+- `scuffle_match.cpp`: `Match` (the playlist shuffled by the seed, the countdown, the fight, the winner's pose; first to
+  N; match point is a finale with the wall at 30 s; the doc's scoring: round 100, kill 20 (+10 knocked into a hazard,
+  +20 by a block-deflect), survived to the wall 10, match 300). Three stone stages: the Stone Yard, the Steps, the
+  Bridge. `--scuffle-sim <players> <rounds> [classic|melee|chaos|snakes|random]`.
+- The bot now fetches crates and guns, keeps a weapon's range, leads its aim (skill sets the error), fires on line of
+  sight, throws an empty gun, blocks bullets with a punch (Sharp), steers clear of bottomless pits, and climbs above
+  the flood.
+- The scene runs the engine's `Match`; it draws crates and parachutes, the weapons (in hand and loose), bullets,
+  explosions, blocks and the flood; the HUD shows points and your weapon's ammo. Shot `scuffle_flood`.
+- The gate: four Sharp bots finish a 10-round match (`--scuffle-test`, about 38 s a round). `--scuffle-sim 4 60`:
+  39 s a round, no draws; deaths: falls 30%, the wall 26%, guns about 35%, fists and kicks 13% (the doc's targets
+  are weapons 55%, hazards 30%, fists 10%, the wall 5%: the balance pass is stage 9).
+
 ## Next
-Stage 2: crates, the first 12 weapons (and the block window), the wall, rounds and matches in the engine, bots that
-use weapons. Gate: four bots finish a 10-round match.
+Stage 3: the editor (instant play, the reachability check, codes) and the Nautilus world's 40 stages with its hazards
+(steam vents, pistons, the propeller, electrified rails, the flooding bulkheads). Gate: a stage round-trips through a
+code.

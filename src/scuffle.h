@@ -44,6 +44,21 @@ Stage StageFromText(const std::vector<std::string>& rows, const char* name);   /
 struct Particle { Vector2 p{}, q{}; float r = 0.1f, invMass = 1; };   // position, last position (velocity is p - q)
 struct Bone { int a = 0, b = 0; float len = 0, stiff = 1; };
 
+// ---------------------------------------------------------------- the arsenal (data/scuffle/scuffle_weapons.json; doc pp. 5-9)
+struct WeaponDef {
+    std::string key, name, kind, special, wrong;      // kind: gun, melee, thrown
+    int stage = 2, ammo = 0, pellets = 1, pierce = 1, bounce = 0, count = 0;
+    float dmg = 0, rate = 1, knock = 0, recoil = 0, speed = 0, spread = 0, head = 1, gravity = 0, area = 0, areaDmg = 0, fuse = 0;
+    float swing = 0.3f, reach = 0.8f, throwDmg = 0, range = 0, spinup = 0;
+    bool hold = false, twin = false, pin = false, deflect = false, blocks = false;
+};
+const std::vector<WeaponDef>& Weapons();
+int WeaponIndex(const std::string& key);
+enum Arsenal { AR_CLASSIC, AR_MELEE, AR_CHAOS, AR_SNAKES, AR_RANDOM, AR_COUNT };
+const char* ArsenalName(int a);
+struct ArmsTuning { float crateFirst = 3, crateEvery = 5, chuteFall = 2, crush = 30, crateThrown = 20, emptyThrow = 10, blockWindow = 0.15f, wallStart = 45, wallCenter = 60, wallAll = 70, finaleWall = 30; };
+const ArmsTuning& Arms();
+
 // ---------------------------------------------------------------- input (all play, bots too, goes through this)
 struct Input {
     float moveX = 0, moveY = 0;          // the stick (-1..1); moveY < 0 is down (duck, dive)
@@ -70,6 +85,9 @@ struct Stick {
     float punchT = 0, punchCool = 0, comboT = 0; int combo = 0; bool punchHay = false; int punchArm = 0; std::vector<int> punchHit;
     int grabbing = -1, grabbedBy = -1; float holdT = 0, thrownT = 0; int thrownBy = -1;
     float kickT = 0; float tauntT = 0;
+    // arms: the weapon in hand (an index into World::items, -1 fists), the trigger's cooldown, the minigun's spin, a melee swing
+    int weapon = -1; float fireCool = 0, spin = 0, swingT = 0; bool swingHay = false; std::vector<int> swingHit; float blockT = 0;
+    int killsBy[4] = {};                                   // (unused yet: kill kinds for the scoring)
     float walkPh = 0, breathe = 0;
     // the round's story
     int kills = 0; int lastHitBy = -1; float lastHitT = -10; std::string cause;
@@ -78,11 +96,38 @@ struct Stick {
 
 // ---------------------------------------------------------------- the world (one round on one stage)
 struct Event { int kind = 0; Vector2 at{}; float a = 0; int who = -1, by = -1; };   // (the scene's sounds and splashes)
-enum EventKind { EV_PUNCH = 1, EV_HIT, EV_HAYMAKER, EV_KICK, EV_JUMP, EV_LAND, EV_DIE, EV_THROW, EV_GRAB, EV_BONK, EV_FALL_OUT };
+enum EventKind { EV_PUNCH = 1, EV_HIT, EV_HAYMAKER, EV_KICK, EV_JUMP, EV_LAND, EV_DIE, EV_THROW, EV_GRAB, EV_BONK, EV_FALL_OUT,
+                 EV_SHOT, EV_EXPLODE, EV_BLOCK, EV_CRATE_OPEN, EV_PICKUP, EV_EMPTY, EV_CHUTE, EV_SWING, EV_CRUSH, EV_WALL };
+// a crate on its parachute, or a weapon lying loose (a weapon in a hand is drawn from the hand: Stick::weapon)
+struct Item {
+    bool alive = true, crate = false, chute = false, shot = false; int weapon = -1, ammo = 0, holder = -1, count = 0;
+    Particle a{}, b{};                                    // crate: a is the centre; weapon: a the grip, b the muzzle
+    float age = 0, thrownT = 0; int thrownBy = -1;
+};
+struct Bullet {
+    Vector2 p{}, v{}; int owner = -1, weapon = -1, pierce = 1, bounces = 0; float dmg = 0, knock = 0, life = 3, grav = 0, area = 0, areaDmg = 0, fuse = 0, age = 0;
+    bool explode = false, alive = true, deflected = false; std::vector<int> hit;
+};
 struct World {
     Stage stage; std::vector<Stick> sticks; uint32_t rng = 1; uint32_t frame = 0; float t = 0;
     std::vector<Event> events; uint32_t eventBase = 0;     // (a numbered log the scene reads by cursor)
     float gravity = 30;
+    // arms (scuffle_arms.cpp): crates, loose weapons, bullets; the round's clock and the wall
+    std::vector<Item> items; std::vector<Bullet> bullets; float nextCrate = 3, wallY = -10; int arsenal = AR_CLASSIC; bool finale = false, wallOn = true;
+    int crates = 0;
+    void StepArms();
+    void StepCrates();
+    void StepItems();
+    void StepBullets();
+    void StepWall();
+    void Fire(Stick& k);
+    void Explode(Vector2 at, float radius, float dmg, float knock, int owner, int weapon);
+    int DropCrate(float x);
+    int SpawnWeapon(int weapon, Vector2 at, Vector2 vel);
+    void Pickup(Stick& k, int item);
+    void DropWeapon(Stick& k, Vector2 vel, bool thrown);
+    int RollWeapon();
+    bool LineOfSight(Vector2 a, Vector2 b) const;
     void Init(const Stage& s, int players, uint32_t seed);
     void Step();                                           // one fixed step (STEP seconds)
     float Rand();
@@ -104,8 +149,22 @@ Vector2 PoseOffset(const Stick& k, int joint, float t);    // where a joint want
 // a fists-only bot (stage 1): the nearest living stick, closing, punching, jumping gaps and walls, not walking off edges
 void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill);
 
+// ---------------------------------------------------------------- the match (doc p. 4): rounds on a stage rotation, first to N
+struct Match {
+    World w; int players = 4, toWin = 10, round = 0, arsenal = AR_CLASSIC; uint32_t seed = 1;
+    std::vector<int> wins, score, roundKills; std::vector<Stage> playlist; int stageIdx = 0;
+    enum Phase { P_COUNT, P_FIGHT, P_WIN, P_OVER } phase = P_COUNT; float phaseT = 1; int roundWinner = -1, champion = -1, draws = 0;
+    std::vector<std::string> log;                          // (the round's story lines)
+    uint32_t evSeen = 0;
+    void Start(int nPlayers, int roundsToWin, uint32_t seed, int arsenal = AR_CLASSIC);
+    void NewRound();
+    void Step();                                           // one fixed step: the phases, and the world while fighting
+    bool Over() const { return phase == P_OVER; }
+};
+std::vector<Stage> StagePlaylist();                        // stage 2: the stone stages
+
 int RunScuffleTest();                                      // --scuffle-test
 int RunScuffleDeterminism(uint32_t seed);                  // --scuffle-determinism <seed>
-int RunScuffleSim(int players, int rounds);                // --scuffle-sim <players> <rounds> (stage 1: fists)
+int RunScuffleSim(int players, int rounds, int arsenal = AR_CLASSIC);   // --scuffle-sim <players> <rounds> [arsenal]: bots play a match
 
 } // namespace sf
