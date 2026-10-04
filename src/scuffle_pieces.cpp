@@ -30,9 +30,12 @@ bool World::RailLive(int x, int y) const { (void)y; return fmodf(t * 0.25f + x *
 
 void World::StepPieces() {
     if (glassT.size() != stage.t.size()) glassT.assign(stage.t.size(), 0);
+    for (auto& k : sticks) k.hazT = std::max(0.0f, k.hazT - STEP);
     for (int i = 0; i < (int)stage.pieces.size(); i++) {
         Piece& p = stage.pieces[i];
+        if (t < p.start) continue;   // (asleep: a finale's set piece before its second)
         p.cool = std::max(0.0f, p.cool - STEP);
+        if (p.kind >= PK_STALACTITE) { StepHazard(p); continue; }
         if (p.kind == PK_PISTON || p.kind == PK_ELEVATOR) {
             float u = fmodf(t / std::max(0.2f, p.period) + p.phase, 1.0f), ext;
             if (p.kind == PK_ELEVATOR) ext = 0.5f - 0.5f * cosf(u * 2 * PI);
@@ -77,7 +80,7 @@ void World::StepPieces() {
             for (auto& k : sticks) {
                 if (!k.present) continue;
                 Vector2 to = Vector2Subtract(c, k.pt[J_PELVIS].p); float L = Vector2Length(to);
-                if (L < 4.5f && L > 0.01f) { if (k.alive && k.st != S_RAGDOLL) k.vel = Vector2Add(k.vel, Vector2Scale(to, 5.0f * p.power * STEP / L)); for (auto& a : k.pt) a.q = Vector2Subtract(a.q, Vector2Scale(to, 0.6f * p.power * STEP * STEP / L)); }
+                if (L < 4.5f && L > 0.01f) { Nudge(k, Vector2Scale(to, 3.2f * p.power * (1.15f - L / 4.5f) * STEP / L)); for (auto& a : k.pt) a.q = Vector2Subtract(a.q, Vector2Scale(to, 0.6f * p.power * STEP * STEP / L)); }
                 bool in = fabsf(k.pt[J_PELVIS].p.x - c.x) < hw + 0.2f && fabsf(k.pt[J_PELVIS].p.y - c.y) < hh + 0.4f;
                 if (k.alive && in) { Kill(k, k.lastHitBy >= 0 && t - k.lastHitT < 4 ? k.lastHitBy : -1, "the propeller"); Emit(EV_EXPLODE, c, -1, -1, 0.5f); }
             }
@@ -104,6 +107,8 @@ void World::StepPieces() {
             Emit(EV_EXPLODE, {(p.x + p.w * 0.5f) * TILE, (p.y + p.h * 0.5f) * TILE}, -1, -1, 0.3f);
         }
     }
+    // crumbling floors keep going once started: gone 0.7 s after the first step
+    for (int i = 0; i < (int)stage.t.size(); i++) if (stage.t[i] == T_CRUMBLE && glassT[i] > 0) { glassT[i] += STEP; if (glassT[i] > 0.7f) { stage.t[i] = T_EMPTY; glassT[i] = 0; Emit(EV_HIT, {(i % stage.w + 0.5f) * TILE, (i / stage.w + 1) * TILE}, -1, -1, 0); } }
     // the rails (a touch while live kills) and glass under weight
     for (auto& k : sticks) {
         if (!k.present || !k.alive) continue;
@@ -111,8 +116,18 @@ void World::StepPieces() {
         bool zapped = false;
         for (int y = iy0; y <= iy1 && !zapped; y++) for (int x = ix0; x <= ix1 && !zapped; x++) if (stage.At(x, y) == T_RAIL && RailLive(x, y)) zapped = true;
         if (zapped) { Kill(k, k.lastHitBy >= 0 && t - k.lastHitT < 4 ? k.lastHitBy : -1, "an electrified rail"); Emit(EV_EXPLODE, k.pt[J_PELVIS].p, -1, -1, 0.2f); continue; }
+        // urchins: a touch stings and throws you off (stage 5)
+        if (k.hazT <= 0) {
+            int ux0 = (int)floorf((k.pos.x - k.halfW - 0.06f) / TILE), ux1 = (int)floorf((k.pos.x + k.halfW + 0.06f) / TILE), uy0 = (int)floorf((k.pos.y - 0.06f) / TILE), uy1 = (int)floorf((k.pos.y + k.height) / TILE);
+            for (int y = uy0; y <= uy1 && k.hazT <= 0; y++) for (int x = ux0; x <= ux1 && k.hazT <= 0; x++) if (stage.At(x, y) == T_URCHIN) {
+                Vector2 away = Vector2Normalize(Vector2Subtract(k.pt[J_PELVIS].p, {(x + 0.5f) * TILE, (y + 0.5f) * TILE})); away.y = std::max(away.y, 0.5f);
+                k.hazT = 0.6f; Hit(k, k.lastHitBy >= 0 && t - k.lastHitT < 4 ? k.lastHitBy : -1, 15, Vector2Normalize(away), 9, false, "urchins");
+            }
+            if (!k.alive) continue;
+        }
         if (k.grounded) {
             int gx = (int)floorf(k.pos.x / TILE), gy = (int)floorf((k.pos.y - 0.05f) / TILE);
+            if (stage.At(gx, gy) == T_CRUMBLE && gy >= 0 && gx >= 0 && gx < stage.w && glassT[gy * stage.w + gx] <= 0) glassT[gy * stage.w + gx] = STEP;   // (a crumbling floor starts to go)
             bool window = false; for (const auto& p : stage.pieces) window |= p.kind == PK_WINDOW && !p.broken && gx >= p.x && gx < p.x + p.w && gy >= p.y && gy < p.y + p.h;   // (the window holds until its second)
             if (!window && stage.At(gx, gy) == T_GLASS && gy >= 0 && gx >= 0 && gx < stage.w) { float& g = glassT[gy * stage.w + gx]; g += STEP; if (g > 0.6f) { stage.Set(gx, gy, T_EMPTY); Emit(EV_HIT, {(gx + 0.5f) * TILE, (gy + 1) * TILE}, -1, -1, 0); } }
         }

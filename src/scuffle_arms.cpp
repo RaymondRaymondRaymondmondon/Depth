@@ -201,6 +201,8 @@ void World::Fire(Stick& k) {
     // guns: an empty gun is thrown
     if (it.ammo <= 0) { if (press) { Emit(EV_EMPTY, it.b.p, k.id); DropWeapon(k, Vector2Add(Vector2Scale(aim, 14), {0, 2}), true); } k.fireWas = in.fire; return; }
     bool trigger = d.hold ? in.fire : press;
+    // underwater only the harpoon and the tesla gaff work (doc p. 11)
+    if ((InLiquid(it.b.p) || InLiquid(k.pt[J_HEAD].p)) && d.key != "harpoon" && d.key.find("tesla") == std::string::npos) trigger = false;
     if (d.spinup > 0) { k.spin = in.fire ? std::min(d.spinup, k.spin + STEP) : std::max(0.0f, k.spin - STEP * 2); if (k.spin < d.spinup) trigger = false; }
     if (trigger && k.fireCool <= 0) {
         k.fireCool = 1 / std::max(0.1f, d.rate); it.ammo--;
@@ -223,6 +225,7 @@ void World::Fire(Stick& k) {
 // ---------------------------------------------------------------- bullets
 void World::Explode(Vector2 at, float radius, float dmg, float knock, int owner, int weapon) {
     Emit(EV_EXPLODE, at, -1, owner, radius);
+    ShotAt(at, radius * 0.6f);
     for (auto& k : sticks) {
         if (!k.present) continue;
         float d = Vector2Distance(at, k.pt[J_PELVIS].p);
@@ -247,6 +250,7 @@ void World::StepBullets() {
             Vector2 prev = b.p; b.p = Vector2Add(b.p, step);
             int tx = (int)floorf(b.p.x / TILE), ty = (int)floorf(b.p.y / TILE);
             if (stage.Solid(tx, ty)) {
+                if (b.hazard == -1 && ShotAt(b.p, 0.05f)) { b.alive = false; break; }   // (a stalactite, a column, crystal)
                 if (b.bounces > 0) {   // a bounce off the face it came through
                     b.bounces--;
                     bool fx = stage.Solid((int)floorf(b.p.x / TILE), (int)floorf(prev.y / TILE)), fy = stage.Solid((int)floorf(prev.x / TILE), (int)floorf(b.p.y / TILE));
@@ -266,10 +270,14 @@ void World::StepBullets() {
                 if (Vector2Distance(b.p, it.a.p) < it.a.r + 0.05f) { it.shot = true; it.a.q = Vector2Subtract(it.a.q, Vector2Scale(Vector2Normalize(b.v), 2 * STEP)); if (b.explode) Explode(b.p, b.area, b.areaDmg, b.knock, b.owner, b.weapon); b.alive = false; break; }
             }
             if (!b.alive) break;
+            // a stalactite hangs in open air: a shot anywhere on it brings it down
+            if (b.hazard == -1) for (auto& pc : stage.pieces) if (pc.kind == PK_STALACTITE && pc.prog <= 0 && !pc.broken && t >= pc.start && b.p.x >= pc.x * TILE && b.p.x < (pc.x + pc.w) * TILE && b.p.y >= pc.y * TILE && b.p.y < (pc.y + pc.h) * TILE) { pc.prog = STEP; b.alive = false; Emit(EV_HIT, b.p, -1, b.owner, 0); break; }
+            if (!b.alive) break;
             // sticks: a block deflects it (along the blocker's aim); otherwise it hits (the head is its own body: a headshot)
             for (auto& k : sticks) {
                 if (!k.present) continue;
                 if (k.id == b.owner && b.age < 0.25f) continue;   // (not the shooter, nor the stick that just sent it back)
+                if (b.hazard == -2 && b.age < 0.32f) continue;     // (shrapnel: clear of the crystal first)
                 if (std::find(b.hit.begin(), b.hit.end(), k.id) != b.hit.end()) continue;
                 bool head = Vector2Distance(b.p, k.pt[J_HEAD].p) < k.pt[J_HEAD].r + 0.04f, body = head;
                 if (!body) for (int j : {J_NECK, J_PELVIS, J_ELBOW_L, J_ELBOW_R, J_KNEE_L, J_KNEE_R}) body |= Vector2Distance(b.p, k.pt[j].p) < k.pt[j].r + 0.06f;
@@ -287,7 +295,7 @@ void World::StepBullets() {
                 if (b.explode) { Explode(b.p, b.area, b.areaDmg, b.knock, b.owner, b.weapon); b.alive = false; break; }
                 const WeaponDef& d = Def(b.weapon);
                 float dmg = b.dmg * (head ? d.head : 1.0f);
-                std::string cause = (b.deflected ? std::string("a deflected ") : std::string()) + d.name;
+                std::string cause = (b.deflected ? std::string("a deflected ") : std::string()) + (b.hazard == -2 ? std::string("crystal shrapnel") : b.hazard == PK_CROWD ? std::string("a bottle from the crowd") : b.hazard == PK_DART ? std::string("a dart") : b.hazard == PK_POOL ? std::string("a pool ball") : b.hazard == PK_DRIP ? std::string("acid") : d.name);
                 Hit(k, b.owner, dmg, Vector2Normalize(b.v), b.knock, b.knock >= 10 || d.pin, cause.c_str());
                 if (d.pin && k.alive) k.ragT = std::max(k.ragT, 2.0f);   // (the harpoon pins: two seconds on the end of the line)
                 if (--b.pierce <= 0) { b.alive = false; break; }
@@ -297,15 +305,47 @@ void World::StepBullets() {
     }
     bullets.erase(std::remove_if(bullets.begin(), bullets.end(), [](const Bullet& b) { return !b.alive; }), bullets.end());
 }
-// ---------------------------------------------------------------- the wall (doc p. 4): the bulkheads flood from the bottom
+// ---------------------------------------------------------------- the wall (doc pp. 4, 9-10): each world closes in its own way
+//   the Nautilus: the bulkheads flood from the bottom (it kills); the Cave: the ceiling comes down; the Reef: the tide comes
+//   in and Atlantis sinks (water you swim in and drown in); the Void: the abyss widens from its side, taking the floor; the
+//   Salon: closing time, the bouncer clears the room from the door
 void World::StepWall() {
     const ArmsTuning& a = Arms();
     float start = finale ? a.finaleWall : a.wallStart, mid = start + (a.wallCenter - a.wallStart), all = start + (a.wallAll - a.wallStart);
-    if (!wallOn || t < start) { wallY = -10; return; }
-    if (wallY < -5) Emit(EV_WALL, {stage.Width() / 2, 0});
-    float H = stage.Height();
-    wallY = t < mid ? Lerp(0, H * 0.5f, (t - start) / (mid - start)) : Lerp(H * 0.5f, H + 2, std::min(1.0f, (t - mid) / (all - mid)));
-    for (auto& k : sticks) if (k.alive && k.present && k.pt[J_PELVIS].p.y < wallY) Kill(k, k.lastHitBy >= 0 && t - k.lastHitT < 3 ? k.lastHitBy : -1, "the wall");
+    if (!wallOn || t < start) { wallY = -10; ceilY = 1e9f; sideX = -10; return; }
+    if (wallY < -5 && ceilY > 1e8f && sideX < -5) Emit(EV_WALL, {stage.Width() / 2, 0});
+    float H = stage.Height(), W = stage.Width();
+    float u = t < mid ? 0.5f * (t - start) / (mid - start) : 0.5f + 0.5f * std::min(1.0f, (t - mid) / (all - mid));
+    auto blame = [&](const Stick& k) { return k.lastHitBy >= 0 && t - k.lastHitT < 3 ? k.lastHitBy : -1; };
+    switch (stage.world) {
+    case WD_CAVE:
+        wallY = -9; ceilY = Lerp(H + 1, -1, u);
+        for (auto& k : sticks) if (k.alive && k.present && k.pt[J_HEAD].p.y + 0.15f > ceilY) Kill(k, blame(k), "the wall");
+        break;
+    case WD_REEF: case WD_ATLANTIS:
+        wallY = Lerp(0, H + 2, u);   // (InLiquid: below it you swim, and drown in 8 s)
+        break;
+    case WD_VOID: case WD_SALON: {
+        wallY = -9;
+        float before = sideX; sideX = Lerp(0, W + 1, u);
+        if (stage.world == WD_VOID) {   // (the floor goes with it, column by column)
+            int c0 = (int)floorf(std::max(0.0f, before) / TILE), c1 = (int)floorf(sideX / TILE);
+            for (int c = c0; c <= c1 && c < stage.w; c++) { int x = wallSide > 0 ? stage.w - 1 - c : c; for (int y = 0; y < stage.h; y++) if (stage.At(x, y) != T_EMPTY) { stage.Set(x, y, T_EMPTY); if (y % 4 == 0) Emit(EV_HIT, {(x + 0.5f) * TILE, (y + 0.5f) * TILE}, -1, -1, 0); } }
+        }
+        for (auto& k : sticks) {
+            if (!k.alive || !k.present) continue;
+            float from = wallSide > 0 ? W - k.pt[J_PELVIS].p.x : k.pt[J_PELVIS].p.x;
+            if (from >= sideX) continue;
+            if (stage.world == WD_SALON) { for (auto& q : k.pt) q.q = Vector2Subtract(q.q, Vector2Scale({(float)-wallSide, 0.6f}, 18 * STEP)); k.st = S_RAGDOLL; }
+            Kill(k, blame(k), "the wall");
+        }
+        break;
+    }
+    default:
+        ceilY = 1e9f;
+        wallY = t < mid ? Lerp(0, H * 0.5f, (t - start) / (mid - start)) : Lerp(H * 0.5f, H + 2, std::min(1.0f, (t - mid) / (all - mid)));
+        for (auto& k : sticks) if (k.alive && k.present && k.pt[J_PELVIS].p.y < wallY) Kill(k, blame(k), "the wall");
+    }
 }
 bool World::LineOfSight(Vector2 a, Vector2 b) const {
     Vector2 d = Vector2Subtract(b, a); float L = Vector2Length(d); int n = (int)(L / 0.15f) + 1;

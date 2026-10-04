@@ -184,9 +184,12 @@ int RunScuffleVerify(const std::string& arg) {
 static int SF3 = 0;
 static void C3(bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) SF3++; }
 static bool Same(const Stage& a, const Stage& b) {
-    if (a.w != b.w || a.h != b.h || a.t != b.t || a.name != b.name || a.world != b.world || a.wrap != b.wrap || a.spawns.size() != b.spawns.size() || a.pieces.size() != b.pieces.size() || a.crateCols != b.crateCols) return false;
+    if (a.w != b.w || a.h != b.h || a.t != b.t || a.name != b.name || a.world != b.world || a.wrap != b.wrap || a.spawns.size() != b.spawns.size() || a.pieces.size() != b.pieces.size() || a.crateCols != b.crateCols) {
+        if (getenv("DEPTH_SAMETRACE")) printf("    differ: size %d/%d %d/%d tiles %d name %d world %d/%d wrap %d spawns %d/%d pieces %d/%d crates %d\n", a.w, b.w, a.h, b.h, (int)(a.t != b.t), (int)(a.name != b.name), a.world, b.world, (int)(a.wrap != b.wrap), (int)a.spawns.size(), (int)b.spawns.size(), (int)a.pieces.size(), (int)b.pieces.size(), (int)(a.crateCols != b.crateCols));
+        return false;
+    }
     for (size_t i = 0; i < a.spawns.size(); i++) if (fabsf(a.spawns[i].x - b.spawns[i].x) > 0.01f || fabsf(a.spawns[i].y - b.spawns[i].y) > 0.01f) return false;
-    for (size_t i = 0; i < a.pieces.size(); i++) { const Piece& p = a.pieces[i]; const Piece& q = b.pieces[i]; if (p.kind != q.kind || p.x != q.x || p.y != q.y || p.w != q.w || p.h != q.h || p.dx != q.dx || p.dy != q.dy || fabsf(p.travel - q.travel) > 0.06f || fabsf(p.period - q.period) > 0.06f || fabsf(p.phase - q.phase) > 0.006f || fabsf(p.on - q.on) > 0.006f || fabsf(p.power - q.power) > 0.06f) return false; }
+    for (size_t i = 0; i < a.pieces.size(); i++) { const Piece& p = a.pieces[i]; const Piece& q = b.pieces[i]; if (p.kind != q.kind || p.x != q.x || p.y != q.y || p.w != q.w || p.h != q.h || p.dx != q.dx || p.dy != q.dy || fabsf(p.travel - q.travel) > 0.06f || fabsf(p.period - q.period) > 0.06f || fabsf(p.phase - q.phase) > 0.006f || fabsf(p.on - q.on) > 0.006f || fabsf(p.power - q.power) > 0.06f) { if (getenv("DEPTH_SAMETRACE")) printf("    piece %d differs: kind %d/%d at %d,%d/%d,%d size %dx%d/%dx%d d %d,%d/%d,%d travel %g/%g period %g/%g phase %g/%g on %g/%g power %g/%g\n", (int)i, p.kind, q.kind, p.x, p.y, q.x, q.y, p.w, p.h, q.w, q.h, p.dx, p.dy, q.dx, q.dy, p.travel, q.travel, p.period, q.period, p.phase, q.phase, p.on, q.on, p.power, q.power); return false; } }
     return true;
 }
 static void Run(World& w, float s, std::function<void(World&)> fn = nullptr) { int n = (int)(s / STEP); for (int i = 0; i < n; i++) { if (fn) fn(w); w.Step(); } }
@@ -199,7 +202,8 @@ int ScuffleStageChecks() {
     C3(sigs, "with its signature stages: the Engine Room, the Torpedo Tubes, the Salon Window");
     // the gate: a stage round-trips through a code (and the text form, and a pack)
     { const Stage& s = naut.empty() ? StoneStage() : naut[0]; std::string code = StageToCode(s); Stage back; std::string err;
-      C3(StageFromCode(code, back, &err) && Same(s, back), TextFormat("a stage round-trips through a code (%d characters: %s...)", (int)code.size(), code.substr(0, 24).c_str()));
+      bool okc = StageFromCode(code, back, &err);
+      C3(okc && Same(s, back), TextFormat("a stage round-trips through a code (%d characters: %s...)%s", (int)code.size(), code.substr(0, 24).c_str(), okc ? "" : (" " + err).c_str()));
       Stage tx = StageFromText(StageToText(s), s.name.c_str()); C3(Same(s, tx), "and through the editor's text form");
       std::vector<Stage> pk(naut.begin(), naut.begin() + std::min<size_t>(20, naut.size())), pk2; std::string pc = PackToCode(pk);
       bool all = PackFromCode(pc, pk2, &err) && pk2.size() == pk.size(); for (size_t i = 0; all && i < pk.size(); i++) all = Same(pk[i], pk2[i]);

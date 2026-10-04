@@ -93,6 +93,7 @@ template <class A> void VisitStick(A& a, Stick& k) {
     a.i(k.weapon); a.f(k.fireCool); a.f(k.spin); a.f(k.swingT); a.b(k.swingHay); a.vec(k.swingHit, [&](int& x) { a.i(x); }, 64); a.f(k.blockT);
     for (int& x : k.killsBy) a.i(x);
     a.f(k.walkPh); a.f(k.breathe);
+    a.f(k.swimT); a.f(k.hazT); a.f(k.sharkT); a.b(k.wet);
     a.i(k.kills); a.i(k.lastHitBy); a.f(k.lastHitT); a.s(k.cause);
     VisitInput(a, k.in);
 }
@@ -106,6 +107,7 @@ template <class A> void VisitStage(A& a, Stage& s) {
         int kind = p.kind; a.i(kind); if constexpr (A::reading) { if (kind < 0 || kind >= PK_COUNT) a.r.bad = true; p.kind = (uint8_t)std::clamp(kind, 0, PK_COUNT - 1); }
         a.i(p.x); a.i(p.y); a.i(p.w); a.i(p.h); a.i(p.dx); a.i(p.dy);
         a.f(p.travel); a.f(p.period); a.f(p.phase); a.f(p.on); a.f(p.power); a.v2(p.off); a.v2(p.prevOff); a.f(p.cool); a.b(p.broken);
+        a.f(p.start); a.f(p.prog); a.i(p.hold);
     }, 256);
     a.vec(s.crateCols, [&](int& c) { a.i(c); }, 256);
     a.s(s.name); a.s(s.author); a.i(s.world); a.b(s.wrap); a.b(s.finale);
@@ -128,15 +130,17 @@ template <class A> void VisitWorld(A& a, World& w) {
     a.vec(w.bullets, [&](Bullet& b) {
         a.v2(b.p); a.v2(b.v); a.i(b.owner); a.i(b.weapon); a.i(b.pierce); a.i(b.bounces);
         a.f(b.dmg); a.f(b.knock); a.f(b.life); a.f(b.grav); a.f(b.area); a.f(b.areaDmg); a.f(b.fuse); a.f(b.age);
-        a.b(b.explode); a.b(b.alive); a.b(b.deflected); a.vec(b.hit, [&](int& x) { a.i(x); }, 64);
+        a.b(b.explode); a.b(b.alive); a.b(b.deflected); a.vec(b.hit, [&](int& x) { a.i(x); }, 64); a.i(b.hazard);
     }, 4096);
     a.f(w.nextCrate); a.f(w.wallY); a.i(w.arsenal); a.b(w.finale); a.b(w.wallOn); a.i(w.crates);
+    a.f(w.ceilY); a.f(w.sideX); a.i(w.wallSide);
     a.vec(w.glassT, [&](float& g) { a.f(g); }, 256 * 128);
     if constexpr (A::reading) {   // (indices that the step follows: all must point somewhere real)
         int ns = (int)w.sticks.size(), ni = (int)w.items.size(), nw = (int)Weapons().size();
         for (int s = 0; s < ns; s++) { const Stick& k = w.sticks[s]; if (k.id != s || k.weapon < -1 || k.weapon >= ni || k.grabbing < -1 || k.grabbing >= ns || k.grabbedBy < -1 || k.grabbedBy >= ns) a.r.bad = true; }
         for (const auto& it : w.items) if (it.weapon < -1 || it.weapon >= nw || it.holder < -1 || it.holder >= ns) a.r.bad = true;
-        for (const auto& b : w.bullets) if (b.weapon < -1 || b.weapon >= nw) a.r.bad = true;
+        for (const auto& b : w.bullets) if (b.weapon < -1 || b.weapon >= nw || b.hazard < -2 || b.hazard >= PK_COUNT) a.r.bad = true;
+        for (const auto& p : w.stage.pieces) if (p.hold < -1 || p.hold >= ns) a.r.bad = true;
         if (!w.glassT.empty() && w.glassT.size() != w.stage.t.size()) a.r.bad = true;
     }
 }

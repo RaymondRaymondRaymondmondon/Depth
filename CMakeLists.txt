@@ -67,6 +67,8 @@ src/flight_long.cpp
     src/scuffle_packs.cpp
     src/scuffle_game.cpp
     src/scuffle_net.cpp
+    src/scuffle_hazards.cpp
+    src/scuffle_worlds.cpp
     src/data.cpp
     src/ui.cpp
     src/render.cpp

@@ -30,8 +30,18 @@ constexpr int MAX_STICKS = 8;
 // the pieces a stage is built from (doc pp. 10-11, 17): platforms of stone (the Nautilus's steel), wood, ice (slippery),
 // glass (breaks under weight), rope (one-way: you land on it from above, drop through holding down), electrified rails
 // (live on a rhythm), conveyors; and the moving and hazardous pieces below
-enum Tile : uint8_t { T_EMPTY, T_STONE, T_WOOD, T_ICE, T_GLASS, T_ROPE, T_RAIL, T_CONV_L, T_CONV_R, T_COUNT };
-enum PieceKind : uint8_t { PK_PISTON, PK_ELEVATOR, PK_VENT, PK_PROPELLER, PK_TUBE, PK_WINDOW, PK_COUNT };
+// (stage 5, the other worlds: crumbling floors, the Cave's crystal, the Reef's urchins, water and the Void's brine (not
+// solid: you swim, and drown), and the Salon's bar counter)
+enum Tile : uint8_t { T_EMPTY, T_STONE, T_WOOD, T_ICE, T_GLASS, T_ROPE, T_RAIL, T_CONV_L, T_CONV_R,
+                      T_CRUMBLE, T_CRYSTAL, T_URCHIN, T_WATER, T_BRINE, T_BAR, T_COUNT };
+// the pieces of all six worlds (doc pp. 9-11); `start` holds a piece asleep until that second (the finales' set pieces)
+enum PieceKind : uint8_t { PK_PISTON, PK_ELEVATOR, PK_VENT, PK_PROPELLER, PK_TUBE, PK_WINDOW,
+                           PK_STALACTITE, PK_DRIP, PK_STREAM, PK_TOAD, PK_CLAW,                    // the Cave (the stream is also the Reef's surge)
+                           PK_REACHER, PK_EEL, PK_SHARK, PK_KRAKEN,                              // the Reef
+                           PK_GRATE, PK_TUNA, PK_SLUICE, PK_COLUMN,                              // Atlantis
+                           PK_LURE, PK_LOWG, PK_WORM,                                            // the Void
+                           PK_CROWD, PK_DART, PK_POOL, PK_BOUNCER, PK_DOG,                       // the Salon
+                           PK_COUNT };
 const char* PieceName(int kind);
 struct Piece;
 void PieceDefaults(Piece& p);
@@ -40,7 +50,9 @@ struct Piece {
     uint8_t kind = PK_PISTON; int x = 0, y = 0, w = 1, h = 1, dx = 0, dy = 1;   // tiles; (dx, dy): which way it moves or faces
     float travel = 3, period = 3, phase = 0, on = 0.8f, power = 1;               // tiles, seconds, 0..1, seconds, a multiplier
     Vector2 off{}, prevOff{};                                                     // (runtime: a mover's offset in metres)
+    float start = 0;                                                              // (asleep until this second)
     float cool = 0; bool broken = false;
+    float prog = 0; int hold = -1;                                                // (runtime: a fall, a lunge, a strike's progress; a stick held)
 };
 enum World6 { WD_NAUTILUS, WD_CAVE, WD_REEF, WD_ATLANTIS, WD_VOID, WD_SALON, WD_COUNT };
 const char* WorldName(int w);
@@ -50,7 +62,8 @@ struct Stage {
     std::vector<Piece> pieces; std::vector<int> crateCols; // (crate zones: columns; empty = anywhere with a floor)
     std::string name = "Stone", author = "Depth"; int world = WD_NAUTILUS; bool wrap = false, finale = false;
     uint8_t At(int x, int y) const { if (wrap) x = ((x % w) + w) % w; return x < 0 || y < 0 || x >= w || y >= h ? T_EMPTY : t[y * w + x]; }
-    bool Solid(int x, int y) const { uint8_t k = At(x, y); return k != T_EMPTY && k != T_ROPE; }   // (rope is one-way: see OneWay)
+    bool Solid(int x, int y) const { uint8_t k = At(x, y); return k != T_EMPTY && k != T_ROPE && k != T_WATER && k != T_BRINE; }   // (rope is one-way: see OneWay)
+    bool Liquid(int x, int y) const { uint8_t k = At(x, y); return k == T_WATER || k == T_BRINE; }
     bool OneWay(int x, int y) const { return At(x, y) == T_ROPE; }
     void Set(int x, int y, uint8_t k) { if (x >= 0 && y >= 0 && x < w && y < h) t[y * w + x] = k; }
     float Width() const { return w * TILE; }
@@ -121,6 +134,7 @@ struct Stick {
     int weapon = -1; float fireCool = 0, spin = 0, swingT = 0; bool swingHay = false; std::vector<int> swingHit; float blockT = 0;
     int killsBy[4] = {};                                   // (unused yet: kill kinds for the scoring)
     float walkPh = 0, breathe = 0;
+    float swimT = 0, hazT = 0, sharkT = 0; bool wet = false;          // (stage 5: seconds with the head under water; a hazard's cooldown on this stick; swimming)
     // the round's story
     int kills = 0; int lastHitBy = -1; float lastHitT = -10; std::string cause;
     Input in;
@@ -139,6 +153,7 @@ struct Item {
 struct Bullet {
     Vector2 p{}, v{}; int owner = -1, weapon = -1, pierce = 1, bounces = 0; float dmg = 0, knock = 0, life = 3, grav = 0, area = 0, areaDmg = 0, fuse = 0, age = 0;
     bool explode = false, alive = true, deflected = false; std::vector<int> hit;
+    int hazard = -1;                                      // (a stage's hazard fired it: its piece kind; -2 crystal shrapnel)
 };
 struct World {
     Stage stage; std::vector<Stick> sticks; uint32_t rng = 1; uint32_t frame = 0; float t = 0;
@@ -147,6 +162,14 @@ struct World {
     // arms (scuffle_arms.cpp): crates, loose weapons, bullets; the round's clock and the wall
     std::vector<Item> items; std::vector<Bullet> bullets; float nextCrate = 3, wallY = -10; int arsenal = AR_CLASSIC; bool finale = false, wallOn = true;
     int crates = 0;
+    float ceilY = 1e9f, sideX = -10; int wallSide = 1;     // (the other worlds' walls: the Cave's ceiling coming down; the Void's abyss and the Salon's bouncer from a side)
+    bool InLiquid(Vector2 p) const;                        // (water, brine, the tide, a live sluice)
+    bool BrineAt(Vector2 p) const;
+    float GravityAt(Vector2 p) const;                      // (low gravity pockets)
+    void StepHazard(Piece& p);                             // the other worlds' pieces (scuffle_hazards.cpp)
+    void Nudge(Stick& k, Vector2 d);                       // (a push that respects the tiles: currents, the lure)
+    bool ShotAt(Vector2 at, float radius);                 // (gunfire or a blast: stalactites fall, columns topple, crystal shatters; true if it struck one)
+    int HazardBullet(int kind, Vector2 at, Vector2 v, float dmg, float knock, float grav);
     void StepArms();
     void StepCrates();
     void StepItems();

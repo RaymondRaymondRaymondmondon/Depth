@@ -106,10 +106,29 @@ Vector2 PoseOffset(const Stick& k, int j, float t) {
     return Vector2Add(mid, V(bend * f, 0));
 }
 
+// ---------------------------------------------------------------- water, brine and low gravity (stage 5)
+bool World::InLiquid(Vector2 p) const {
+    int x = (int)floorf(p.x / TILE), y = (int)floorf(p.y / TILE);
+    if (stage.Liquid(x, y)) return true;
+    if ((stage.world == WD_REEF || stage.world == WD_ATLANTIS) && p.y < wallY) return true;   // (the tide; the sinking city)
+    for (const auto& q : stage.pieces) if (q.kind == PK_SLUICE && q.prog > 0 && x >= q.x && x < q.x + q.w && y >= q.y && y < q.y + q.h) return true;
+    return false;
+}
+bool World::BrineAt(Vector2 p) const { return stage.At((int)floorf(p.x / TILE), (int)floorf(p.y / TILE)) == T_BRINE; }
+float World::GravityAt(Vector2 p) const {
+    int x = (int)floorf(p.x / TILE), y = (int)floorf(p.y / TILE);
+    for (const auto& q : stage.pieces) if (q.kind == PK_LOWG && t >= q.start && x >= q.x && x < q.x + q.w && y >= q.y && y < q.y + q.h) return std::clamp(q.power, 0.05f, 1.0f);
+    return 1;
+}
+
 // ---------------------------------------------------------------- spawning
 void World::Init(const Stage& s, int players, uint32_t seed) {
     stage = s; rng = seed ? seed : 1; frame = 0; t = 0; events.clear(); eventBase = 0;
     items.clear(); bullets.clear(); nextCrate = Arms().crateFirst; wallY = -10; crates = 0;
+    ceilY = 1e9f; sideX = -10; glassT.clear();
+    // the Void's abyss is on the side with more bottomless columns; the Salon's bouncer comes in from the door (the left)
+    { int l = 0, r = 0; for (int x = 0; x < stage.w / 3; x++) { bool bl = true, br = true; for (int y = 0; y < stage.h; y++) { bl &= !stage.Solid(x, y); br &= !stage.Solid(stage.w - 1 - x, y); } l += bl; r += br; }
+      wallSide = stage.world == WD_SALON ? -1 : l > r ? -1 : 1; }
     sticks.assign(std::clamp(players, 1, MAX_STICKS), Stick{});
     for (int i = 0; i < (int)sticks.size(); i++) {
         sticks[i].id = i;
@@ -165,9 +184,18 @@ void World::StepController(Stick& k) {
     if (k.st == S_DUCK || k.st == S_PRONE || k.grabbedBy >= 0) mx = 0;
     if (fabsf(mx) > 0.2f && k.st != S_DIVE && k.punchT <= 0) k.face = mx > 0 ? 1 : -1;
     if (k.punchT > 0 && fabsf(in.aim.x) > 0.2f) k.face = in.aim.x > 0 ? 1 : -1;
+    // water (stage 5): you swim slowly (a stroke for each jump press), sink gently, and drown after 8 s with your head
+    // under (3 s in the Void's brine)
+    Vector2 mid{k.pos.x, k.pos.y + k.height * 0.5f}, head{k.pos.x, k.pos.y + k.height - 0.12f};
+    k.wet = InLiquid(mid);
+    if (InLiquid(head)) {
+        k.swimT += dt;
+        bool brine = BrineAt(head);
+        if (k.swimT > (brine ? 3.0f : 8.0f)) { Kill(k, k.lastHitBy >= 0 && t - k.lastHitT < 4 ? k.lastHitBy : -1, brine ? "the brine" : "drowned"); return; }
+    } else k.swimT = std::max(0.0f, k.swimT - dt * 4);
     // the floor under the feet: ice is slippery, a conveyor carries you
     uint8_t under = stage.At((int)floorf(k.pos.x / TILE), (int)floorf((k.pos.y - 0.05f) / TILE));
-    float target = mx * 8, accel = ground ? 70.0f : 34.0f;
+    float target = mx * (k.wet ? 4.0f : 8.0f), accel = ground ? 70.0f : k.wet ? 20.0f : 34.0f;
     if (ground && (under == T_CONV_L || under == T_CONV_R)) k.pos.x += (under == T_CONV_R ? 3.0f : -3.0f) * dt;
     if (k.st == S_DIVE) accel = 2;
     if (ground && fabsf(mx) < 0.1f) accel = 55;
@@ -179,8 +207,13 @@ void World::StepController(Stick& k) {
     else if (k.st == S_DUCK && in.moveY >= -0.5f) k.st = S_STAND;
     if (!ground && in.moveY < -0.5f && k.st != S_DIVE && k.st != S_WALL && k.st != S_PRONE) { k.st = S_DIVE; k.vel.x = k.face * 10.0f; k.vel.y = std::min(k.vel.y, -1.0f); }
     // gravity, the variable jump (a release while rising cuts it), coyote time
-    float g = gravity;
+    float g = gravity * GravityAt(mid) * (k.wet ? 0.22f : 1.0f);
     k.vel.y -= g * dt;
+    if (k.wet) {   // (a stroke on each press; held, you rise slowly; the water drags)
+        if (jumpPress && !ground) { k.vel.y = std::max(k.vel.y, 5.0f); Emit(EV_JUMP, k.pos, k.id); }
+        if (in.jump) k.vel.y += 4.0f * dt;
+        k.vel.y = std::max(k.vel.y * (1 - 1.2f * dt), -3.5f);
+    }
     if (!in.jump && k.jumpWas && k.vel.y > 0 && k.jumpHeldT > 0) { k.vel.y *= 0.45f; k.jumpHeldT = 0; }
     k.coyoteT = ground ? 0.08f : std::max(0.0f, k.coyoteT - dt);
     // the wall: hold toward it in the air to climb (3 m/s for 1.5 s, then a slide); jump off at 45 degrees
@@ -195,6 +228,7 @@ void World::StepController(Stick& k) {
     if (jumpPress && (ground || k.coyoteT > 0) && k.st != S_DUCK && k.st != S_PRONE) { k.vel.y = 13.4f; k.coyoteT = 0; k.jumpHeldT = 0.01f; k.st = S_AIR; Emit(EV_JUMP, k.pos, k.id); }
     if (k.vel.y > 0 && k.jumpHeldT > 0) k.jumpHeldT += dt; if (k.vel.y <= 0) k.jumpHeldT = 0;
     k.vel.y = std::max(k.vel.y, -24.0f);
+    if (GravityAt(mid) < 0.99f || k.wet) k.fallTop = std::min(k.fallTop, k.pos.y + 3.0f);   // (no long-fall stun from a float down a low-gravity pocket, or a sink through water)
     // move: x, then y, against the tiles
     Vector2 p = k.pos;
     float nx = p.x + k.vel.x * dt;
@@ -546,6 +580,7 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
 static int Fails = 0;
 int ScuffleArmsChecks();
 int ScuffleStageChecks();
+int ScuffleWorldChecks();
 static void Check(bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) Fails++; }
 static void Run(World& w, float seconds, void (*fn)(World&) = nullptr) { int n = (int)(seconds / STEP); for (int i = 0; i < n; i++) { if (fn) fn(w); w.Step(); } }
 static Stage Flat(int w = 40, int h = 18) { std::vector<std::string> rows(h, std::string(w, '.')); rows[h - 1] = std::string(w, '#'); rows[h - 2] = std::string(w, '#'); return StageFromText(rows, "Flat"); }
@@ -633,6 +668,7 @@ int RunScuffleTest() {
       Check(done >= 10, TextFormat("two Sharp bots, fists only, on the stone stage: %d of 12 rounds end (%.0f s on average)%s", done, done ? total / done : 0, why.c_str())); }
     Fails += ScuffleArmsChecks();
     Fails += ScuffleStageChecks();
+    Fails += ScuffleWorldChecks();
     printf(Fails ? "Scuffle: %d check(s) FAILED\n" : "Scuffle: all checks passed\n", Fails);
     return Fails ? 1 : 0;
 }

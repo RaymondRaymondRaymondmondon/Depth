@@ -26,12 +26,27 @@
 
 namespace sf {
 
-const char* PieceName(int k) { static const char* N[PK_COUNT] = {"piston", "elevator", "steam vent", "propeller", "torpedo tube", "window"}; return k >= 0 && k < PK_COUNT ? N[k] : "?"; }
-const char* TileName(int t) { static const char* N[T_COUNT] = {"empty", "stone", "wood", "ice", "glass", "rope", "electrified rail", "conveyor (left)", "conveyor (right)"}; return t >= 0 && t < T_COUNT ? N[t] : "?"; }
+const char* PieceName(int k) {
+    static const char* N[PK_COUNT] = {"piston", "elevator", "steam vent", "propeller", "torpedo tube", "window",
+                                      "stalactite", "acid drip", "current", "toad", "the Lobster's claw",
+                                      "reacher coral", "eel hole", "sharks", "the kraken",
+                                      "grate", "tuna lane", "sluice", "column",
+                                      "the leviathan's lure", "low gravity", "the sand worm",
+                                      "the crowd", "dartboard", "pool table", "the bouncer", "the dog"};
+    return k >= 0 && k < PK_COUNT ? N[k] : "?";
+}
+const char* TileName(int t) { static const char* N[T_COUNT] = {"empty", "stone", "wood", "ice", "glass", "rope", "electrified rail", "conveyor (left)", "conveyor (right)", "crumbling floor", "crystal", "urchins", "water", "brine", "the bar"}; return t >= 0 && t < T_COUNT ? N[t] : "?"; }
 const char* WorldName(int w) { static const char* N[WD_COUNT] = {"The Nautilus", "The Cave", "The Reef", "Atlantis", "The Void", "The Salon"}; return w >= 0 && w < WD_COUNT ? N[w] : "?"; }
 static const char* WORLD_KEY[WD_COUNT] = {"nautilus", "cave", "reef", "atlantis", "void", "salon"};
-static int PieceLetter(char c) { switch (c) { case 'P': return PK_PISTON; case 'L': return PK_ELEVATOR; case 'V': return PK_VENT; case 'F': return PK_PROPELLER; case 'T': return PK_TUBE; case 'W': return PK_WINDOW; default: return -1; } }
-static char LetterOf(int kind) { static const char L[PK_COUNT] = {'P', 'L', 'V', 'F', 'T', 'W'}; return kind >= 0 && kind < PK_COUNT ? L[kind] : '?'; }
+static const char PIECE_LETTERS[PK_COUNT + 1] = "PLVFTWADROKYEHkGUQIJZNBX89d";   // (one per PieceKind, in order)
+static int PieceLetter(char c) { for (int k = 0; k < PK_COUNT; k++) if (PIECE_LETTERS[k] == c) return k; return -1; }
+static char LetterOf(int kind) { return kind >= 0 && kind < PK_COUNT ? PIECE_LETTERS[kind] : '?'; }
+// the tile under a piece's letter (a vent stands on stone; sharks and a toad live in water; a column, an eel's hole, a
+// grate, a drip's crack and a dartboard are stone; reacher coral is solid; a pool table is wood)
+static uint8_t PieceTile(int kind) {
+    switch (kind) { case PK_VENT: case PK_COLUMN: case PK_EEL: case PK_GRATE: case PK_DRIP: case PK_DART: case PK_REACHER: return T_STONE; case PK_WINDOW: return T_GLASS;
+                    case PK_SHARK: case PK_TOAD: return T_WATER; case PK_POOL: return T_WOOD; default: return T_EMPTY; }
+}
 void PieceDefaults(Piece& p);
 static void Defaults(Piece& p) { PieceDefaults(p); }
 void PieceDefaults(Piece& p) {
@@ -42,6 +57,27 @@ void PieceDefaults(Piece& p) {
         case PK_PROPELLER: p.power = 1; break;
         case PK_TUBE: p.dx = 1; p.dy = 0; p.power = 18; p.period = 1.0f; break;
         case PK_WINDOW: p.phase = 20; break;
+        case PK_STALACTITE: p.phase = 0; p.power = 1; break;                          // (phase > 0: it falls by itself at that second)
+        case PK_DRIP: p.period = 2.2f; p.power = 20; break;                            // (a drop every period; power: its damage)
+        case PK_STREAM: p.dx = 1; p.dy = 0; p.power = 6; p.period = 0; p.on = 2; break;   // (period 0: always on; the Reef's surge: on for `on` s every period)
+        case PK_TOAD: p.dx = 1; p.travel = 6; p.period = 4; break;                     // (the tongue reaches `travel` tiles along dx)
+        case PK_CLAW: p.dx = 1; p.period = 6; p.on = 0.8f; break;                      // (sweeps its rectangle along dx; `on` is the tell)
+        case PK_REACHER: p.on = 1.2f; break;                                           // (holds a stick that touches it)
+        case PK_EEL: p.dx = 1; p.travel = 2; p.period = 1.5f; p.power = 35; break;
+        case PK_SHARK: p.on = 0.5f; break;                                             // (a stick this long in the water below is taken)
+        case PK_KRAKEN: p.period = 4; p.on = 0.9f; p.start = 10; break;                // (tentacles slam up through the rectangle)
+        case PK_GRATE: p.travel = 5; p.period = 5; p.on = 0.8f; break;                 // (the Wyrm strikes `travel` tiles up from the grate)
+        case PK_TUNA: p.dx = 1; p.period = 7; p.power = 14; break;
+        case PK_SLUICE: p.period = 12; p.on = 4; break;                                // (floods its rectangle for `on` s every period)
+        case PK_COLUMN: p.dx = 1; p.phase = 0; break;                                  // (topples along dx when shot, or at `phase` seconds)
+        case PK_LURE: p.travel = 9; p.power = 5; break;                                // (pulls within `travel` tiles)
+        case PK_LOWG: p.power = 0.35f; break;                                          // (gravity times power)
+        case PK_WORM: p.period = 5; p.on = 0.7f; break;                                // (bursts up somewhere along its line)
+        case PK_CROWD: p.period = 3.5f; p.power = 10; break;                           // (a bottle every period)
+        case PK_DART: p.dx = 1; p.period = 3; p.power = 20; break;
+        case PK_POOL: p.dx = 1; p.period = 5; p.power = 10; break;
+        case PK_BOUNCER: p.on = 0.3f; break;                                           // (a stick on the bar this long is thrown out)
+        case PK_DOG: p.power = 15; p.period = 0.8f; break;                             // (runs its rectangle; bites, then a cooldown)
     }
 }
 
@@ -49,7 +85,9 @@ void PieceDefaults(Piece& p) {
 Stage StageFromText(const std::vector<std::string>& lines, const char* name) {
     Stage s; s.name = name ? name : "Untitled";
     std::vector<std::string> rows, meta;
-    for (const auto& l : lines) { if (!l.empty() && (l[0] == '@' || l.find('=') != std::string::npos)) meta.push_back(l); else rows.push_back(l); }
+    // (a meta line is "@n ..." or "key=value" with a lowercase key; a row may hold '=' for the Salon's bar)
+    auto isMeta = [](const std::string& l) { if (l.empty()) return false; if (l[0] == '@') return true; size_t e = l.find('='); if (e == std::string::npos) return false; std::string k = l.substr(0, e); return k == "name" || k == "world" || k == "wrap" || k == "author" || k == "finale"; };
+    for (const auto& l : lines) { if (isMeta(l)) meta.push_back(l); else rows.push_back(l); }
     s.h = (int)rows.size(); s.w = 0; for (const auto& r : rows) s.w = std::max(s.w, (int)r.size());
     s.t.assign(std::max(1, s.w * s.h), T_EMPTY);
     std::vector<int> cell(s.w * s.h, 0);   // (piece letters, for grouping)
@@ -59,7 +97,9 @@ Stage StageFromText(const std::vector<std::string>& lines, const char* name) {
         for (int x = 0; x < (int)rows[ry].size(); x++) {
             char c = rows[ry][x]; uint8_t k = T_EMPTY;
             switch (c) { case '#': k = T_STONE; break; case 'w': k = T_WOOD; break; case 'i': k = T_ICE; break; case 'g': k = T_GLASS; break; case '-': k = T_ROPE; break;
-                         case 'e': k = T_RAIL; break; case '<': k = T_CONV_L; break; case '>': k = T_CONV_R; break; case 'V': k = T_STONE; break; case 'W': k = T_GLASS; break; }
+                         case 'e': k = T_RAIL; break; case '<': k = T_CONV_L; break; case '>': k = T_CONV_R; break;
+                         case 'c': k = T_CRUMBLE; break; case 'x': k = T_CRYSTAL; break; case 'u': k = T_URCHIN; break; case '~': k = T_WATER; break; case 'b': k = T_BRINE; break; case '=': k = T_BAR; break;
+                         default: if (PieceLetter(c) >= 0) k = PieceTile(PieceLetter(c)); break; }
             s.t[y * s.w + x] = k;
             if (c == 'S') s.spawns.push_back({(x + 0.5f) * TILE, y * TILE});
             if (c == 'C') crates.insert(x);
@@ -85,7 +125,7 @@ Stage StageFromText(const std::vector<std::string>& lines, const char* name) {
             in >> tok; int n = atoi(tok.c_str() + 1) - 1; if (n < 0 || n >= (int)s.pieces.size()) continue;
             Piece& p = s.pieces[n];
             while (in >> tok) { size_t e = tok.find('='); if (e == std::string::npos) continue; std::string k = tok.substr(0, e); float v = (float)atof(tok.c_str() + e + 1);
-                if (k == "dx") p.dx = (int)v; else if (k == "dy") p.dy = (int)v; else if (k == "travel") p.travel = v; else if (k == "period") p.period = std::max(0.2f, v); else if (k == "phase") p.phase = v; else if (k == "on") p.on = v; else if (k == "power") p.power = v; }
+                if (k == "dx") p.dx = (int)v; else if (k == "dy") p.dy = (int)v; else if (k == "travel") p.travel = v; else if (k == "period") p.period = p.kind == PK_STREAM ? std::max(0.0f, v) : std::max(0.2f, v); else if (k == "phase") p.phase = v; else if (k == "on") p.on = v; else if (k == "power") p.power = v; else if (k == "start") p.start = v; }
             continue;
         }
         size_t e = m.find('='); std::string k = m.substr(0, e), v = m.substr(e + 1);
@@ -97,7 +137,7 @@ Stage StageFromText(const std::vector<std::string>& lines, const char* name) {
 std::vector<std::string> StageToText(const Stage& s) {
     std::vector<std::string> out;
     std::vector<std::string> rows(s.h, std::string(s.w, '.'));
-    static const char TC[T_COUNT] = {'.', '#', 'w', 'i', 'g', '-', 'e', '<', '>'};
+    static const char TC[T_COUNT] = {'.', '#', 'w', 'i', 'g', '-', 'e', '<', '>', 'c', 'x', 'u', '~', 'b', '='};
     for (int y = 0; y < s.h; y++) for (int x = 0; x < s.w; x++) rows[s.h - 1 - y][x] = TC[std::min<int>(s.t[y * s.w + x], T_COUNT - 1)];
     for (const auto& p : s.pieces) for (int yy = p.y; yy < p.y + p.h; yy++) for (int xx = p.x; xx < p.x + p.w; xx++) if (xx >= 0 && yy >= 0 && xx < s.w && yy < s.h) rows[s.h - 1 - yy][xx] = LetterOf(p.kind);
     for (int c : s.crateCols) for (int ry = 0; ry < s.h; ry++) if (rows[ry][c] == '.') { rows[ry][c] = 'C'; break; }
@@ -105,13 +145,13 @@ std::vector<std::string> StageToText(const Stage& s) {
     out = rows;
     out.push_back("name=" + s.name); out.push_back(std::string("world=") + WORLD_KEY[std::clamp(s.world, 0, WD_COUNT - 1)]);
     if (s.wrap) out.push_back("wrap=1"); if (s.finale) out.push_back("finale=1"); if (!s.author.empty()) out.push_back("author=" + s.author);
-    for (int i = 0; i < (int)s.pieces.size(); i++) { const Piece& p = s.pieces[i]; out.push_back(TextFormat("@%d dx=%d dy=%d travel=%g period=%g phase=%g on=%g power=%g", i + 1, p.dx, p.dy, p.travel, p.period, p.phase, p.on, p.power)); }
+    for (int i = 0; i < (int)s.pieces.size(); i++) { const Piece& p = s.pieces[i]; out.push_back(TextFormat("@%d dx=%d dy=%d travel=%g period=%g phase=%g on=%g power=%g%s", i + 1, p.dx, p.dy, p.travel, p.period, p.phase, p.on, p.power, p.start > 0 ? TextFormat(" start=%g", p.start) : "")); }
     return out;
 }
 
 // ---------------------------------------------------------------- codes
 static void PackStage(const Stage& s, Writer& w) {
-    w.U8(1); w.Str(s.name.substr(0, 40)); w.Str(s.author.substr(0, 24)); w.U8((uint8_t)s.world); w.U8((s.wrap ? 1 : 0) | (s.finale ? 2 : 0));
+    w.U8(2); /* (version 2: each piece carries its start) */ w.Str(s.name.substr(0, 40)); w.Str(s.author.substr(0, 24)); w.U8((uint8_t)s.world); w.U8((s.wrap ? 1 : 0) | (s.finale ? 2 : 0));
     w.U8((uint8_t)s.w); w.U8((uint8_t)s.h);
     // the tiles, run-length
     for (int i = 0; i < (int)s.t.size();) { uint8_t k = s.t[i]; int n = 1; while (i + n < (int)s.t.size() && s.t[i + n] == k && n < 255) n++; w.U8((uint8_t)n); w.U8(k); i += n; }
@@ -121,11 +161,11 @@ static void PackStage(const Stage& s, Writer& w) {
     w.U8((uint8_t)s.pieces.size());
     for (const auto& p : s.pieces) {
         w.U8(p.kind); w.U8((uint8_t)p.x); w.U8((uint8_t)p.y); w.U8((uint8_t)p.w); w.U8((uint8_t)p.h); w.U8((uint8_t)(p.dx + 8)); w.U8((uint8_t)(p.dy + 8));
-        w.U16((uint16_t)lroundf(p.travel * 10)); w.U16((uint16_t)lroundf(p.period * 10)); w.U16((uint16_t)lroundf(p.phase * 100)); w.U16((uint16_t)lroundf(p.on * 100)); w.U16((uint16_t)lroundf(p.power * 10));
+        w.U16((uint16_t)lroundf(p.travel * 10)); w.U16((uint16_t)lroundf(p.period * 10)); w.U16((uint16_t)lroundf(p.phase * 100)); w.U16((uint16_t)lroundf(p.on * 100)); w.U16((uint16_t)std::clamp((int)lroundf(p.power * 100), 0, 65535)); w.U16((uint16_t)lroundf(p.start * 10));
     }
 }
 static bool UnpackStage(Reader& r, Stage& s) {
-    int v = r.U8(); if (v != 1) return false;
+    int v = r.U8(); if (v != 1 && v != 2) return false;
     s = Stage{}; s.name = r.Str(); s.author = r.Str(); s.world = std::clamp((int)r.U8(), 0, WD_COUNT - 1); int fl = r.U8(); s.wrap = fl & 1; s.finale = (fl & 2) != 0;
     s.w = r.U8(); s.h = r.U8(); if (s.w < 4 || s.h < 4 || s.w > 128 || s.h > 64) return false;
     s.t.assign(s.w * s.h, T_EMPTY);
@@ -136,7 +176,8 @@ static bool UnpackStage(Reader& r, Stage& s) {
     for (int j = 0; j < np && !r.bad; j++) {
         Piece p; p.kind = (uint8_t)r.U8(); if (p.kind >= PK_COUNT) return false;
         p.x = r.U8(); p.y = r.U8(); p.w = r.U8(); p.h = r.U8(); p.dx = (int)r.U8() - 8; p.dy = (int)r.U8() - 8;
-        p.travel = r.U16() / 10.0f; p.period = r.U16() / 10.0f; p.phase = r.U16() / 100.0f; p.on = r.U16() / 100.0f; p.power = r.U16() / 10.0f;
+        p.travel = r.U16() / 10.0f; p.period = r.U16() / 10.0f; p.phase = r.U16() / 100.0f; p.on = r.U16() / 100.0f; p.power = r.U16() / (v >= 2 ? 100.0f : 10.0f);
+        if (v >= 2) p.start = r.U16() / 10.0f;
         s.pieces.push_back(p);
     }
     return !r.bad && i == (int)s.t.size();
