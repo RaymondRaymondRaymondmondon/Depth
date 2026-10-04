@@ -1,7 +1,0 @@
-﻿MSBuild version 18.10.1-1.26427.6+3cd27c13e for .NET Framework
-
-  glfw.vcxproj -> C:\Users\phill\Downloads\Depth\.claude\worktrees\depth-folder-game-review-8b23d7\build\_deps\raylib-build\raylib\external\glfw\src\glfw.dir\Release\glfw.lib
-  raylib.vcxproj -> C:\Users\phill\Downloads\Depth\.claude\worktrees\depth-folder-game-review-8b23d7\build\_deps\raylib-build\raylib\Release\raylib.lib
-  scuffle_game.cpp
-     Creating library C:/Users/phill/Downloads/Depth/.claude/worktrees/depth-folder-game-review-8b23d7/build/Release/depth.lib and object C:/Users/phill/Downloads/Depth/.claude/worktrees/depth-folder-game-review-8b23d7/build/Release/depth.exp
-  depth.vcxproj -> C:\Users\phill\Downloads\Depth\.claude\worktrees\depth-folder-game-review-8b23d7\build\Release\depth.exe
