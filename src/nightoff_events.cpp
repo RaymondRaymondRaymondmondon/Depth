@@ -360,6 +360,8 @@ std::vector<Night::EvOption> Night::EventOptions(const Player& p) const {
     for (const auto& c : patrons) if (c.name == "Harrow" && c.inside && !c.gone && Vector2Distance(c.pos, p.pos) < 1.8f && p.money < 20 && p.debt <= 0) o.push_back({3, -1, "Borrow 100 from Harrow"});
     // the cartel's wares: the list (the scene opens it; the purchases are acts 61-78)
     if (WaresHere(p)) o.insert(o.begin(), {60, -1, "See what the quiet man's men are selling"});
+    // the Monkey's rope: a bribe for Horace
+    if (RopeStops(p) && p.pos.y < 0.8f && p.pos.x > 15 && p.pos.x < 24 && p.money >= 30) o.insert(o.begin(), {51, -1, "Slip Horace 30 to be let in"});
     // the bouncer: last night's unpaid tab, paid double
     if (p.owedAtDoor > 0 && p.money >= p.owedAtDoor && Vector2Distance(p.pos, D().bar.spawn) < 3.5f) o.push_back({50, -1, TextFormat("Pay the bouncer double for last night (%.0f)", p.owedAtDoor)});
     // the cartel's hand at the poker table; side bets on the other sailors' matches
@@ -425,6 +427,7 @@ void Night::EventAction(Player& p, int act, int arg) {
         case 17: EventAction(p, 11, -1); break;   // (the bikes are as sacred as the piano)
         case 30: case 31: { SideBet b; b.bettor = p.id; b.on = arg; b.stake = 10; b.forWin = act == 30; sideBets.push_back(b); Note(p, 0, std::string("Side bet of 10 ") + (act == 30 ? "on " : "against ") + players[std::clamp(arg, 0, (int)players.size() - 1)].name + "."); } break;
         case 40: { std::string why; StartGame(p, GK_POKER, 1, -1, 0, &why); if (!why.empty()) Say(why); } break;
+        case 51: p.money -= 30; p.letIn = true; Say("Horace pockets it without looking down, and unhooks the rope."); Note(p, 0, "Bribed the Monkey's doorman."); break;
         case 50: p.money -= p.owedAtDoor; Note(p, 0, TextFormat("Paid the bouncer %.0f for last night.", p.owedAtDoor)); p.owedAtDoor = 0; p.barred = false; Say("The bouncer counts it twice and stands aside."); break;
         case 18: p.watchingSafe = true; Note(p, 0, "Hid upstairs during the robbery and watched the safe."); break;
     }

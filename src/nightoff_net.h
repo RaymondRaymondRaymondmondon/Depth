@@ -21,7 +21,7 @@ bool ReadNight(Reader& r, Night& n, int* viewerOut = nullptr);
 void ReplayShot(GameSeat& g);                          // a guest rebuilds the last pool or golf shot's frames from the shot
 std::unique_ptr<arcade::GameHost> MakeNightHost();
 Night* NightHostWorld(arcade::GameHost* h);
-std::string NightHostOpts(int mode, int crowd, bool pvp, float startMinutes = 0);
+std::string NightHostOpts(int mode, int crowd, bool pvp, float startMinutes = 0, int bar = 0, int season = 0);
 uint32_t NightDataHash();
 int RunNightNetTest();                                 // --night-net-test
 int RunNightNetLoop(bool mem);                         // --net-loop night [mem]

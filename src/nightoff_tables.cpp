@@ -93,7 +93,7 @@ bool Night::StartGame(Player& p, int kind, int machine, int opp, int stake, std:
         } else g.opp = -1;
         if (kind == GK_DARTS) g.darts.Start(false, 0);
         if (kind == GK_POOL) g.pool.Rack(g.rng, 0);
-        if (kind == GK_GOLF) { g.golf.solo = g.opp == -1; g.golf.Start(0); }
+        if (kind == GK_GOLF) { g.golf.solo = g.opp == -1; g.golf.holes = D().bar.golfHoles; g.golf.Start(0); }
         g.caption = g.opp == -1 ? std::string("Practice: ") + GameName(kind) + ", alone." : g.opp == -2 ? "The bartender takes three darts from under the bar. \"For your tab.\"" : TextFormat("%s plays you for %d.", g.oppName.c_str(), g.stake);
         g.captionT = 4;
     }

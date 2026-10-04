@@ -74,6 +74,7 @@ void Night::InitPatrons() {
     for (int i = 0; i < (int)d.regulars.size(); i++) {
         // a dead night thins the regulars too (the staff always come)
         if (opts.crowd == 0 && d.regulars[i].staff.empty() && Rand() < 0.45f) continue;
+        if (d.regulars[i].travels && gTravelRolls && !TravellerHere(d.regulars[i].name, opts.bar, opts.seed)) continue;   // (at the other bar tonight)
         AddPatron(i);
     }
     seatTaken.assign(64, -1);
@@ -96,7 +97,11 @@ static void ChooseGoal(Night& n, Patron& c) {
     const Data& d = D();
     if (c.seat >= 0) { int key = SeatKey(c.seatKind, c.seat); if (key >= 0 && key < (int)n.seatTaken.size() && n.seatTaken[key] == c.id) n.seatTaken[key] = -1; }
     c.seat = -1; c.sitting = false;
-    if (c.reg >= 0 && !d.regulars[c.reg].staff.empty()) { c.seatKind = "kitchen"; c.goal = {26.5f, 15.5f}; c.path = n.NavPath(c.pos, c.goal); c.nextGoalT = 999; return; }
+    if (c.reg >= 0 && !d.regulars[c.reg].staff.empty()) {   // the staff keep their posts: the cook his kitchen, the Monkey's doorman the door, the croupier the cards
+        const std::string& st = d.regulars[c.reg].staff;
+        c.seatKind = st; c.goal = st == "door" ? Vector2{17.2f, 1.6f} : st == "cards" ? Vector2{34.5f, 16.75f} : Vector2{26.5f, 15.5f};
+        c.path = n.NavPath(c.pos, c.goal); c.nextGoalT = 999; return;
+    }
     std::string kind;
     float r = n.Rand();
     if (r < 0.18f) { c.seatKind = "drink"; c.goal = {std::clamp(n.Rand(13, 20), 13.0f, 20.5f), 8.2f}; c.path = n.NavPath(c.pos, c.goal); c.nextGoalT = n.Rand(8, 14); return; }
@@ -238,6 +243,7 @@ void Night::TalkChoose(Player& p, int o) {
         T.myCaption = d.talk.buy.Pick(rng); T.theirLine = d.talk.drink.Pick(rng >> 5);
         bar.busyT = std::max(bar.busyT, 1.2f);
         Note(p, 3, "Bought " + c.name + " a drink.");
+        QuinceTells(p, c);   // (the Monkey's surgeon: a drink buys a name)
         return;
     }
     if (o == 4) {   // listening (Talkers): always works, costs time; every 30 s of it is +2 drunk (you keep sipping) and +1 mood
@@ -288,9 +294,11 @@ void Night::EndTalk(Player& p) {
 int RunPatronCheck() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
-    const Data& d = D();
-    printf("A Night Off: the patrons\n");
-    check(d.regulars.size() >= 29, TextFormat("%d regulars (and the bartender: thirty)", (int)d.regulars.size()));
+    for (int bi = 0; bi < BAR_COUNT; bi++) {
+    const Data& d = DataOf(bi);
+    printf("A Night Off: the patrons of %s\n", BarName(bi));
+    if (bi == BAR_GULL) check(d.regulars.size() >= 29, TextFormat("%d regulars (and the bartender: thirty)", (int)d.regulars.size()));
+    else check(d.regulars.size() >= 19, TextFormat("%d regulars (with Celeste and the stuffed marlin: the doc's twenty, and Dottie)", (int)d.regulars.size()));
     for (const auto& r : d.regulars) {
         bool ok = r.traits.size() == 3 && !r.secret.empty() && r.type >= 0 && r.type < T_COUNT && r.arrive < r.leave;
         if (!ok) check(false, r.name + " is missing a type, three traits, a secret or a schedule");
@@ -309,6 +317,15 @@ int RunPatronCheck() {
             if (hit) bad += " " + B.navNames[i] + "-" + B.navNames[j];
         }
         check(bad.empty(), "the walking graph is clear of furniture and walls" + (bad.empty() ? std::string() : ":" + bad));
+    }
+    // every seat and spot is out of the furniture (a patron sent there would stick)
+    {
+        const BarData& B = d.bar; std::string bad;
+        auto inBox = [&](Vector2 q) { for (const auto& x : B.boxes) if (x.kind != "table" && q.x > x.r.x && q.x < x.r.x + x.r.width && q.y > x.r.y && q.y < x.r.y + x.r.height) return true; return false; };
+        for (const auto& s : B.seats) for (const auto& q : s.second) if (inBox(q)) bad += " " + s.first;
+        for (const auto& q : B.stools) if (inBox(q)) bad += " stool";
+        check(bad.empty(), "every seat is clear of the furniture" + (bad.empty() ? std::string() : ":" + bad));
+    }
     }
     printf(fails ? "patron-check: %d FAILED\n" : "patron-check: all checks passed\n", fails);
     return fails ? 1 : 0;

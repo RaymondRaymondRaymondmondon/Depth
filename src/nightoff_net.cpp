@@ -111,7 +111,7 @@ template <class A> void VisitSeat(A& a, GameSeat& g) {
     if (g.kind < 0) return;
     { darts::Match& m = g.darts; a.b(m.clock); for (int k = 0; k < 2; k++) { a.i(m.left[k]); a.i(m.next[k]); a.i(m.big[k]); } a.i(m.turn); a.i(m.dart); a.i(m.turnStart); a.i(m.winner); a.i(m.turns); a.i(m.turnPts); a.b(m.bust); a.vec(m.marks, [&](Vector2& v) { F2(a, v); }); }
     { pool::Match& m = g.pool; Balls(a, m.t); a.i(m.turn); a.i(m.winner); a.i(m.group[0]); a.i(m.group[1]); a.b(m.ballInHand); a.b(m.broken); a.i(m.shots); a.s(m.last); }
-    { golf::Match& m = g.golf; a.i(m.hole); for (auto& row : m.strokes) for (int& s : row) a.i(s); a.i(m.turn); a.i(m.winner);
+    { golf::Match& m = g.golf; a.i(m.hole); a.i(m.holes); for (auto& row : m.strokes) for (int& s : row) a.i(s); a.i(m.turn); a.i(m.winner);
       for (auto& b : m.ball) { F2(a, b.p); a.b(b.holed); } a.b(m.done[0]); a.b(m.done[1]); a.f(m.sim.t); F2(a, m.sim.dog); a.i(m.maxStrokes); a.b(m.rain); a.b(m.solo);
       a.b(m.lastHoled); a.i(m.lastWho); a.i(m.lastHole); a.i(m.lastStrokes); a.i(g.golfWho); a.i(g.golfHole); }
     a.i(g.shotSerial); Balls(a, g.shotTable); a.f(g.shot.ang); a.f(g.shot.power); a.f(g.shot.english); a.b(g.shotMiss);
@@ -211,8 +211,8 @@ void WriteNight(Night& n, int viewer, Writer& out) {
     Out o{out};
     uint32_t magic = 0x31464F4E; o.u(magic);   // "NOF1"
     uint32_t seed = n.opts.seed; o.u(seed);
-    int players = (int)n.players.size(), crowd = n.opts.crowd, mode = n.opts.mode; bool pvp = n.opts.pvp; float start = n.opts.startMinutes;
-    o.i(players); o.i(crowd); o.i(mode); o.b(pvp); o.f(start); o.i(viewer);
+    int players = (int)n.players.size(), crowd = n.opts.crowd, mode = n.opts.mode, barId = n.opts.bar, season = n.opts.season; bool pvp = n.opts.pvp; float start = n.opts.startMinutes;
+    o.i(players); o.i(crowd); o.i(mode); o.b(pvp); o.f(start); o.i(viewer); o.i(barId); o.i(season);
     Visit(o, n, viewer);
 }
 void PackNight(Night& n, int viewer, Writer& out) {
@@ -239,11 +239,11 @@ bool ReadNight(Reader& r, Night& n, int* viewerOut) {
         return ok;
     }
     if (magic != 0x31464F4E) return false;
-    uint32_t seed = 0; int players = 0, crowd = 0, mode = 0, viewer = 0; bool pvp = true; float start = 0;
-    in.u(seed); in.i(players); in.i(crowd); in.i(mode); in.b(pvp); in.f(start); in.i(viewer);
-    if (r.bad || players < 1 || players > 6 || crowd < 0 || crowd > 3 || mode < 0 || mode >= MD_COUNT || viewer < 0 || viewer >= players || start < 0 || start > 480) return false;
-    if (!n.mirror || n.opts.seed != seed || (int)n.players.size() != players || n.opts.mode != mode) {
-        Opts o; o.players = players; o.seed = seed; o.crowd = crowd; o.mode = mode; o.pvp = pvp; o.startMinutes = start;
+    uint32_t seed = 0; int players = 0, crowd = 0, mode = 0, viewer = 0, barId = 0, season = 0; bool pvp = true; float start = 0;
+    in.u(seed); in.i(players); in.i(crowd); in.i(mode); in.b(pvp); in.f(start); in.i(viewer); in.i(barId); in.i(season);
+    if (r.bad || players < 1 || players > 6 || crowd < 0 || crowd > 3 || mode < 0 || mode >= MD_COUNT || viewer < 0 || viewer >= players || start < 0 || start > 480 || barId < 0 || barId >= BAR_COUNT || season < 0 || season > 31) return false;
+    if (!n.mirror || n.opts.seed != seed || (int)n.players.size() != players || n.opts.mode != mode || n.opts.bar != barId || n.opts.season != season) {
+        Opts o; o.players = players; o.seed = seed; o.crowd = crowd; o.mode = mode; o.pvp = pvp; o.startMinutes = start; o.bar = barId; o.season = season;
         n.Init(o); n.mirror = true;
     }
     int serial = viewer < (int)n.players.size() ? n.players[viewer].game.shotSerial : 0, kind0 = viewer < (int)n.players.size() ? n.players[viewer].game.kind : -1;
@@ -261,21 +261,21 @@ namespace {
 class NightHost : public arcade::GameHost {
 public:
     std::unique_ptr<Night> n = std::make_unique<Night>();
-    int players = 1, mode = 0, crowd = 1; bool pvp = true, test = false; float start = 0, stepDt = 1 / 30.0f;
+    int players = 1, mode = 0, crowd = 1, barId = 0, season = 0; bool pvp = true, test = false; float start = 0, stepDt = 1 / 30.0f;
     std::vector<Input> pend;
     bool applied[6] = {}, everHuman[6] = {}; float lostT[6] = {};   // (a profile applied once; a person who played; how long their seat has been lost)
     float acc = 0; uint32_t tick = 0;
     mutable std::vector<std::vector<uint8_t>> cache = std::vector<std::vector<uint8_t>>(arcade::MAX_PLAYERS);
     mutable std::vector<uint32_t> cacheTick = std::vector<uint32_t>(arcade::MAX_PLAYERS, ~0u);
     void Configure(const std::string& opts) override {
-        int md = 0, cr = 1, pv = 1; float st = 0;
-        if (sscanf(opts.c_str(), "%d:%d:%d:%f", &md, &cr, &pv, &st) >= 1) { mode = std::clamp(md, 0, MD_COUNT - 1); crowd = std::clamp(cr, 0, 3); pvp = pv != 0; start = std::clamp(st, 0.0f, 470.0f); }
+        int md = 0, cr = 1, pv = 1, br = 0, se = 0; float st = 0;
+        if (sscanf(opts.c_str(), "%d:%d:%d:%f:%d:%d", &md, &cr, &pv, &st, &br, &se) >= 1) { mode = std::clamp(md, 0, MD_COUNT - 1); crowd = std::clamp(cr, 0, 3); pvp = pv != 0; start = std::clamp(st, 0.0f, 470.0f); barId = std::clamp(br, 0, BAR_COUNT - 1); season = std::clamp(se, 0, 31); }
         test = opts.find(":test") != std::string::npos;
         size_t sp = opts.find(":step="); stepDt = sp != std::string::npos ? std::clamp((float)atof(opts.c_str() + sp + 6), 1 / 60.0f, 0.1f) : 1 / 30.0f;
     }
     void Start(int np, uint32_t seed) override {
         players = std::clamp(np, 1, 6);
-        Opts o; o.players = players; o.seed = seed ? seed : 1; o.crowd = crowd; o.mode = mode; o.pvp = pvp; o.startMinutes = start;
+        Opts o; o.players = players; o.seed = seed ? seed : 1; o.crowd = crowd; o.mode = mode; o.pvp = pvp; o.startMinutes = start; o.bar = barId; o.season = season;
         n = std::make_unique<Night>(); n->Init(o);
         for (int p = 0; p < players; p++) n->players[p].name = p == 0 ? "Host" : TextFormat("Player %d", p + 1);
         pend.assign(players, Input{});
@@ -336,13 +336,18 @@ public:
 }  // namespace
 std::unique_ptr<arcade::GameHost> MakeNightHost() { return std::make_unique<NightHost>(); }
 Night* NightHostWorld(arcade::GameHost* h) { auto* m = dynamic_cast<NightHost*>(h); return m ? m->n.get() : nullptr; }
-std::string NightHostOpts(int mode, int crowd, bool pvp, float startMinutes) { return TextFormat("%d:%d:%d:%.0f", mode, crowd, pvp ? 1 : 0, startMinutes); }
+std::string NightHostOpts(int mode, int crowd, bool pvp, float startMinutes, int bar, int season) { return TextFormat("%d:%d:%d:%.0f:%d:%d", mode, crowd, pvp ? 1 : 0, startMinutes, bar, season); }
 uint32_t NightDataHash() {
     // every rule a peer must share: the meter, the menu, the games' curves, the fights, the regulars
-    const Data& d = D(); Writer w;
-    for (const auto& b : d.bands) { w.F32(b.from); w.F32(b.charisma); w.F32(b.toughness); }
-    for (const auto& x : d.drinks) { w.Str(x.key); w.F32(x.drunk); w.F32(x.price); w.F32(x.minutes); }
-    for (const auto& r : d.regulars) { w.Str(r.name); w.Str(r.home); w.I32(r.type); w.F32(r.arrive); w.F32(r.leave); }
+    Writer w;
+    for (int bi = 0; bi < BAR_COUNT; bi++) {   // (both bars)
+        const Data& d = DataOf(bi);
+        for (const auto& b : d.bands) { w.F32(b.from); w.F32(b.charisma); w.F32(b.toughness); }
+        for (const auto& x : d.drinks) { w.Str(x.key); w.F32(x.drunk); w.F32(x.price); w.F32(x.minutes); }
+        for (const auto& r : d.regulars) { w.Str(r.name); w.Str(r.home); w.I32(r.type); w.F32(r.arrive); w.F32(r.leave); }
+        w.F32(d.bar.priceMul); for (const auto& b : d.bar.boxes) { w.Str(b.kind); w.F32(b.r.x); w.F32(b.r.y); }
+    }
+    for (const auto& x : Wares()) { w.Str(x.key); w.F32(x.price); w.F32(x.minutes); }
     for (const auto& c : GD().aimCurve) { w.F32(c[0]); w.F32(c[1]); }
     w.F32(GD().dartSigma); w.F32(GD().poolSigma); w.F32(GD().golfSigma);
     for (const auto& x : FD().weapons) { w.Str(x.key); w.F32(x.damage); w.F32(x.thrown); }

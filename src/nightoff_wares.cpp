@@ -30,7 +30,9 @@ const std::vector<WareDef>& Wares() { return WD().w; }
 static float Sec(float gameMinutes) { return gameMinutes * SECONDS_PER_GAME_MINUTE; }
 
 bool Night::WaresHere(const Player& p) const {
-    if (p.st != State::Active || !EventOn("cartel")) return false;
+    if (p.st != State::Active) return false;
+    if (CurBar() == BAR_MONKEY && Hour() >= 23 && Vector2Distance(p.pos, {36.5f, 25.0f}) < 3.0f) return true;   // (the Monkey: the cellar, any time after 11)
+    if (!EventOn("cartel")) return false;
     for (const auto& c : patrons) if ((c.role == "a large man" || c.role == "the quiet man") && c.inside && !c.gone && Vector2Distance(c.pos, p.pos) < 2.4f) return true;
     return false;
 }
@@ -112,6 +114,7 @@ float Night::PlayerAim(const Player& p) const {
     float k = AimMul(p.drunk);
     if (p.shakesT > 0) k *= 4;                         // (Sea Salt's catch, and the shakes from a drink)
     if (p.wareT[W_PRESSURE] > 0) k *= 0.4f;            // (Deep Pressure: time slows)
+    if (p.steadyT > 0) k *= 0.5f;                      // (the Monkey's Marlin cocktail)
     if (p.cocktail == 1 && p.wareT[W_COCKTAIL] > 0) k *= 0.6f;
     return k;
 }

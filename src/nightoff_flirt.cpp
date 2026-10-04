@@ -247,9 +247,10 @@ std::string Night::Headline() const {
         std::string out = h.text;
         out = Replace(out, "{N}", Words(n)); out = Replace(out, "{S}", n == 1 ? "" : "S"); out = Replace(out, "{n}", TextFormat("%d", w == "any" ? drinks : n));
         out = Replace(out, "{who}", Upper(who.empty() ? std::string("A SAILOR") : who == "You" ? std::string("A SAILOR") : who)); out = Replace(out, "{thing}", Upper(thing));
+        if (CurBar() == BAR_MONKEY) { out = Replace(out, "THE SODDEN GULL", "THE BRASS MONKEY"); out = Replace(out, "SODDEN GULL", "BRASS MONKEY"); out = Replace(out, "THE GULL'S", "THE MONKEY'S"); out = Replace(out, "THE GULL", "THE MONKEY"); out = Replace(out, "THE BARTENDER", "CELESTE"); out = Replace(out, "BARTENDER", "CELESTE"); }
         return out;
     }
-    return "ANOTHER NIGHT AT THE SODDEN GULL";
+    return CurBar() == BAR_MONKEY ? "ANOTHER NIGHT AT THE BRASS MONKEY" : "ANOTHER NIGHT AT THE SODDEN GULL";
 }
 std::vector<std::string> Night::MorningStory(const Player& p) const {
     if (mirror && p.id >= 0 && p.id < (int)storyCache.size()) return storyCache[p.id];

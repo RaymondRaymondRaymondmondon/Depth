@@ -241,7 +241,7 @@ int RunNightSim(int crowd, int players, int runs, int style, int mode) {
     double drinks = 0, fights = 0, money = 0, homeGood = 0, homeAny = 0, kept300 = 0, kidneyLost = 0, arrested = 0, score = 0, games = 0, brawls = 0, wagers = 0, wagerHit = 0;
     int n = 0;
     for (int run = 0; run < runs; run++) {
-        Night N; Opts o; o.players = players; o.crowd = crowd; o.seed = 1000 + run * 77; o.mode = mode; N.Init(o);
+        Night N; Opts o; o.players = players; o.crowd = crowd; o.seed = 1000 + run * 77; o.mode = mode; { const char* b = getenv("DEPTH_BAR"); o.bar = b ? std::clamp(atoi(b), 0, BAR_COUNT - 1) : 0; const char* se = getenv("DEPTH_SEASON"); o.season = se ? atoi(se) : 0; } N.Init(o);
         for (auto& p : N.players) { p.bot = true; p.botStyle = style == 2 ? (p.id % 2) : style; p.botDrinkTo = p.botStyle ? 70 + N.Rand() * 25 : 25 + N.Rand() * 20; p.botLeaveH = p.botStyle ? 26.5f : 24.0f + N.Rand() * 1.5f; if (mode == MD_WAGER) p.in.wager = p.botStyle ? WG_HOME : WG_SURVIVE; }
         while (!N.over) { for (auto& p : N.players) if (p.bot) N.BotPlayer(p, 0.1f); N.Step(0.1f); }
         for (const auto& p : N.players) {

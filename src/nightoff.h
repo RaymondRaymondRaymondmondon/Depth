@@ -38,6 +38,10 @@ struct BarData {
     std::vector<Room> rooms; std::vector<Wall> walls; std::vector<Box> boxes;
     std::vector<Vector2> stools; std::vector<Vector3> lamps;
     Vector2 bartender{}, serve{}, hatch{}, door{}, spawn{}, dartboard{}, fortune{}, mirror{}, jukebox{}, scratch{}, golf{};
+    // which bar this is (doc pp. 30-34: the Sodden Gull, or the Brass Monkey across the harbour) and how it looks
+    std::string key = "gull", barkeep = "the bartender", fortuneName = "the fortune teller"; float priceMul = 1; bool roof = false; int golfHoles = 9;
+    Color wainscot{78, 50, 32, 255}, plaster{196, 172, 128, 255}, outer{150, 96, 70, 255}, rail{200, 160, 80, 255}, ceiling{54, 36, 26, 255}, beam{70, 46, 30, 255};
+    std::vector<std::pair<std::string, Color>> floors;
 };
 // the patrons (doc pp. 8-13): types, traits, the regulars, the generator's parts; the dialogue (p. 26)
 enum PatronType { T_TALKER, T_FLIRT, T_BROODER, T_HUSTLER, T_REGULAR, T_GAMBLER, T_SAILOR, T_ODDBALL, T_STAFF, T_COUNT };
@@ -46,7 +50,7 @@ struct TypeDef { std::string want, approach, danger, haunt; int tolerance = 4; f
 struct Look { int model = 1; Color top{120, 100, 80, 255}, hat{80, 70, 60, 255}; float build = 1, height = 1; std::string beard; };
 struct PatronDef {
     std::string name, secret, tell, staff, home = "sincere"; int type = T_TALKER; std::vector<int> traits;   // home: where going home with them ends up (doc pp. 13-14)
-    bool thief = false, rich = false; int stool = -1; float arrive = 19, leave = 26; Look look;
+    bool thief = false, rich = false, travels = false; int stool = -1; float arrive = 19, leave = 26; Look look;   // (travels: between the two bars, doc p. 34)
 };
 struct Lines { std::vector<std::string> v; const std::string& Pick(uint32_t k) const; };
 struct Dialogue {
@@ -62,7 +66,16 @@ struct Data {
     int Trait(const std::string& name) const;
     float soberPerMin = 1, rise10 = 1.2f, lastCallHour = 25.5f, lastCallMult = 2, vomitChance = 0.08f, vomitDrop = 15, vomitStun = 5;
 };
+// the two bars (doc p. 30): the data is per bar; D() is the current one (Night::Init and Step set it from Opts::bar)
+constexpr int BAR_COUNT = 2;
+enum BarId { BAR_GULL, BAR_MONKEY };
+void SetBar(int bar);
+int CurBar();
 const Data& D();
+const Data& DataOf(int bar);
+bool TravellerHere(const std::string& name, int bar, uint32_t seed);   // a travelling patron is at one bar a night
+extern bool gTravelRolls;                                              // (--night-test's earlier stages keep every traveller at the Gull)
+const char* BarName(int bar);
 int DrinkIndex(const std::string& key);
 const char* CrewName(int crew);   // 0 Diver, 1 Whaler, 2 Stowaway, 3 Mechanic, 4 Captain, 5 Nurse
 const char* RoomAt(Vector2 p);    // the room's name, or "the street"
@@ -131,7 +144,7 @@ struct Player {
     int cartelDue = 0; bool watchingSafe = false;
     int cheatsCaught = 0, cheatsDone = 0; int bsSel = 0;   // (the card room)
     // the cartel's wares: which you've had, each one's effect and its catch afterwards (s), the Cocktail's roll, and its odder results
-    std::string toast; float toastT = 0;   // (a private line for this player: why the cartel wouldn't sell, and so on)
+    std::string toast; float toastT = 0, steadyT = 0; bool letIn = false, ropeIn = false, juniperTold = false;   // (the Monkey's rope: bribed in; came from the street)   // (a private line for this player: why the cartel wouldn't sell, and so on)
     uint16_t wares = 0; float wareT[W_COUNT] = {}, wareAfterT[W_COUNT] = {}; int cocktail = 0; float skipT = 0, sirenT = 0, bumpT = 0, barkeepT = 0; bool sureHome = false; uint32_t hallucSeed = 0;
     float priceMul = 1; float owedAtDoor = 0; bool blackEye = false; int kidneysAtStart = 2; int emote = 0; float emoteT = 0;   // (the profile's carry-overs; an emote)
     // the bot's mind (an AI seat, a dropped player, --night-sim): a style, a goal, a path, a pause
@@ -142,6 +155,7 @@ struct Player {
 };
 struct Bartender {
     float mood = 55;                                  // 0 Hostile .. 100 Delighted (doc p. 20)
+    float low = 55;                                   // (the lowest tonight: Celeste forgives nothing)
     Vector2 pos{}; float busyT = 0; int servingFor = -1; float polishPh = 0;
 };
 struct Memory { float drinks = 0, insults = 0, talks = 0, games = 0, fights = 0, flirts = 0, listened = 0; };
@@ -180,7 +194,7 @@ NightProfile LoadNightProfile(const std::string& path);
 void SaveNightProfile(const NightProfile& pr, const std::string& path);
 std::string ProfileSummary(const NightProfile& pr);           // (a guest sends it with hello; the host applies it)
 bool ParseProfileSummary(const std::string& s, NightProfile& pr);
-struct Opts { int players = 1; uint32_t seed = 1; int crowd = 1; int mode = MD_NIGHT_OFF; bool pvp = true; float startMinutes = 0; bool events = true; };   // (events: the tests of earlier stages turn them off)   // crowd: 0 Dead, 1 Normal, 2 Packed, 3 Random; startMinutes: tests start the night late
+struct Opts { int players = 1; uint32_t seed = 1; int crowd = 1; int mode = MD_NIGHT_OFF; bool pvp = true; float startMinutes = 0; bool events = true; int bar = BAR_GULL, season = 0; };   // (events: the tests of earlier stages turn them off)   // crowd: 0 Dead, 1 Normal, 2 Packed, 3 Random; startMinutes: tests start the night late
 
 struct Night {
     Opts opts; uint32_t rng = 1;
@@ -204,6 +218,13 @@ struct Night {
     float Charisma(const Player& p) const;
     // the cartel's wares (nightoff_wares.cpp)
     int goatOwner = -1;                               // (the Cocktail's fourth outcome: the goat is yours)
+    // the Brass Monkey's house rules (nightoff_monkey.cpp)
+    bool seanceDone = false;
+    bool AtRope(const Player& p) const;
+    bool RopeStops(const Player& p) const;
+    void StepMonkey(float dt);
+    void LibraryRule(Who att);
+    void QuinceTells(Player& p, Patron& c);
     bool WaresHere(const Player& p) const;            // a cartel man within reach selling
     std::string BuyWare(Player& p, int w, int slipTo = -1);   // "" if sold; otherwise why not
     void DoseWare(Player& p, int w);

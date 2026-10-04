@@ -100,7 +100,7 @@ struct Sim { float t = 0; Vector2 dog{}; };                      // the clock (t
 bool Roll(const Hole& h, Ball& b, Sim& s, float maxT = 12, std::vector<Vector2>* path = nullptr);   // true if holed
 struct Match {
     int hole = 0, strokes[2][9] = {}, turn = 0, winner = -1; Ball ball[2]; bool done[2] = {false, false}; Sim sim;
-    int maxStrokes = 6; bool rain = false, solo = false;
+    int maxStrokes = 6, holes = 9; bool rain = false, solo = false;   // (holes: the Monkey's roof has three)
     bool lastHoled = false; int lastWho = 0, lastHole = 0, lastStrokes = 0;   // the last putt (a hole in one is a story)
     void Start(int first);
     void Shoot(float ang, float power, std::vector<Vector2>* path = nullptr);

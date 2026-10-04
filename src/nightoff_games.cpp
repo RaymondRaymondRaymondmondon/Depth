@@ -378,7 +378,7 @@ void Match::Shoot(float ang, float power, std::vector<Vector2>* path) {
         if (!done[1 - turn]) turn = 1 - turn;
         else {
             hole++;
-            if (hole >= 9) { int a = Total(0), c = Total(1); winner = solo ? 0 : a < c ? 0 : c < a ? 1 : 2; hole = 8; return; }
+            if (hole >= std::clamp(holes, 1, 9)) { int a = Total(0), c = Total(1); winner = solo ? 0 : a < c ? 0 : c < a ? 1 : 2; hole = std::clamp(holes, 1, 9) - 1; return; }
             done[0] = false; done[1] = solo; for (auto& x : ball) x = Ball{Course()[hole].tee}; sim.dog = Course()[hole].dog;
             turn = solo || (strokes[0][hole - 1] <= strokes[1][hole - 1]) ? 0 : 1;   // (the hole's winner tees off first)
         }

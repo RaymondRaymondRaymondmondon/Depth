@@ -12,8 +12,9 @@ namespace no {
 
 static const Rectangle POKER_T{33, 13, 3, 3}, BS_T{33, 17.5f, 3, 3};
 static Vector2 SeatSpot(Rectangle r, int k, int n) { float a = -PI / 2 + k * 2 * PI / std::max(1, n); return {r.x + r.width / 2 + cosf(a) * 2.0f, r.y + r.height / 2 + sinf(a) * 2.0f}; }
-float Night::CheatChance(const Player& p) const { return std::clamp(0.2f + 0.5f * (1 - p.drunk / 100) + (Charisma(p) - 1) * 0.6f, 0.05f, 0.85f); }
+float Night::CheatChance(const Player& p) const { return std::clamp((0.2f + 0.5f * (1 - p.drunk / 100) + (Charisma(p) - 1) * 0.6f) * (CurBar() == BAR_MONKEY ? 0.55f : 1.0f), 0.05f, 0.85f); }   // (the Monkey's croupier watches)
 bool Night::TryCheat(Player& p, const char* what, int watcher) {
+    if (CurBar() == BAR_MONKEY) for (const auto& c : patrons) if (c.name == "Anselm" && c.inside && !c.gone && Vector2Distance(c.pos, p.pos) < 8) { Say("Anselm, the croupier, touches his bow tie."); break; }   // (his tell)
     if (Rand() < CheatChance(p)) { p.cheatsDone++; if (p.cheatsDone == 1) Note(p, 0, std::string("Cheated at ") + what + " and got away with it."); return true; }
     p.cheatsCaught++;
     Note(p, 5, std::string("Caught cheating at ") + what + ".");

@@ -180,6 +180,7 @@ int Night::StartBrawl(Who a, Who b, Who starter) {
 }
 void Night::Strike(Who att, Who def, float dmg, int weapon, bool hay) {
     Combat* A = CombatOf(att); Combat* D = CombatOf(def); if (!D || !Present(def) || D->Down()) return;
+    LibraryRule(att); if (att.kind == 0 && att.idx < (int)players.size() && players[att.idx].st == State::Gone) return;   // (the Monkey: no fights in the library)
     Vector2 dp = *PosOf(def);
     // a blow lands: block halves it, a dodge (sober enough) slips it, a drunk dodge is falling over
     if (D->dodgeT > 0) {

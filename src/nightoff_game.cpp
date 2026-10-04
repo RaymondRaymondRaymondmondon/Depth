@@ -77,6 +77,7 @@ void DrawPerson(const Model* m, const Clothes& c, Vector3 feet, float yaw, fig::
 
 // ---------------------------------------------------------------- the bar
 Color FloorOf(const std::string& k) {
+    for (const auto& f : no::D().bar.floors) if (f.first == k) return f.second;   // (the bar's own floors: the Monkey's marble, carpet and roof tiles)
     if (k == "toilets") return {176, 176, 166, 255};
     if (k == "kitchen") return {140, 128, 108, 255};
     if (k == "yard") return {62, 92, 54, 255};
@@ -98,9 +99,9 @@ void DrawBar(const no::Night& n) {
         float ang = atan2f(d.y, d.x);
         auto slab = [&](float y0, float y1, Color col, float th) { rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(L + 0.3f, y1 - y0, th), MatrixRotateY(-ang)), MatrixTranslate(c.x, (y0 + y1) / 2, c.y)), col); };
         bool outer = (fabsf(w.a.y) < 0.01f && fabsf(w.b.y) < 0.01f) || (fabsf(w.a.y - 30) < 0.01f && fabsf(w.b.y - 30) < 0.01f) || (fabsf(w.a.x) < 0.01f && fabsf(w.b.x) < 0.01f) || (fabsf(w.a.x - 40) < 0.01f && fabsf(w.b.x - 40) < 0.01f);
-        slab(0, 1.1f, {78, 50, 32, 255}, 0.32f);
-        slab(1.1f, B.wallH, outer ? Color{150, 96, 70, 255} : Color{196, 172, 128, 255}, 0.3f);
-        slab(1.08f, 1.16f, {200, 160, 80, 255}, 0.36f);
+        slab(0, 1.1f, B.wainscot, 0.32f);
+        slab(1.1f, B.wallH, outer ? B.outer : B.plaster, 0.3f);
+        slab(1.08f, 1.16f, B.rail, 0.36f);
     }
     // windows on the street side: the blue dock night through them
     for (float x : {4.0f, 13.0f, 26.0f, 34.0f}) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.6f, 1.3f, 0.36f), MatrixTranslate(x, 1.9f, 0)), {40, 70, 110, 255}, 0.6f);
@@ -124,6 +125,23 @@ void DrawBar(const no::Night& n) {
         else if (k == "stall") rt::DrawWorldCube(c, {s.x, s.y, 0.08f}, {90, 70, 56, 255});
         else if (k == "sink") rt::DrawWorldCube(c, s, {220, 220, 214, 255});
         else if (k == "bins") rt::DrawWorldCube(c, s, {50, 60, 50, 255});
+        // the Brass Monkey's furniture: armchairs, the chessboard, the stuffed marlin, the library shelves, the cage, the wine racks, the chaise, the velvet rope, the telescope, the roof's parapet
+        else if (k == "armchair") { rt::DrawWorldCube({c.x, 0.25f, c.z}, {s.x, 0.5f, s.z}, {110, 30, 34, 255}); rt::DrawWorldCube({c.x + s.x * 0.4f, 0.65f, c.z}, {0.2f, 0.8f, s.z}, {96, 26, 30, 255}); for (float sd : {-1.0f, 1.0f}) rt::DrawWorldCube({c.x, 0.55f, c.z + sd * s.z * 0.42f}, {s.x, 0.25f, 0.16f}, {96, 26, 30, 255}); }
+        else if (k == "chess") { rt::DrawWorldCube({c.x, 0.37f, c.z}, {0.15f, 0.74f, 0.15f}, {60, 40, 30, 255}); for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) rt::DrawWorldCube({b.r.x + 0.11f + i * 0.22f, 0.76f, b.r.y + 0.11f + j * 0.22f}, {0.22f, 0.03f, 0.22f}, (i + j) % 2 ? Color{230, 220, 200, 255} : Color{40, 30, 26, 255}); rt::DrawWorldCube({c.x - 0.15f, 0.84f, c.z}, {0.05f, 0.12f, 0.05f}, {240, 236, 220, 255}); rt::DrawWorldCube({c.x + 0.2f, 0.84f, c.z + 0.1f}, {0.05f, 0.14f, 0.05f}, {30, 26, 24, 255}); }
+        else if (k == "marlin") {   // the stuffed marlin on its plaque over the fire: it speaks at the seance
+            rt::DrawWorldCube({c.x, 2.2f, c.z}, {0.08f, 0.7f, s.z}, {90, 60, 36, 255});
+            rt::DrawWorldCube({c.x - 0.12f, 2.25f, c.z}, {0.16f, 0.32f, s.z * 0.62f}, {50, 80, 120, 255});
+            rt::DrawWorldCube({c.x - 0.12f, 2.3f, c.z - s.z * 0.42f}, {0.06f, 0.05f, 0.5f}, {40, 60, 90, 255});   // (the bill)
+            rt::DrawWorldCube({c.x - 0.12f, 2.42f, c.z + s.z * 0.18f}, {0.06f, 0.24f, 0.36f}, {40, 60, 90, 255});   // (the sail)
+            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.05f, 0.05f, 0.05f), MatrixTranslate(c.x - 0.22f, 2.3f, c.z - s.z * 0.22f)), {255, 220, 150, 255}, 0.8f + (NW().Hour() >= 24 && NW().Hour() < 24.4f ? 1.5f : 0));   // (its glass eye)
+        }
+        else if (k == "shelves") { rt::DrawWorldCube(c, s, {60, 40, 28, 255}); for (int r = 0; r < 4; r++) for (int i = 0; i < 9; i++) rt::DrawWorldCube({b.r.x + b.r.width + 0.03f, 0.35f + r * 0.6f, b.r.y + 0.2f + i * (b.r.height - 0.4f) / 8}, {0.06f, 0.4f, 0.22f}, (i * 3 + r) % 4 == 0 ? Color{120, 40, 40, 255} : (i + r) % 3 == 0 ? Color{40, 70, 50, 255} : Color{140, 110, 60, 255}); }
+        else if (k == "cage") { rt::DrawWorldCube({c.x, 0.55f, c.z}, {s.x, 1.1f, s.z}, {70, 50, 34, 255}); for (int i = 0; i < 7; i++) rt::DrawWorldCube({b.r.x + i * s.x / 6, 1.65f, b.r.y - 0.02f}, {0.03f, 1.1f, 0.03f}, {200, 160, 80, 255}); }
+        else if (k == "wine") { rt::DrawWorldCube(c, s, {70, 46, 30, 255}); for (int r = 0; r < 5; r++) for (int i = 0; i < 14; i++) rt::DrawWorldCube({b.r.x + 0.2f + i * (s.x - 0.4f) / 13, 0.3f + r * 0.4f, b.r.y - 0.02f}, {0.08f, 0.08f, 0.08f}, (i + r) % 3 ? Color{60, 20, 30, 255} : Color{140, 150, 90, 255}); }
+        else if (k == "chaise") { rt::DrawWorldCube({c.x, 0.3f, c.z}, {s.x, 0.4f, s.z}, {180, 140, 150, 255}); rt::DrawWorldCube({b.r.x + 0.15f, 0.65f, c.z}, {0.3f, 0.5f, s.z}, {170, 128, 140, 255}); }
+        else if (k == "rope") { rt::DrawWorldCube({c.x, 0.45f, c.z}, {0.08f, 0.9f, 0.08f}, {210, 170, 80, 255}); rt::DrawWorldCube({c.x, 0.92f, c.z}, {0.14f, 0.06f, 0.14f}, {230, 190, 100, 255}); rt::DrawWorldCube({c.x + (c.x < 19.5f ? 0.8f : -0.8f), 0.75f, c.z}, {1.6f, 0.06f, 0.06f}, {150, 20, 30, 255}); }
+        else if (k == "telescope") { rt::DrawWorldCube({c.x, 0.6f, c.z}, {0.06f, 1.2f, 0.06f}, {60, 50, 40, 255}); rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.1f, 0.14f, 0.14f), MatrixRotateZ(0.35f)), MatrixTranslate(c.x, 1.35f, c.z)), {200, 160, 80, 255}); }
+        else if (k == "parapet") rt::DrawWorldCube(c, s, {120, 110, 104, 255});
         else rt::DrawWorldCube(c, s, {100, 70, 50, 255});
     }
     // the stools along the bar, the bottles on the back shelf, the dartboard, the jukebox
@@ -143,8 +161,23 @@ void DrawBar(const no::Night& n) {
     // the ceilings over the rooms (dark boards and beams); the yard, the alley and the street are open to the night
     for (const auto& r : B.rooms) {
         if (r.key == "yard" || r.key == "alley" || r.key == "street" || r.key == "front") continue;
-        rt::DrawWorldCube({r.r.x + r.r.width / 2, B.wallH + 0.05f, r.r.y + r.r.height / 2}, {r.r.width, 0.1f, r.r.height}, {54, 36, 26, 255});
-        for (float x = r.r.x + 1.5f; x < r.r.x + r.r.width; x += 3) rt::DrawWorldCube({x, B.wallH - 0.12f, r.r.y + r.r.height / 2}, {0.25f, 0.24f, r.r.height}, {70, 46, 30, 255});
+        rt::DrawWorldCube({r.r.x + r.r.width / 2, B.wallH + 0.05f, r.r.y + r.r.height / 2}, {r.r.width, 0.1f, r.r.height}, B.ceiling);
+        for (float x = r.r.x + 1.5f; x < r.r.x + r.r.width; x += 3) rt::DrawWorldCube({x, B.wallH - 0.12f, r.r.y + r.r.height / 2}, {0.25f, 0.24f, r.r.height}, B.beam);
+    }
+    if (B.key == "monkey") {
+        // the long bar's mirror behind the bottles; chandeliers' crystals round each lamp
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(9.0f, 1.5f, 0.05f), MatrixTranslate(17, 2.1f, 11.93f)), {150, 170, 190, 255}, 0.25f);
+        for (const auto& l : B.lamps) for (int i = 0; i < 8; i++) { float a = i * PI / 4 + S.t * 0.1f; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.05f, 0.09f, 0.05f), MatrixTranslate(l.x + cosf(a) * 0.32f, l.y - 0.12f, l.z + sinf(a) * 0.32f)), {255, 240, 210, 255}, 0.7f); }
+    }
+    if (B.roof) {
+        // the roof: a parapet round the terrace, the harbour far below, and the Sodden Gull across the water, lit
+        rt::DrawWorldCube({-0.25f, 0.55f, 40}, {0.5f, 1.1f, 20}, {120, 110, 104, 255}); rt::DrawWorldCube({40.25f, 0.55f, 40}, {0.5f, 1.1f, 20}, {120, 110, 104, 255});
+        rt::DrawWorldCube({20, -14, 110}, {260, 0.4f, 120}, {22, 40, 64, 255});
+        for (int i = 0; i < 40; i++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.9f, 0.05f, 0.25f), MatrixTranslate(36 + (i % 8) * 2.6f + sinf(S.t * 0.7f + i) * 0.4f, -13.7f, 66 + (i / 8) * 3.0f)), {255, 190, 110, 255}, 0.6f);   // (the Gull's windows on the water)
+        rt::DrawWorldCube({48, -6, 88}, {30, 16, 14}, {70, 52, 40, 255});
+        rt::DrawWorldCube({48, 3.4f, 88}, {32, 2.8f, 16}, {44, 34, 28, 255});
+        for (int i = 0; i < 7; i++) for (int j = 0; j < 2; j++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(2.2f, 2.0f, 0.3f), MatrixTranslate(36 + i * 4.0f, -9.0f + j * 5.0f, 80.9f)), {255, 190, 110, 255}, 1.6f + 0.2f * sinf(S.t + i));
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(9, 1.4f, 0.3f), MatrixTranslate(48, 0.9f, 80.9f)), {255, 120, 90, 255}, 1.8f);   // (its sign: THE SODDEN GULL)
     }
     // the yard's string lights, the street's lamp posts
     for (int i = 0; i < 24; i++) { float x = 1 + i * 1.65f; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.08f, 0.08f), MatrixTranslate(x, 3.0f - 0.3f * sinf(i * 0.26f * PI), 38)), i % 3 == 0 ? Color{255, 120, 90, 255} : Color{255, 220, 140, 255}, 1.6f); }
@@ -637,7 +670,7 @@ void DrawHud() {
         if (near >= 0) Txt(TextFormat("(%s's glass is within reach.)", n.players[near].name.c_str()), r.x + 18, r.y + r.height - 26, 13, dim);
         if (Button({r.x + r.width - 120, r.y + r.height - 34, 100, 26}, "Done", true, 14) || IsKeyPressed(KEY_ESCAPE)) S.wares = false;
     }
-    if (p.toastT > 0) DrawTextCenteredBold(p.toast, SCREEN_W / 2.0f, SCREEN_H - 180.0f, 16, Color{255, 190, 160, (unsigned char)(255 * std::min(1.0f, p.toastT))});
+    if (p.toastT > 0) DrawTextCenteredBold(p.toast, SCREEN_W / 2.0f, 70.0f, 16, Color{255, 190, 160, (unsigned char)(255 * std::min(1.0f, p.toastT))});
     if (p.skipT > 0) { DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.85f)); DrawTextCenteredBold("Things are happening.", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 10, 28, Color{200, 190, 255, 255}); DrawTextCentered("(You'll hear about them.)", SCREEN_W / 2.0f, SCREEN_H / 2.0f + 26, 16, dim); }
     // the bar games: the opponent-and-stake menu, or the game being played
     nog::Frame(n, p, S.shot ? 1 / 60.0f : GetFrameTime());
@@ -787,12 +820,12 @@ void NightAudioFrame(const no::Night& n, float dt) {
 
 }  // namespace
 
-void StartNightOff(Game& g, int crew, int mode, int crowd) {
+void StartNightOff(Game& g, int crew, int mode, int crowd, int bar, int season) {
     gAM = AudioMemo{};
     std::string why;
     if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
     S.net = nullptr; S.live = nullptr; S.N.mirror = false;
-    no::Opts o; o.players = 1; o.seed = (uint32_t)GetRandomValue(1, 1 << 30); o.mode = std::clamp(mode, 0, no::MD_COUNT - 1); o.crowd = std::clamp(crowd, 0, 3);
+    no::Opts o; o.players = 1; o.seed = (uint32_t)GetRandomValue(1, 1 << 30); o.mode = std::clamp(mode, 0, no::MD_COUNT - 1); o.crowd = std::clamp(crowd, 0, 3); o.bar = std::clamp(bar, 0, no::BAR_COUNT - 1); o.season = season;
     if (o.mode == no::MD_SOLO && o.crowd > 1) o.crowd = 1;   // (Solo: a Dead or Normal crowd)
     S.N.Init(o);
     S.N.players[0].crew = std::clamp(crew, 0, 5);
@@ -818,7 +851,7 @@ void LeaveNightOff(Game& g) {
     S.net = nullptr; S.live = nullptr;
     S.active = false; g.scene = Scene::Arcade;
 }
-std::string NightOffOpts(int mode, int crowd, bool pvp) { return no::NightHostOpts(mode, crowd, pvp); }
+std::string NightOffOpts(int mode, int crowd, bool pvp, int bar, int season) { return no::NightHostOpts(mode, crowd, pvp, 0, bar, season); }
 void SceneNightOff(Game& g) {
     if (!S.active) { StartNightOff(g, 0); if (!S.active) return; }
     float dt = S.shot ? 1 / 60.0f : std::min(GetFrameTime(), 1 / 30.0f);
@@ -869,7 +902,7 @@ void NightOffMenuTick(float dt) {
 // --shots: 0 walking in at 7, 1 at the bar ordering (the menu), 2 hammered at midnight in the games room, 3 the snug,
 // 4 passed out on the floor, 5 the morning paper
 void DebugNightOffShot(Game& g, int which) {
-    gShotStart = true; StartNightOff(g, which % 6); gShotStart = false;   // (shots never read the player's own profile)
+    gShotStart = true; StartNightOff(g, which % 6, 0, 1, which >= 40 && which < 50 ? no::BAR_MONKEY : no::BAR_GULL); gShotStart = false;   // (shots never read the player's own profile)
     S.shot = true; S.help = which == 0;
     no::Night& n = NW(); no::Player& p = Me();
     auto at = [&](float x, float z, float yaw, float camYaw, float drunk) { p.pos = {x, z}; p.yaw = yaw; S.camYaw = camYaw; p.drunk = drunk; S.camAt = {x, 1.55f, z}; };
@@ -982,6 +1015,14 @@ void DebugNightOffShot(Game& g, int which) {
         p.money = 260; S.camPitch = -0.25f;
         if (which == 28) { p.wares = 1u << no::W_SALT; S.wares = true; }
         else { n.DoseWare(p, no::W_ANGLER); p.hallucSeed = 12345; at(18, 5.5f, PI * 0.5f, PI * 0.42f, 25); S.camPitch = -0.22f; for (auto& c : n.patrons) if (c.thief) { c.inside = true; c.gone = false; c.pos = {19.5f, 3.8f}; c.goal = c.pos; c.nextGoalT = 1e9f; break; } }
+    }
+    if (which >= 40 && which < 50) {   // the Brass Monkey: 40 the long bar, 41 the library at the seance, 42 the roof and the Gull across the water, 43 Horace at the rope, 44 the billiards room
+        for (int i = 0; i < (int)(3 * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f); i++) n.Step(0.1f);
+        if (which == 40) { at(18, 5.0f, PI * 0.5f, PI * 0.45f, 20); S.camPitch = -0.2f; }
+        if (which == 41) { n.t = (24.02f - 19) * 60 * no::SECONDS_PER_GAME_MINUTE; for (auto& c : n.patrons) if (c.name == "Madame Ostrova") { c.inside = true; c.gone = false; c.pos = {35.6f, 5.6f}; c.goal = c.pos; c.nextGoalT = 1e9f; } at(33.0f, 6.0f, 0, 0.05f, 20); S.camPitch = -0.18f; n.seanceDone = false; n.Step(0.05f); }
+        if (which == 42) { at(20, 46, PI * 0.5f, PI * 0.38f, 20); S.camPitch = -0.05f; S.camDist = 3.4f; }
+        if (which == 43) { p.barred = true; at(19.5f, -2.2f, PI * 0.5f, PI * 0.5f, 20); S.camPitch = -0.2f; for (int k = 0; k < 10; k++) { p.in.moveZ = 1; p.ropeIn = true; n.Step(0.05f); } p.in = no::Input{}; }
+        if (which == 44) { at(6.5f, 7.5f, PI, PI * 1.05f, 20); S.camPitch = -0.3f; }
     }
     if (which == 27) {   // emotes: you raise a glass, a shipmate laughs
         for (int i = 0; i < (int)(2 * 60 * no::SECONDS_PER_GAME_MINUTE / 0.1f); i++) n.Step(0.1f);

@@ -26,7 +26,7 @@ void ArcadeBetFrame();
 static void DrawBetResult();
 
 namespace {
-int gNoMode = 0, gNoCrowd = 1, gNoCrew = 0; bool gNoPvp = true;   // (A Night Off: the host's mode, crowd and fights; who you go ashore as)
+int gNoMode = 0, gNoCrowd = 1, gNoCrew = 0, gNoBar = 0, gNoSeason = 0; bool gNoPvp = true;   // (A Night Off: the host's mode, crowd and fights; who you go ashore as)
 
 using namespace arcade;
 
@@ -235,7 +235,7 @@ void DrawReels(Game& g) {
             gError.clear();
             if (k == 0) {
                 std::string err;
-                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp) : ""; }
+                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason) : ""; }
                 else gError = "Couldn't host: " + err;
             } else if (k == 1) { gMode = MODE_JOIN; gJoinFocus = true; }
             else gMode = MODE_BROWSE;
@@ -312,7 +312,8 @@ void DrawReels(Game& g) {
         };
         row(c.y + 44, TextFormat("ashore as %s", CREW[gNoCrew]), gNoCrew, 6);
         row(c.y + 70, TextFormat("solo: %s", no::ModeName(SOLO_MODES[soloMode])), soloMode, 4);
-        if (Button({c.x - 110, c.y + 236, 220, 36}, "Go ashore (solo)", true, 15)) { StartNightOff(g, gNoCrew, SOLO_MODES[soloMode], soloCrowd); return; }
+        row(c.y + 96, no::BarName(gNoBar), gNoBar, no::BAR_COUNT);
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Go ashore (solo)", true, 15)) { StartNightOff(g, gNoCrew, SOLO_MODES[soloMode], soloCrowd, gNoBar, gNoSeason); return; }
         if (Button({c.x + 120, c.y + 241, 120, 26}, CROWD[soloCrowd], true, 12)) soloCrowd = (soloCrowd + 1) % 3;
         DrawTextCentered(no::ModeRule(SOLO_MODES[soloMode]), c.x, c.y + 280, 13, SCREEN_DIM);
     }
@@ -615,8 +616,9 @@ void DrawLobby() {
             ch |= pick(p.x + 195, p.y + p.height - 140, no::ModeName(gNoMode), gNoMode, no::MD_SOLO, true);
             ch |= pick(p.x + 505, p.y + p.height - 140, CROWD[gNoCrowd], gNoCrowd, 4, true);
             int pv = gNoPvp ? 1 : 0; ch |= pick(p.x + 195, p.y + p.height - 108, pv ? "sailors may fight sailors" : "no fights between sailors", pv, 2, true); gNoPvp = pv != 0;
-            gSess.gameOpts = NightOffOpts(gNoMode, gNoCrowd, gNoPvp);
-            if (ch) gSess.Chat(TextFormat("Tonight: %s, %s%s", no::ModeName(gNoMode), CROWD[gNoCrowd], gNoPvp ? "" : ", no fights between sailors"));
+            ch |= pick(p.x + 195, p.y + p.height - 172, no::BarName(gNoBar), gNoBar, no::BAR_COUNT, true);   // (the two bars, doc p. 30)
+            gSess.gameOpts = NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason);
+            if (ch) gSess.Chat(TextFormat("Tonight: %s at %s, %s%s", no::ModeName(gNoMode), no::BarName(gNoBar), CROWD[gNoCrowd], gNoPvp ? "" : ", no fights between sailors"));
         }
         pick(p.x + 505, p.y + p.height - 108, TextFormat("ashore as %s", CREWN[gNoCrew]), gNoCrew, 6, true);
         DrawTextCentered(no::ModeRule(gNoMode), p.x + p.width / 2, p.y + p.height - 76, 13, Color{200, 190, 170, 255});

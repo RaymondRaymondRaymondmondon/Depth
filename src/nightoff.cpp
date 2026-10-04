@@ -5,6 +5,7 @@
 #include "redtide.h"
 #include "raymath.h"
 #include <cmath>
+#include <cstring>
 #include <cstdio>
 
 namespace no {
@@ -12,22 +13,44 @@ namespace no {
 // ---------------------------------------------------------------- data
 static Rectangle R4(const Json& j) { return {j[0].F(0), j[1].F(0), j[2].F(1), j[3].F(1)}; }
 static Vector2 V2(const Json& j) { return {j[0].F(0), j[1].F(0)}; }
-static Data Load() {
+static Color C3(const Json& j, Color d) { return j.IsArr() ? Color{(unsigned char)j[0].I(d.r), (unsigned char)j[1].I(d.g), (unsigned char)j[2].I(d.b), 255} : d; }
+static void LoadDrink(const Json& r, std::vector<DrinkDef>& out) {
+    DrinkDef x; x.key = r["key"].Str0(); x.name = r["name"].Str0(x.key); x.where = r["where"].Str0("bar"); x.effect = r["effect"].Str0(); x.line = r["line"].Str0();
+    x.drunk = r["drunk"].F(0); x.price = r["price"].F(0); x.amount = r["amount"].F(0); x.minutes = r["minutes"].F(0); x.eatS = r["eat_s"].F(0);
+    out.push_back(x);
+}
+static void LoadRegular(const Data& d, const Json& r, std::vector<PatronDef>& out) {
+    PatronDef p; p.name = r["name"].Str0(); p.secret = r["secret"].Str0(); p.tell = r["tell"].Str0(); p.staff = r["staff"].Str0(); p.home = r["home"].Str0("sincere");
+    std::string ty = r["type"].Str0(); for (int t = 0; t < T_COUNT; t++) if (ty == TypeName(t)) p.type = t;
+    for (const Json& tr : r["traits"].a) { int k = d.Trait(tr.Str0()); if (k >= 0) p.traits.push_back(k); }
+    p.thief = r["thief"].Bool0(false); p.rich = r["rich"].Bool0(false); p.travels = r["travels"].Bool0(false); p.stool = r["stool"].I(-1); p.arrive = r["arrive"].F(20); p.leave = r["leave"].F(25);
+    const Json& lk = r["look"]; p.look.model = lk["model"].I(1); p.look.build = lk["build"].F(1); p.look.height = lk["height"].F(1); p.look.beard = lk["beard"].Str0();
+    if (lk["top"].IsArr()) p.look.top = {(unsigned char)lk["top"][0].I(), (unsigned char)lk["top"][1].I(), (unsigned char)lk["top"][2].I(), 255};
+    if (lk["hat"].IsArr()) p.look.hat = {(unsigned char)lk["hat"][0].I(), (unsigned char)lk["hat"][1].I(), (unsigned char)lk["hat"][2].I(), 255};
+    out.push_back(p);
+}
+static Data Load(int bar) {
     Data d;
     std::string dir = rt::DataDir() + "/../nightoff/";
+    Json mj; if (bar == BAR_MONKEY) mj = LoadJsonFile(dir + "nightoff_patrons_monkey.json");
     Json k = LoadJsonFile(dir + "nightoff_drinks.json");
     for (const Json& b : k["meter"].a) { Band x; x.from = b["from"].F(0); x.state = b["state"].Str0(); x.charisma = b["charisma"].F(1); x.toughness = b["toughness"].F(1); d.bands.push_back(x); }
     if (d.bands.empty()) d.bands.push_back(Band{0, "Sober", 1, 1});
     d.soberPerMin = k["sober_per_game_minute"].F(1); d.rise10 = k["price_rise_10pm"].F(1.2f); d.lastCallHour = k["last_call_hour"].F(25.5f); d.lastCallMult = k["last_call_mult"].F(2);
     d.vomitChance = k["vomit_chance_per_minute_wrecked"].F(0.08f); d.vomitDrop = k["vomit_drop"].F(15); d.vomitStun = k["vomit_stun_s"].F(5);
     for (const Json& r : k["drinks"].a) {
-        DrinkDef x; x.key = r["key"].Str0(); x.name = r["name"].Str0(x.key); x.where = r["where"].Str0("bar"); x.effect = r["effect"].Str0(); x.line = r["line"].Str0();
-        x.drunk = r["drunk"].F(0); x.price = r["price"].F(0); x.amount = r["amount"].F(0); x.minutes = r["minutes"].F(0); x.eatS = r["eat_s"].F(0);
-        d.drinks.push_back(x);
+        bool gullOnly = false; for (const Json& g : mj["gull_only_drinks"].a) gullOnly |= g.Str0() == r["key"].Str0();
+        if (!gullOnly) LoadDrink(r, d.drinks);
     }
-    Json b = LoadJsonFile(dir + "nightoff_bar.json");
+    for (const Json& r : mj["drinks"].a) LoadDrink(r, d.drinks);   // (Celeste's cocktails)
+    Json b = LoadJsonFile(dir + (bar == BAR_MONKEY ? "nightoff_bar_monkey.json" : "nightoff_bar.json"));
     BarData& B = d.bar;
     B.name = b["name"].Str0("The Sodden Gull"); B.wallH = b["wall_height"].F(3.4f);
+    B.key = b["key"].Str0("gull"); B.barkeep = b["barkeep"].Str0("the bartender"); B.fortuneName = b["fortune_name"].Str0("the fortune teller");
+    B.priceMul = b["price_mul"].F(1); B.roof = b["roof"].Bool0(false); B.golfHoles = b["golf_holes"].I(9);
+    const Json& pal = b["palette"];
+    B.wainscot = C3(pal["wainscot"], B.wainscot); B.plaster = C3(pal["plaster"], B.plaster); B.outer = C3(pal["outer"], B.outer); B.rail = C3(pal["rail"], B.rail); B.ceiling = C3(pal["ceiling"], B.ceiling); B.beam = C3(pal["beam"], B.beam);
+    for (const auto& kv : b["floors"].o) B.floors.push_back({kv.first, C3(kv.second, Color{116, 80, 50, 255})});
     for (const Json& r : b["rooms"].a) B.rooms.push_back({r["key"].Str0(), r["name"].Str0(), R4(r["rect"])});
     for (const Json& w : b["walls"].a) B.walls.push_back({{w[0].F(0), w[1].F(0)}, {w[2].F(0), w[3].F(0)}});
     for (const Json& x : b["boxes"].a) B.boxes.push_back({x["kind"].Str0(), R4(x["rect"]), x["h"].F(1)});
@@ -53,16 +76,9 @@ static Data Load() {
     for (const Json& x : pj["generic_secrets"].a) d.genericSecrets.push_back(x.Str0());
     for (const Json& x : pj["first_names"].a) d.firstNames.push_back(x.Str0());
     for (const Json& x : pj["last_names"].a) d.lastNames.push_back(x.Str0());
-    for (const Json& r : pj["regulars"].a) {
-        PatronDef p; p.name = r["name"].Str0(); p.secret = r["secret"].Str0(); p.tell = r["tell"].Str0(); p.staff = r["staff"].Str0(); p.home = r["home"].Str0("sincere");
-        std::string ty = r["type"].Str0(); for (int t = 0; t < T_COUNT; t++) if (ty == TypeName(t)) p.type = t;
-        for (const Json& tr : r["traits"].a) { int k = d.Trait(tr.Str0()); if (k >= 0) p.traits.push_back(k); }
-        p.thief = r["thief"].Bool0(false); p.rich = r["rich"].Bool0(false); p.stool = r["stool"].I(-1); p.arrive = r["arrive"].F(20); p.leave = r["leave"].F(25);
-        const Json& lk = r["look"]; p.look.model = lk["model"].I(1); p.look.build = lk["build"].F(1); p.look.height = lk["height"].F(1); p.look.beard = lk["beard"].Str0();
-        if (lk["top"].IsArr()) p.look.top = {(unsigned char)lk["top"][0].I(), (unsigned char)lk["top"][1].I(), (unsigned char)lk["top"][2].I(), 255};
-        if (lk["hat"].IsArr()) p.look.hat = {(unsigned char)lk["hat"][0].I(), (unsigned char)lk["hat"][1].I(), (unsigned char)lk["hat"][2].I(), 255};
-        d.regulars.push_back(p);
-    }
+    // the regulars: the Gull's, or the Monkey's cast; the five who travel are on both books (one bar a night)
+    if (bar == BAR_MONKEY) { for (const Json& r : mj["regulars"].a) LoadRegular(d, r, d.regulars); for (const Json& r : pj["regulars"].a) if (r["travels"].Bool0(false)) LoadRegular(d, r, d.regulars); }
+    else for (const Json& r : pj["regulars"].a) LoadRegular(d, r, d.regulars);
     for (const Json& h : pj["crowd"]["hours"].a) d.crowdHours.push_back({h[0].F(19), h[1].F(4), h[2].F(8)});
     d.crowdMul[0] = pj["crowd"]["dead"].F(0.5f); d.crowdMul[1] = pj["crowd"]["normal"].F(1); d.crowdMul[2] = pj["crowd"]["packed"].F(1.5f);
     Json dj = LoadJsonFile(dir + "nightoff_dialogue.json");
@@ -79,7 +95,24 @@ static Data Load() {
     for (const Json& x : dj["items"].a) d.talk.items.push_back(x.Str0());
     return d;
 }
-const Data& D() { static Data d = Load(); return d; }
+static int gBar = BAR_GULL;
+bool gTravelRolls = true;
+void SetBar(int bar) { gBar = std::clamp(bar, 0, BAR_COUNT - 1); }
+int CurBar() { return gBar; }
+const Data& DataOf(int bar) {
+    static Data d0 = Load(BAR_GULL);
+    if (bar == BAR_MONKEY) { static Data d1 = Load(BAR_MONKEY); return d1; }
+    return d0;
+}
+const Data& D() { return DataOf(gBar); }
+const char* BarName(int bar) { return bar == BAR_MONKEY ? "The Brass Monkey" : "The Sodden Gull"; }
+bool TravellerHere(const std::string& name, int bar, uint32_t seed) {
+    // the five travellers: one bar a night, from the seed (Dottie goes where the coats are better: the Monkey, two nights in three)
+    uint32_t h = seed * 2654435761u; for (char c : name) h = (h ^ (uint8_t)c) * 16777619u;
+    float u = ((h >> 8) & 0xffff) / 65536.0f;
+    int at = u < (name == "Dottie Finch" ? 0.66f : 0.5f) ? BAR_MONKEY : BAR_GULL;
+    return at == bar;
+}
 const char* TypeName(int t) { static const char* N[T_COUNT] = {"Talker", "Flirt", "Brooder", "Hustler", "Regular", "Gambler", "Sailor", "Oddball", "Staff"}; return N[std::clamp(t, 0, T_COUNT - 1)]; }
 int Data::Trait(const std::string& n) const { for (int i = 0; i < (int)traitNames.size(); i++) if (traitNames[i] == n) return i; return -1; }
 const std::string& Lines::Pick(uint32_t k) const { static const std::string none = "..."; return v.empty() ? none : v[k % v.size()]; }
@@ -97,7 +130,12 @@ const char* EndingName(int e) {
 
 // ---------------------------------------------------------------- the night
 float Night::Rand() { rng = rng * 1664525u + 1013904223u; return ((rng >> 8) & 0xffffff) / 16777216.0f; }
-void Night::Say(const std::string& s) { say.push_back(s); if (say.size() > 40) say.erase(say.begin()); }
+static std::string MonkeyWords(std::string s) {   // (at the Monkey the bartender is Celeste, and the bar is the Monkey)
+    auto rep = [&](const char* a, const char* b) { for (size_t i = s.find(a); i != std::string::npos; i = s.find(a, i + strlen(b))) s.replace(i, strlen(a), b); };
+    rep("The bartender", "Celeste"); rep("the bartender", "Celeste"); rep("The Sodden Gull", "The Brass Monkey"); rep("the Gull", "the Monkey");
+    return s;
+}
+void Night::Say(const std::string& s0) { std::string s = CurBar() == BAR_MONKEY ? MonkeyWords(s0) : s0; say.push_back(s); if (say.size() > 40) say.erase(say.begin()); }
 void Night::Note(Player& p, int kind, const std::string& text) {
     p.log.push_back({t, kind, text});
     // Solo: the bartender narrates everything (doc p. 24)
@@ -113,7 +151,8 @@ std::string Night::Clock() const {
     return TextFormat("%d:%02d %s", h12, mm, hh % 24 >= 12 ? "p.m." : "a.m.");
 }
 void Night::Init(const Opts& o) {
-    opts = o; rng = o.seed ? o.seed : 1; t = 0; over = false; say.clear(); players.clear(); flags.clear(); winner = -1; crewTab = 0; midnightBrawl = false; bartenderDarts = false;
+    SetBar(o.bar);
+    opts = o; rng = o.seed ? o.seed : 1; t = 0; seanceDone = false; goatOwner = -1; over = false; say.clear(); players.clear(); flags.clear(); winner = -1; crewTab = 0; midnightBrawl = false; bartenderDarts = false;
     bar = Bartender{}; bar.pos = D().bar.bartender; patrons.clear();
     static const char* NAMES[6] = {"You", "Player 2", "Player 3", "Player 4", "Player 5", "Player 6"};
     for (int i = 0; i < std::clamp(o.players, 1, 6); i++) {
@@ -135,7 +174,7 @@ float Night::Toughness(const Player& p) const { return BandOf(p).toughness * (1 
 float Night::PriceOf(int i) const {
     if (i < 0 || i >= (int)D().drinks.size()) return 0;
     if (freeDrinks) return 0;   // (the shotgun fired at the cartel: the bar is yours)
-    float p = D().drinks[i].price, h = Hour();
+    float p = D().drinks[i].price * D().bar.priceMul, h = Hour();   // (the Monkey's price board: everything 50% more)
     if (lockIn && D().drinks[i].drunk > 0) p *= 2;   // (the lock-in: double prices)
     if (h >= 22) p *= D().rise10;                                   // (prices rise 20% at 10 p.m.)
     if (h >= D().lastCallHour) p *= D().lastCallMult;               // (and double at last call)
@@ -182,6 +221,9 @@ static void Finish(Night& n, Player& p, int i) {
     else if (d.effect == "honest") p.honestT = sec;
     else if (d.effect == "visions") p.visionsT = sec;
     else if (d.effect == "shakes") p.shakesT = sec;
+    else if (d.effect == "steady") p.steadyT = sec;                                     // (the Marlin: the cue's wobble halved)
+    else if (d.effect == "widow") { p.honestT = std::max(p.honestT, sec); p.visionsT = std::max(p.visionsT, sec); }   // (the Widow's Kiss)
+    else if (d.effect == "round") { for (auto& c : n.patrons) if (c.inside && !c.gone) c.mood = std::min(100.0f, c.mood + 10); p.roundT = n.t; n.Say(p.name + " pops a bottle of champagne and pours for the room."); n.Note(p, 5, "Bought the room champagne."); }
     else if (d.effect == "crew") { p.charBuff = d.amount; p.charBuffT = 20 * SECONDS_PER_GAME_MINUTE; }
     else if (d.effect == "random") {   // the Gull: one of the others doubled, or a hiccup
         int r = (int)(n.Rand() * 5);
@@ -244,7 +286,7 @@ void Night::Collide(Vector2& pos, float r) const {
 }
 void Night::StepPlayer(Player& p, float dt) {
     auto dec = [&](float& x) { x = std::max(0.0f, x - dt); };
-    dec(p.charBuffT); dec(p.toughBuffT); dec(p.honestT); dec(p.visionsT); dec(p.shakesT); dec(p.stumbleT); dec(p.toastT); dec(p.barkeepT);
+    dec(p.charBuffT); dec(p.toughBuffT); dec(p.honestT); dec(p.visionsT); dec(p.shakesT); dec(p.stumbleT); dec(p.toastT); dec(p.barkeepT); dec(p.steadyT);
     if (p.st == State::Gone || p.st == State::PassedOut) return;
     StepWares(p, dt); StepFate(p);
     if (p.skipT > 0 || p.st == State::Gone || p.st == State::PassedOut) return;   // (Deep Pressure's lost minutes; the Cocktail's mornings)
@@ -340,6 +382,7 @@ void Night::StepPlayer(Player& p, float dt) {
     in.leave = false;
 }
 void Night::Step(float dt) {
+    SetBar(opts.bar);   // (the data is the bar's: two nights in one process at different bars each set their own)
     if (over) return;
     t += dt;
     // the bartender: polishes, serves, walks to whoever ordered; his mood drifts with the hour (tired after 1 a.m.)
@@ -355,9 +398,10 @@ void Night::Step(float dt) {
     StepModes(dt);
     StepEvents(dt);
     StepCards(dt);
+    StepMonkey(dt);
     // 3 a.m., or every night over
     bool anyone = false; for (const auto& p : players) anyone |= p.st != State::Gone && p.st != State::PassedOut;
-    if (Minutes() >= endMinutes) { for (auto& p : players) if (p.st != State::Gone && p.st != State::PassedOut) Leave(p, p.st == State::Down ? E_KNOCKED_OUT : E_CLOSING, p.st == State::Down ? "on the floor of the Gull with a black eye" : "on the pavement outside the Gull at 3 a.m., swept out with the glass"); anyone = false; }
+    if (Minutes() >= endMinutes) { for (auto& p : players) if (p.st != State::Gone && p.st != State::PassedOut) Leave(p, p.st == State::Down ? E_KNOCKED_OUT : E_CLOSING, p.st == State::Down ? (CurBar() == BAR_MONKEY ? "on the Monkey's marble floor with a black eye" : "on the floor of the Gull with a black eye") : std::string("on the pavement outside ") + (CurBar() == BAR_MONKEY ? "the Monkey" : "the Gull") + " at 3 a.m., swept out with the glass"); anyone = false; }
     if (!anyone) over = true;
 }
 // ---------------------------------------------------------------- the morning (doc pp. 3-4)
@@ -371,10 +415,12 @@ int NightEventChecks();
 int NightCardChecks();
 int NightProfileChecks();
 int NightWaresChecks();
+int NightMonkeyChecks();
 int RunNightTest() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
     printf("A Night Off: stage 1\n");
+    gTravelRolls = false;   // (the earlier stages' checks were written before the Monkey: every traveller drinks at the Gull)
     const Data& d = D();
     check(d.drinks.size() == 12 && d.bands.size() == 6, TextFormat("the menu (%d) and the meter (%d bands)", (int)d.drinks.size(), (int)d.bands.size()));
     check(d.bar.walls.size() > 15 && d.bar.boxes.size() > 15 && d.bar.rooms.size() >= 10, "the Sodden Gull's rooms, walls and furniture");
@@ -469,6 +515,9 @@ int RunNightTest() {
     fails += NightProfileChecks();
     // ---- stage 10a: the cartel's wares
     fails += NightWaresChecks();
+    // ---- stage 10c: the Brass Monkey
+    gTravelRolls = true;
+    fails += NightMonkeyChecks();
     printf(fails ? "A Night Off: %d check(s) FAILED\n" : "A Night Off: all checks passed\n", fails);
     return fails ? 1 : 0;
 }
