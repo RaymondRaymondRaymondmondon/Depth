@@ -1,0 +1,83 @@
+A Night Off
+Arcade Game 6 Design Document
+Name
+Lady Ophelia Crane
+Mr. Sable
+The Marlin (stuffed)
+Thistle
+Cordelia Fen
+Boxer Mags
+(travels)
+Captain Vane
+(travels)
+Sweet Wren
+(travels)
+Bartholomew Crane
+(travels)
+The Croupier
+(Anselm)
+Juniper Vale
+Type
+Flirt
+Gambler
+Oddball
+Regular
+Talker
+Brooder
+Sailor
+Flirt
+Gambler
+Staff
+Oddball
+Traits
+flirty, generous, carries a
+kidney cooler
+liar, in love with Celeste,
+owes money
+loud, friendly, drunkard
+grieving, honest,
+romantic
+violent, good loser,
+drunkard
+loves sailors, loud, bad
+loser
+romantic, generous,
+afraid of the cook
+owes money, liar,
+romantic
+honest, suspicious, has a
+tell
+superstitious, lonely,
+flirty
+Secret
+The Monkey's kidney thief;
+works alone; her tell is that
+she tips exactly double
+The cartel's banker at the
+high-stakes table
+Speaks during séances only;
+its fortunes are the fortune
+teller's, relayed
+Owns the chair by the fire;
+the only loud person Celeste
+tolerates
+A widow who comes to the
+roof to look at the Gull,
+where her husband drank
+Here on Fridays; fights on
+the roof
+Drinks here when he's won;
+the Gull when he's lost
+Visits her aunt (Cordelia);
+the same tea-and-lecture
+morning
+The informant works both
+rooms
+Deals straight; touches his
+bow tie when a player is
+cheating
+Reads the roof's telescope
+like a fortune; knows when
+the police are crossing the
+harbor
+Page 33 of 42

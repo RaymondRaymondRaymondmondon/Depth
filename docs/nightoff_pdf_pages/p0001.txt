@@ -1,0 +1,33 @@
+A Night Off — Arcade Game 6 Design Document
+A Night Off — Arcade Game 6 Design
+Document
+Oct 1, 2026 • @Phillip Argall
+Overview
+A Night Off is a 1-6 player third-person 3D comedy sandbox set in a dockside bar called
+the Sodden Gull. The crew of the Nautilus have one night ashore. They drink, flirt, play
+darts and pool and poker, lie to each other at the bullshit table, get their fortunes told,
+start fights or avoid them, and try to make it to the morning with their money, their dignity,
+and both kidneys. Nothing in it is serious; everything in it has consequences, and the
+consequences are the jokes.
+Design pillars
+1. A night is a story you tell afterward. The game's goal is the story at breakfast: who
+went home with the fortune teller, who lost a kidney, who won the bar in a poker hand,
+who got arrested. The morning-after screen is the real scoreboard.
+2. Drinking is the dial. Every drink trades charisma for toughness. Sober, you talk your
+way through the night; drunk, you fight your way through it; too drunk, you lose your
+night to a blackout and someone else narrates it.
+3. The bar is alive and it changes. Patrons come and go, the crowd swells and thins,
+events walk in the door, and the room itself gets messier, louder, and stranger as the
+hours pass.
+4. Everyone has a personality and a memory. Thirty regulars with traits, moods, and
+grudges that last the night and, for some, across nights.
+5. Silly with friends. Mechanics are simple to pick up, deep enough to scheme with, and
+built for six people shouting at each other.
+Tone. Brass-and-gaslight dockside, the same inked style as Depth, played for laughs: a
+drunk Mechanic trying to line up a dart, a Siren reading tarot in the corner, a biker gang
+that turns out to be a book club. Violence is cartoon bar-brawl: black eyes, broken bottles,
+people thrown over tables and waking up in the alley. Romance is flirting, a walk out the
+door, and a fade to black with a morning-after line. The kidney thing is a comedy
+consequence, not horror: you wake in a bathtub of ice with a note and a stitch, and for the
+rest of the game you get drunk twice as fast.
+Page 1 of 42

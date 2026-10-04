@@ -1,0 +1,33 @@
+A Night Off — Arcade Game 6 Design Document
+• Dancing first: +15 charisma for 5 minutes. A cigar with a Gambler: +5. The Siren (cartel):
+every threshold -30 for 3 minutes.
+• The offer's outcome is rolled from the patron's secret, not from the player: a kidney
+thief's offer always leads to the bathtub unless interrupted. A sober watcher within 30
+s has a 100% interrupt; a merry one 75%; drunk 40%; hammered 10%.
+• Tells play once per flirt, during the second exchange, as a 1.5 s animation; a sober player
+sees them clearly; above 40 drunk, the camera drifts at that moment 50% of the time.
+Fight math
+• HP = 100 x toughness. Jab 10, haymaker 25, grab-and-throw 20 plus IO if a table is in the
+way, weapon values as listed. Damage dealt x toughness; damage taken x (1 /
+toughness) for the drunk damage reduction (so at 200% toughness you take half).
+• Patron HP by type: Talker 60, Flirt 60, Regular 80, Gambler 70, Hustler 70, Sailor 120,
+Brooder 150, Oddball 50, Staff 200; violent trait +50; teetotal +20 (they're sober);
+drunkard -20 and +50% damage dealt (they're not).
+• Haymaker windup is 0.6 s and can be dodged by a sober player; at 40+ dodging has a
+30% chance to be a stumble into the punch.
+• Crowd pull: every 10 s a fight runs, each violent patron within 3 m joins with probability
+50%, each Delighted-with-a-side patron 30%, Sister Ash 100% to end it (she hits both).
+• Weapon escalation: a broken bottle or a knife anywhere in the room sets the police
+timer (3 minutes) and the bartender's mood -20; the shotgun sets the timer to 60 s on
+being taken and ends the night on being fired, except at the robbers or the cartel.
+Patron AI
+• Each patron runs a schedule: arrive (hour from their row), a goal queue (drink, game,
+person, stool, leave), a mood, a tolerance (how many bothers before Hostile: 2 for
+Brooders, 6 for Talkers), and a memory table keyed by player (drinks bought, insults,
+games won and lost against them, fights, flirts) that sets their opening mood toward
+that player next time they meet.
+• Goals are picked by type: Hustlers go to the games room when a player with money is
+there; Flirts drift toward the player with the highest charisma; Gamblers sit when four
+are at a table; Brooders find the emptiest seat; Regulars go to their stool and complain
+if it's taken.
+Page 41 of 42

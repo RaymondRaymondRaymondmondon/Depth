@@ -1,0 +1,26 @@
+A Night Off — Arcade Game 6 Design Document
+The bartender, the Gull
+The bartender is the bar's referee: honest, SUSPiCiOUS, and in love with Big Ruth. He has a
+mood like everyone else, and it is the most important mood in the room.
+• Delighted: cheaper drinks, warnings about trouble (who's a thief, when the police are
+coming), and he looks away when you take the shotgun.
+• Neutral: the menu at list price.
+• Annoyed: prices up 20%, cuts you off at 60 drunk, and tells the police which of you
+started it.
+• Hostile: bars you. One more incident and you're on the pavement.
+What moves him: paying as you go (+), rounds (+), breaking things (-), fighting (-), going
+behind the counter (--), flirting with Big Ruth (---), buying Big Ruth a drink for him to
+give her (+++), and the hour (he's tired by 1 a.m.).
+He also sells: the cigar cabinet's key (a cigar is +5 charisma with Gamblers), a cab home
+(50, the only guaranteed safe exit after 1 a.m.), and, if Delighted, the name of the one slot
+machine that isn't rigged.
+Debt
+A player at zero can borrow 100 from Harrow at the poker table. Harrow borrows it from
+the cartel, which means that at the cartel event the player is on their list. Debt at the end
+of the night is -5 score per 10 unpaid and, with a profile, a visit next night.
+Events and the crowd
+Events walk in the front door. Two or three happen per night from the schedule below,
+rolled against the hour and the crowd, and each one changes what the bar is for an hour.
+They are the night's set pieces, and they're all survivable, profitable, and funny if you read
+them right.
+Page 20 of 42

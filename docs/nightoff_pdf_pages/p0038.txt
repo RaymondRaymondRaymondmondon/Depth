@@ -1,0 +1,48 @@
+A Night Off — Arcade Game 6 Design Document
+Tokens
+A night pays 10 tokens for playing, 1 per 50 score, 5 per headline earned for the first time,
+and 20 for a first on each seasonal night. A good night is 25-40 tokens.
+The ten you save for
+Skin
+Shore Leave
+The Sunday Best
+The Dockhand
+The Regular
+The Croupier
+The Fisherman
+The Bride
+The Constable
+The Gull
+The Captain
+The spin: 40 skins
+Cost
+50
+80
+80
+100
+120
+120
+150
+150
+200
+250
+Look
+The crew's own shore clothes, pressed
+A suit that doesn't fit, a hat that does
+Oilskins and a cap; the cook respects it
+Big Ruth's cardigan; her stool is briefly yours
+Bow tie and sleeve garters; Anselm nods
+Waders and a hat of hooks; the dog loves it
+A veil and a sash; the bachelorette party adopts
+you
+A borrowed uniform; the police are confused for 10
+seconds
+The bartender's apron and towel; Celeste is
+unimpressed
+Nemo's coat; Captain Vane challenges you on sight
+One token, one spin, from a brass wheel in the cloakroom. A duplicate is a duplicate (the
+wheel laughs; nothing is refunded). Odds: Common 60% (15 skins, 4% each), Rare 25% (IO
+skins, 2.5% each), Super Rare 12% (IO skins, 1.2% each), Special 3% (5 skins, 0.6% each).
+Expected cost to own all 40 is about 290 spins, which is a long way to a Special and the
+reason to keep playing.
+Page 38 of 42

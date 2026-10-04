@@ -1,0 +1,47 @@
+A Night Off — Arcade Game 6 Design Document
+• Mess. Every drink leaves a glass; every fight leaves broken furniture; byl a.m. a busy
+night is a floor of glass and overturned chairs the cook sweeps grudgingly. Broken
+bottles on the floor are weapons for anyone who picks them up.
+Light and sound. The lamps dim as the night goes on; the jukebox gets louder; after
+midnight someone always puts on the same sad song, and the bar sings it.
+• Damage. Smashed windows stay smashed; a broken pool cue means one less cue; if
+the piano is thrown through the window during the biker gang event, there's no piano.
+The bartender's mood tracks the damage and his prices follow it.
+• Weather. Rain starts at a random hour; the yard clears, the golf balls float, and the
+smokers come inside.
+• The dog. The alley dog can be fed, befriended, brought inside, and will fight for
+whoever feeds it most. It is the single most effective ally in the game.
+• Persistence across nights (optional profile). The bartender remembers a player who
+paid their tab, a player who didn't, and a player who shot his window. The regulars
+remember who fought them. It's a short memory (three nights) and always reset by
+buying a round.
+Drinking
+Every player has a drunk meter from O to 100. Drinks raise it, time and food lower it, and
+every number in the game reads it. The trade is always the same: charisma down,
+toughness up.
+The meter
+Drunk
+0-19
+20-39
+40-59
+State
+Sober
+Merry
+Drunk
+Charisma
+100%
+110% (the only bonus:
+a little courage)
+Toughness
+100%
+110%
+130%
+What it looks like
+Steady camera, clean aim,
+normal walk
+Slight sway, warmer dialogue
+options appear
+Camera lag, aim drift in
+games, slurred captions,
+walking curves
+Page 6 of 42

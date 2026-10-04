@@ -1,0 +1,38 @@
+A Night Off — Arcade Game 6 Design Document
+The band and the jukebox
+Not games, but the dance floor has a rhythm mini-game (hit the beats) that gives +15
+charisma for 5 minutes to anyone who finishes a song. Drunk players dance badly and are
+loved for it (+5 regardless).
+Money and the bartender
+Every player walks in with 200 in wages. Money buys drinks, games, bribes, and favors; it's
+also what the night takes from you. The scoreboard counts what you walk out with over
+what you walked in with, so a player who spends nothing and leaves at 8 p.m. scores zero
+on money and zero on everything else.
+Where money goes and comes from
+Out
+Drinks (3-25, rising with the hour)
+Game buy-ins
+Bribes: the bouncer (20), the police (50), the
+cartel (whatever they ask)
+Damage on your tab (a chair 10, a window 50,
+the piano 300)
+Fines (200), hospital (100), the kidney (not
+for sale)
+The tab
+In
+Winning games (5-100 per game, side bets,
+the poker pot)
+Slots and scratch-offs (rarely)
+A patron paying your tab (Mr. Lemmon) or
+buying your drinks (Delighted patrons)
+Finding money: the robbery's safe (500
+split), a hustler's winnings taken back in a
+fight, the bachelor party's kitty
+Borrowing from Harrow (he borrows it from
+the cartel; see Events)
+Drinks go on a tab, not paid per drink. The bartender closes tabs at last call and at the
+door. A player who leaves without paying is remembered (profile) and the bouncer bars
+them next night until they pay double. A tab can be paid by a friend, a Delighted patron, or
+by winning it back from the bartender at darts (he plays one game a night and is very
+good).
+Page 19 of 42

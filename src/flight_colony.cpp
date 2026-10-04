@@ -525,6 +525,8 @@ void World::BuilderStep(Bird& b, float dt) {
     if (!col.leaderless && !nestWaiting) if (int s = OutpostSite(); s >= 0) { Nest n; n.site = s; n.pos = col.sites[s].pos; n.isle = col.sites[s].isle; n.bowlNeed = E.courtFish + E.courtStep * (int)col.nests.size(); StyleNest(n); col.sites[s].nest = (int)col.nests.size(); col.nests.push_back(n); nestWaiting = true; }
     bool nestJob = false; for (const auto& n : col.nests) nestJob |= !n.built;
     for (const auto& st : col.builds) if (!st.built && st.kind == ST_ROOST) nestJob = false;   // (the Roost before more nests: research waits on it)
+    bool wonderSite = false; for (const auto& st : col.builds) wonderSite |= st.kind == ST_WONDER && !st.built;
+    if (wonderSite && b.id % 2 == 0) nestJob = false;   // (a consecrated wonder: half the builders work on it while the rest raise nests)
     if (!nestJob) for (int pass = 0; pass < 2; pass++) for (auto& st : col.builds) {
         if (st.built || (pass == 0) != (st.kind == ST_ROOST)) continue;   // (the Roost first)
         int needT = StTwigs(st) - (int)st.twigs, needS = StShells(st) - st.shells;

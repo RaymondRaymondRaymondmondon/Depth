@@ -1,0 +1,62 @@
+A Night Off — Arcade Game 6 Design Document
+Room
+The games room
+The card room
+The dance floor
+and stage
+The toilets
+The kitchen
+Upstairs rooms
+The yard
+The alley
+What's there
+Two pool tables, the dartboard
+with a chalk scoreboard, three
+slot machines, the scratch-off
+dispenser
+A poker table (6 seats), the
+bullshit table (6 seats), a cigar
+cabinet
+A small stage, a piano, a jukebox,
+space for a band or a brawl
+Two stalls, a sink, a mirror that
+shows your drunk face, a window
+to the alley
+A fryer, a cook who hates
+everyone, the back door
+Four rooms rented by the hour, a
+landing with a view of the bar
+A nine-hole mini golf course
+under string lights, benches, a
+smokers' corner, the bike rack
+Bins, a fence, the toilet window, a
+sleeping dog
+What can happen
+Pool, darts, slots, scratch-offs,
+cue-and-bottle fights
+Poker, bullshit, side bets, cheating
+and being caught cheating
+Dancing (a rhythm mini-game that
+raises charisma for 5 minutes),
+the band, the bachelorette party,
+the big fights
+Sobering up (water: -5 drunk), the
+kidney thieves' preferred exit,
+hiding from the police
+Food (sobers you), a frying pan (a
+weapon), the back door to the
+alley
+Where "going home with
+someone" sometimes happens
+without going home; the robbery's
+safe is up here
+Mini golf, smokers' conversations,
+where the biker gang parks,
+where the cartel does business
+Where you wake up; where
+muggings happen; where the dog
+becomes your friend if fed
+The developing environment
+The room changes with the clock and with what the players do, and the state persists for
+the whole night:
+Page 5 of 42

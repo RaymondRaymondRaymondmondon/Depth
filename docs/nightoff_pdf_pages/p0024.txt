@@ -1,0 +1,41 @@
+A Night Off — Arcade Game 6 Design Document
+• Interrupt a bad walk home (follow within 30 s).
+• Paya friend's tab, or run up a friend's tab by ordering in their name while the bartender
+is Delighted with them.
+Fight each other. Player-versus-player brawls are on by default (the host can turn them
+off), cost both players the bartender's mood, and are what the yard is for.
+Modes
+Mode
+Night Off (default)
+The Crew
+Last One Standing
+The Wager
+Rival Crews
+Sober Night
+Solo
+Rule
+As designed; individual scores; the morning
+headline is about the group
+Co-op: one shared score and one shared tab; the
+night ends when any player is arrested or
+hospitalized; everyone's kidneys count
+The night ends when one player is left in the bar;
+the others have gone home, passed out, been
+thrown out, or been carried out, by any means; the
+last one wins
+Each player secretly bets at 7 p.m. on what their
+night will be (go home with someone, win 500, win
+a fight sober, survive the cartel); hitting it is +300;
+the bets are revealed at the morning
+3v3: two crews, shared crew scores, a darts and
+pool ladder, and the midnight brawl is scheduled
+No drinks (the bartender's on strike); charisma
+only; the cartel still comes
+One player, a Dead or Normal crowd, and the
+bartender as a narrator who comments on
+everything
+Keeping six people busy
+The bar has enough stations that six players never queuje: two pool tables, four dart lanes
+on one board (alternating), six poker seats, six bullshit seats, nine golf holes, three slots,
+the snug, the dance floor, and thirty patrons. Events are built to split the room (the
+Page 24 of 42

@@ -1,0 +1,69 @@
+A Night Off — Arcade Game 6 Design Document
+them. Thirty regulars are hand-written; on busy nights the generator fills the rest from the
+same parts with random names and looks.
+Types
+Type
+Talker
+Flirt
+Brooder
+Hustler
+Regular
+Gambler
+Sailor
+Oddball
+What they want
+To tell you about
+their life
+Company
+To be left alone
+Your money
+Their stool
+A game
+Another crew's
+night off
+Something
+strange
+How to approach
+Ask questions; buy a drink;
+listen (a conversation mini-
+game)
+See Flirting
+Don't; or buy one drink and
+say nothing
+Play them at pool or darts;
+they're good; they cheat at
+cards
+Say hello; respect the stool
+Sit at poker; they lose big
+and borrow
+Rivalry: they'll race you at
+anything
+Talk to them; they have the
+best stories
+Danger
+Boring you into drinking
+faster: every minute
+listening is +2 drunk if you
+keep nodding
+Some of them are the kidney
+thieves
+Antagonized, they fight, and
+they're tough
+Losing your wages; the
+hustler's friend is a
+pickpocket
+Taking the stool starts a feud
+They owe the cartel, and
+they'll point at you
+A rival crew means a brawl at
+midnight
+Unknowable
+Traits (three each)
+Friendly, SUSPiCiOUS, lonely, loud, generous, broke, jealous, cowardly, violent, honest, liar,
+drunkard, teetotal, superstitious, romantic, grieving, hungry, flirty, married, in love with
+the bartender, afraid of the cook, hates sailors, loves sailors, owes money, carries a knife,
+carries a kidney cooler (hidden), has a tell, bad loser, good loser, cheat.
+Traits set the dialogue options, the roll thresholds, the reaction to drinks bought, and the
+fight stats. A liar's stories don't match the fortune teller's reading; a superstitious patron
+will do anything a fortune says; a jealous patron fights whoever flirts with their partner.
+Page g of 42

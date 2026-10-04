@@ -1,0 +1,83 @@
+A Night Off — Arcade Game 6 Design Document
+Name
+Harrow
+Captain Vane
+Mother Quill
+Tam the Cook
+Nellie Bright
+Jasper Coil
+The Twins
+Deacon Pale
+Pip
+Mrs. Albright
+Cutter Jones
+Lady Severine
+Type
+Gambler
+Sailor
+Oddball
+Staff
+Flirt
+Flirt
+Talker
+Brooder
+Oddball
+Talker
+Sailor
+Flirt
+Traits
+broke, owes money,
+cowardly
+loves sailors, loud, bad
+loser
+superstitious, honest,
+hungry
+hates sailors, violent,
+honest
+romantic, honest, lonely
+flirty, liar, carries a
+kidney cooler
+loud, friendly, drunkard
+grieving, honest,
+teetotal
+hungry, afraid of the
+cook, cowardly
+married, jealous,
+suspicious
+violent, loves sailors,
+drunkard
+generous, liar,
+superstitious
+Secret
+Owes the cartel; will frame a
+player
+A rival captain; a darts match
+with him is the night's main
+event on quiet nights
+The fortune teller's mother;
+knows what the cards really
+mean
+Will sell you the frying pan
+and the back-door key
+A genuinely nice night out;
+the morning line is kind
+A kidney thief who works
+with Dottie
+Finish each other's
+sentences; buying one a
+drink buys both
+Lost a brother at sea; the one
+patron who can calm the
+Reverend
+A child-sized adult who sells
+scratch-offs out of a coat;
+lucky tickets
+Her husband is at the
+bachelor party; tells you
+where it is
+Starts the midnight brawl if
+any rival crew is in
+Rich; going home with her is a
+mansion, a butler, and a dawn
+chase by her husband
+Page 11 of 42

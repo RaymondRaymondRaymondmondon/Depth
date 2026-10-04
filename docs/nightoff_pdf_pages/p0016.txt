@@ -1,0 +1,85 @@
+A Night Off — Arcade Game 6 Design Document
+Weapon
+Beer bottle
+Pool cue
+Chair
+Frying pan
+Dart
+Golf club
+The dog
+Knife
+The
+bartender's
+shotgun
+How to get it
+Pick one up; smash it
+on the bar (a 1 s
+animation) to make it
+a broken bottle
+Take it from the rack
+or from a player's
+hands
+Pick up
+Buy from the cook
+(20) or take it (the
+cook fights)
+From the board
+From the yard
+Feed it three times
+From a knife-
+carrying patron
+you've beaten, or the
+kitchen
+Get behind the
+counter (vault when
+he's at the far end, or
+during an event) and
+take it from under
+the till
+Damage
+15, or 30 broken with a
+bleed
+20; breaks after 3 hits
+into a jagged half (25)
+20, thrown 30
+30, a stun on a
+haymaker
+10, thrown 20
+25
+Bites for 15, holds
+35, bleed
+One shot; anyone hit
+is hospitalized;
+everyone else freezes
+Consequence
+A broken bottle makes
+the fight "armed": the
+bartender calls the
+police (a Police
+Inspection in 3 minutes)
+One fewer cue for the
+rest of the night
+Furniture bill
+None, and the cook
+respects you
+Pip faints
+The yard's lights go off
+(the groundskeeper is
+upset)
+The dog is a friend for
+the night
+Armed fight: police; a
+stabbed patron goes to
+hospital and the night's
+headline is grim
+The bartender bars you
+for the night; the police
+arrive in 60 s; firing it
+ends the night for you
+unless the cartel is the
+target, in which case the
+bar buys you a drink
+Taking the shotgun without firing it is a legitimate play: during a robbery or the cartel
+event, the player holding it ends the event with a shout and gets a headline. Firing it at the
+biker gang is the worst decision in the game and is scored accordingly.
+Page 16 of 42

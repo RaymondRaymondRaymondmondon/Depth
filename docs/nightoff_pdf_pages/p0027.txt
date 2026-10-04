@@ -1,0 +1,29 @@
+A Night Off — Arcade Game 6 Design Document
+The room
+• Crowd bed. A murmur made of layered formant voices whose density follows the
+crowd count; it rises at peak and thins at 2 a.m. until individual conversations can be
+heard across the room.
+• Glass and wood. Clinks, scrapes, a stool dragged, the till drawer, the tab book's pen.
+• The jukebox plays six synthesized songs (a shanty, a waltz, a music-hall number, a
+torch song, a jig, and the sad one after midnight that the bar sings along to). Requests
+cost 10.
+• Rain on the yard's string lights and the windows when it starts; the smokers coming in.
+• The dog in the alley, and inside once it's YOUrs.
+Drunkenness
+• Above 40 the mix low-passes slightly and the crowd murmur blurs; above 60 your own
+footsteps get heavier and a faint ringing sits under everything; above 80 the room
+lurches with the camera and the jukebox is the only clear sound; at a blackout, silence,
+then the morning birds.
+• Hiccups, a stumble, a glass dropped; the toilet's tap as the sobering sound.
+Voices
+• Every patron has a formant voice: pitch, rhythm, and a laugh. The regulars' voices are
+distinct enough to recognize from across the bar (Big Ruth's laugh, the Reverend's
+growl, the Twins in unison).
+• Players' crew voices from Red Tide's bark system, reused with new line sets: toasts,
+taunts across the pool table, the "I'm fine" at 80 drunk.
+Games
+Dart thud, the chalk, the cheer for a 180; pool's click and the thunk of a pocket; mini golf's
+windmill creak and the fish-tank splash on the ninth; slot reels and the three-kidney
+jackpot bell; scratch-off scratching; the fortune teller's cards and a chime per card; poker
+chips and the shuffle; bullshit's slap of a called pile.
+Page 27 of 42

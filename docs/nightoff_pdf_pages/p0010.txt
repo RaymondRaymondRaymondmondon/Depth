@@ -1,0 +1,59 @@
+A Night Off — Arcade Game 6 Design Document
+Mood
+Mood runs from Hostile to Delighted and moves with: drinks bought (+), being ignored (-,
+for Talkers), being flirted with (depends on type and your charisma), insults (
+being
+beaten at a game (-, bad losers --), their drink being spilled (-), a round bought (+), the
+band (+ for most, - for Brooders), and the hour (everyone's mood loosens after 10 p.m.
+and sours after 1 a.m.). Mood decides what they'll do: Delighted patrons pay for your
+drinks, tell secrets, and take your side in fights; Hostile ones start them.
+Conversation
+Talking is a short mini-game: three to five exchanges with four options each (ask, agree,
+joke, challenge), each rolled against charisma and the patron's traits. Captions show what
+you said; at high drunk levels, what you said is not what you picked. Conversations give
+information (who's the thief, which hustler cheats, where the robbery's safe is), buffs (a
+laugh is +5 charisma for 5 minutes), items (a lucky coin, a key), and sometimes a fight.
+The thirty regulars (the hand-written cast)
+Name
+Old Marlow
+Dottie Finch
+The Reverend
+Sly Pennick
+Big Ruth
+Little Ruth
+Type
+Talker
+Flirt
+Brooder
+Hustler
+Regular
+Regular
+Traits
+lonely, honest, grieving
+flirty, generous, liar
+teetotal, violent,
+superstitious
+cheat, good loser, has a
+tell
+loud, friendly, in love
+with the bartender
+suspicious, married,
+carries a knife
+Secret
+Was the Marguerite's
+captain; knows the safe's
+combination
+A kidney thief, and the best
+in town
+Boxed professionally; a
+fortune can make him fight
+anyone
+Scratches his ear before a
+bluff
+Owns her stool; buys rounds
+for anyone who sits beside it,
+not on it
+Big Ruth's wife; jealous of
+anyone who flirts with Big
+Ruth
+Page 10 of 42

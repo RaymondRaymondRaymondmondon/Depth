@@ -1,0 +1,49 @@
+A Night Off — Arcade Game 6 Design Document
+Session. One night, 25-40 minutes real time, on a clock from 7 p.m. to 3 a.m. (or until every
+player is asleep, arrested, hospitalized, or gone home). Players can leave early, which ends
+their night and starts their morning.
+Relationship to the other arcade games. It reuses Red Tide's 3D renderer, inked low-poly
+style, rig and Chain animation, and the shared networking layer, plus Flats' card and
+physics code for the poker and bullshit tables and Scuttle's bot seats. It does not share
+any design with them: it's a social sandbox, not a shooter.
+The night
+A night runs on a clock from 7 p.m. to 3 a.m. at about four real minutes per game hour. The
+clock drives the crowd, the events, the prices, and the patrons' moods, so the same bar is
+a different place at 8, at midnight, and at 2.
+Hour
+7-8 p.m.
+8-10 p.m.
+10 p.m.-12
+a.m.
+12-1 a.m.
+1-2 a.m.
+2-3 a.m.
+Crowd
+Quiet: 4-8 regulars, the bartender,
+the fortune teller setting up
+Filling: 10-18 patrons
+Peak: 18-30 patrons, standing room
+Loud and loose: 15-25
+Thinning: 6-12
+Dregs: 2-6
+What tends to happen
+Cheap drinks, easy conversation, the
+pool table free, the best time to win
+money at darts
+First event rolls; poker starts when
+four sit; the band (if any) plays
+Second event; fights start; flirting is
+easiest (everyone's charisma
+threshold drops as the room drinks)
+Last big event; the bartender starts
+cutting people off; patrons begin
+leaving in pairs
+Last call at 1:30; prices double; the
+kidney thieves' window opens
+The bartender wants you gone; the
+mini golf course lights go off; anyone
+still here is a story
+Busy and quiet nights. The host rolls a crowd curve at the start: Dead (half the numbers
+above), Normal, Packed (1.5><, standing room all night), or Random (it changes hour to hour,
+and nobody tells you). A dead night is for conversations and pool; a packed night is for
+Page 2 of 42

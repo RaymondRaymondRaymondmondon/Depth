@@ -1,0 +1,47 @@
+A Night Off — Arcade Game 6 Design Document
+Item
+The Siren
+The
+Cocktail
+price
+60
+100
+Effect
+Everyone in the room is
+Delighted with you for 3
+minutes; any flirt's offer comes
+early
+The quiet man mixes it himself;
+one of six outcomes, equal odds
+The catch
+Every flirt's offer is from whoever
+is closest, including the thieves,
+and your sober friends can't talk
+you out of it
+1: the best night of your life (every
+stat maxed for IO minutes, a
+guaranteed sincere go-home,
++300).2: you can fly (a double
+jump and a +40 toughness; you
+believe you can fly from the roof).
+3: you become the bartender for
+10 minutes (you serve, you take
+the tab, the shotgun is yours). 4:
+the goat and you understand
+each other (the goat follows you;
+it bites for you). 5: you wake up at
+the morning screen, immediately,
+with a headline you didn't earn
+and a kidney you still have. 6: you
+wake up at the morning screen,
+immediately, without one
+Rules: one dose of each per night; nothing is sold to a player above 80 drunk (the quiet
+man has standards); a player seen buying by Sergeant Mallory or during a police
+inspection is searched; a dose a player didn't buy can be slipped into their drink by
+another player (the Siren and the Cocktail are the USUal choices, and it's the game's
+dirtiest trick). The cartel never sells to the kidney thieves. They're competitors.
+Skins and the token spin
+A Night Off's arcade tokens buy skins, and nothing else. There are 50 skins: 10 that any
+player can save up for, and 40 that come only from the spin. Skins are cosmetic and visible
+to everyone, which in this game is the whole point.
+Page 37 of 42

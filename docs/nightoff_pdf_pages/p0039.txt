@@ -1,0 +1,44 @@
+A Night Off — Arcade Game 6 Design Document
+Tier
+Common (15)
+Rare (10)
+Super Rare (10)
+Special (5)
+Skins
+The Pint Glass (a glass costume, drunk level visible
+as a fill line), the Lobster Suit, the Sea Pig, the
+Barnacle (a man covered in them), the Cone Snail
+(a very large hat), the Wet Dog, the Fish Costume
+(from Depth's Island), the Sack (a potato sack with
+eyeholes), the Scarecrow, the Deckhand's Pajamas,
+the Lifeguard, the Diving Bell (you can't see out),
+the Gull Costume (the bird), the Sandwich Board
+("EAT AT TAM'S"), the Beer Bottle
+The Goat (the goat), the Octopus (eight Chain
+arms that bump glasses), the Fortune Teller's
+Robes, the Biker's Jacket (the book club's), the
+Kidney (a large pink kidney with a face), the
+Mermaid Tail (you shuffle), the Ghost Sheet (the
+Drowned's), the Lantern Angler (your head is a
+lure), the Crab (sideways only), the Pirate (the
+platformer's)
+The Bathtub (you wear a bathtub of ice; a note is
+pinned to it), the Sandworm Puppet (a tube that
+eats your top half), the Marlin (the stuffed one,
+with the plaque), the Wedding Cake, the Pool Table
+(the Chains are the cues), the Slot Machine (your
+reels spin when you sway), the Cthulhu Mask (from
+Atlantis, glowing), the Great White (a shark suit
+with a flopping tail), the Uber Driver (Dottie's cap
+and a cooler), the Cartel's Quiet Man (a suit and a
+ledger; patrons go quiet when you walk in)
+The Golden Kidney (an entire gold kidney; the
+thieves can't take what's on the outside), the
+Nautilus (the submarine, as a costume, with a
+periscope hat), the Sodden Gull Itself (a bar
+costume: a counter around your waist, a tiny
+bartender), the Matriarch (an orca suit with a pod
+of three balloon orcas on strings), the Headline (a
+newspaper costume whose front page reads your
+best headline so far)
+Page 39 of 42

@@ -1,0 +1,56 @@
+A Night Off — Arcade Game 6 Design Document
+Event
+The band
+The goat
+Hour
+8-12,
+Any, 5%
+What arrives
+A steampunk
+lounge trio on
+the stage
+A goat
+What it does
+Dance floor
+opens; the rhythm
+mini-game pays
+charisma
+It walks in
+How to play it
+Dance; request a
+song (10) for a
+mood swing in
+the room
+It's a goat
+How it goes
+wrong
+The biker gang's
+leader sings;
+nobody is
+allowed to laugh
+It eats the
+scratch-offs
+Crowd dynamics
+• The crowd curve (Dead, Normal, Packed, Random) sets the base numbers per hour;
+events add their own people; a fight or a police inspection sends a third of the patrons
+home for 20 minutes.
+• Patrons arrive in groups (couples, trios, crews) and leave in the groups they came with
+or the pairs they made. A patron who went home with a player is gone for the night.
+• Rain brings the yard inside; last call empties the games room first; the bartender's last
+call shout is the night's last timer.
+• The room's noise (a value from the crowd, the jukebox, and fights) sets conversation
+difficulty: at peak noise you have to be close to talk, which is why the snug exists.
+Multiplayer
+One to six players share one bar, one clock, and one crowd. There are no teams by default:
+everyone's night is their own, scored on its own, but everything a player does happens in
+front of everyone else, which is the point.
+What players can do to each other
+• Buy each other drinks (and spike them: a Gull in a friend's pint when they're not looking
+is +35 to their meter and a story).
+• Play each other at every game, bet on each other, and cheat each other.
+• Flirt with the same patron (the loser gets a feud and a headline).
+• Back each other in fights, or start them: a player can point a Hostile patron at another
+player with a line ("he said it").
+• Carry a passed-out friend out, or leave them, or draw on their face (a cosmetic that
+persists to the morning screen).
+Page 23 of 42

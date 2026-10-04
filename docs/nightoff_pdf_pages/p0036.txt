@@ -1,0 +1,61 @@
+A Night Off — Arcade Game 6 Design Document
+Seasonal nights never remove the base game: the games, the patrons, and the morning
+after are all there. They add one layer and change the odds.
+The cartel's wares
+The cartel sells as well as collects. From the moment they arrive (and at the Monkey's
+cellar any time after 11), the quiet man's men will sell a player anything on the list for
+money or a favor. Every substance has an effect that is funny, useful, or disastrous, and
+most are two of those. They stack with drink.
+Item
+Sea Salt
+Lamp Oil
+Barnacle
+Kelp Smoke
+Angler's
+Light
+Deep
+Pressure
+Price Effect
+20
+30
+30
+25
+40
+50
+Sobers you 30 points over 2
+minutes
++30% charisma for 5 minutes;
+your captions become eloquent
++50% toughness for 5 minutes,
+no pain (damage taken -30%)
+Everything is funny: +15 mood
+for every patron within 5 m
+while you laugh
+YOU see every patron's trait
+icons and the thieves glow
+Time slows for you in games:
+aim, timing bars, and card tells
+are easy for 3 minutes
+The catch
+Your hands shake for 5 minutes:
+darts, pool, and golf are hopeless
+Afterward, -30% for 5 minutes
+and you tell the truth to everyone
+(honest captions you didn't
+choose)
+You can't stop fighting: any
+patron who bumps you is a fight;
+the police count it as armed
+You laugh during conversations,
+which fails every serious option;
+the Reverend hates it
+You also see things that aren't
+there (fake patrons who vanish
+when spoken to) and the fortune
+teller's cards change when you
+look at them
+The drunk meter climbs 20 when
+it wears off and you miss the next
+2 minutes of the night (a time
+skip; things happened)
+Page 36 of 42

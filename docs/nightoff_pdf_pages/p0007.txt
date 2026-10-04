@@ -1,0 +1,63 @@
+A Night Off — Arcade Game 6 Design Document
+Drunk
+60-79
+80-99
+100
+State
+Hammered
+Wrecked
+Blackout
+Charisma
+Toughness
+160%
+200%
+What it looks like
+Double vision in menus, the
+wrong dialogue option
+sometimes fires, stumbles
+into tables, insults are the
+only flirting left
+Fights don't hurt (damage
+taken -50%), can't play
+games well, throws up (a 5 s
+stun that lowers the meter by
+15), says things
+Passed out: a teammate
+carries you, or the night
+narrates what you did for the
+next IO minutes (random,
+usually expensive) and you
+wake somewhere
+Charisma is the roll bonus in every conversation and flirt. Toughness is damage dealt and
+HP in fights. The curve is the game's thesis: the best fighter in the bar can't talk to anyone,
+and the smoothest talker can't take a punch.
+The drinks (the bartender's menu)
+Drink
+Water
+Small beer
+Pint
+Rum
+Whisky
+Gin
+Drunk Price (7
+-5
++12
++20
++22
++18
+p.m.)
+3
+5
+8
+10
+8
+Side effect
+The bartender judges you
+None
+None
++5% charisma for 2 minutes (sea-legs
+confidence)
++10% toughness for 2 minutes
+Captions get honest: your dialogue options
+show what they'll really sound like
+Page 7 of 42

@@ -1,0 +1,32 @@
+A Night Off — Arcade Game 6 Design Document
+robbery holds the bar while the safe is upstairs; the bikers take the yard while the police
+check the toilets).
+Voice and text
+Text chat, pings, and six emotes (toast, point, laugh, shrug, fists up, fall over). Voice is
+assumed to be external. A player's drunk level is visible to everyone as a sway and a flush,
+so nobody has to say it.
+Dropped players
+A disconnected player's character sits down at the bar and nurses a water (the meter
+drops); if they return within 5 minutes they pick up where they were; if not, their night
+ends as "walked home" with whatever they had.
+Presentation and technology
+Third-person 3D (over the shoulder, with a free orbit for the bar), because the joke is
+watching your own character stumble. It runs on Red Tide's inked low-poly renderer and
+rig system, Flats' card physics for the tables, and the shared arcade networking layer.
+Look
+Style. Depth's inked low-poly: flat shading, screen-space ink outlines, Bayer stipple in
+the shadows, a warm gaslight palette (amber, oak, brass, bottle green, red velvet)
+against the blue dock outside the windows.
+• The crew. Playable characters are the Nautilus crew's silhouettes (Diver, Whaler,
+Stowaway, Mechanic, Captain, Nurse) in shore clothes, with the arcade's skins. Each
+has a rig with Chains for coat hems, hair, and whatever they're carrying.
+• Patrons are built from the same rig with a body-plan sheet of their own: 8 body shapes,
+12 heads, 20 outfits, 6 hats, and a palette per type, so thirty regulars and a generated
+crowd never look the same twice but always look like the Gull's.
+• Drunkenness is animation. Sway, lean, a wider stance, a slower blink, misjudged
+reaches (the hand overshoots the glass), a lurch when the camera turns, and at
+Wrecked a full stumble cycle. Camera lag and a mild double-image post-process above
+60. The mirror in the toilets shows it to you.
+• The room reacts. Props are physics objects (glasses, bottles, chairs, darts, balls); every
+fight makes a mess that stays.
+Page 25 of 42

@@ -1,0 +1,36 @@
+A Night Off — Arcade Game 6 Design Document
+Fighting and weapons
+Fights are cartoon brawls: punches, grabs, throws, and whatever's in reach. Nobody dies
+from a punch. Weapons escalate what a fight costs, and the bar, the police, and the cartel
+all notice.
+The brawl system
+• HP 100, scaled by toughness (so a wrecked player has 200 and takes half damage, and
+a sober one hits for less and feels all of it).
+• Moves: jab (quick, 10), haymaker (slow, 25, a windup you can see), grab (hold 1.5 s, then
+throw into a table or over the bar), shove, block (halves the next hit), dodge (at low
+drunk only: above 60, dodging is falling over).
+• Drunk aiming. Above 40, your swings drift by the same curve as darts; a haymaker at
+80 drunk might hit the wrong person, which starts a second fight.
+• Environment. Tables flip (cover and a thrown-through surface), chairs are thrown, the
+bar top is a stage, stairs are a fall. A patron thrown through a window is out for the
+night and the bartender adds the window to your tab.
+• Knockout. At O HP you're on the floor for 30 s; a teammate can drag you to the toilets.
+Three knockouts in a night and the bartender bars you.
+• Crowds. A fight pulls in anyone within 3 m with a violent trait and anyone Delighted
+with either side. On a packed night a one-on-one becomes a room in under a minute.
+Sister Ash ends fights by walking into them.
+Who fights
+Brooders antagonized past tolerance; Sailors of a rival crew at midnight; jealous partners;
+anyone whose drink you spilled twice; the biker gang if the piano is touched; the
+bartender if you go behind the counter; the cook if you enter the kitchen without buying
+food; a hustler you caught cheating (they swing first); and any patron a teammate has
+made Hostile and pointed at you.
+Weapons
+Weapon
+Fists
+How to get it
+Damage
+10 / 25
+Consequence
+None
+Page 15 of 42

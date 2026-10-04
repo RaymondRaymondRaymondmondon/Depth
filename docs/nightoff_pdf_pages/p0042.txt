@@ -1,0 +1,32 @@
+A Night Off — Arcade Game 6 Design Document
+• Patrons react to events by trait: cowardly ones leave when the police or the robbers
+arrive; violent ones join the brawl; superstitious ones do what the fortune teller last
+said; generous ones buy a round when the band plays.
+• Leaving: at their leave hour, or when Hostile and nobody's fighting them, or when
+they've gone home with someone, or in pairs with whoever they flirted with
+successfully (patrons flirt with each other too; the room pairs off after midnight).
+The fortune deck (22 cards)
+The Diver, the Helm, the Periscope, the Lantern, the Kraken, the Drowned, the Siren, the
+Island, the Cave, the Weeds, the Sunken City, the Abyss, the Bottle, the Coin, the Knife,
+the Key, the Dog, the Goat, the Gull, the Stitch, the Bathtub, the Morning. A reading is
+three cards: who you'll meet, what you'll do, how it ends. The reading is generated from
+the night's actual seeded schedule (which events will fire, which thief is in, which patron
+will flirt with you), so it's true: the Stitch and the Bathtub together mean a thief will make
+an offer; the Key means the safe is open tonight; the Dog means feed it; the Morning
+drawn third means you'll walk home. The fortune teller reads a player once per night; a
+second reading is a lie she tells for fun.
+The headline and story generator
+The morning screen builds from a log of tagged moments (every go-home, kidney, fight,
+win, event, and cartel purchase, with who and when). Headlines are templates ranked by
+rarity: the rarest moment of the night leads (a sober shotgun on the cartel beats a lost
+kidney beats a hole-in-one beats a go-home). Templates are in nightoff_scoring.json ,
+about 80 of them, with slots for names, numbers, and the goat. The morning line per player
+is chosen the same way from that player's log. Two players who did something together
+share a line.
+The dog
+The alley dog has a loyalty meter per player (fed once: follows for 5 minutes; twice: follows
+all night; three times: fights for you and sleeps outside your door, which stops the kidney
+thieves). It can be fed chips, stew, or a hustler's winnings (it eats money). Only one player
+can own it at a time; feeding it more than the current owner steals it, which is a feud. The
+dog's name is whatever the first player to feed it types.
+Page 42 of 42

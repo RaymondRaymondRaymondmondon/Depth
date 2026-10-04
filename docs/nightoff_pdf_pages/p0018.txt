@@ -1,0 +1,103 @@
+A Night Off — Arcade Game 6 Design Document
+Game
+Scratch-
+offs
+The
+fortune
+teller
+Poker
+Bullshit
+Cheating
+Where
+Dispenser, or
+Pip's coat
+The snug
+Card room
+Card room
+Players
+1
+2-6
+3-6
+How it plays
+Scratch three
+panels with the
+cursor
+Three cards drawn
+from a deck of 22
+(Depth's tarot: the
+Diver, the Helm, the
+Kraken, the
+Drowned, the
+Lantern); she reads
+them as a true
+prediction about
+your night
+Texas holdlem with
+Flats' card physics;
+blinds rise each
+hour; patrons have
+tells (ear scratch,
+ring turn, a cough)
+Shed cards face
+down by rank, claim
+the rank, call
+bullshit; the caller
+or the liar takes the
+pile
+What drink does
+Scratching gets
+messy; a wrecked
+player scratches the
+table
+Absinthe lets you
+see the trait icons
+she sees
+Reading tells needs
+charisma: above 60
+drunk the tells are
+invisible; betting
+gets braver (the
+courage bonus is
+real, and expensive)
+Drunk players' claim
+captions are honest
+at 80+ (you say "two
+kings... no, one
+king"), so a sober
+player at a drunk
+table is a wolf
+Stakes and stories
+5 each; 0/10/ 50 / 500;
+Pip's are luckier and
+one in fifty is a map to
+the safe
+IO per reading;
+readings are real: "a
+smile with a cooler"
+names a kidney thief,
+"iron at the door"
+means a police
+inspection within the
+hour; superstitious
+patrons do what their
+reading says
+Buy-in 50; the pot can
+hold a kidney, the
+deed to a patron's
+boat, or the cartel's
+money
+20 buy-in, winner
+takes all; a liar's trait
+gives patrons a
+straight face; honest
+patrons can't lie and
+everyone knows
+Every game can be cheated (a marked card, a weighted dart, nudging the slot machine,
+moving your ball) by holding the cheat key during the action. Cheating succeeds on a
+charisma-plus-sobriety roll; a failure is caught by whoever's watching, which means a fight
+with a bad loser, the bartender's judgment, or the whole table turning on you. A caught
+cheat at poker is a story and a feud.
+Side bets
+Any player or patron can bet on any game in progress by walking up and talking to a player
+at the table. Side bets are the way a player with no money left stays in the night.
+Page 18 of 42

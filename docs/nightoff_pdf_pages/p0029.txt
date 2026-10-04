@@ -1,0 +1,57 @@
+A Night Off — Arcade Game 6 Design Document
+File
+nightoff _ scoring. j son
+Build order
+Stage Work
+Holds
+The morning screen's points, headlines, and story
+templates
+Gate
+1
+2
+3
+4
+5
+6
+7
+8
+9
+The bar as a 3D space, the crew
+characters, movement, the drunk meter
+and its animation, the bartender and the
+menu
+The patron simulation: schedules,
+moods, memory, the conversation mini-
+game, IO regulars
+Games: darts and pool first, then golf,
+slots, scratch-offs, the fortune teller
+Fights and weapons, the room's mess
+and damage, the tab
+Flirting and the morning after: outcomes,
+the kidney, headlines and story
+templates
+Multiplayer through the shared layer: six
+players, modes, drop handling
+Events, all eleven; the crowd curves; the
+rest of the regulars
+Poker and bullshit (Flats' card code),
+cheating, side bets, the cartel's kidney
+pot
+Sound pass, profile persistence, the
+bartender's memory, internet play
+One player can walk in, drink, stumble,
+and pass out
+A dead night is playable alone
+Every game beats a hustler and loses to
+one
+A brawl wrecks the games room and
+the bill is right
+Someone loses a kidney and the
+headline is funny
+Six players on LAN finish a night
+A packed night with the bikers and the
+police
+The kidney comes back in a hand
+Friends across the internet, three
+nights running
+Page 29 of 42

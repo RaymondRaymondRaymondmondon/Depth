@@ -1,0 +1,36 @@
+A Night Off — Arcade Game 6 Design Document
+The generator's extras get a type, three random traits, and one of eight generic secrets
+(owes money, carries a knife, kidney thief at 3%, undercover police, cartel runner, married
+to someone here, lucky, cursed).
+Flirting and going home
+Flirting is a conversation with stakes: three rounds, a charisma roll against the patron's
+interest, and an offer at the end that you can take or walk away from. What happens after
+the door closes depends on who they were, and you usually don't know until the morning.
+The flirt mini-game
+1. Open. Choose a line (compliment, joke, buy a drink, dance invitation). Roll charisma +
+the line's fit against the patron's traits. A romantic patron wants a compliment; a flirty
+one wants a joke; a SUSPiCiOUS one wants a drink first; a loud one wants to dance.
+2. Build. Two more exchanges with four options each. Each SUCCess raises interest by
+one; each failure drops it. Three successes make the offer; two failures end it. Drunk
+captions apply: at 60+ drunk, what you say is a surprise.
+3. The offer. "Walk me home?" or "My place is upstairs." Take it and your night ends in a
+fade; decline and you keep a friend (+mood, they'll back you in a fight).
+4. Signals. Each type has a tell that a sober player can read: a kidney thief glances at the
+toilets' window; a married patron turns a ring; a sincere one laughs at your worst joke.
+Absinthe or a fortune shows trait icons outright.
+Interest is modified by the room: a packed bar after IO p.m. lowers every patron's
+threshold by 1; a round bought raises it; a fight you won within sight raises it for violent
+and loud patrons and ruins it for the gentle ones.
+Where going home ends up
+Who
+A sincere night
+nothing
+Odds (of the 30 regulars)
+15%
+What the morning says
+You wake at their place with breakfast,
++100 score, a kind line, and a new friend
+for the next night
+Tea, a lecture, a bus home at dawn; +50;
+Sweet Wren's specialty
+Page 13 of 42

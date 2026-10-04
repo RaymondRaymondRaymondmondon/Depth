@@ -1,0 +1,32 @@
+A Night Off — Arcade Game 6 Design Document
+Skins never change the numbers, with two exceptions that are jokes everyone sees
+coming: the Constable confuses the police for 10 seconds, and the Golden Kidney is still
+stealable (they take the costume).
+The wheel's odds, the skin list, and the token values are data ( nightoff_skins . j son ), so
+a season can add a tier or a skin without touching code.
+Systems in depth
+The numbers and rules Claude Code needs to build each system without guessing.
+Conversation math
+• A conversation is 3-5 exchanges. Each exchange presents four options (ask, agree,
+joke, challenge). Each option has a base difficulty (ask 40, agree 30, joke 50, challenge
+60) adjusted by the patron's traits (a friendly patron: all -10; suspicious: ask +15;
+honest: agree -10, challenge -10; loud: joke -15; grieving: joke +30; liar: ask +10).
+• Roll = dlOO + charisma modifier (charisma% - 100, so Merry is +10 and Wrecked is -80)
++ mood modifier (Delighted +20, Annoyed -15, Hostile -40) + noise modifier (-10 at
+peak noise unless within 1 m).
+• Success if roll difficulty. Three successes end the conversation well (information, a
+buff, an item, +mood); two failures end it badly (-mood, a fight if the patron is violent
+and the last option was a challenge).
+• At drunk 60+, each option has a 25% chance to be replaced at the moment of speaking
+by a random option; at 80+, 50%, and the replacement is always the most insulting one
+available. The caption shows what came out.
+• Listening (Talkers): a passive option that always succeeds and costs time; every 30 s of
+listening is +2 drunk (you keep sipping) and +1 patron mood.
+Flirt math
+• Interest starts at O; the offer comes at 3; the flirt ends at -2. Each exchange: roll as
+above against the patron's threshold (romantic 45, flirty 35, lonely 40, SUSPiCiOUS 60,
+married 70, teetotal 65, in-love-with-someone-else 80), adjusted by the line's fit (the
+right opener -15, the wrong one +15) and the room (packed after 10 p.m. -5, a round
+bought -10, you won a fight in sight: violent/loud -15, others +20, you lost one:
+everyone +10).
+Page 40 of 42

@@ -1,0 +1,28 @@
+A Night Off — Arcade Game 6 Design Document
+Tests
+--night-sim <crowd> <players> plays a bot night and reports: drinks per player,
+fights, kidneys lost, money in and out, which events fired, and the headline.
+--patron-check asserts every regular has a type, three traits, a secret, 40 lines, and a
+face.
+--game-check <game> plays a bot against each hustler at O, 40, and 80 drunk and
+reports win rates (the targets: sober 55%, drunk 35%, wrecked 10% against a hustler).
+Balance targets
+• A careful player walks home with 300-500 and two kidneys about half the time.
+• A reckless player loses a kidney about one night in five and gets arrested one in six.
+• The average night has 2.4 events, 3 fights, 1.5 go-homes, and one headline nobody
+expected.
+Open questions for the designer
+Decided: the kidney persists for one night; the Uber note delivers it the morning after
+that.
+Decided: player-versus-player fights are on by default, with a host toggle.
+Decided: two bars (the Sodden Gull and the Brass Monkey) with five traveling patrons,
+plus seasonal nights that players can attend or avoid.
+Decided: the cartel sells; see The cartel's wares. They remain quiet and funny, and
+nobody dies.
+The second bar: the Brass Monkey
+The lobby offers two bars. The Sodden Gull is the dockside pub; the Brass Monkey is the
+uptown place across the harbor: a former gentlemen's club gone to seed, with a card room
+that takes itself seriously, a rooftop instead of a yard, and a crowd that dresses better and
+fights dirtier. Most patrons belong to one bar; a few move between them, and what they
+remember travels with them.
+Page 30 of 42

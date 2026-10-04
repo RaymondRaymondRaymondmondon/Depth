@@ -1,0 +1,53 @@
+A Night Off — Arcade Game 6 Design Document
+Drink
+The Gull (house
+special)
+Absinthe
+Grog (crew's choice)
+Coffee
+Chips
+The cook's stew
+Drunk
++35
++45
++15
+-10
+-8
+-20
+Price (7
+p.m.)
+15
+25
+6
+4
+4
+9
+Side effect
+Random: one of the above effects doubled,
+or a hiccup that ruins your next dart
+The fortune teller's visions become visible
+to you for 5 minutes (you see patrons/ trait
+icons)
+Nautilus crew only; +10% charisma with
+other crew
+Hands shake for 1 minute (aim -10%)
+From the kitchen; eating takes IO s
+Eating takes 30 s; a 10% chance the cook
+spits in it (+5 drunk instead)
+Time lowers the meter by 1 per game minute (about 15 per real minute). Prices rise 20% at
+10 p.m. and double at last call. Rounds (buying for everyone within 5 m) cost the sum but
+add +10 charisma with each recipient for 10 minutes.
+Hangovers and the next night
+If the profile persists, a night that ended above 60 drunk gives the next night a hangover:
+start at -10% charisma for the first game hour and a sensitivity to the jukebox.
+The kidney
+If a player wakes without a kidney (see Flirting, the Cartel, the Robbery), every drink's
+drunk value is doubled for the rest of the night and, with a persistent profile, for two
+nights after. The morning screen shows the stitch. There is exactly one way to get a kidney
+back: win one in the poker game's high-stakes pot, which the cartel sometimes puts up.
+Doing so is worth 200 score and a headline.
+Patrons: the personality system
+Every patron is built from the same parts: a type (what they're doing here), three traits
+from a shared list, a mood that moves during the night, a tolerance for being bothered, a
+secret (what happens if you get close), and a memory of what each player has done to
+Page 8 of 42

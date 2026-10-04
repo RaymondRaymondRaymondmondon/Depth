@@ -1,0 +1,91 @@
+A Night Off — Arcade Game 6 Design Document
+After a fight
+The loser is on the floor; the winner's charisma is +10 for 5 minutes with violent and loud
+patrons and -20 with everyone else; the damage goes on the tab of whoever started it
+(the bartender's judgment, which favors whoever he likes). A fight during a police
+inspection is an arrest. A fight you win while sober is the hardest story in the game.
+Bar games
+Eight games, all playable against players or patrons, all for money, all affected by the drunk
+meter in their own way. Each has a hustler who is better than you and a tell that gives
+them away.
+2-4
+2-4
+1—6
+Game
+Darts
+Pool
+Mini golf
+Slot
+machines
+Where
+Games room
+Games room,
+two tables
+The yard,
+nine holes
+Games room,
+three
+Players
+1 each
+How it plays
+501 or Around the
+Clock; aim with a
+reticle that drifts,
+release on a timing
+bar
+8-ball; a cue line
+that wobbles,
+power on a bar,
+English on a small
+dial
+A putting line and a
+power bar; holes
+have a windmill, a
+drain, a sleeping
+dog, a loop, and the
+ninth that drops
+into a fish tank
+Pull; three reels of
+fish, anchors, gulls,
+and kidneys; three
+kidneys pays a
+kidney (the only
+other way to
+replace one)
+What drink does
+Reticle drift grows
+with the meter; at
+Merry it's steadier
+(the courage bonus)
+Line wobble; above
+60 the cue
+sometimes misses
+the cue ball entirely
+Line sway; rain
+makes the ball float
+on holes 4 and 7
+Pulls get faster and
+less deliberate; a
+wrecked player pulls
+until broke
+Stakes and stories
+5-50 per game; a 180 is
+a story; Captain
+Vane's match pays 100
+10-100; Bosun Grieve
+teaches; Sly Pennick
+hustles (he misses the
+first game on
+purpose)
+Per-hole bets; a hole-
+in-one is a story; the
+yard closes at 2 a.m.
+2 per pull; 50 / 200 /
+1,000 for pairs / triples
+/ the kidney line; the
+machines are slightly
+rigged in the house's
+favor and the
+bartender knows
+which one isn't
+Page 17 of 42

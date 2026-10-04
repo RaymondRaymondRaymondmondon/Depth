@@ -1,0 +1,29 @@
+A Night Off — Arcade Game 6 Design Document
+• Faces. Patrons have a mood face (five states) and a flirt face; tells are small animation
+clips (the ear scratch, the ring turn, the glance at the window).
+Dialogue
+All dialogue is text with formant-synth gibberish voices (each patron a pitch and rhythm),
+captioned in the ink style. The conversation and flirt mini-games are a four-option wheel;
+drunk captions substitute the spoken line after the choice. Dialogue lines are data
+( nightoff_dialogue . j son ): about 40 lines per regular, 10 per generic patron, grouped by
+situation and trait.
+Simulation
+The bar is a small agent simulation: each patron has a schedule (arrive, drink, play, talk,
+leave), a mood, a target (a game, a person, a stool), and a memory of each player. About 40
+agents at full rate; events script their arrivals and goals on top. The host runs it; clients
+receive agent positions, animation states, and mood faces.
+Networking
+Host-authoritative through the shared layer: player movement predicted locally;
+conversations, games, bets, and fights resolved on the host; dice rolls are host-side and
+logged for the morning screen's story generator. Bandwidth is small (a few dozen agents,
+no projectiles beyond darts and balls).
+Save and profile
+The arcade profile stores: nights played, headlines earned, kidneys lost and won, the
+bartender's memory of you, feuds and friends among the regulars, and cosmetics.
+Nothing in it changes a night's numbers except the hangover and the bartender's prices.
+Sound design
+The Gull is heard before it's seen: the clink of glasses, thirty gibberish voices at once, the
+jukebox, the rain. Everything is synthesized through Depth's cue registry. The sound's job
+is to make the room feel crowded or empty, to make drunkenness audible, and to give
+every event a tell you hear from the door.
+Page 26 of 42

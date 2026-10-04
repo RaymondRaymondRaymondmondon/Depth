@@ -1,0 +1,69 @@
+A Night Off — Arcade Game 6 Design Document
+The Monkey's drinks
+Celeste serves cocktails: the Harbor Light (+18, +10% charisma for 3 minutes), the Sidecar
+(+20), the Marlin (+30, a snooker buff: cue wobble halved for one frame), the Widow's
+Kiss (+40, honest captions and a tell: you see every patron's trait icons for 2 minutes), and
+Champagne by the bottle (+25 and a round for the room, 60). Beer is available and Celeste
+says something about it.
+The Monkey's cast (20 unique regulars)
+Name
+Celeste (bartender)
+Lord Ashby
+Mrs. Vantage
+The Doorman
+(Horace)
+Dr. Quince
+Madame Ostrova
+Fitch
+The Honourable Pim
+Sergeant Mallory
+Type
+Staff
+Gambler
+Flirt
+Staff
+Talker
+Oddball
+Hustler
+Flirt
+Brooder
+Traits
+honest, suspicious,
+teetotal
+generous, bad loser,
+owes money
+flirty, married, liar
+violent, honest, jealous
+lonely, honest, hungry
+superstitious, generous,
+carries a knife
+cheat, has a tell,
+cowardly
+romantic, broke, honest
+violent, teetotal, honest
+Secret
+Keeps a ledger of every favor
+owed in the room; will trade a
+favor for a name
+Has lost his house twice at
+the high-stakes table and
+won it back once
+Her husband is the doorman
+Mrs. Vantage's husband; the
+roof is his favorite place to
+settle things
+A surgeon; recognizes a
+stitch; can tell you which flirt
+has a cooler, for a drink
+Runs a séance in the library
+at midnight; the stuffed
+marlin answers
+The retired snooker
+champion; coughs before a
+safety shot
+Rich in title, poor in fact;
+going home with him is a cold
+attic and a sincere breakfast
+Off-duty police; a fight near
+him is an inspection
+Page 32 of 42

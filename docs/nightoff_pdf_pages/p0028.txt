@@ -1,0 +1,35 @@
+A Night Off — Arcade Game 6 Design Document
+Fights
+Cartoon punches (a soft thud with a slide whistle at Wrecked), the bottle smash, the cue
+crack, a chair through a table, a window, the shotgun's single enormous boom and the
+silence after it.
+Events (each heard before seen)
+The bachelor party's cheer from the street; the bachelorette's whistles; the bikers'
+engines in the yard (and, a minute later, a polite discussion of chapter nine); the police's
+knock and the inspector's whistle; the robbery's kitchen door and a shout; the cartel's
+quiet (the murmur drops when they walk in); the rival crew's shanty; the lock-in's bolt; the
+wake's organ; the band tuning; the goat.
+Music
+The jukebox is the music. When it's silent, a low piano from the stage noodles by itself (the
+ghost of the Widow Tusk's husband, if you ask her). The morning screen plays a hungover
+waltz.
+Build order, data, and open questions
+Data files
+File
+nightoff _ patrons . j son
+nightoff _ dialogue . j son
+nightoff_drinks . json
+nightoff _ games . j son
+nightoff _ events . json
+nightoff_bar . json
+Holds
+The 30 regulars and the generator's parts (types,
+traits, secrets, looks)
+Conversation and flirt lines by situation and trait;
+drunk substitutions
+The menu, prices by hour, effects
+Each game's rules, drunk curves, hustler settings,
+payouts
+The eleven events: hours, arrivals, goals, outcomes
+The rooms, props, weapons, and what breaks
+Page 28 of 42

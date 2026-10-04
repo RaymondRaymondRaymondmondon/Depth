@@ -1,0 +1,48 @@
+A Night Off — Arcade Game 6 Design Document
+Patrons who travel
+Five patrons move between the bars (Boxer Mags, Captain Vane, Sweet Wren,
+Bartholomew Crane, and Dottie Finch, who thieves wherever the coats are better). A
+traveler who's at the Monkey tonight isn't at the Gull, and their memory of a player is the
+same in both rooms. The ferry between the bars runs every game hour; a player can
+change bars mid-night (15 minutes of game time, the ferryman charges IO, and anything
+left on a tab follows you).
+Which bar
+The lobby picks the bar per night; the arcade profile tracks both bartenders' memories.
+The Gull is the louder, cheaper, fightier night; the Monkey is the richer, sneakier one,
+where the card room and the kidney thief are the dangers and the library is a refuge.
+Seasonal nights
+Some nights one of the two bars is hosting something. The lobby shows what's on where;
+players choose the bar with the event or the bar without it, so a group that wants a quiet
+poker night can take the other ferry. Seasonal nights change the crowd, the prices, the
+events that can roll, and the morning headline's flavor. They rotate on a real calendar (one
+is always available; which one depends on the date) and the host can force any of them.
+Night
+The Harbor
+Festival
+The Storm
+Where
+The Gull
+Either
+What changes
+Fireworks at midnight; stalls
+in the yard (a ring toss, a
+strongman bell, a fish-
+guessing jar); the crowd
+curve is Packed; every
+event's odds double
+The ferry stops; the power
+fails at a random hour
+(candles, no jukebox, no
+slots); the roof or the yard is
+closed; everyone who's in is
+in until it passes
+Signature moment
+The fireworks are a 60 s
+window where every flirt
+succeeds one step easier
+and every fight is invisible
+to the police
+A lock-in by weather; the
+bartender tells the story of
+the Marguerite in the dark
+Page 34 of 42
