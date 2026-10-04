@@ -1,0 +1,9 @@
+{
+  "source": "Mouthful design doc p. 19 (Bots): Minnow eats prey and flees everything bigger; Hunter hunts players a tier below, uses abilities, avoids the trench; Shark reads tells, baits abilities, goes for the king. Bots are named like fish (p. 13).",
+  "levels": [
+    {"level": 1, "name": "Minnow", "sense_m": 18, "ability_use": 0.2, "hunt_mouths": 0.0},
+    {"level": 2, "name": "Hunter", "sense_m": 24, "ability_use": 0.7, "hunt_mouths": 0.6},
+    {"level": 3, "name": "Shark",  "sense_m": 30, "ability_use": 1.0, "hunt_mouths": 1.0}
+  ],
+  "names": ["Gary", "Brinefloat", "The Admiral", "Mrs Fins", "Sprat Sinatra", "Bubbles", "Old Gulp", "Kelpie", "Captain Nibbles", "Salty Steve", "Wobblegong", "Doris", "Finnegan", "Lord Chompsworth", "Pip", "Big Barry", "Tidewater Tim", "Glub", "Marlene", "Sir Scales", "The Bishop", "Nemo's Cousin", "Chum", "Wanda"]
+}

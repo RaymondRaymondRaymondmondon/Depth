@@ -1,0 +1,28 @@
+{
+  "source": "Mouthful design doc pp. 4-5 (Tiers), p. 9 (base speeds 4 m/s at tier 1, 7 at tier 5, 6 at tier 8), p. 10 (bite cooldown 0.8 s at tier 1, 1.5 s at tier 8); lengths of tiers 4, 5, 7 and 8 and the turn rates are ours",
+  "tiers": [
+    {"tier": 1, "name": "Fry",  "mass": 0,    "length_m": 0.10, "speed": 4.00, "bite_cd": 0.80, "turn_deg_s": 340},
+    {"tier": 2, "name": "Tier 2", "mass": 30,   "length_m": 0.25, "speed": 4.75, "bite_cd": 0.90, "turn_deg_s": 300},
+    {"tier": 3, "name": "Tier 3", "mass": 100,  "length_m": 0.50, "speed": 5.50, "bite_cd": 1.00, "turn_deg_s": 260},
+    {"tier": 4, "name": "Tier 4", "mass": 250,  "length_m": 1.00, "speed": 6.25, "bite_cd": 1.10, "turn_deg_s": 220},
+    {"tier": 5, "name": "Tier 5", "mass": 550,  "length_m": 2.00, "speed": 7.00, "bite_cd": 1.20, "turn_deg_s": 180},
+    {"tier": 6, "name": "Tier 6", "mass": 1100, "length_m": 3.50, "speed": 6.70, "bite_cd": 1.30, "turn_deg_s": 145},
+    {"tier": 7, "name": "Tier 7", "mass": 2200, "length_m": 6.00, "speed": 6.30, "bite_cd": 1.40, "turn_deg_s": 115},
+    {"tier": 8, "name": "King",  "mass": 4500, "length_m": 10.0, "speed": 6.00, "bite_cd": 1.50, "turn_deg_s": 90}
+  ],
+  "decay_per_minute": 0.01,
+  "decay_from_tier": 4,
+  "swallow_below": 0.6,
+  "fight_pct": 0.10,
+  "swallow_s": 1.0,
+  "boost_mul": 1.6,
+  "stamina_s": 4,
+  "stamina_refill_s": 6,
+  "respawn_s": 5,
+  "immune_s": 10,
+  "start_mass": 15,
+  "king_bonus": 0.10,
+  "streak_bonus": 0.05,
+  "armored_cost": 5,
+  "plankton_per_s": 1
+}

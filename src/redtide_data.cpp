@@ -762,7 +762,7 @@ static const MapData& MapLoad(const std::string& cacheKey, const std::string& ke
     MapData& m = *md;
     m.key = key;
     // (The Flight's seas are in Red Tide's format under data/flight/sea/<island>/: map keys "flight_<island>")
-    std::string d = key.rfind("flight_", 0) == 0 ? DataDir() + "/../flight/sea/" + key.substr(7) : DataDir() + "/maps/" + key;
+    std::string d = key.rfind("flight_", 0) == 0 ? DataDir() + "/../flight/sea/" + key.substr(7) : key.rfind("mouthful_", 0) == 0 ? DataDir() + "/../mouthful/sea/" + key.substr(9) : DataDir() + "/maps/" + key;   // (and Mouthful's: "mouthful_<arena>")
     Json readme = LoadJsonFile(d + "/readme.json");
     for (const Json& r : readme.a) m.readme.push_back(r.Str0());
     if (!m.readme.empty()) { m.title = m.readme[0]; size_t p = m.title.find("The "); if (p != std::string::npos) { m.title = m.title.substr(p); size_t c = m.title.find(':'); if (c != std::string::npos) m.title = m.title.substr(0, c); } }

@@ -1,0 +1,82 @@
+[
+    {
+        "beast":  "Reef Shark",
+        "attack":  "Bite",
+        "damage":  100,
+        "windup_s":  0.5,
+        "cooldown_s":  4,
+        "range_m":  2.5,
+        "tell (what the player sees)":  "A shape turning toward you",
+        "effect":  ""
+    },
+    {
+        "beast":  "Great White",
+        "attack":  "Bite",
+        "damage":  100,
+        "windup_s":  0.5,
+        "cooldown_s":  4,
+        "range_m":  2.5,
+        "tell (what the player sees)":  "A shape turning toward you",
+        "effect":  ""
+    },
+    {
+        "beast":  "Tiger Shark",
+        "attack":  "Bite",
+        "damage":  100,
+        "windup_s":  0.5,
+        "cooldown_s":  4,
+        "range_m":  2.5,
+        "tell (what the player sees)":  "A shape turning toward you",
+        "effect":  ""
+    },
+    {
+        "beast":  "Hammerhead",
+        "attack":  "Bite",
+        "damage":  100,
+        "windup_s":  0.5,
+        "cooldown_s":  4,
+        "range_m":  2.5,
+        "tell (what the player sees)":  "A shape turning toward you",
+        "effect":  ""
+    },
+    {
+        "beast":  "Leviathan",
+        "attack":  "Bite",
+        "damage":  100,
+        "windup_s":  0.5,
+        "cooldown_s":  4,
+        "range_m":  8,
+        "tell (what the player sees)":  "A shape turning toward you",
+        "effect":  ""
+    },
+    {
+        "beast":  "Orca",
+        "attack":  "Bite",
+        "damage":  100,
+        "windup_s":  0.5,
+        "cooldown_s":  4,
+        "range_m":  2.5,
+        "tell (what the player sees)":  "A shape turning toward you",
+        "effect":  ""
+    },
+    {
+        "beast":  "Barracuda",
+        "attack":  "Bite",
+        "damage":  100,
+        "windup_s":  0.5,
+        "cooldown_s":  4,
+        "range_m":  2.5,
+        "tell (what the player sees)":  "A shape turning toward you",
+        "effect":  ""
+    },
+    {
+        "beast":  "Anglerfish",
+        "attack":  "Bite",
+        "damage":  100,
+        "windup_s":  0.5,
+        "cooldown_s":  4,
+        "range_m":  2.5,
+        "tell (what the player sees)":  "A shape turning toward you",
+        "effect":  ""
+    }
+]

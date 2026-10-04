@@ -1,0 +1,10 @@
+{
+    "flora":  "Seagrass",
+    "type":  "Grazed",
+    "effect":  "Grazers feed",
+    "zones":  "The Lagoon, Reef Shallows",
+    "grazed_by":  "Green Turtle, Mullet",
+    "contact_damage":  0,
+    "regrowth_rate_per_s":  0.2,
+    "regrow_delay_s":  30
+}

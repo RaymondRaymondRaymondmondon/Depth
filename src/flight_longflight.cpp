@@ -659,7 +659,7 @@ void World::StepWonders(float dt) {
 void World::BotWonders() {
     if (!LongFlight() || fmodf(time, DAY) >= 0.2f || HumanOf(cur) || GameDay() < 7) return;
     int alive = 0; for (const auto& b : col.birds) alive += b.alive && b.stage == BStage::Adult;
-    if (alive < 25) return;
+    if (alive < std::min(25, 10 + GameDay() / 3)) return;   // (a bot colony starts its wonder once it has hands to spare: 25 adults, or fewer as the year goes on)
     for (const auto& s : col.builds) if (s.kind == ST_WONDER && !s.built) return;   // (one at a time)
     for (int wd = 0; wd < WD_COUNT; wd++) {
         if (wonderBy[wd] >= 0 || (wd == WD_MONUMENT && Year() < 2)) continue;
@@ -721,6 +721,11 @@ int World::OfferLeague(int to) {
     if (!LongFlight() || to < 0 || to > (int)sides.size() || to == cur) return -1;
     if (Oathbroken(cur)) { Say("An oathbroken colony can't make a league."); return -1; }
     if (col.pearls < CD().leaguePearls) { Say("A league costs a pearl from each."); return -1; }
+    {   // (a league holds at most half the colonies: the rest are the ones it can go to war with)
+        int cap = std::max(2, (int)(sides.size() + 1) / 2), n = 0;
+        for (int s = 0; s <= (int)sides.size(); s++) if (s == cur || s == to || (ColOf(s).league >= 0 && (ColOf(s).league == col.league || ColOf(s).league == ColOf(to).league))) n++;
+        if (n > cap) { Say(TextFormat("A league holds at most %d colonies.", cap)); return -1; }
+    }
     Barter o; o.id = nextOffer++; o.from = cur; o.to = to; o.t = time; o.league = true; o.give[G_PEARLS] = 0;
     offers.push_back(o);
     SayTo(to, SideName(cur) + "'s Herald proposes a league: shared sight, feed lines, flocks together, the Reckoning's score shared (the trade page).");
@@ -1319,6 +1324,7 @@ void World::StepReckoning(float dt) {
                 n.built = false; n.twigs = 0; n.mate = -1; n.bowl = 0; lost++;
             }
             if (lost > 0) C.reckonSurvived = false;
+            C.reckonLost += lost; C.reckonHad += built;
             SayTo(d.side, TextFormat("THE KRAKEN'S RECKONING: %s comes for its debt: %d of your nests lost%s.", d.who, lost, prepared ? " (you were ready)" : ""));
             Chronicle(d.side, CK_BEAST, TextFormat("In the Reckoning %s came for us; we lost %d nests.", d.who, lost));
         }
@@ -1658,8 +1664,7 @@ int RunFlightLongSim(int argc, char** argv) {
             w->Step(0.25f, FounderInput{});
             if (w->GameDay() != d0) {
                 int d = w->GameDay();
-                if (d == 46) for (int s = 0; s < N; s++) { pre[s] = 0; for (const auto& n : w->ColOf(s).nests) pre[s] += n.built; }
-                if (d == 47) for (int s = 0; s < N; s++) { int now = 0; for (const auto& n : w->ColOf(s).nests) now += n.built; if (pre[s] > 0) { reckLoss += 1.0f - (float)now / pre[s]; reckN++; } }
+                if (d == 47) for (int s = 0; s < N; s++) { const Colony& C = w->ColOf(s); if (C.reckonHad > 0) { reckLoss += (float)C.reckonLost / C.reckonHad; reckN++; } }
                 if (getenv("DEPTH_LFTRACE")) { int birds = 0, fish = 0, caught = 0; float mouths = 0; for (int s = 0; s < N; s++) { const Colony& C = w->ColOf(s); for (const auto& b : C.birds) birds += b.alive; for (const auto& c : C.caches) fish += (int)c.fish.size(); if (!C.days.empty()) { caught += C.days.back().caught; mouths += C.days.back().mouths; } }
                     printf("    day %2d %-7s birds %4d cached %4d caught %4d mouths %5.0f  event %d great %d weather %d decree0 %s\n", d, w->SeasonNow().name.c_str(), birds, fish, caught, mouths, w->seasonEvent, w->GreatNow(w->greatEvent) ? w->greatEvent : -1, w->weather.kind, w->col.decree >= 0 ? Decrees()[w->col.decree].key.c_str() : "-"); }
                 if (d % 6 == 1) { int birds = 0; for (int s = 0; s < N; s++) for (const auto& b : w->ColOf(s).birds) birds += b.alive; printf("  [run %d day %2d] %d birds on the map, %.0f s\n", run, d, birds, std::chrono::duration<float>(std::chrono::steady_clock::now() - t0).count()); fflush(stdout); }

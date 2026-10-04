@@ -1,0 +1,118 @@
+{
+    "foods":  [
+                  "Plankton",
+                  "Minnow",
+                  "Shrimp",
+                  "Snail",
+                  "Sardine",
+                  "Crab",
+                  "Urchin",
+                  "Clam",
+                  "Mackerel",
+                  "Snapper",
+                  "Squid",
+                  "Tuna",
+                  "Barracuda",
+                  "Rattail",
+                  "Anglerfish",
+                  "Hatchetfish",
+                  "Giant Isopod",
+                  "Vent Crab",
+                  "Divers",
+                  "Corpse",
+                  "Detritus"
+              ],
+    "rows":  {
+                 "Minnow":  {
+                                "Plankton":  1
+                            },
+                 "Sardine":  {
+                                 "Plankton":  1
+                             },
+                 "Hatchetfish":  {
+                                     "Plankton":  1
+                                 },
+                 "Plankton":  {
+                                  "Detritus":  1
+                              },
+                 "Shrimp":  {
+                                "Detritus":  1
+                            },
+                 "Snail":  {
+                               "Detritus":  1
+                           },
+                 "Clam":  {
+                              "Plankton":  1
+                          },
+                 "Urchin":  {
+                                "Detritus":  1
+                            },
+                 "Crab":  {
+                              "Corpse":  0.5,
+                              "Detritus":  0.5
+                          },
+                 "Vent Crab":  {
+                                   "Corpse":  0.5,
+                                   "Detritus":  0.5
+                               },
+                 "Giant Isopod":  {
+                                      "Corpse":  1
+                                  },
+                 "Rattail":  {
+                                 "Corpse":  0.5,
+                                 "Detritus":  0.5
+                             },
+                 "Mackerel":  {
+                                  "Sardine":  0.6,
+                                  "Minnow":  0.4
+                              },
+                 "Snapper":  {
+                                 "Minnow":  0.3,
+                                 "Shrimp":  0.4,
+                                 "Crab":  0.3
+                             },
+                 "Squid":  {
+                               "Shrimp":  0.5,
+                               "Minnow":  0.5
+                           },
+                 "Anglerfish":  {
+                                    "Hatchetfish":  0.7,
+                                    "Divers":  0.3
+                                },
+                 "Tuna":  {
+                              "Sardine":  0.6,
+                              "Mackerel":  0.4
+                          },
+                 "Barracuda":  {
+                                   "Mackerel":  0.4,
+                                   "Divers":  0.2,
+                                   "Sardine":  0.4
+                               },
+                 "Reef Shark":  {
+                                    "Mackerel":  0.3,
+                                    "Snapper":  0.3,
+                                    "Divers":  0.4
+                                },
+                 "Great White":  {
+                                     "Tuna":  0.4,
+                                     "Divers":  0.6
+                                 },
+                 "Tiger Shark":  {
+                                     "Tuna":  0.3,
+                                     "Barracuda":  0.2,
+                                     "Divers":  0.5
+                                 },
+                 "Hammerhead":  {
+                                    "Tuna":  0.2,
+                                    "Divers":  0.5,
+                                    "Squid":  0.3
+                                },
+                 "Leviathan":  {
+                                   "Divers":  1
+                               },
+                 "Orca":  {
+                              "Tuna":  0.3,
+                              "Divers":  0.7
+                          }
+             }
+}

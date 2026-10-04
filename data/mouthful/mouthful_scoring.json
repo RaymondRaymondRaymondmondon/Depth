@@ -1,0 +1,15 @@
+{
+  "source": "Mouthful design doc p. 13 (Scoring), p. 16 (Tokens)",
+  "mass_per_point": 10,
+  "kill": 50,
+  "kill_per_tier_above": 25,
+  "crown_per_s": 10,
+  "king_killed": 300,
+  "tier_past_4": 50,
+  "apex_shark": 200,
+  "leviathan": 1000,
+  "orca_top3": 100,
+  "round_won": 200,
+  "blobfish_king": 500,
+  "tokens": {"per_round": 10, "per_100_score": 1, "round_won": 20, "first_crown_on_path": 30, "blobfish_king": 500}
+}

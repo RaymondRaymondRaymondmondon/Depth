@@ -1,0 +1,143 @@
+{
+    "zones":  [
+                  {
+                      "zone":  "The Lagoon",
+                      "level":  "Sea",
+                      "x":  "-40",
+                      "y":  50,
+                      "w":  80,
+                      "h":  45,
+                      "door_cost_scrip":  0,
+                      "depth_m":  "0-3",
+                      "notes":  "The bay: anchovies and mullet over sand; safe, small, endless until overfished"
+                  },
+                  {
+                      "zone":  "Reef Shallows",
+                      "level":  "Sea",
+                      "x":  "-150",
+                      "y":  95,
+                      "w":  300,
+                      "h":  45,
+                      "door_cost_scrip":  0,
+                      "depth_m":  "0-6",
+                      "notes":  "The reef flat beyond the bay: snapper, the cleaners, the blacktips at the edge"
+                  },
+                  {
+                      "zone":  "West Shelf",
+                      "level":  "Sea",
+                      "x":  "-230",
+                      "y":  "-140",
+                      "w":  120,
+                      "h":  235,
+                      "door_cost_scrip":  0,
+                      "depth_m":  "0-14",
+                      "notes":  "Mackerel over the shelf"
+                  },
+                  {
+                      "zone":  "East Shelf",
+                      "level":  "Sea",
+                      "x":  110,
+                      "y":  "-140",
+                      "w":  120,
+                      "h":  235,
+                      "door_cost_scrip":  0,
+                      "depth_m":  "0-14",
+                      "notes":  "Mackerel over the shelf"
+                  },
+                  {
+                      "zone":  "North Shelf",
+                      "level":  "Sea",
+                      "x":  "-110",
+                      "y":  "-230",
+                      "w":  220,
+                      "h":  120,
+                      "door_cost_scrip":  0,
+                      "depth_m":  "0-14",
+                      "notes":  "Sardines and snapper off the north shore"
+                  },
+                  {
+                      "zone":  "The Drop-off",
+                      "level":  "Sea",
+                      "x":  "-260",
+                      "y":  140,
+                      "w":  520,
+                      "h":  80,
+                      "door_cost_scrip":  0,
+                      "depth_m":  "0-35",
+                      "notes":  "Where the reef falls away: squid, barracuda, a reef shark"
+                  },
+                  {
+                      "zone":  "The Blue",
+                      "level":  "Sea",
+                      "x":  "-500",
+                      "y":  220,
+                      "w":  1000,
+                      "h":  300,
+                      "door_cost_scrip":  0,
+                      "depth_m":  "0-60",
+                      "notes":  "Open sea: sardine balls, flying fish, tuna and mahi; things that eat birds"
+                  }
+              ],
+    "links":  [
+                  {
+                      "from":  "The Lagoon",
+                      "to":  "Reef Shallows",
+                      "cost_scrip":  0,
+                      "passage":  "The bay mouth"
+                  },
+                  {
+                      "from":  "Reef Shallows",
+                      "to":  "West Shelf",
+                      "cost_scrip":  0,
+                      "passage":  "West reef"
+                  },
+                  {
+                      "from":  "Reef Shallows",
+                      "to":  "East Shelf",
+                      "cost_scrip":  0,
+                      "passage":  "East reef"
+                  },
+                  {
+                      "from":  "Reef Shallows",
+                      "to":  "The Drop-off",
+                      "cost_scrip":  0,
+                      "passage":  "The reef edge"
+                  },
+                  {
+                      "from":  "West Shelf",
+                      "to":  "North Shelf",
+                      "cost_scrip":  0,
+                      "passage":  "Northwest"
+                  },
+                  {
+                      "from":  "East Shelf",
+                      "to":  "North Shelf",
+                      "cost_scrip":  0,
+                      "passage":  "Northeast"
+                  },
+                  {
+                      "from":  "West Shelf",
+                      "to":  "The Drop-off",
+                      "cost_scrip":  0,
+                      "passage":  "Southwest"
+                  },
+                  {
+                      "from":  "East Shelf",
+                      "to":  "The Drop-off",
+                      "cost_scrip":  0,
+                      "passage":  "Southeast"
+                  },
+                  {
+                      "from":  "The Drop-off",
+                      "to":  "The Blue",
+                      "cost_scrip":  0,
+                      "passage":  "The edge"
+                  }
+              ],
+    "pois":  [
+
+             ],
+    "notes":  [
+                  "The Flight\u0027s tropical island (stage 1): a lagoon bay to the south, a reef flat, shelves round the island, the drop-off and the open blue"
+              ]
+}

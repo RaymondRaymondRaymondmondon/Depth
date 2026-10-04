@@ -22,6 +22,7 @@
 #include "game.h"
 #include "voice.h"
 #include "flight.h"
+#include "mouthful.h"
 #include "flight_costumes.h"
 #include "study.h"
 #include "course.h"
@@ -777,6 +778,10 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--flight-longflight-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightLongFlightTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-long") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightLongSim(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--flight-siege") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSiege(argc, argv); }
+    // Mouthful (arcade game 8): the rules, a bot-only round, a duel of two forms
+    if (argc >= 2 && strcmp(argv[1], "--mouthful-test") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--mouthful-round") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulRound(argc > 2 ? atoi(argv[2]) : 11, argc > 3 ? (float)atof(argv[3]) : 15.0f, argc > 4 ? (uint32_t)atoi(argv[4]) : 1u, argc > 5 ? atoi(argv[5]) : 1); }
+    if (argc >= 5 && strcmp(argv[1], "--mouthful-duel") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulDuel(argv[2], argv[3], (float)atof(argv[4]), argc > 5 ? atoi(argv[5]) : 40); }
     if (argc >= 2 && strcmp(argv[1], "--flight-society-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSocietyTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightNetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-war") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightWar(argc, argv); }

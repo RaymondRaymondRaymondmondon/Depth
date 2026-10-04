@@ -480,7 +480,8 @@ struct Colony {
     int speciesTrait[2] = {-1, -1}; std::string speciesName; int speciesDay = -1;
     bool stormCrossed = false, rocEgg = false, fleetBoarded = false;
     float templeT = -1e9f, arkT = -1e9f; int chainMark = -1, windPick = -1;   // (the wonders' hands)
-    int marriages = 0; uint32_t decreesY1 = 0; float marriedT = -1e9f;   // (the Long Flight: dynastic marriages; year one's decrees, so year two can deal them again)
+    int marriages = 0; uint32_t decreesY1 = 0; float marriedT = -1e9f;
+    int reckonLost = 0, reckonHad = 0;   // (the Kraken's Reckoning: nests lost of those it came for; the sim's measure)   // (the Long Flight: dynastic marriages; year one's decrees, so year two can deal them again)
     int league = -1, oathsBroken = 0, warsWon = 0, huntScore = 0; float leagueFrom = 0, oathUntil = -1e9f;
     int wares[WR_COUNT] = {}; std::vector<TradeRoute> routes; int tradeEarned = 0;   // (trade empires)
     bool catchUp = false, regentEver = false, reckonSurvived = false; int coveCatch = 0, tributePaid = 0;   // (the Reckoning's accounts)

@@ -8,7 +8,7 @@
   },
   "evolution": {
     "_source": "doc pp. 5-6: rank II is double the bonus, III triple with a visible change; 20 birds with one trait at III make a species (a second power at 40); 5% mutations, 1% rare births",
-    "species_at": 20, "second_at": 40, "mutate": 0.05, "rare": 0.01, "giant_hunger": 3, "giant_mul": 2, "crested_fervour": 5,
+    "species_at": 14, "second_at": 28, "mutate": 0.05, "rare": 0.01, "giant_hunger": 3, "giant_mul": 2, "crested_fervour": 5,
     "traits": [
       {"key": "big_eggs", "name": "Big Eggs", "effect": "chicks +10 HP as adults", "look": "large eggs", "hp_add": 10, "power": "every chick grows up strong", "species": "Greategg"},
       {"key": "quick", "name": "Quick", "effect": "speed +5%", "look": "slim, swept wings", "speed": 0.05, "power": "every bird is fast (+15%)", "species": "Swiftwing"},
