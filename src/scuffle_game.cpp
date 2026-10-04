@@ -234,6 +234,41 @@ void ReadEvents() {
     if (S.evSeen < base) S.evSeen = base;
     for (uint32_t i = S.evSeen; i < base + E.size(); i++) {
         const sf::Event& e = E[i - base];
+        {   // stage 9: the sound of it (panned by where it is on screen; each stick's yelp in its own voice)
+            float pan = std::clamp((W2S(e.at).x / SCREEN_W) * 2 - 1, -1.0f, 1.0f), voice = 0.8f + 0.09f * std::max(0, e.who);
+            auto cue = [&](int k, float v, float p = 1) { ScuffleCue(k, v, pan, p); };
+            switch (e.kind) {
+                case sf::EV_PUNCH: cue(SFC_PUNCH, 0.5f); break;
+                case sf::EV_HIT: cue(SFC_HIT, 0.6f, voice); break;
+                case sf::EV_HAYMAKER: cue(SFC_HAYMAKER, 0.8f, voice); break;
+                case sf::EV_KICK: cue(SFC_KICK, 0.6f); break;
+                case sf::EV_LAND: if (e.a > 4) cue(SFC_LAND, std::min(1.0f, e.a / 14)); break;
+                case sf::EV_DIE: cue(SFC_DIE, 0.8f, voice); break;
+                case sf::EV_THROW: cue(SFC_THROW, 0.5f); break;
+                case sf::EV_GRAB: cue(SFC_GRAB, 0.6f, voice); break;
+                case sf::EV_SHOT: {
+                    int wi = (int)e.a; const std::string k = wi >= 0 && wi < (int)sf::Weapons().size() ? sf::Weapons()[wi].key : std::string();
+                    int kind = k == "scatter" || k == "minigun" ? SFC_SCATTER : k == "rocket" || k == "sniper" || k == "grenadelauncher" || k == "harpoon" || k == "chum" ? SFC_SHOT_HEAVY : k == "laser" || k == "tesla" ? SFC_LASER : k == "bubble" ? SFC_BUBBLE : k == "snakegun" ? SFC_HISS : k == "confetti" ? SFC_CONFETTI : SFC_SHOT;
+                    cue(kind, 0.55f); break;
+                }
+                case sf::EV_EXPLODE: cue(SFC_EXPLODE, std::min(1.0f, 0.5f + e.a * 0.15f)); break;
+                case sf::EV_BLOCK: cue(SFC_BLOCK, 0.6f); break;
+                case sf::EV_CRATE_OPEN: cue(SFC_CRATE, 0.5f); break;
+                case sf::EV_PICKUP: cue(SFC_PICKUP, 0.4f); break;
+                case sf::EV_EMPTY: cue(SFC_EMPTY, 0.5f); break;
+                case sf::EV_SWING: cue(SFC_SWING, 0.5f); break;
+                case sf::EV_WALL: cue(SFC_WALL, 0.7f); break;
+                case sf::EV_EVENT: cue((int)e.a >= 400 && (int)e.a < 410 ? SFC_ROAR : SFC_EVENT, 0.7f); break;
+                case sf::EV_FREEZE: cue(SFC_FREEZE, 0.6f, voice); break;
+                case sf::EV_BURN: cue(SFC_BURN, 0.5f); break;
+                case sf::EV_ZAP: cue(SFC_ZAP, 0.6f); break;
+                case sf::EV_BUBBLE: cue(SFC_SPLASH, 0.5f); break;
+                case sf::EV_SNAKE: cue(SFC_HISS, 0.5f); break;
+                case sf::EV_INK: cue(SFC_INK, 0.6f); break;
+                case sf::EV_FALL_OUT: cue(SFC_DIE, 0.6f, voice); break;
+                default: break;
+            }
+        }
         if (e.kind == sf::EV_HIT) Splash(e.at, SplashInk(), 5, 2.5f, 0.05f);
         if (e.kind == sf::EV_HAYMAKER) Splash(e.at, SplashInk(), 9, 4.0f, 0.07f);
         if (e.kind == sf::EV_DIE) Splash(e.at, SplashInk(), 22, 5.0f, 0.1f);
@@ -645,8 +680,21 @@ void ScuffleMenuTick(float dt) { if (S.active && S.net) NetTick(dt, false); }   
 static bool EditorFrame(Game& g);
 static bool EditorPlaying();
 static void EditorBackFromPlay();
+// stage 9: the score follows the match (the world's loop, the wall, the boss, the Gauntlet's clock, the round's end)
+static void SceneAudio() {
+    const sf::Match& M = S.M; const sf::World& w = M.w; SfAudio a; a.on = S.active && !S.shot; a.world = w.stage.world;
+    float start = w.Mut(sf::MU_SUDDEN_WALL) ? 15 : w.mode == sf::MD_BOSS ? 150 : w.finale ? sf::Arms().finaleWall : sf::Arms().wallStart;
+    a.wall = w.wallOn && M.phase == sf::Match::P_FIGHT ? std::clamp((w.t - start) / 25.0f, 0.0f, 1.0f) : 0;
+    if (w.mode == sf::MD_BOSS && w.boss.kind >= 0 && !w.boss.dead) { a.boss = w.boss.kind; a.bossPhase = w.boss.phase; }
+    a.gauntlet = w.mode == sf::MD_GAUNTLET; a.dark = w.lightsT > 0 || w.Mut(sf::MU_BLACKOUT); a.replay = S.viewing;
+    if (M.phase == sf::Match::P_COUNT) a.count = (int)ceilf(M.phaseT);
+    if (M.phase == sf::Match::P_WIN) { bool mine = M.roundWinner == S.me || (M.roundWinner == -2 && (w.mode == sf::MD_BOSS || w.mode == sf::MD_GAUNTLET || (S.me < (int)w.sticks.size() && w.sticks[S.me].alive))); a.over = mine ? 1 : 2; }
+    if (M.phase == sf::Match::P_OVER) a.over = M.champion == S.me && !M.gFailed ? 3 : 2;
+    AudioScuffle(a);
+}
 void SceneScuffle(Game& g) {
     float dt = std::min(GetFrameTime(), 1 / 20.0f);
+    SceneAudio();
     if (S.active && S.net) { S.t += dt; S.wallMsgT = std::max(0.0f, S.wallMsgT - dt); S.modeMsgT = std::max(0.0f, S.modeMsgT - dt); NetFrame(g, dt); return; }
     if (EditorFrame(g)) return;
     if (EditorPlaying() && IsKeyPressed(KEY_P)) { EditorBackFromPlay(); return; }

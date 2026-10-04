@@ -1065,7 +1065,7 @@ int main(int argc, char** argv) {
                 if (g.scene != Scene::RedTide) AudioRedTide(RtAudio{});      // (and the Red Tide scene)
                 if (g.scene != Scene::Trawl) AudioTrawl(TwAudio{});          // (and the Trawl)
                 if (g.scene != Scene::Flight) AudioFlight(FlAudio{});        // (and the Flight)
-                if (g.scene != Scene::Mouthful) AudioMouthful(MfAudio{});    // (and Mouthful)
+                if (g.scene != Scene::Mouthful) AudioMouthful(MfAudio{}); if (g.scene != Scene::Scuffle) AudioScuffle(SfAudio{});    // (and Mouthful)
             if (g.scene != Scene::NightOff) AudioNightOff(NoAudio{});    // (and A Night Off)
             }
             ArcadeVoiceFrame(GetFrameTime());   // the arcade's voice chat: the mic out, the table's voices in

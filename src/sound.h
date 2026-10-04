@@ -195,3 +195,20 @@ void AudioNightOff(const NoAudio& a);
 void NightOffCue(int kind, float vol, float pan, float pitch = 1);
 void NightOffVoice(float pitch, float rhythm, int syllables, float vol, float pan, bool laugh);   // a patron's gibberish line (a formant voice)
 void MouthfulCue(int kind, float vol, float pan, float pitch = 1);   // (the Long Flight: a colony's song)   // pitch: the species' voice for calls, a bigger bird lower
+
+// Scuffle (the Deep Arcade's stick fight, stage 9): percussion. A brass-and-drum loop per world that drops out while the
+// wall closes in and comes back as a riff on a win; Boss Arena the boss's ostinato; the Gauntlet a clock under it.
+struct SfAudio {
+    bool on = false;
+    int world = 0;              // WD_ (the loop's key and colour)
+    float wall = 0;             // 0..1 the wall closing in: the band drops out, the wall's rising tone comes in
+    int boss = -1, bossPhase = 0;   // Boss Arena
+    bool gauntlet = false, dark = false, replay = false;
+    int over = 0;               // 1 a round won by you (or your crew), 2 lost, 3 the match won
+    int count = -1;             // the countdown's second (a tick on each)
+};
+void AudioScuffle(const SfAudio& a);
+enum SfCue { SFC_PUNCH, SFC_HIT, SFC_HAYMAKER, SFC_KICK, SFC_LAND, SFC_DIE, SFC_THROW, SFC_SHOT, SFC_SHOT_HEAVY, SFC_SCATTER, SFC_LASER, SFC_BUBBLE, SFC_HISS,
+             SFC_EXPLODE, SFC_BLOCK, SFC_CRATE, SFC_PICKUP, SFC_EMPTY, SFC_SWING, SFC_WALL, SFC_EVENT, SFC_FREEZE, SFC_BURN, SFC_ZAP, SFC_SPLASH, SFC_GRAB,
+             SFC_ROAR, SFC_SLAM, SFC_HAT, SFC_INK, SFC_CONFETTI, SFC_COUNT };
+void ScuffleCue(int kind, float vol, float pan, float pitch = 1);   // pitch: the yelp's voice (per player colour)
