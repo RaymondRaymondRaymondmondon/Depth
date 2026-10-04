@@ -172,10 +172,11 @@ void World::StepController(Stick& k) {
             // up: find the floor under the pelvis, stand there
             Vector2 p{k.pt[J_PELVIS].p.x, std::max(0.0f, k.pt[J_PELVIS].p.y - 0.9f)};
             for (int i = 0; i < 40 && Overlaps(*this, k, p, k.height); i++) p.y += 0.05f;
-            k.pos = p; k.vel = {0, 0}; k.st = S_STAND; k.getUpT = k.trinket == TK_THICK_SKULL ? 0.7f : 0.4f; k.stiff = 0; k.fallTop = p.y;
+            k.pos = p; k.vel = {0, 0}; k.st = S_STAND; k.getUpT = k.trinket == TK_THICK_SKULL ? 0.7f : 0.4f; k.stiff = 0; k.fallTop = p.y; k.steadyT = k.getUpT + 0.6f;
         }
         return;
     }
+    k.steadyT = std::max(0.0f, k.steadyT - dt);
     if (k.getUpT > 0) { k.getUpT -= dt; in = Input{in.moveX * 0, 0, in.aim}; }   // (getting up: no control yet)
     if (k.proneT > 0) { k.proneT -= dt; if (k.proneT <= 0 && !Overlaps(*this, k, k.pos, 1.7f)) { k.st = S_STAND; k.height = 1.7f; } }
     bool ground = k.grounded;
@@ -475,9 +476,10 @@ void World::Hit(Stick& o, int by, float dmg, Vector2 dir, float knock, bool ragd
     if (o.trapT > 0 && by >= 0) o.trapT = 0;
     if (o.frozenT > 0) { o.frozenT = 0; dmg += 20; ragdoll = true; Emit(EV_FREEZE, o.pt[J_PELVIS].p, o.id, by, 1); }
     o.hp -= dmg; o.lastHitBy = by; o.lastHitT = t; o.hitT = 0.25f;
-    o.vel = Vector2Add(Vector2Scale(o.vel, 0.3f), Vector2Scale(dir, knock)); o.knockT = 0.35f;
+    o.vel = Vector2Add(Vector2Scale(o.vel, 0.3f), Vector2Scale(dir, knock)); o.knockT = std::max(o.knockT, 0.35f * std::min(1.0f, knock / 8));   // (a small knock is a small stagger: pistols don't pin you)
     if (o.grabbing >= 0) { sticks[o.grabbing].grabbedBy = -1; o.grabbing = -1; }
-    if (ragdoll) { o.st = S_RAGDOLL; o.ragT = 0.45f + knock * 0.02f; o.stiff = 0; }
+    if (ragdoll && o.steadyT > 0 && knock < 14) ragdoll = false;   // (no stunlock: a stick just up stays up unless the blow is huge)
+    if (ragdoll) { o.st = S_RAGDOLL; o.ragT = std::max(o.st == S_RAGDOLL ? o.ragT : 0.0f, 0.45f + knock * 0.02f); o.stiff = 0; }
     if (o.hp <= 0 && o.trinket == TK_SECOND_WIND && !o.windUsed) { o.hp = 1; o.windUsed = true; o.burnT = std::max(o.burnT, 2.0f); Emit(EV_BURN, o.pt[J_PELVIS].p, o.id, by, 1); }   // (Second Wind: once, at 1 HP, on fire)
     if (o.hp <= 0) Kill(o, by, cause);
 }
@@ -598,14 +600,19 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
     Vector2 from = k.pt[J_NECK].p, at = o.pt[o.st == S_DUCK ? J_HEAD : J_NECK].p;
     if (d && (d->kind == "gun" || d->kind == "thrown")) {
         // keep the weapon's range: close in with a scatter gun, back off with a sniper
-        float want = d->range > 0 ? d->range * 0.6f : d->key == "sniper" || d->key == "carbine" ? 7.0f : d->key == "rocket" || d->key == "grenadelauncher" ? 5.0f : 4.0f;
+        // (long guns keep their distance; short ones close in: a flamethrower, a scatter gun, a tesla want to be near)
+        bool longGun = d->key == "sniper" || d->key == "carbine" || d->key == "harpoon" || d->key == "speargun" || d->key == "rocket" || d->key == "grenadelauncher" || d->key == "chum" || d->key == "flare";
+        float want = d->range > 0 ? d->range * 0.4f : d->key == "sniper" || d->key == "carbine" ? 7.0f : d->key == "rocket" || d->key == "grenadelauncher" ? 5.0f : longGun ? 5.0f : 3.0f;
         Vector2 lead = Vector2Scale(o.vel, d->speed > 0 ? Vector2Distance(from, at) / d->speed * (skill >= 1 ? 0.8f : 0.0f) : 0);
         Vector2 aim = Vector2Normalize(Vector2Subtract(Vector2Add(at, lead), from));
-        if (d->kind == "thrown") aim = Vector2Normalize(Vector2Add(aim, {0, 0.25f + 0.02f * bd}));   // (a lob)
+        // a lob for anything gravity pulls down: aim above the target by the drop over the flight
+        { float g = d->kind == "thrown" ? w.gravity : d->gravity * w.gravity, sp = d->kind == "thrown" ? 13.0f : std::max(1.0f, d->speed), up = d->kind == "thrown" ? 3.0f : 0.0f;
+          if (g > 0) { Vector2 to = Vector2Subtract(Vector2Add(at, lead), from); float tt = Vector2Length(to) / sp; to.y += 0.5f * g * tt * tt - up * tt; aim = Vector2Normalize(to); } }
         float a = atan2f(aim.y, aim.x) + (R() - 0.5f) * 2 * err; in.aim = {cosf(a), sinf(a)};
         bool los = w.LineOfSight(from, at);
         if (!los || bd > want * 1.6f) MoveToward(w, k, o.pos, in, true);
-        else if (bd < want * 0.5f && skill >= 1) { MoveToward(w, k, {k.pos.x - Sgn(o.pos.x - k.pos.x) * 3, k.pos.y}, in, true); }
+        else if (longGun && bd < want * 0.5f && skill >= 1) { MoveToward(w, k, {k.pos.x - Sgn(o.pos.x - k.pos.x) * 3, k.pos.y}, in, true); }
+        else if (!longGun && bd > want) MoveToward(w, k, o.pos, in, true);
         int ammo = d->kind == "thrown" ? w.items[k.weapon].count : w.items[k.weapon].ammo;
         bool shoot = los && bd < std::max(want * 2.2f, 6.0f) && R() < (skill >= 2 ? 0.9f : skill == 1 ? 0.5f : 0.25f);
         if (ammo <= 0) shoot = bd < 7 && los;   // (empty: throw it at them)
@@ -615,10 +622,10 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
     }
     // fists, or a melee weapon: close in and swing
     in.aim = Vector2Normalize(Vector2Subtract(at, from));
-    float reach = d ? 0.6f + d->reach : 0.85f;
-    if (bd > reach * 0.8f) MoveToward(w, k, o.pos, in, true);
+    float reach = d ? 0.45f + d->reach : 0.85f;
+    if (bd > (d ? 0.55f : reach * 0.8f)) MoveToward(w, k, o.pos, in, true);   // (an armed bot keeps pressing in: a retreating target doesn't get away)
     float react = skill >= 2 ? 0.9f : skill == 1 ? 0.55f : 0.3f;
-    if (bd < reach + 0.25f && fabsf(o.pos.y - k.pos.y) < 1.0f && R() < react) in.fire = !fireWas;
+    if (bd < reach + (d ? 0.35f : 0.25f) && fabsf(o.pos.y - k.pos.y) < 1.0f && R() < react) in.fire = !fireWas;
     if (skill >= 1 && o.punchT > 0 && bd < 1.2f && R() < 0.15f * skill) in.moveY = -1;
     // a skilled bot blocks: a punch toward an incoming bullet
     if (skill >= 2 && !d) for (const auto& b : w.bullets) if (b.owner != me && Vector2Distance(b.p, k.pt[J_HAND_R].p) < 1.2f && Vector2DotProduct(b.v, Vector2Subtract(k.pt[J_NECK].p, b.p)) > 0 && R() < 0.5f) { in.aim = Vector2Normalize(Vector2Negate(b.v)); in.fire = !fireWas; break; }

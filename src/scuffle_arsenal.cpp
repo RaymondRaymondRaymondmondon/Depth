@@ -7,6 +7,8 @@
 #include <cstdio>
 #include <functional>
 #include <map>
+#include <array>
+#include <string>
 
 namespace sf {
 
@@ -34,6 +36,78 @@ static void Shoot(World& w, int who, Vector2 aim, float hold = 0) {
     w.sticks[who].in.fire = false;
 }
 static int Count(const World& w, int kind) { int n = 0; for (const auto& th : w.things) n += th.alive && th.kind == kind; return n; }
+
+// ---------------------------------------------------------------- --scuffle-arsenal (doc p. 23): every weapon against every other on three
+// shapes (open: a platform over nothing; a corridor: a short low tunnel; vertical: a shaft of ledges); two Sharp bots,
+// each weapon with its own ammo (spent, it's thrown, then fists), 30 s a duel (then more health wins). Every weapon must
+// have a shape it wins on; support items (the ink bomb, the portal gun, the banana, the bear trap: the doc gives them no
+// damage of their own) can't win a duel alone and are exempt.
+static Stage Shape(int s) {
+    Stage st; st.w = 32; st.h = 18; st.t.assign(32 * 18, T_EMPTY); st.world = WD_NAUTILUS;
+    auto fill = [&](int x0, int y0, int x1, int y1) { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) st.Set(x, y, T_STONE); };
+    if (s == 0) { st.name = "open"; fill(8, 0, 23, 3); st.spawns = {{F(10), F(4)}, {F(22), F(4)}}; }   // (a platform over nothing: knockback kills)
+    else if (s == 1) { st.name = "corridor"; fill(0, 0, 31, 1); fill(9, 5, 22, 6); fill(9, 2, 9, 4); fill(22, 2, 22, 4); st.spawns = {{F(14), F(2)}, {F(17.5f), F(2)}}; }   // (a short, low tunnel: point-blank)
+    else { st.name = "vertical"; fill(0, 0, 31, 1); fill(8, 2, 8, 17); fill(23, 2, 23, 17); fill(9, 5, 12, 5); fill(19, 8, 22, 8); fill(9, 11, 12, 11); fill(19, 14, 22, 14); st.spawns = {{F(15.5f), F(2)}, {F(20.5f), F(9)}}; }   // (a shaft of ledges, one each side in turn)
+    return st;
+}
+static int Duel(int wa, int wb, int shape, uint32_t seed) {
+    World w; w.Init(Shape(shape), 2, seed); w.nextCrate = 1e9f; w.wallOn = false;   // (each with its own ammo: spent, it's thrown, then fists)
+    int wpn[2] = {wa, wb};
+    for (int i = 0; i < 2; i++) { Stick& k = w.sticks[i]; w.SpawnStick(k, w.stage.spawns[i], i == 0 ? 1 : -1); }
+    for (int f = 0; f < 30; f++) w.Step();
+    for (int i = 0; i < 2; i++) { Stick& k = w.sticks[i]; int it = w.SpawnWeapon(wpn[i], k.pt[J_HAND_R].p, {0, 0}); w.Pickup(k, it); }
+    uint32_t rr[2] = {seed * 3 + 1, seed * 7 + 5};
+    for (int f = 0; f < 120 * 30; f++) {
+        for (int i = 0; i < 2; i++) {
+            Stick& k = w.sticks[i];
+            BotInput(w, i, k.in, rr[i], 2);
+        }
+        w.Step();
+        if (getenv("DEPTH_DUELTRACE") && f % 30 == 0) { const Stick& a = w.sticks[0]; const Stick& b = w.sticks[1]; printf("      t %.2f  A x %.2f hp %.0f st %d swing %.2f in.fire %d aim %.2f,%.2f |  B x %.2f hp %.0f st %d | things %d bullets %d\n", w.t, a.pos.x, a.hp, (int)a.st, a.swingT, (int)a.in.fire, a.in.aim.x, a.in.aim.y, b.pos.x, b.hp, (int)b.st, (int)w.things.size(), (int)w.bullets.size()); }
+        if (!w.sticks[0].alive || !w.sticks[1].alive) break;
+    }
+    if (w.sticks[0].alive != w.sticks[1].alive) return w.sticks[0].alive ? 0 : 1;
+    if (fabsf(w.sticks[0].hp - w.sticks[1].hp) < 1) return -1;
+    return w.sticks[0].hp > w.sticks[1].hp ? 0 : 1;
+}
+int RunScuffleArsenal(int reps) {
+    const auto& W = Weapons(); int n = (int)W.size();
+    if (const char* one = getenv("DEPTH_DUEL")) {   // (one duel, traced: DEPTH_DUEL=keyA,keyB,shape)
+        char a[32] = {}, b[32] = {}; int s = 1; sscanf(one, "%31[^,],%31[^,],%d", a, b, &s);
+        int r = Duel(WeaponIndex(a), WeaponIndex(b), s, 77); printf("duel %s vs %s on shape %d: %s\n", a, b, s, r == 0 ? "first wins" : r == 1 ? "second wins" : "draw"); return 0;
+    }
+    static const char* SH[3] = {"open", "corridor", "vertical"};
+    std::vector<std::array<int, 3>> wins(n, {0, 0, 0}), games(n, {0, 0, 0});
+    std::string only = getenv("DEPTH_ARSENAL_ONLY") ? getenv("DEPTH_ARSENAL_ONLY") : "";
+    int duels = 0;
+    for (int a = 0; a < n; a++) for (int b = a + 1; b < n; b++) {
+        if (!only.empty() && W[a].key != only && W[b].key != only) continue;
+        for (int s = 0; s < 3; s++) for (int r = 0; r < reps; r++) {
+            // each side once (the spawns differ on the vertical shape)
+            for (int side = 0; side < 2; side++) {
+                int x = side ? b : a, y = side ? a : b;
+                int win = Duel(x, y, s, 1000 + a * 131 + b * 17 + r * 7 + side);
+                duels++;
+                if (!only.empty() && getenv("DEPTH_ARSENAL_TRACE")) printf("    %-16s vs %-16s on %-8s: %s\n", W[x].name.c_str(), W[y].name.c_str(), SH[s], win == 0 ? "first wins" : win == 1 ? "second wins" : "draw");
+                games[x][s]++; games[y][s]++;
+                if (win == 0) wins[x][s] += 2; else if (win == 1) wins[y][s] += 2; else { wins[x][s]++; wins[y][s]++; }
+            }
+        }
+    }
+    printf("scuffle-arsenal: %d duels (every weapon against every other, on three shapes, both sides, %d each)\n", duels, reps);
+    printf("  %-18s %8s %9s %9s\n", "weapon", "open", "corridor", "vertical");
+    int nowhere = 0; std::string losers;
+    for (int i = 0; i < n; i++) {
+        if (!only.empty() && W[i].key != only) continue;
+        float best = 0; int bs = 0; float rate[3];
+        for (int s = 0; s < 3; s++) { rate[s] = games[i][s] ? wins[i][s] / (2.0f * games[i][s]) : 0; if (rate[s] > best) { best = rate[s]; bs = s; } }
+        printf("  %-18s %7.0f%% %8.0f%% %8.0f%%   best: %s%s\n", W[i].name.c_str(), rate[0] * 100, rate[1] * 100, rate[2] * 100, SH[bs], best >= 0.5f ? "" : W[i].support ? "   (a support item: exempt)" : "   (wins nowhere)");
+        if (best < 0.5f && !W[i].support) { nowhere++; losers += (losers.empty() ? "" : ", ") + W[i].name; }
+    }
+    if (nowhere) printf("scuffle-arsenal: %d weapon(s) win nowhere: %s\n", nowhere, losers.c_str());
+    else printf("scuffle-arsenal: every weapon wins somewhere\n");
+    return nowhere ? 1 : 0;
+}
 
 int ScuffleArsenalChecks() {
     AF6 = 0;
@@ -67,7 +141,7 @@ int ScuffleArsenalChecks() {
       C6(w.sticks[1].hp < 70, TextFormat("the laser burns through (%.0f HP after a second)", w.sticks[1].hp));
       World r = Place(s, {F(8)}); Arm(r, 0, "laser"); Shoot(r, 0, Vector2Subtract({F(20.5f), F(3.5f)}, r.sticks[0].pt[J_HAND_R].p), 0.3f);
       C6(r.stage.At(20, 3) == T_EMPTY, "and cuts ropes"); }
-    { Stage s = Arena(WD_REEF); World w = Place(s, {F(8), F(16)}); Arm(w, 0, "chum"); Shoot(w, 0, {1, 0.3f}); Run(w, 4);
+    { Stage s = Arena(WD_REEF); World w = Place(s, {F(8), F(16)}); Arm(w, 0, "chum"); Shoot(w, 0, {1, 0}); Run(w, 4);
       C6(Count(w, TH_FISH) >= 2, TextFormat("the chum cannon: the Reef's fish come to it (%d)", Count(w, TH_FISH))); }
     { World w = Place(Arena(), {F(8), F(13)}); Arm(w, 0, "netgun"); Shoot(w, 0, {1, 0.15f}); Run(w, 0.5f); float x0 = w.sticks[1].pos.x;
       Run(w, 1.5f, [](World& ww) { ww.sticks[1].in.moveX = 1; });

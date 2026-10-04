@@ -96,7 +96,7 @@ template <class A> void VisitStick(A& a, Stick& k) {
     a.f(k.swimT); a.f(k.hazT); a.f(k.sharkT); a.b(k.wet);
     a.f(k.burnT); a.f(k.frozenT); a.f(k.bubbleT); a.f(k.netT); a.f(k.gravT); a.f(k.trapT);
     a.i(k.gear); a.f(k.gearFuel); a.f(k.gearCool); a.v2(k.hook); a.b(k.hookOn); a.b(k.gearWas);
-    a.i(k.trinket); a.f(k.size); a.b(k.airJump); a.b(k.windUsed); a.i(k.carry);
+    a.i(k.trinket); a.f(k.size); a.b(k.airJump); a.b(k.windUsed); a.i(k.carry); a.f(k.aimT); a.f(k.steadyT);
     a.i(k.kills); a.i(k.lastHitBy); a.f(k.lastHitT); a.s(k.cause);
     VisitInput(a, k.in);
 }

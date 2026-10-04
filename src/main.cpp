@@ -818,6 +818,7 @@ int main(int argc, char** argv) {
     // A Night Off (arcade game 6)
     if (argc >= 2 && strcmp(argv[1], "--night-test") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunNightTest(); }
     if (argc >= 2 && strcmp(argv[1], "--scuffle-test") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--scuffle-arsenal") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleArsenal(argc >= 3 ? std::max(1, atoi(argv[2])) : 1); }
     if (argc >= 2 && strcmp(argv[1], "--scuffle-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleNetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--scuffle-build-packs") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleBuildPacks(); }
     if (argc >= 2 && strcmp(argv[1], "--scuffle-verify-all") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleVerify("all"); }

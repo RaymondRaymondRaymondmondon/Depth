@@ -97,8 +97,8 @@ struct WeaponDef {
     std::string key, name, kind, special, wrong;      // kind: gun, melee, thrown
     int stage = 2, ammo = 0, pellets = 1, pierce = 1, bounce = 0, count = 0;
     float dmg = 0, rate = 1, knock = 0, recoil = 0, speed = 0, spread = 0, head = 1, gravity = 0, area = 0, areaDmg = 0, fuse = 0;
-    float swing = 0.3f, reach = 0.8f, throwDmg = 0, range = 0, spinup = 0;
-    bool hold = false, twin = false, pin = false, deflect = false, blocks = false;
+    float swing = 0.3f, reach = 0.8f, throwDmg = 0, range = 0, spinup = 0, scope = 0;   // (scope: seconds between the trigger and the shot: the sniper's glint)
+    bool hold = false, twin = false, pin = false, deflect = false, blocks = false, support = false;   // (support: a utility item that can't win a duel alone: the ink bomb, the portal gun)
 };
 const std::vector<WeaponDef>& Weapons();
 int WeaponIndex(const std::string& key);
@@ -158,6 +158,8 @@ struct Stick {
     // stage 6: what the strange weapons do to a stick (seconds left), the gear slot and its state
     float burnT = 0, frozenT = 0, bubbleT = 0, netT = 0, gravT = 0, trapT = 0;
     int gear = -1; float gearFuel = 3, gearCool = 0; Vector2 hook{}; bool hookOn = false, gearWas = false;
+    float aimT = 0;                                        // (a scoped shot on its way: it fires when this runs out)
+    float steadyT = 0;                                     // (just back on your feet: no ragdoll for a moment, so nothing can keep you down)
     int trinket = TK_NONE; float size = 1; bool airJump = false, windUsed = false; int carry = -1;   // (stage 6b: the trinket; Giants and Tiny; the Spring Heels' second jump; the Second Wind; the Pack Rat's second weapon)
     // the round's story
     int kills = 0; int lastHitBy = -1; float lastHitT = -10; std::string cause;
@@ -284,6 +286,7 @@ std::vector<Stage> StagePlaylist(int world = -1);           // a world's forty (
 std::vector<Stage> FinalePlaylist(int world = -1);
 
 int RunScuffleTest();                                      // --scuffle-test
+int RunScuffleArsenal(int reps);                           // --scuffle-arsenal [reps]: every weapon against every other on three shapes
 int RunScuffleDeterminism(uint32_t seed);                  // --scuffle-determinism <seed>
 int RunScuffleSim(int players, int rounds, int arsenal = AR_CLASSIC);   // --scuffle-sim <players> <rounds> [arsenal]: bots play a match
 

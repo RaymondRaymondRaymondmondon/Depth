@@ -174,6 +174,69 @@ The user is away (order of 2026-10-04: build it after A Night Off, don't stop). 
 - `--scuffle-sim 4 120` across all six worlds: rounds are 18 s (the new pits, the abyss and the sharks), falls 37% of
   deaths: for the balance pass (stage 9).
 
+## Stage 6: the full arsenal, gear, trinkets, mutators, events (done)
+- **All 48 weapons are in the crates** (`scuffle_special.cpp`, `scuffle_arms.cpp`):
+  - What they do to a stick (`StepStatus`): burning (12 a second; water puts it out; wood catches and spreads), frozen
+    (a statue, then a ragdoll; a hit shatters it for 20 more), bubbled (carried up and along, can't act; a hit pops it),
+    netted (held 3 s), flipped (the gravity gun: up is down while the beam is on you; past the top is "fell into the
+    sky"), trapped (a bear trap holds you until you're hit free).
+  - What they leave (`Thing`, `StepThings`): bees (the nearest stick but their owner's, unless the owner is much the
+    nearer), snakes (slither and bite; lunge when close; fists and blasts kill them), fish (come to chum in the Reef
+    and the Void), the black hole (pulls everything within 6 m for 4 s; the middle is gone), portals (two per owner;
+    sticks and bullets go through), a bear trap, a turret (10 s), a mine, a banana peel, a decoy, a spring, a stuck
+    charge, beams.
+  - The beams (`SpecialFire`): the tesla gun (an instant arc; it chains to two more sticks, and to anyone in the same
+    water), the gravity gun, the laser (reflects off ice and glass, cuts ropes).
+  - Thrown things fly as bullets with gravity and become things where they land.
+  - The melee specials: the trident vaults, the pool cue breaks in two (two weapons), the sledgehammer breaks the
+    tile it comes down on, the whip pulls, the oar rows twice as fast, the tesla gaff sparks on and its shock holds
+    you, the frying pan cooks bees.
+  - Duck and click throws whatever you hold (the axe spins for 60). The boomerang comes back (it hits you if you
+    missed). Only the harpoon, the speargun and the tesla weapons work underwater.
+- **Gear** (one crate in ten; a second slot on the gear button, E or the right mouse button; `StepGear`): grappling
+  hook, shield, jetpack (3 s, recharges on the ground, burns whoever's under you), decoy, parachute, spring, rope.
+  **Traps** (one crate in thirty): a snake, bees, or a flashbang. The bots use gear (the jetpack, the parachute and
+  the hook out of falls, the shield against a gun, the rest now and then) and lob thrown things and gravity shots.
+- **Trinkets** (14 and None, `scuffle_rules.cpp`): each with its edge and its cost, as the doc lists them; picked on
+  the arcade's plate (the game picks if you don't), sent with hello, shown over each scoreboard box.
+- **Mutators** (17, stackable; Random picks one each round): Low Gravity, Moon Shot, Ricochet, Big Heads, Infinite
+  Ammo, One Hit, Ragdoll Royale, Snakes, Hot Potato, Blackout, Giants (x1.6: a true double wedges sticks in the
+  stages' gaps), Tiny, Mirror, Vampire, Sudden Wall, Pacifist, Fast Forward. The lobby and the plate pick none, Random,
+  or one (the engine stacks any number).
+- **Mid-round events** (one round in four, at 10-30 s, a one-second tell and a banner): the Flood, the Reach, Lights
+  Out, Crate Rain, Earthquake, Swap, the Dog, Gravity Flip, the Bouncer, Fish Storm.
+- **The gate** (`--scuffle-arsenal [reps]`): every weapon against every other on three shapes (open: a platform over
+  nothing; a corridor: a short low tunnel; vertical: a shaft of ledges), both sides, each weapon with its own ammo
+  (spent, it's thrown, then fists), 30 s (then more health wins). With 3 reps (20,304 duels, about 3 minutes):
+  **every weapon wins somewhere.** The four support items (the ink bomb, the portal gun, the banana, the bear trap:
+  the doc gives them no damage of their own) are exempt (`"support": true` in the data). The shapes now favour what
+  the doc says: knockback and long guns own the open platform, melee owns the corridor, explosives, thrown things and
+  the pistols own the shaft.
+- **The balance changes the gate needed** (all in `scuffle_weapons.json` unless noted; the doc's numbers were the
+  start):
+  - Engine rules:
+    - a small knock is a small stagger (pistols no longer pin you);
+    - a stick just back on its feet can't be ragdolled again for a moment (no stunlocks);
+    - melee hits put the target's next shot or swing back 0.35 s (hitstun), and swings step into the blow;
+    - your own explosions hurt you at 25%;
+    - pellets top up a body's motion instead of stacking (the scatter gun's knock went from 10 to 13 to keep its
+      flight).
+  - The sniper's 0.5 s scope (it loses point-blank).
+  - The frying pan's held block stops bullets rather than reflecting them (only a timed swing or punch reflects).
+  - Fire 12 a second; the flamethrower's pellets 10 each over 6 m.
+  - The ice gun 10 damage and a 1.4 s freeze. The bubble gun 8 damage, and a bubble disarms.
+  - Bees 26 a sting every 0.25 s for 7 s.
+  - Snakes 42 on the shot, then 25 a bite. Chum 55. The boomerang 45 (6 to you on a miss). The flare 30 at 1.5 a second.
+  - Melee: the tesla gaff 40 with a shock, the fish's reach 1.0, the oar's knock 11, the sledgehammer's swing 0.6.
+  - Thrown: limpets 100 in 2.6 m on a 1 s fuse, six of them; sticky bombs 85; mines 90 and four; bottles 45 and four.
+  - The harpoon's pin 1 s.
+- **The look** (`scuffle_arsenalart.inl`): every weapon's silhouette in hand and on the floor, the things, statuses on
+  the bodies, gear in use, burning wood, the screen's ink, flash and dark (Lights Out and Blackout glow only where
+  there's fire, a shot or a tell), the Flood's water, the Reach's arm, event banners, the hot potato's count. Shots
+  `scuffle_arsenal`, `scuffle_blackout`.
+- Checks: `--scuffle-test` adds stage 6 (41 checks: every strange weapon, thrown thing, melee special and gear, and
+  gear and trap crates at one in ten and one in thirty) and stage 6b (40: every trinket, mutator and event, and one
+  round in four having an event).
+
 ## Next
-Stage 6: the full arsenal (the other 36 weapons), gear, trinkets, mutators, events. Gate: `--scuffle-arsenal` shows
-every weapon wins somewhere.
+Stage 7: the modes (teams, objectives, Hunt, Duel) and the Gauntlet. Gate: each mode finishes with bots.

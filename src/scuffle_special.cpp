@@ -71,7 +71,7 @@ void World::StepStatus(Stick& k) {
     if (k.burnT > 0) {
         k.burnT -= dt;
         if (k.wet) k.burnT = 0;
-        if (k.alive) { k.hp -= 8 * dt; if (k.hp <= 0) Kill(k, Blame(*this, k), "fire"); }
+        if (k.alive) { k.hp -= 12 * dt; if (k.hp <= 0) Kill(k, Blame(*this, k), "fire"); }
     }
     if (!k.alive) { k.frozenT = k.bubbleT = k.netT = k.gravT = k.trapT = 0; k.hookOn = false; return; }
     if (k.frozenT > 0) {
@@ -81,7 +81,7 @@ void World::StepStatus(Stick& k) {
     if (k.netT > 0) { k.netT -= dt; Input keep = k.in; k.in = Input{}; k.in.aim = keep.aim; k.vel.x *= 0.5f; }
     if (k.trapT > 0) { k.trapT -= dt; k.in.moveX = 0; k.in.jump = false; k.vel.x = 0; }
     if (k.bubbleT > 0) {
-        k.bubbleT -= dt; k.vel.y = 2.4f; k.vel.x *= 0.98f; k.in.jump = false; k.st = S_AIR;
+        k.bubbleT -= dt; k.vel.y = 2.4f; k.in.moveX = 0; k.in.jump = false; k.in.fire = false; k.st = S_AIR;   // (inside a bubble you can't do anything)
         for (auto& a : k.pt) a.q.y -= gravity * dt * dt;   // (the body floats too)
     }
     if (k.gravT > 0) k.gravT -= dt;
@@ -148,19 +148,19 @@ bool World::SpecialHit(Bullet& b, Vector2 at, Stick* k) {
     if (b.hazard != -1 || (sp.empty() && d.kind != "thrown")) return false;
     int by = b.owner;
     auto floorAt = [&](Vector2 p) { for (int i = 0; i < 40; i++) { if (stage.Solid((int)floorf(p.x / TILE), (int)floorf((p.y - 0.02f) / TILE))) return p; p.y -= 0.05f; } return p; };
-    if (sp == "fire") { if (k) { Burn(*k, d.key == "flare" ? 3.0f : 1.2f, by); if (d.dmg > 0 && d.key == "flare") Hit(*k, by, d.dmg, Vector2Normalize(b.v), d.knock, false, d.name.c_str()); return true; }
+    if (sp == "fire") { if (k) { if (d.dmg > 0) Hit(*k, by, d.dmg, Vector2Normalize(b.v), d.knock, false, d.name.c_str()); Burn(*k, d.key == "flare" ? 3.0f : 1.2f, by); return true; }
                         int tx = (int)floorf(at.x / TILE), ty = (int)floorf(at.y / TILE);
                         for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) { uint8_t q = stage.At(tx + dx, ty + dy); int i = (ty + dy) * stage.w + tx + dx;
                             if (q == T_WOOD && i >= 0 && i < (int)fireT.size() && fireT[i] <= 0) fireT[i] = STEP; else if (q == T_ICE) stage.Set(tx + dx, ty + dy, T_EMPTY); }
                         return true; }
-    if (sp == "freeze") { if (k) { Freeze(*k, 2, by); return true; }
+    if (sp == "freeze") { if (k) { if (d.dmg > 0) Hit(*k, by, d.dmg, Vector2Normalize(b.v), 0, false, d.name.c_str()); Freeze(*k, 1.4f, by); return true; }   // (a shot at a frozen stick shatters it: Hit adds 20)
                           int tx = (int)floorf(at.x / TILE), ty = (int)floorf(at.y / TILE);
                           for (int dy = -1; dy <= 1; dy++) for (int dx = -2; dx <= 2; dx++) if (stage.Liquid(tx + dx, ty + dy)) stage.Set(tx + dx, ty + dy, T_ICE);
                           return true; }
     if (sp == "snake") { if (k) Hit(*k, by, d.dmg, Vector2Normalize(b.v), 1, false, "a snake"); Snakes(k ? k->pt[J_PELVIS].p : at, 1, by); return true; }
-    if (sp == "bees") { int s = AddThing(TH_SWARM, at, {}, d.kind == "thrown" ? 8.0f : 5.0f, by); things[s].weapon = b.weapon; Emit(EV_BEES, at, -1, by); return true; }
+    if (sp == "bees") { int s = AddThing(TH_SWARM, at, {}, d.kind == "thrown" ? 8.0f : 7.0f, by); things[s].weapon = b.weapon; Emit(EV_BEES, at, -1, by); return true; }
     if (sp == "blackhole") { AddThing(TH_HOLE, at, {}, 4, by); Emit(EV_EXPLODE, at, -1, by, 0.2f); return true; }
-    if (sp == "bubble") { if (k && k->trinket == TK_DEADWEIGHT) return true; if (k) { k->bubbleT = 3; k->lastHitBy = by; k->lastHitT = t; Emit(EV_BUBBLE, k->pt[J_PELVIS].p, k->id, by); } return true; }
+    if (sp == "bubble") { if (k && k->trinket == TK_DEADWEIGHT) return true; if (k && d.dmg > 0) Hit(*k, by, d.dmg, {0, 1}, 0, false, d.name.c_str()); if (k && k->alive) { k->bubbleT = 3; k->vel.x = Vector2Normalize(b.v).x * 2.2f;   /* (carried along the shot as it rises) */ k->lastHitBy = by; k->lastHitT = t; Emit(EV_BUBBLE, k->pt[J_PELVIS].p, k->id, by); } return true; }
     if (sp == "net") { if (k) { k->netT = 3; Hit(*k, by, d.dmg, Vector2Normalize(b.v), 0, false, d.name.c_str()); Emit(EV_TRAP, k->pt[J_PELVIS].p, k->id, by); } return true; }
     if (sp == "chum") { if (k) Hit(*k, by, d.dmg, Vector2Normalize(b.v), d.knock, false, d.name.c_str()); AddThing(TH_CHUM, k ? k->pt[J_PELVIS].p : at, {}, 8, by); return true; }
     if (sp == "portal") {
@@ -180,13 +180,17 @@ bool World::SpecialHit(Bullet& b, Vector2 at, Stick* k) {
         if (sp == "stick") { int s = AddThing(TH_STUCK, at, {}, d.fuse, by); things[s].on = k ? k->id : -1; if (k) things[s].q = Vector2Subtract(at, k->pt[J_PELVIS].p); things[s].weapon = b.weapon; return true; }
         if (d.key == "sticky") { int s = AddThing(TH_STUCK, at, {}, d.fuse, by); things[s].on = k ? k->id : -1; if (k) things[s].q = Vector2Subtract(at, k->pt[J_PELVIS].p); things[s].weapon = b.weapon; return true; }
         if (sp == "ink") { inkT = 3; Emit(EV_INK, at, -1, by); return true; }
-        if (sp == "flash") { flashT = 1.5f; Emit(EV_FLASH, at, -1, by); return true; }
+        if (sp == "flash") {   // (the white-out, and a concussion: anyone within 3 m is knocked down)
+            flashT = 1.5f; Emit(EV_FLASH, at, -1, by);
+            for (auto& o : sticks) { if (!o.present || !o.alive || o.id == by) continue; Vector2 dd = Vector2Subtract(o.pt[J_PELVIS].p, at); float L = Vector2Length(dd); if (L < 3) Hit(o, by, 14, Vector2Normalize(Vector2Add(dd, {0, 0.6f})), 11 * (1 - L / 3) + 4, true, d.name.c_str()); }
+            return true;
+        }
         if (sp == "trap") { if (k) { Hit(*k, by, 15, {0, -1}, 0, false, d.name.c_str()); k->trapT = 4; Emit(EV_TRAP, k->pt[J_FOOT_L].p, k->id, by); return true; } AddThing(TH_TRAP, down, {}, 60, by); return true; }
         if (sp == "turret") { int s = AddThing(TH_TURRET, down, {}, 10, by); things[s].cool = 0.6f; return true; }
-        if (sp == "mine") { int s = AddThing(TH_MINE, down, {}, 60, by); things[s].cool = 0.8f; things[s].weapon = b.weapon; return true; }
-        if (sp == "slip") { if (k) { k->st = S_RAGDOLL; k->ragT = 0.8f; k->stiff = 0; k->lastHitBy = by; k->lastHitT = t; return true; } AddThing(TH_PEEL, down, {}, 60, by); return true; }
+        if (sp == "mine") { int s = AddThing(TH_MINE, down, {}, 60, by); things[s].cool = 0.3f; things[s].weapon = b.weapon; return true; }
+        if (sp == "slip") { if (k) { k->st = S_RAGDOLL; k->ragT = 0.8f; k->stiff = 0; k->lastHitBy = by; k->lastHitT = t; for (auto& a : k->pt) a.q = Vector2Subtract(a.p, Vector2Scale({Vector2Normalize(b.v).x * 6, 3}, STEP)); return true; } AddThing(TH_PEEL, down, {}, 60, by); return true; }
         if (sp == "snakes") { Snakes(down, 4, by); return true; }
-        if (sp == "bottle") { if (k) Hit(*k, by, d.dmg, Vector2Normalize(b.v), 4, false, "a bottle"); Emit(EV_HIT, at, -1, by, 0); return true; }
+        if (sp == "bottle") { if (k) Hit(*k, by, d.dmg, Vector2Normalize(b.v), 7, false, "a bottle"); Emit(EV_HIT, at, -1, by, 0); return true; }
     }
     return false;
 }
@@ -222,14 +226,16 @@ void World::StepThings() {
         if (th.life <= 0 && th.kind != TH_STUCK) { th.alive = false; continue; }
         switch (th.kind) {
         case TH_SWARM: {
-            Vector2* tg = target(th.p, th.owner, false, 30);
-            if (tg) { Vector2 d = Vector2Subtract(*tg, th.p); float L = Vector2Length(d); if (L > 0.05f) th.v = Vector2Lerp(th.v, Vector2Scale(d, 4.5f / L), 0.06f); }
+            // (bees go for the nearest stick but their owner's, unless the owner is much the nearer: it's sometimes you)
+            bool skipOwner = true; if (th.owner >= 0 && th.owner < (int)sticks.size() && sticks[th.owner].alive) { float od = Vector2Distance(sticks[th.owner].pt[J_PELVIS].p, th.p), ed = 1e9f; for (const auto& o : sticks) if (o.alive && o.present && o.id != th.owner) ed = std::min(ed, Vector2Distance(o.pt[J_PELVIS].p, th.p)); skipOwner = th.t < 2.0f || od > ed * 0.4f; }
+            Vector2* tg = target(th.p, th.owner, skipOwner, 30);
+            if (tg) { Vector2 d = Vector2Subtract(*tg, th.p); float L = Vector2Length(d); if (L > 0.05f) th.v = Vector2Lerp(th.v, Vector2Scale(d, 9.0f / L), 0.08f); }
             th.v = Vector2Add(th.v, {(Rand() - 0.5f) * 0.6f, (Rand() - 0.5f) * 0.6f});
             th.p = Vector2Add(th.p, Vector2Scale(th.v, dt));
             for (auto& k : sticks) {
                 if (!k.alive || !k.present || Vector2Distance(k.pt[J_PELVIS].p, th.p) > 0.8f) continue;
                 if (k.weapon >= 0 && k.weapon < (int)items.size() && WDef(items[k.weapon].weapon).key == "fryingpan" && k.swingT > 0) { th.alive = false; Emit(EV_HIT, th.p, -1, k.id, 0); break; }   // (the frying pan cooks bees)
-                if (th.cool <= 0) { Hit(k, th.owner == k.id ? -1 : th.owner, 5, {0, 0.2f}, 0.5f, false, "bees"); th.cool = 0.5f; }
+                if (th.cool <= 0) { Hit(k, th.owner == k.id ? -1 : th.owner, WDef(th.weapon).dmg > 0 ? WDef(th.weapon).dmg : 8, {0, 0.2f}, 0.5f, false, "bees"); th.cool = 0.25f; }
             }
             break;
         }
@@ -239,7 +245,7 @@ void World::StepThings() {
             bool have = false;
             if (fish) for (const auto& c : things) if (c.alive && c.kind == TH_CHUM) { goal = c.p; have = true; break; }
             if (!have && !fish) for (const auto& c : sticks) if (c.alive && c.present && c.trinket == TK_SNAKE_CHARMER && c.id != th.owner) { goal = c.pt[J_PELVIS].p; have = true; break; }   // (everyone else's snakes go to the Snake Charmer)
-            if (!have) { Vector2* tg = target(th.p, th.owner, false, 25); if (tg) { goal = *tg; have = true; } }
+            if (!have) { Vector2* tg = target(th.p, th.owner, th.t < 3.0f, 25); if (tg) { goal = *tg; have = true; } }
             if (fish) {   // (fish swim straight to it)
                 if (have) { Vector2 d = Vector2Subtract(goal, th.p); float L = Vector2Length(d); if (L > 0.05f) th.v = Vector2Lerp(th.v, Vector2Scale(d, 5 / L), 0.08f); }
                 th.p = Vector2Add(th.p, Vector2Scale(th.v, dt));
@@ -247,17 +253,17 @@ void World::StepThings() {
                 th.v.y -= gravity * dt;
                 Vector2 np = Vector2Add(th.p, Vector2Scale(th.v, dt));
                 if (stage.Solid((int)floorf(np.x / TILE), (int)floorf((np.y - 0.02f) / TILE))) { np.y = (floorf((np.y - 0.02f) / TILE) + 1) * TILE; th.v.y = 0;
-                    if (have) th.v.x = (goal.x > th.p.x ? 1 : -1) * 2.6f;
+                    if (have) { th.v.x = (goal.x > th.p.x ? 1 : -1) * 3.2f; if (fabsf(goal.x - th.p.x) < 1.6f && fabsf(goal.y - th.p.y) < 1.5f && th.cool <= 0 && Rand() < 0.04f) th.v.y = 6; }   // (a lunge at whoever's close)
                     if (stage.Solid((int)floorf((np.x + (th.v.x > 0 ? 0.15f : -0.15f)) / TILE), (int)floorf((np.y + 0.1f) / TILE))) { th.v.x = -th.v.x; np.x = th.p.x; } }
                 th.p = np;
                 if (th.p.y < -4) th.alive = false;
             }
             for (auto& k : sticks) {
-                if (!k.alive || !k.present || th.cool > 0 || (!fish && k.trinket == TK_SNAKE_CHARMER)) continue;   // (snakes don't bite the charmer)
+                if (!k.alive || !k.present || th.cool > 0 || (!fish && k.trinket == TK_SNAKE_CHARMER) || (k.id == th.owner && th.t < 3.0f)) continue;   // (snakes don't bite the charmer, nor their shooter at first)
                 Vector2 c = fish ? k.pt[J_PELVIS].p : k.pos;
                 if (Vector2Distance(c, th.p) > (fish ? 0.6f : 0.45f)) continue;
-                Hit(k, th.owner == k.id ? -1 : th.owner, fish ? 10 : 20, {0, 0.3f}, 1, false, fish ? "fish" : "a snake");
-                th.cool = fish ? 0.8f : 1.2f;
+                Hit(k, th.owner == k.id ? -1 : th.owner, fish ? 10 : 25, {0, 0.3f}, 1, false, fish ? "fish" : "a snake");
+                th.cool = fish ? 0.8f : 0.9f;
                 Emit(EV_SNAKE, th.p, k.id, th.owner, 0);
             }
             // fists and blasts kill them
@@ -329,7 +335,7 @@ void World::StepThings() {
         }
         case TH_PEEL: {
             for (auto& k : sticks) if (k.alive && k.present && k.st != S_RAGDOLL && fabsf(k.vel.x) > 1 && Vector2Distance(k.pos, th.p) < 0.35f) {
-                k.st = S_RAGDOLL; k.ragT = 0.8f; k.stiff = 0; for (auto& a : k.pt) a.q = Vector2Subtract(a.q, Vector2Scale({k.vel.x * 0.6f, 4}, dt));
+                k.st = S_RAGDOLL; k.ragT = 1.7f; k.stiff = 0; for (auto& a : k.pt) a.q = Vector2Subtract(a.p, Vector2Scale({k.vel.x * 2.6f + (k.vel.x >= 0 ? 3.0f : -3.0f), 4}, dt));   // (feet out from under you: you slide on, faster)
                 if (th.owner != k.id) { k.lastHitBy = th.owner; k.lastHitT = t; }
                 th.alive = false; Emit(EV_HIT, th.p, k.id, th.owner, 0); break;
             }

@@ -188,7 +188,7 @@ int ScuffleArmsChecks() {
       Give(w, a, "scatter"); a.in.aim = {1, 0.05f}; a.in.fire = true; w.Step(); a.in.fire = false; float far = bx; for (int i = 0; i < 300; i++) { w.Step(); far = std::max(far, b.pt[J_PELVIS].p.x); }
       AC(far - bx > 4 && b.hp < 100, TextFormat("the scatter gun: a blast and a long flight (%.1f m)", far - bx)); }
     { World w; w.Init(FlatArena(), 4, 9); w.nextCrate = 1e9f; for (int i = 0; i < 4; i++) w.sticks[i].pos = {4.0f + i * 2.2f, 1.2f}; Settle(w, 0.6f);
-      Stick& a = w.sticks[0]; Give(w, a, "sniper"); a.in.aim = Vector2Normalize(Vector2Subtract(w.sticks[1].pt[J_NECK].p, a.pt[J_NECK].p)); a.in.fire = true; w.Step(); a.in.fire = false; Settle(w, 0.5f);
+      Stick& a = w.sticks[0]; Give(w, a, "sniper"); a.in.aim = Vector2Normalize(Vector2Subtract(w.sticks[1].pt[J_NECK].p, a.pt[J_NECK].p)); a.in.fire = true; w.Step(); a.in.fire = false; Settle(w, 0.9f);   // (the scope: the shot leaves 0.5 s after the press)
       int hit = 0; for (int i = 1; i < 4; i++) hit += w.sticks[i].hp < 100; AC(hit == 3, TextFormat("the sniper: through three sticks in a line (%d)", hit)); }
     { World w; w.Init(FlatArena(), 3, 9); w.nextCrate = 1e9f; Stick& a = w.sticks[0]; a.pos = {4, 1.2f}; w.sticks[1].pos = {12, 1.2f}; w.sticks[2].pos = {13, 1.2f}; Settle(w, 0.6f);
       Give(w, a, "rocket"); a.in.aim = Vector2Normalize(Vector2Subtract(w.sticks[1].pt[J_PELVIS].p, a.pt[J_NECK].p)); a.in.fire = true; w.Step(); a.in.fire = false; Settle(w, 1.0f);
