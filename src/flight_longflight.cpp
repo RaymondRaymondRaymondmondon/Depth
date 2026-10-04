@@ -802,7 +802,7 @@ void World::BotCouncil(int s) {
         if (m.votes[s]) continue;
         bool yes = false;
         switch (m.kind) {
-        case MO_PEACE: yes = mine < avg; break;
+        case MO_PEACE: yes = mine < avg && !(council.war && WarSide(s) == 0 && Rand() < 0.8f); break;   // (the war's own side won't sue for peace so soon)
         case MO_HUNT: yes = true; break;
         case MO_EMBARGO: yes = m.target != s && !Leagued(s, m.target); break;
         case MO_SANCTUARY: yes = HolderOf(m.target) != s; break;
@@ -861,7 +861,7 @@ void World::StepCouncil(float dt) {
                 case MO_WAR: {
                     if (council.war || !opts.greatWar) break;
                     uint32_t A = 1u << m.by; for (int s = 0; s < N; s++) if (Leagued(s, m.by)) A |= 1u << s;
-                    council.warA = A; council.warFrom = (floorf(time / DAY) + 1) * DAY; council.warUntil = council.warFrom + D.warDays * DAY; council.war = true; council.warsDeclared++;
+                    council.warA = A; council.shareA0 = -1; council.warFrom = (floorf(time / DAY) + 1) * DAY; council.warUntil = council.warFrom + D.warDays * DAY; council.war = true; council.warsDeclared++;
                     for (int s = 0; s < N; s++) { SayTo(s, std::string("THE GREAT WAR is declared: ") + (((A >> s) & 1) ? "your side is the proposer's league" : "you stand with everyone else") + ". It begins at the next dawn."); Chronicle(s, CK_WAR, "The Great War was declared."); }
                 } break;
                 }
@@ -884,7 +884,10 @@ void World::StepCouncil(float dt) {
         // the fronts: every island either side holds; two-thirds to one side ends it
         int a = 0, b = 0; for (int i = 0; i < (int)isles.size(); i++) { int h = HolderOf(i); if (h < 0) continue; if (WarSide(h) == 0) a++; else b++; }
         int fronts = a + b; int won = -1;
-        if (fronts >= 3 && a >= D.warShare * fronts) won = 0; else if (fronts >= 3 && b >= D.warShare * fronts) won = 1;
+        if (council.shareA0 < 0) council.shareA0 = fronts > 0 ? (float)a / fronts : 0.5f;   // (where the fronts stood when it began: a side must take ground to win early)
+        float sa = fronts > 0 ? (float)a / fronts : 0.5f;
+        bool day1 = time - council.warFrom < DAY;
+        if (!day1 && fronts >= 3 && sa >= D.warShare && sa > council.shareA0 + 0.08f) won = 0; else if (!day1 && fronts >= 3 && 1 - sa >= D.warShare && sa < council.shareA0 - 0.08f) won = 1;
         if (won < 0 && time >= council.warUntil) won = a > b ? 0 : b > a ? 1 : 2;
         if (won >= 0) {
             council.war = false; council.warDays += (time - council.warFrom) / DAY;
@@ -1310,7 +1313,11 @@ void World::StepReckoning(float dt) {
         // every colony faces its own debt at once: the kraken the one that bled its cove most, the Roc the one that killed most birds,
         // the Grey Wings the one that paid least, the Drowned the loudest
         int bled = -1, killer = -1, stingy = -1, loud = -1; int bb = -1, bk = -1, bs = 1 << 30, bl = -1;
-        for (int s = 0; s < N; s++) { const Colony& C = ColOf(s); if (C.coveCatch > bb) { bb = C.coveCatch; bled = s; } if (C.kills > bk) { bk = C.kills; killer = s; } if (C.tributePaid < bs) { bs = C.tributePaid; stingy = s; } int a = 0; for (const auto& b : C.birds) a += b.alive; if (a > bl) { bl = a; loud = s; } }
+        uint32_t owed = 0;   // (each power comes for its own debtor: a colony answers to one of them at most)
+        for (int s = 0; s < N; s++) { const Colony& C = ColOf(s); if (C.coveCatch > bb) { bb = C.coveCatch; bled = s; } } if (bled >= 0) owed |= 1u << bled;
+        for (int s = 0; s < N; s++) { const Colony& C = ColOf(s); if (!((owed >> s) & 1) && C.kills > bk) { bk = C.kills; killer = s; } } if (killer >= 0) owed |= 1u << killer;
+        for (int s = 0; s < N; s++) { const Colony& C = ColOf(s); if (!((owed >> s) & 1) && C.tributePaid < bs) { bs = C.tributePaid; stingy = s; } } if (stingy >= 0) owed |= 1u << stingy;
+        for (int s = 0; s < N; s++) { const Colony& C = ColOf(s); if ((owed >> s) & 1) continue; int a = 0; for (const auto& b : C.birds) a += b.alive; if (a > bl) { bl = a; loud = s; } }
         struct Debt { int side; const char* who; } debts[4] = {{bled, "the kraken"}, {killer, "the Roc"}, {stingy, "the Grey Wings"}, {loud, "the Drowned"}};
         for (int s = 0; s < N; s++) ColOf(s).reckonSurvived = true;
         for (const auto& d : debts) {

@@ -518,7 +518,7 @@ const char* MotionName(int k); const char* MotionWhat(int k);
 struct Motion { int kind = 0, by = 0, target = -1; std::vector<int> votes; };   // (votes: per side, 1 yes, -1 no, 0 not yet)
 struct CouncilState { int meeting = -1, lastMeeting = -1; std::vector<Motion> agenda; float peaceUntil = -1, embargoUntil = -1, sanctuaryUntil = -1, huntUntil = -1, warFrom = 0, warUntil = 0;
                       int embargo = -1, sanctuary = -1, hunt = -1, chest = 0; bool war = false; uint32_t warA = 0;
-                      int passed[MO_COUNT] = {}, votes = 0, warsDeclared = 0; float warDays = 0; };   // (tallies for --flight-long)
+                      int passed[MO_COUNT] = {}, votes = 0, warsDeclared = 0; float warDays = 0; float shareA0 = -1; };   // (tallies for --flight-long; shareA0: the fronts when the war began)
 // the Long Flight's Far Sea (flight_longflight.cpp)
 struct FarState { Vector3 c{}; float fogR = 1e9f, wallR = 1e9f; bool opened = false;
                   int rocIsle = -1, rocTarget = -1; Vector3 roc{}; float rocHp = 900, rocT = 0, rocNestT = -1e9f; bool rocHunting = false;
