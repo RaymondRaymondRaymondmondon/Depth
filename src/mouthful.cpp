@@ -194,7 +194,7 @@ float World::Length(const Mouth& m) const {
 float World::Reach(const Mouth& m) const {
     float L = Length(m);
     const FormDef& F = FormOf(m);
-    if (F.reach > 0) return F.reach * (0.35f + 0.65f * L);   // (a crustacean's claw out-reaches any bite)
+    if (F.reach > 0) return F.reach * (0.25f + 0.5f * L);   // (a crustacean's claw out-reaches any bite)
     return 0.3f + 0.6f * L;
 }
 static float BodyRadius(float length) { return 0.04f + 0.16f * length; }
@@ -446,6 +446,7 @@ void World::Bite(Mouth& m, bool free) {
         return;
     }
     bool ambush = m.ambush; m.ambush = false;
+    if (m.blindT > 0 && Rand() < 0.6f) return;   // (blind: the bite mostly closes on ink)
     if (bestM >= 0) {
         Mouth& t = mouths[bestM];
         if (t.immuneT > 0) {   // a glowing fry: the bite does nothing and marks the biter for the sharks
@@ -454,6 +455,11 @@ void World::Bite(Mouth& m, bool free) {
             return;
         }
         if (t.abT > 0 && FormOf(t).ab == AB_ROLL) return;
+        // evasion: a quicker fish on the move slips some bites (a held, stunned, swallowing or still one doesn't)
+        if (!ambush && t.holdT <= 0 && t.stunT <= 0 && t.swallowT <= 0 && Vector3Length(t.vel) > 1.0f) {
+            float ev = 0.12f + 0.6f * (FormOf(t).speed - F.speed) + (t.dashT > 0 ? 0.3f : 0.0f) + (t.boosting ? 0.1f : 0.0f);
+            if (Rand() < std::clamp(ev, 0.0f, 0.6f)) { if (duel && getenv("DEPTH_DUELTRACE")) printf("        t=%.1f %s misses %s (evaded)\n", time, F.name.c_str(), FormOf(t).name.c_str()); return; }
+        }
         // the cleaning station's truce: a bite inside it marks you
         if (Vector3Distance(m.pos, CLEANING) < 10) m.markT = 25;
         Vector3 toM = Vector3Normalize(Vector3Subtract(m.pos, t.pos));
@@ -480,7 +486,7 @@ void World::Bite(Mouth& m, bool free) {
         dmg *= k;
         float before = t.mass;
         Hurt(t, dmg, m.id, -1, "player");
-        Feed(m, std::min(dmg, before) * 0.5f, false);
+        Feed(m, std::min(dmg, before) * 0.3f, false);   // (a fight bite is mostly blood in the water: the meal is the swallow)
         eco.AddBlood(t.pos, 1 + dmg * 0.05f);
         if (BandAt(t.pos) == B_TRENCH) levNoise += 1;
         if (t.alive) {
@@ -492,14 +498,19 @@ void World::Bite(Mouth& m, bool free) {
             if (F.ps == PS_EIGHT_ARMS) t.holdT = std::max(t.holdT, 1.5f);
             if (F.ps == PS_CAMO) t.holdT = std::max(t.holdT, 1.0f);
         }
-        // the target's payback: spines, inflation, barbs, venom
+        // the target's payback: spines, inflation, barbs, venom (a dash-bite or a belly-bite is in and out before they matter: the eel's answer)
         float pay = 0;
-        if (T.ps == PS_SPINES) pay += 0.03f * m.mass;
-        if (T.ps == PS_SPINES_BACK) pay += 0.025f * m.mass;
-        if (T.ab == AB_INFLATE && t.abT > 0) pay += T.p2 * m.mass;
-        if (T.ps == PS_VENOM_SPINES) { pay += 0.10f * m.mass; m.poisonT = std::max(m.poisonT, 5.0f); }
-        if (T.ps == PS_BARBED) m.bleedT = std::max(m.bleedT, 3.0f);
-        if (pay > 0) Hurt(m, pay, t.id, -1, "player");
+        bool inAndOut = m.dashT > 0 || m.sinceDash < 0.35f || (m.pos.y < t.pos.y - 0.2f * Length(t) && toM.y < -0.5f);
+        if (inAndOut && F.path == P_EEL) { pay = -1; }
+        if (pay >= 0) {
+            if (T.ps == PS_SPINES) pay += 0.03f * m.mass;
+            if (T.ps == PS_SPINES_BACK) pay += 0.025f * m.mass;
+            if (T.ab == AB_INFLATE && t.abT > 0) pay += T.p2 * m.mass;
+            if (T.ps == PS_VENOM_SPINES) { pay += 0.10f * m.mass; m.poisonT = std::max(m.poisonT, 5.0f); }
+            if (T.ps == PS_BARBED) m.bleedT = std::max(m.bleedT, 3.0f);
+        }
+        if (duel && getenv("DEPTH_DUELTRACE")) printf("        t=%.1f %s bites %s: %.1f (k %.2f) pay %.1f%s\n", time, FormOf(m).name.c_str(), FormOf(t).name.c_str(), dmg, k, pay, inAndOut ? " in-and-out" : "");
+        if (pay > 0) { Hurt(m, pay, t.id, -1, "player"); if (m.bot && (F.path == P_EEL || m.botLevel >= 3)) m.retreatT = 0.8f; }
         return;
     }
     // a fish of the web
@@ -597,7 +608,7 @@ void World::UseAbility(Mouth& m) {
             Bite(m, true);
             break;
         }
-        case AB_FRENZY: m.frenzyT = F.p2; m.frenzyK = F.p1; break;
+        case AB_FRENZY: if (m.blindT > 0) { m.abCd = 1; break; } m.frenzyT = F.p2; m.frenzyK = F.p1; break;   // (a shark can't frenzy what it can't see)
         case AB_PIN: {
             int t = NearestMouthInFront(*this, m, Reach(m) * 1.8f + 1, 0.4f);
             if (t >= 0) { Mouth& o = mouths[t]; o.holdT = std::max(o.holdT, F.p1); o.stunT = std::max(o.stunT, F.p1 * 0.5f); Bite(m, true); }
@@ -606,7 +617,7 @@ void World::UseAbility(Mouth& m) {
         }
         case AB_PUNCH: {
             int t = NearestMouthInFront(*this, m, F.p1 * scale * 0.6f + Reach(m), 0.35f);
-            if (t >= 0) { mouths[t].stunT = std::max(mouths[t].stunT, F.p2); m.biteCd = 0; Bite(m, true); }
+            if (t >= 0) { Mouth& o = mouths[t]; o.stunT = std::max(o.stunT, F.p2); o.vel = Vector3Add(o.vel, Vector3Scale(f, 3)); }
             else { int a = NearestAgentInFront(*this, m, F.p1 * scale * 0.6f + Reach(m), 0.35f); if (a >= 0) { eco.agents[a].stun = F.p2; Bite(m, true); } }
             break;
         }
@@ -784,8 +795,10 @@ void World::StepMouth(Mouth& m, float dt) {
     else m.stamina = std::min(1.0f, m.stamina + dt / d.staminaRefillS * (F.ps == PS_HOVER && Vector3Length(m.vel) < 0.5f ? 2 : 1));
     float target = in.swim && !frozen ? Speed(m) * (m.boosting ? d.boostMul : 1) * (m.swallowT > 0 ? 0.35f : 1) * (m.jetT > 0 ? 1.3f : 1) : 0;
     if (in.brake) target = 0;
+    m.sinceDash += dt;
+    if (m.dashT > 0 && m.blindT > 0 && m.dashKind != 4) { m.dashT = 0; m.dashLeft = 0; }   // (ink ruins a dash)
     if (m.dashT > 0 && !frozen) {
-        m.dashT -= dt;
+        m.dashT -= dt; m.sinceDash = 0;
         m.vel = m.dashV;
         // a dash that meets something: the lunge bites, the death roll grabs, the ram knocks back, the breach tears
         if (m.dashKind >= 1) {
@@ -841,7 +854,8 @@ void World::StepMouth(Mouth& m, float dt) {
     if (m.pos.y < fy + r) { m.pos.y = fy + r; if (m.vel.y < 0) m.vel.y = 0; if (F.walker) m.airborne = false; }
     if (F.walker && !m.airborne && m.dashT <= 0) m.pos.y = fy + r;
     if (m.pos.y > -0.3f) { m.pos.y = -0.3f; if (m.vel.y > 0) m.vel.y = 0; }
-    m.pos.x = std::clamp(m.pos.x, X0 + 2, X1 - 2); m.pos.z = std::clamp(m.pos.z, Z0 + 2, Z1 - 2);
+    if (m.pos.x < X0 + 2 || m.pos.x > X1 - 2) { m.pos.x = std::clamp(m.pos.x, X0 + 2, X1 - 2); m.vel.x = 0; }
+    if (m.pos.z < Z0 + 2 || m.pos.z > Z1 - 2) { m.pos.z = std::clamp(m.pos.z, Z0 + 2, Z1 - 2); m.vel.z = 0; }
     if (m.pos.x > 125 && BandAt(m.pos) != B_TRENCH && m.pos.y < -118) m.pos.y = std::max(m.pos.y, -118.0f);
     // coral heads: the big can't squeeze through the corridors
     if (m.pos.x < -40 && m.pos.x > -175) for (const auto& c : Corals()) {
@@ -862,7 +876,7 @@ void World::StepMouth(Mouth& m, float dt) {
     if (Vector3Distance({m.pos.x, 0, m.pos.z}, {BRINE.x, 0, BRINE.z}) < BRINE_R && m.pos.y < fy + 3 && F.ps != PS_SCAVENGER) Hurt(m, 10 * dt, -1, -1, "the brine pool");
     for (const auto& c : clouds) {
         if (c.owner == m.id || Vector3Distance(c.pos, m.pos) > c.r) continue;
-        if (c.kind == 0 && !(F.path == P_CEPH && c.owner == m.id)) m.blindT = std::max(m.blindT, 0.4f);
+        if (c.kind == 0) m.blindT = std::max(m.blindT, std::min(c.t, 3.0f));   // (ink blinds for its seconds: you see through only your own)
         if (c.kind == 1) Hurt(m, 0.03f * m.mass * dt, c.owner, -1, "player");
     }
     if (m.poisonT > 0) Hurt(m, 0.02f * m.mass * dt, m.lastHurtBy, -1, "player");
@@ -913,8 +927,8 @@ bool World::Visible(const Mouth& v, const Mouth& m) const {
     if (m.hidden && !electro) return d < 2;
     if ((m.buriedT >= 2 || m.ambush) && !electro) return false;
     if (FormOf(m).ps == PS_CAMO && m.stillT > 1 && !electro) return false;
-    if (v.blindT > 0 && d > 3) return false;
-    for (const auto& c : clouds) if (c.kind == 0 && c.owner != v.id && Vector3Distance(c.pos, m.pos) < c.r) return false;
+    if (v.blindT > 0 && d > 1.5f) return false;
+    if (!electro) for (const auto& c : clouds) if (c.kind == 0 && c.owner != v.id && Vector3Distance(c.pos, m.pos) < c.r) return false;
     return true;
 }
 static float Angle(Vector3 d, float* pitch) { float h = sqrtf(d.x * d.x + d.z * d.z); *pitch = atan2f(d.y, std::max(0.01f, h)); return atan2f(d.z, d.x); }
@@ -1031,23 +1045,37 @@ void World::StepBot(Mouth& m, float dt) {
             else if ((m.chaseT += dt) > 6 && !duel) { m.banId = cid; m.banT = 15; m.tgtAgent = m.tgtMouth = -1; m.chaseId = -1; m.thinkT = 0; }
         }
     }
-    if (duel) { m.fleeing = false; m.tgtAgent = -1; m.tgtMouth = -1; for (const auto& o : mouths) if (o.id != m.id && o.alive) m.tgtMouth = o.id; }
+    if (duel) { m.fleeing = false; m.tgtAgent = -1; m.tgtMouth = -1; for (const auto& o : mouths) if (o.id != m.id && o.alive && (Visible(m, o) || Vector3Distance(o.pos, m.pos) < 2)) m.tgtMouth = o.id; if (m.tgtMouth < 0) m.goal = Vector3Add(m.pos, {Rand(-6, 6), Rand(-2, 2), Rand(-6, 6)}); }
+    m.retreatT = std::max(0.0f, m.retreatT - dt);
     // steer for the target or the goal
     Vector3 tgt = m.goal; float tr = 0;
     if (!m.fleeing && m.tgtAgent >= 0) { if (!eco.agents[m.tgtAgent].alive) m.tgtAgent = -1; else { tgt = eco.agents[m.tgtAgent].pos; tr = AgentRadius(*eco.map, eco.agents[m.tgtAgent].sp); } }
-    if (!m.fleeing && m.tgtMouth >= 0) { const Mouth& o = mouths[m.tgtMouth]; if (!o.alive) m.tgtMouth = -1; else { tgt = Vector3Add(o.pos, Vector3Scale(o.vel, 0.3f)); tr = BodyRadius(Length(o)); } }
+    if (!m.fleeing && m.tgtMouth >= 0) { const Mouth& o = mouths[m.tgtMouth]; if (!o.alive) m.tgtMouth = -1; else { float dd = Vector3Distance(o.pos, m.pos); tgt = Vector3Add(o.pos, Vector3Scale(o.vel, std::clamp((dd - 2) / 15, 0.0f, 0.3f))); tr = BodyRadius(Length(o)); } }   // (leads a far target, not one in its face)
     if (m.botLevel <= 2 && m.tier >= 5 && tgt.x > 125 && m.botLevel == 2) tgt.x = 120;   // (a Hunter avoids the trench)
     Vector3 to = Vector3Subtract(tgt, m.pos);
     float dist = Vector3Length(to);
+    if (F.path == P_EEL && m.tgtMouth >= 0 && dist < 4 && !F.walker) to.y -= tr * 1.2f;   // (an eel comes up under the belly)
+    if (m.retreatT > 0 && m.tgtMouth >= 0) to = Vector3Scale(to, -1);   // (backing off)
     float pitch, yaw = Angle(to, &pitch);
     in.yaw = yaw; in.pitch = pitch; in.swim = dist > 0.2f;
     bool chasing = m.tgtAgent >= 0 || m.tgtMouth >= 0;
     float reach = Reach(m);
     in.boost = (m.fleeing && Vector3Distance(m.pos, m.fleeFrom) < 12 && m.stamina > 0.05f) || (chasing && dist < 7 && dist > reach && m.stamina > 0.4f);
-    if (chasing && dist - tr < reach * 1.1f) {
+    // the nearest fight: a mouth near us that we can't swallow and that can't swallow us (or can)
+    float fightD = 1e9f;
+    for (const auto& o : mouths) if (o.alive && o.id != m.id && o.mass > m.mass * d.swallowBelow && Visible(m, o)) fightD = std::min(fightD, Vector3Distance(o.pos, m.pos));
+    if (m.tgtMouth >= 0 && m.botLevel >= 3) { const Mouth& o = mouths[m.tgtMouth]; if (o.tellT > 0 && (FormOf(o).ab == AB_INFLATE || FormOf(o).ab == AB_DETONATE || FormOf(o).ab == AB_TOXIN) && dist < 4) m.retreatT = std::max(m.retreatT, 0.4f); }
+    if (m.tgtMouth >= 0 && F.path == P_EEL) { const Mouth& o = mouths[m.tgtMouth]; if (FormOf(o).ab == AB_INFLATE && o.abT > 0 && dist < 3) m.retreatT = std::max(m.retreatT, 0.3f); }
+    if (chasing && m.retreatT <= 0 && dist - tr < reach * 1.1f) {
         Vector3 f = Fwd(m.yaw, m.pitch);
         if (dist < 0.05f || Vector3DotProduct(Vector3Scale(to, 1 / std::max(0.05f, dist)), f) > 0.4f) in.bite = true;
         if (dist - tr < reach * 0.5f) in.swim = false;
+    }
+    if (chasing && m.tgtMouth >= 0 && m.retreatT <= 0 && dist - tr < reach * 1.8f) {
+        // close quarters: don't overshoot; check the swim, turn to face it, and bite on the turn
+        const Mouth& o = mouths[m.tgtMouth];
+        Vector3 away = Vector3Subtract(o.pos, m.pos); float closing = Vector3DotProduct(o.vel, Vector3Normalize(away));
+        if (closing < 1.0f) in.swim = dist - tr > reach * 0.8f; else in.swim = true;
     }
     // abilities, by how the bot reads the moment
     if (F.ab != AB_NONE && m.abCd <= 0 && Rand() < d.botAbilityUse[m.botLevel] * dt * 4) {
@@ -1058,9 +1086,10 @@ void World::StepBot(Mouth& m, float dt) {
             case AB_LUNGE: case AB_DEATH_ROLL: case AB_RAM: use = chasing && dist > reach && dist < F.p1 * 1.2f; break;
             case AB_HOOK: use = m.tgtMouth >= 0 && dist < F.p1 && dist > reach; break;
             case AB_BREACH: use = chasing && to.y > 1 && dist < 10; break;
-            case AB_INK: case AB_INK_WALL: case AB_DAZZLE: use = fd < 7; break;
-            case AB_INFLATE: case AB_ROLL: case AB_TAIL_FLIP: use = fd < 4; break;
-            case AB_TOXIN: use = fd < 5 || (m.tgtMouth >= 0 && dist < 3); break;
+            case AB_INK: case AB_INK_WALL: case AB_DAZZLE: use = fd < 7 || fightD < 4; break;
+            case AB_INFLATE: case AB_ROLL: use = fd < 4 || fightD < 2.5f; break;
+            case AB_TAIL_FLIP: use = fd < 4 || (fightD < 1.5f && m.biteCd > 0); break;
+            case AB_TOXIN: use = fd < 5 || fightD < 3; break;
             case AB_FRENZY: case AB_PIN: case AB_PUNCH: use = chasing && dist - tr < reach * 1.5f + (F.ab == AB_PUNCH ? 2 : 0); break;
             case AB_JUMP: use = (chasing && to.y > 2 && dist < 7) || fd < 5; break;
             case AB_CLAW_SLAM: { int n = 0; for (const auto& o : mouths) if (o.alive && o.id != m.id && Vector3Distance(o.pos, m.pos) < F.p1) n++; use = n > 0; break; }
@@ -1071,6 +1100,7 @@ void World::StepBot(Mouth& m, float dt) {
         if (use) in.ability = true;
     }
     if (m.ambush && !chasing && !m.fleeing) { in.swim = false; }
+    if (m.dashT > 0 && chasing) in.bite = true;   // (a dash is a pass with the jaws open)
     // a walker jumps toward what's above it
     if (F.walker && !m.airborne && to.y > 2.5f && dist < 6) in.pitch = 1;
 }
@@ -1083,7 +1113,8 @@ void World::Step(float dt) {
     for (auto& m : mouths) if (m.bot) StepBot(m, dt);
     eco.Step(dt);
     StepNpc(dt);
-    for (auto& m : mouths) StepMouth(m, dt);
+    if (((int)(time * 30)) & 1) { for (int i = (int)mouths.size() - 1; i >= 0; i--) StepMouth(mouths[i], dt); }
+    else for (auto& m : mouths) StepMouth(m, dt);   // (alternating who moves first: nobody always bites first)
     // the web's fish stay above the seabed, and the dead come back in their home water (the World's own refill)
     if (deadT.size() < eco.agents.size()) deadT.resize(eco.agents.size(), 0);
     for (int i = 0; i < (int)eco.agents.size(); i++) {

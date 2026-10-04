@@ -110,6 +110,8 @@ struct Mouth {
     // the bot's mind
     float thinkT = 0; int tgtMouth = -1, tgtAgent = -1; Vector3 goal{}; bool fleeing = false; Vector3 fleeFrom{};
     int chaseId = -1; float chaseBest = 1e9f, chaseT = 0; int banId = -1; float banT = 0;   // (a chase that isn't closing is given up)
+    float retreatT = 0;                                // (hit and run: backing off after a bite on something spiny)
+    float sinceDash = 9;                               // seconds since the last dash ended
     float bodyR() const;
 };
 struct Cloud { Vector3 pos; float r = 5, t = 3; int owner = -1; int kind = 0; };   // 0 ink, 1 toxin

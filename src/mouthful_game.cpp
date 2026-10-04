@@ -213,13 +213,25 @@ void DrawMouth(const mf::World& w, const mf::Mouth& m, bool mine) {
     if (m.hurtT > 0) tint = {255, 150, 140, 255};
     if (m.immuneT > 0) tint = Mix(WHITE, Color{255, 250, 200, 255}, 0.5f + 0.5f * sinf(S.t * 10));   // (the immunity glow)
     if (m.morphT > 0) tint = Mix(tint, Color{180, 255, 240, 255}, m.morphT);                        // (a fork's shimmer)
-    if (m.tellT > 0) tint = Mix(tint, Color{255, 255, 255, 255}, 0.5f);                             // (the tell)
+    // the tells (doc p. 15): eels coil before a dash, squid go pale before ink, sharks drop their pectorals (a dip of the
+    // nose), crabs raise a claw (the front lifts), puffers draw in water (a swell); the blobfish has none
+    float tellK = m.tellT > 0 ? m.tellT / 0.35f : 0, pitchAdd = 0, swell = 1, coil = 1;
+    if (tellK > 0) switch (F.path) {
+        case mf::P_EEL: coil = 1 + 2.2f * tellK; break;
+        case mf::P_CEPH: tint = Mix(tint, Color{250, 248, 244, 255}, 0.75f * tellK); break;
+        case mf::P_SHARK: pitchAdd = -0.35f * tellK; break;
+        case mf::P_CRUST: pitchAdd = 0.4f * tellK; break;
+        case mf::P_PUFFER: swell = 1 + 0.25f * tellK; break;
+        default: break;
+    }
     if (m.buriedT >= 2 || m.ambush) tint = Mix(tint, Color{120, 110, 90, 255}, 0.6f);
     if (F.ps == mf::PS_CAMO && m.stillT > 1) tint = Mix(tint, Color{150, 140, 120, 255}, 0.7f);
-    float scale = L / std::max(0.05f, cm.length);
+    float scale = L / std::max(0.05f, cm.length) * swell;
     if (F.ab == mf::AB_INFLATE && m.abT > 0) scale *= 1.0f;   // (Length already doubles it)
-    float phase = S.t * cm.freq * (0.5f + inten * 0.5f) + m.id * 1.7f;
-    rt::DrawCreature(cm, m.pos, CreatureYaw(f), std::clamp(m.pitch, -1.2f, 1.2f), scale, phase, inten, tint);
+    float phase = S.t * cm.freq * (0.5f + inten * 0.5f) * coil + m.id * 1.7f;
+    rt::DrawCreature(cm, m.pos, CreatureYaw(f), std::clamp(m.pitch + pitchAdd, -1.3f, 1.3f), scale, phase, std::min(2.0f, inten * coil), tint);
+    // a burrowed crab or an ambushing stonefish shows only as a little mound of sand to a sharp eye
+    if (m.buriedT >= 2 || m.ambush) { Vector3 p = m.pos; p.y = mf::FloorY(p.x, p.z) + 0.05f; rt::DrawWorldCube(p, {L * 0.7f, L * 0.12f, L * 0.7f}, mf::BandAt(p) == mf::B_SHALLOWS ? Color{228, 214, 170, 255} : Color{170, 150, 130, 255}); }
     if (m.immuneT > 0) for (int k = 0; k < 6; k++) { float a = k * 1.047f + S.t * 2.5f, r = L * 0.8f + 0.06f; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.025f, 0.025f, 0.025f), MatrixTranslate(m.pos.x + cosf(a) * r, m.pos.y + sinf(a * 2) * r * 0.3f, m.pos.z + sinf(a) * r)), {255, 240, 170, 255}, 1.0f); }
     if (m.king) {   // the crown: a gold glow over the king, seen by everyone
         Vector3 c = Vector3Add(m.pos, {0, L * 0.45f + 0.2f, 0});

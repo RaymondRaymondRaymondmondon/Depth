@@ -179,17 +179,24 @@ int RunMouthfulDuel(const std::string& a, const std::string& b, float mass, int 
         Vector3 c = floor ? Vector3{-120, 0, (float)(r % 9) * 20 - 80} : Vector3{60, -50, (float)(r % 9) * 20 - 80};
         for (int k = 0; k < 2; k++) {
             Mouth& m = w.mouths[k];
-            m.form = k ? fb : fa; m.path = D().forms[m.form].path; m.mass = mass; m.tier = w.TierOfMass(mass); m.immuneT = 0;
-            m.pos = Vector3Add(c, {k ? 5.0f : -5.0f, 0, (r % 2 ? 1.0f : -1.0f) * 0.5f});
+            bool swapped = (r / 2) % 2 == 1;   // (which slot each form takes alternates too: the step order can't favour one)
+            m.form = (k == 1) != swapped ? fb : fa; m.path = D().forms[m.form].path; m.mass = mass; m.tier = w.TierOfMass(mass); m.immuneT = 0;
+            bool right = (k == 1) != (r % 2 == 1);   // (who starts where swaps every run)
+            m.pos = Vector3Add(c, {right ? 5.0f : -5.0f, 0, (r % 4 < 2 ? 1.0f : -1.0f) * 0.5f});
             if (floor) m.pos.y = FloorY(m.pos.x, m.pos.z) + 0.3f;
-            m.yaw = k ? PI : 0;
+            m.yaw = right ? PI : 0; m.biteCd = w.Rand() * 0.8f; m.thinkT = w.Rand() * 0.3f;
         }
-        while (w.time < 120 && w.mouths[0].alive && w.mouths[1].alive && w.mouths[0].deaths == 0 && w.mouths[1].deaths == 0) w.Step(1 / 30.0f);
-        bool aDead = w.mouths[0].deaths > 0 || !w.mouths[0].alive, bDead = w.mouths[1].deaths > 0 || !w.mouths[1].alive;
+        while (w.time < 120 && w.mouths[0].alive && w.mouths[1].alive && w.mouths[0].deaths == 0 && w.mouths[1].deaths == 0) {
+            w.Step(1 / 30.0f);
+            if (getenv("DEPTH_DUELTRACE") && r == 0 && fmodf(w.time, 2.0f) < 1 / 30.0f) { const Mouth& A = w.mouths[0]; const Mouth& B = w.mouths[1]; printf("    %5.1f d %.2f  A %.1f (%.1f,%.1f,%.1f) cd %.2f  B %.1f (%.1f,%.1f,%.1f) cd %.2f  reach %.2f\n", w.time, Vector3Distance(A.pos, B.pos), A.mass, A.pos.x, A.pos.y, A.pos.z, A.biteCd, B.mass, B.pos.x, B.pos.y, B.pos.z, B.biteCd, w.Reach(A)); printf("        A tgt %d bite %d swim %d flee %d imm %.1f  B tgt %d bite %d swim %d flee %d imm %.1f  alive %d %d\n", A.tgtMouth, A.in.bite, A.in.swim, A.fleeing, A.immuneT, B.tgtMouth, B.in.bite, B.in.swim, B.fleeing, B.immuneT, A.alive, B.alive); }
+        }
+        int ia = w.mouths[0].form == fa && !(fa == fb && (r / 2) % 2 == 1) ? 0 : 1, ib = 1 - ia;   // (which slot form A had)
+        const Mouth& A = w.mouths[ia]; const Mouth& B = w.mouths[ib];
+        bool aDead = A.deaths > 0 || !A.alive, bDead = B.deaths > 0 || !B.alive;
         if (aDead && !bDead) wb++;
         else if (bDead && !aDead) wa++;
-        else if (w.mouths[0].mass > w.mouths[1].mass * 1.05f) wa++;
-        else if (w.mouths[1].mass > w.mouths[0].mass * 1.05f) wb++;
+        else if (A.mass > B.mass * 1.05f) wa++;
+        else if (B.mass > A.mass * 1.05f) wb++;
         else draws++;
     }
     int dec = std::max(1, wa + wb);
