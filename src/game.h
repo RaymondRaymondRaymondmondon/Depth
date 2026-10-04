@@ -879,7 +879,10 @@ void TrawlMenuTick(float dt);                                                  /
 void DebugTrawlShot(Game& g, int which);   // --shots: 0 the deck, 1 the engine room, 2 the wheelhouse, 3 a squall
 void SceneFlight(Game& g);    // The Flight, arcade game 7: the Founder flown over the tropical island (flight_game.cpp)
 void SceneNightOff(Game& g);  // A Night Off, arcade game 6: one night ashore at the Sodden Gull (nightoff_game.cpp)
-void StartNightOff(Game& g, int crew = 0);
+void StartNightOff(Game& g, int crew = 0, int mode = 0, int crowd = 1);
+namespace arcade { class Session; }
+void StartNightOffNet(Game& g, arcade::Session* net, const char* name, int crew);   // a networked night (host or guest)
+std::string NightOffOpts(int mode, int crowd, bool pvp);                           // the host's options for the session
 void LeaveNightOff(Game& g);
 void NightOffMenuTick(float dt);
 void DebugNightOffShot(Game& g, int which);

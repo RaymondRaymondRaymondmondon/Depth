@@ -98,25 +98,35 @@ const char* EndingName(int e) {
 // ---------------------------------------------------------------- the night
 float Night::Rand() { rng = rng * 1664525u + 1013904223u; return ((rng >> 8) & 0xffffff) / 16777216.0f; }
 void Night::Say(const std::string& s) { say.push_back(s); if (say.size() > 40) say.erase(say.begin()); }
-void Night::Note(Player& p, int kind, const std::string& text) { p.log.push_back({t, kind, text}); }
+void Night::Note(Player& p, int kind, const std::string& text) {
+    p.log.push_back({t, kind, text});
+    // Solo: the bartender narrates everything (doc p. 24)
+    if (opts.mode == MD_SOLO) {
+        static const char* SAYS[12] = {"", "\"Steady, sailor.\"", "\"I'll get the mop. Again.\"", "\"Nicely done. Don't let it go to your head.\"", "\"Happens to the best of us. Mostly to you.\"",
+                                       "\"Now THAT's a story for the regulars.\"", "\"Ask her what the cards say about me.\"", "\"Made a friend? In here?\"", "\"Mind the step.\"", "\"Lights out.\"", "\"That's going on the tab.\"", "\"Ouch.\""};
+        if (kind > 0 && kind < 12 && Rand() < 0.7f) Say(std::string("The bartender: ") + SAYS[kind]);
+    }
+}
 std::string Night::Clock() const {
     float h = Hour(); int hh = (int)h, mm = (int)((h - hh) * 60);
     int h12 = hh % 12 == 0 ? 12 : hh % 12;
     return TextFormat("%d:%02d %s", h12, mm, hh % 24 >= 12 ? "p.m." : "a.m.");
 }
 void Night::Init(const Opts& o) {
-    opts = o; rng = o.seed ? o.seed : 1; t = 0; over = false; say.clear(); players.clear();
+    opts = o; rng = o.seed ? o.seed : 1; t = 0; over = false; say.clear(); players.clear(); flags.clear(); winner = -1; crewTab = 0; midnightBrawl = false; bartenderDarts = false;
     bar = Bartender{}; bar.pos = D().bar.bartender; patrons.clear();
     static const char* NAMES[6] = {"You", "Player 2", "Player 3", "Player 4", "Player 5", "Player 6"};
     for (int i = 0; i < std::clamp(o.players, 1, 6); i++) {
-        Player p; p.id = i; p.name = NAMES[i]; p.crew = i % 6;
+        Player p; p.id = i; p.name = NAMES[i]; p.crew = i % 6; p.crew2 = i % 2;
         p.pos = Vector2Add(D().bar.spawn, {(i - 2.5f) * 0.9f, 0}); p.yaw = PI * 0.5f;   // (walking in from the street, facing the bar)
         p.swayPh = Rand() * 6.28f;
         players.push_back(p);
     }
     InitPatrons();
     InitProps();
-    Say("The Sodden Gull, 7 p.m. The bartender looks up.");
+    Say(o.mode == MD_SOLO ? "The bartender looks up. \"Just you tonight? I'll keep you company.\"" : "The Sodden Gull, 7 p.m. The bartender looks up.");
+    // a night can start late (the tests' short nights): the regulars due by then are already in
+    if (o.startMinutes > 0) { t = o.startMinutes * SECONDS_PER_GAME_MINUTE; for (int k = 0; k < 40; k++) StepPatrons(0.5f); }
 }
 const Band& Night::BandOf(const Player& p) const { const auto& b = D().bands; int k = 0; for (int i = 0; i < (int)b.size(); i++) if (p.drunk >= b[i].from) k = i; return b[k]; }
 float Night::Charisma(const Player& p) const { return BandOf(p).charisma * (1 + (p.charBuffT > 0 ? p.charBuff : 0)) * (p.kidneys < 2 ? 1.0f : 1.0f); }
@@ -140,6 +150,7 @@ bool Night::Order(Player& p, int i, std::string* why) {
     // the bartender cuts you off when he's Annoyed and you're past 60, and everyone at last call who's Wrecked
     if (!kitchen && d.drunk > 0 && ((bar.mood < 30 && p.drunk >= 60) || (Hour() >= D().lastCallHour && p.drunk >= 80))) { if (why) *why = "\"You've had enough, sailor.\""; Say("The bartender: \"You've had enough.\""); return false; }
     if (!kitchen && p.barred) { if (why) *why = "\"You're barred. Water, and then the door.\""; return false; }
+    if (!kitchen && opts.mode == MD_SOBER && d.drunk > 0) { if (why) *why = "\"I'm on strike tonight. Water or coffee.\""; return false; }
     if (p.fight.brawl >= 0) { if (why) *why = "Not in the middle of a fight."; return false; }
     float price = PriceOf(i);
     if (p.money - p.tab < price && !kitchen) { if (why) *why = "Your tab's bigger than your wages."; return false; }   // (drinks go on the tab: doc p. 19)
@@ -189,7 +200,7 @@ void Night::Leave(Player& p, int ending, const std::string& where) {
         static const char* WAKE[5] = {"on the floor of the snug", "in the alley, the dog asleep on your feet", "on a stranger's porch three streets away", "in the bathtub upstairs (no ice, thankfully)", "under the pool table"};
         p.wokeAt = WAKE[(int)(Rand() * 5) % 5];
         float lost = std::min(p.money, roundf(p.money * Rand(0.1f, 0.35f)));
-        float paid = std::min(p.money - lost, p.tab); p.money -= lost + paid; p.tab -= paid;
+        float paid = std::min(p.money - lost, p.tab); p.money -= lost + paid; p.tab -= paid; p.lostOnPass = lost;
         Note(p, 9, TextFormat("Blacked out at %s; woke %s, %.0f lighter.", Clock().c_str(), p.wokeAt.c_str(), lost));
         Say(p.name + (p.name == "You" ? " have" : " has") + " passed out.");
     } else {
@@ -275,6 +286,7 @@ void Night::StepPlayer(Player& p, float dt) {
     p.pos = Vector2Add(p.pos, Vector2Scale(p.vel, dt));
     Collide(p.pos, 0.32f);
     PlayerFightInput(p, dt);
+    PlayerTricks(p);
     // a conversation: start one, choose in one
     if (in.talkTo >= 0) { StartTalk(p, in.talkTo); in.talkTo = -1; }
     if (in.say >= 0) { TalkChoose(p, in.say); in.say = -1; }
@@ -329,6 +341,7 @@ void Night::Step(float dt) {
     for (auto& p : players) StepPlayer(p, dt);
     StepGames(dt);
     StepBrawls(dt);
+    StepModes(dt);
     // 3 a.m., or every night over
     bool anyone = false; for (const auto& p : players) anyone |= p.st != State::Gone && p.st != State::PassedOut;
     if (Minutes() >= NIGHT_MINUTES) { for (auto& p : players) if (p.st != State::Gone && p.st != State::PassedOut) Leave(p, p.st == State::Down ? E_KNOCKED_OUT : E_CLOSING, p.st == State::Down ? "on the floor of the Gull with a black eye" : "on the pavement outside the Gull at 3 a.m., swept out with the glass"); anyone = false; }

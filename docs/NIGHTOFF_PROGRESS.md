@@ -107,7 +107,37 @@ Build order is the doc's p. 29 (nine stages).
   line's fit, the dog, the teammate at the door, a sincere night's 100, a declined offer's friend, the bartender's
   warning. Shots `night_flirt`, `night_morning_kidney`.
 
+## Stage 6: multiplayer, the modes, drop handling (done)
+- `nightoff_net.h/.cpp`: `NightHost` (the arcade `GameHost` for `G_NIGHT_OFF`) runs the night at 30 Hz and snapshots it at
+  20; every person's play, solo included, is an `Input` (`WriteInput`/`ReadInput`; presses survive until a step uses
+  them); the snapshot is one templated `Visit` (`WriteNight`/`PackNight`/`ReadNight`): the sailors (the viewer's own
+  conversation, flirt and game seat in full), the patrons (a secret only if the viewer knows it), the props, the floating
+  words, the dog, the bartender, the room's talk, and at the end the host's headline, stories and scoreboards (a guest
+  draws those as they are). Pool and golf replays are rebuilt on the guest from the shot (`ReplayShot`), so frames and
+  paths aren't sent. About 3 KB a snapshot.
+- `nightoff_bots.cpp`: the bot player (`Night::BotPlayer`: a careful or a reckless style; drinks to a target, plays the
+  games through Input, talks, flirts, takes or declines offers, fights back, eats, goes home at its hour), used for AI
+  seats, a dropped guest (the session hands the seat to the bot after two minutes), and `--night-sim`.
+- The modes (doc p. 24): Night Off; The Crew (one shared score; an arrest or a hospital ends it for everyone); Last One
+  Standing (the last one in the bar wins, +200); The Wager (a secret bet at 7 p.m., +300 if it comes true); Rival Crews
+  (crew scores, the midnight brawl on the schedule); Sober Night (the bartender's on strike); Solo (the bartender
+  narrates). Fights between sailors are a host toggle.
+- What sailors do to each other (doc p. 23): buy a round, spike a friend's pint with a Gull (+35), carry a passed-out
+  friend to the door (they wake in their bunk with their money), draw on their face (it's on the morning screen).
+- The walking graph had four links through furniture (the bar counter twice, the stage, a card table): rerouted, and
+  `--patron-check` now proves every link clear.
+- Arcade: Host / Join / Browse for A Night Off (the host picks the mode, the crowd and fights between sailors; everyone
+  picks who they go ashore as); solo picks a mode (Night Off, Solo, Sober Night, the Wager) and the crowd.
+- Checks: `--night-net-test` (input round trip, the mirror rewrites byte for byte, a pool shot replays on the guest, a
+  guest walks, hello, a lost seat played by the bot), `--net-loop night mem` (the gate: a host and five guests finish a
+  night from midnight; a guest drops out and the bot plays their seat; everyone sees the same morning),
+  `--net-loop night` (the same over loopback UDP from 2 a.m., paced in real time), `--night-sim <crowd> <players> [runs]
+  [careful|reckless|mixed] [mode]`. Shots `night_guest`, `arcade_night`.
+- Balance notes from `--night-sim 1 1 20`: careful bots end around -33 money and go home with someone 65% of the time
+  (now less: they take an offer 25%); reckless bots pass out 70%. The doc's targets (a careful player walks home with
+  300-500 half the time; a reckless one loses a kidney 1 in 5 and is arrested 1 in 6; 2.4 events and 3 fights a night)
+  need stage 7's events and stage 8's poker money before they can be tuned.
+
 ## Next
-6. Multiplayer and the morning after.  
-   (six), modes.
-7. Events, the rest of the regulars.  8. Poker and bullshit, cheating, side bets.  9. Sound, profile, internet play.
+7. Events (all eleven), the crowd curves, the rest of the regulars.  8. Poker and bullshit, cheating, side bets, the
+cartel's kidney pot.  9. Sound, the profile, the bartender's memory, internet play.

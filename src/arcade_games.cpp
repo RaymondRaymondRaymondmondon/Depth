@@ -18,6 +18,10 @@ namespace mf {   // Mouthful's host (mouthful_net.cpp)
 std::unique_ptr<arcade::GameHost> MakeMouthfulHost();
 uint32_t MouthfulDataHash();
 }
+namespace no {   // A Night Off's host (nightoff_net.cpp)
+std::unique_ptr<arcade::GameHost> MakeNightHost();
+uint32_t NightDataHash();
+}
 namespace fl {   // The Flight's host (flight_net.cpp)
 std::unique_ptr<arcade::GameHost> MakeFlightHost();
 uint32_t FlightDataHash();
@@ -34,7 +38,7 @@ const GameInfo& Info(int g) {
         {"Red Tide", 1, 4, true, 20, true},
         {"The Flight", 2, 6, true, 20, true, false},
         {"Mouthful", 1, 6, true, 20, true, false},
-        {"A Night Off", 1, 6, true, 20, false, false},
+        {"A Night Off", 1, 6, true, 20, true, false},
     };
     static const GameInfo DRIFT = {"Drift (test)", 2, 6, true, 20, true};
     static const GameInfo NONE = {"?", 2, 2, false, 0, false};
@@ -136,6 +140,7 @@ uint32_t DataHash() {
     w.U32(rt::RedTideDataHash());
     w.U32(fl::FlightDataHash());
     w.U32(mf::MouthfulDataHash());
+    w.U32(no::NightDataHash());
     return Fnv1a(w.b.data(), w.b.size());
 }
 
@@ -146,6 +151,7 @@ std::unique_ptr<GameHost> MakeGameHost(int g) {
         case G_RED_TIDE: return rt::MakeRedTideHost();
         case G_FLIGHT: return fl::MakeFlightHost();
         case G_MOUTHFUL: return mf::MakeMouthfulHost();
+        case G_NIGHT_OFF: return no::MakeNightHost();
         case G_TEST_DRIFT: return std::make_unique<DriftHost>();
         default: return nullptr;   // Flats Duel, the Trawl, Fathoms and the fifth game come aboard in stages 12-14 and later
     }

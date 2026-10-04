@@ -134,6 +134,8 @@ struct GameSeat {
     bool over = false, tellShown = false; int result = -1;       // 0 you won, 1 they did, 2 a draw
     float botT = 0, replayT = 0; int replayLen = 0;              // the opponent's pause; the replay running (pool frames, the golf path)
     darts::Match darts; pool::Match pool; golf::Match golf; std::vector<Vector2> golfPath; int golfWho = 0, golfHole = 0;
+    // the last shot, so a guest can replay it itself (the frames and the path aren't sent): the table or the ball before it
+    int shotSerial = 0; pool::Table shotTable; pool::Shot shot; bool shotMiss = false; golf::Ball shotBall; golf::Sim shotSim; bool shotRain = false;
     slots::Pull pull; int pulls = 0; float spinT = 0, autoT = 0;
     scratch::Ticket ticket; bool haveTicket = false, paid = false;
     fortune::Reading reading; bool haveReading = false;

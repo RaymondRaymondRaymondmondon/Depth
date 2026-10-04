@@ -26,6 +26,7 @@
 #include "mouthful_net.h"
 #include "nightoff.h"
 #include "nightoff_games.h"
+#include "nightoff_net.h"
 #include "flight_costumes.h"
 #include "study.h"
 #include "course.h"
@@ -238,6 +239,7 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"night_game_scratch", [](Game& g) { DebugNightOffShot(g, 12); }}, {"night_game_fortune", [](Game& g) { DebugNightOffShot(g, 13); }},
         {"night_game_menu", [](Game& g) { DebugNightOffShot(g, 14); }},
         {"night_brawl", [](Game& g) { DebugNightOffShot(g, 15); }}, {"night_wreck", [](Game& g) { DebugNightOffShot(g, 16); }}, {"night_dog", [](Game& g) { DebugNightOffShot(g, 17); }},
+        {"night_guest", [](Game& g) { DebugNightOffShot(g, 20); }}, {"arcade_night", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(7); }},
         {"night_flirt", [](Game& g) { DebugNightOffShot(g, 18); }}, {"night_morning_kidney", [](Game& g) { DebugNightOffShot(g, 19); }},
         {"mouthful_wardrobe", [](Game& g) { DebugMouthfulWardrobe(); g.scene = Scene::Arcade; DebugArcadeReel(206); }},
         {"arcade_mouthful", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(6); }},
@@ -811,6 +813,12 @@ int main(int argc, char** argv) {
     // A Night Off (arcade game 6)
     if (argc >= 2 && strcmp(argv[1], "--night-test") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunNightTest(); }
     if (argc >= 2 && strcmp(argv[1], "--patron-check") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunPatronCheck(); }
+    if (argc >= 2 && strcmp(argv[1], "--night-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunNightNetTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--night-sim") == 0) {   // --night-sim <crowd 0-2> <players> [runs] [careful|reckless|mixed] [mode 0-6]
+        SetTraceLogLevel(LOG_WARNING);
+        int style = argc >= 6 ? (strcmp(argv[5], "reckless") == 0 ? 1 : strcmp(argv[5], "mixed") == 0 ? 2 : 0) : 2;
+        return no::RunNightSim(argc >= 3 ? atoi(argv[2]) : 1, argc >= 4 ? atoi(argv[3]) : 1, argc >= 5 ? atoi(argv[4]) : 10, style, argc >= 7 ? atoi(argv[6]) : 0);
+    }
     if (argc >= 2 && strcmp(argv[1], "--game-check") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunGameCheck(argc >= 3 ? argv[2] : "all", argc >= 4 ? atoi(argv[3]) : 200); }
     if (argc >= 2 && strcmp(argv[1], "--mouthful-round") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulRound(argc > 2 ? atoi(argv[2]) : 11, argc > 3 ? (float)atof(argv[3]) : 15.0f, argc > 4 ? (uint32_t)atoi(argv[4]) : 1u, argc > 5 ? atoi(argv[5]) : 1, argc > 6 ? atoi(argv[6]) : 0); }
     if (argc >= 5 && strcmp(argv[1], "--mouthful-duel") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulDuel(argv[2], argv[3], (float)atof(argv[4]), argc > 5 ? atoi(argv[5]) : 40); }
@@ -918,9 +926,10 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--course-seed-test") == 0) return RunCourseSeedTest(argc, argv, 2);
     if (argc >= 2 && strcmp(argv[1], "--scuttle-sim") == 0) return RunScuttleSim(argc >= 3 ? std::max(1, atoi(argv[2])) : 2000);
     if (argc >= 2 && strcmp(argv[1], "--net-loop") == 0) {
-        int lag = 0; bool mem = false, trawl = false, redtide = false, flight = false, mouthful = false;
-        for (int i = 2; i < argc; i++) { if (strcmp(argv[i], "mem") == 0) mem = true; else if (strcmp(argv[i], "trawl") == 0) trawl = true; else if (strcmp(argv[i], "redtide") == 0) redtide = true; else if (strcmp(argv[i], "flight") == 0) flight = true; else if (strcmp(argv[i], "mouthful") == 0) mouthful = true; else if (strcmp(argv[i], "scuttle") != 0) lag = atoi(argv[i]); }
+        int lag = 0; bool mem = false, trawl = false, redtide = false, flight = false, mouthful = false, night = false;
+        for (int i = 2; i < argc; i++) { if (strcmp(argv[i], "mem") == 0) mem = true; else if (strcmp(argv[i], "trawl") == 0) trawl = true; else if (strcmp(argv[i], "redtide") == 0) redtide = true; else if (strcmp(argv[i], "flight") == 0) flight = true; else if (strcmp(argv[i], "mouthful") == 0) mouthful = true; else if (strcmp(argv[i], "night") == 0) night = true; else if (strcmp(argv[i], "scuttle") != 0) lag = atoi(argv[i]); }
         if (mouthful) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulNetLoop(mem); }
+        if (night) { SetTraceLogLevel(LOG_WARNING); return no::RunNightNetLoop(mem); }
         if (trawl) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlNetLoop(mem); }
         if (redtide) { SetTraceLogLevel(LOG_WARNING); return rt::RunRedTideNetLoop(mem); }
         if (flight) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightNetLoop(mem); }

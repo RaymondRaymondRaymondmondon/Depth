@@ -5,6 +5,8 @@
 #include "game.h"
 #include "nightoff.h"
 #include "nightoff_gamesui.h"
+#include "nightoff_net.h"
+#include "arcade_session.h"
 #include "figure3d.h"
 #include "redtide_render.h"
 #include "input.h"
@@ -17,7 +19,9 @@ namespace {
 
 struct NightScene {
     bool active = false, shot = false;
-    no::Night N;
+    no::Night N;                  // (our own night: solo, or a guest's mirror of the host's)
+    arcade::Session* net = nullptr; no::Night* live = nullptr;   // (a networked night: the host draws its real night)
+    std::string netName; int netCrew = 0; bool helloSent = false; int seenVersion = -1;
     int me = 0;
     float camYaw = PI * 0.5f, camPitch = -0.28f, camDist = 3.2f;
     Vector3 camAt{};          // the camera's lagging focus
@@ -27,10 +31,11 @@ struct NightScene {
     Camera3D cam{};
 };
 NightScene S;
+no::Night& NW() { return S.live ? *S.live : S.N; }
 
 Color Mix(Color a, Color b, float k) { k = std::clamp(k, 0.0f, 1.0f); return {(unsigned char)(a.r + (b.r - a.r) * k), (unsigned char)(a.g + (b.g - a.g) * k), (unsigned char)(a.b + (b.b - a.b) * k), 255}; }
 Color Shade(Color c, float k) { return {(unsigned char)std::clamp(c.r * k, 0.0f, 255.0f), (unsigned char)std::clamp(c.g * k, 0.0f, 255.0f), (unsigned char)std::clamp(c.b * k, 0.0f, 255.0f), c.a}; }
-no::Player& Me() { return S.N.players[std::clamp(S.me, 0, (int)S.N.players.size() - 1)]; }
+no::Player& Me() { return NW().players[std::clamp(S.me, 0, (int)NW().players.size() - 1)]; }
 
 // ---------------------------------------------------------------- the crew (doc p. 25: the Nautilus crew's silhouettes in shore clothes)
 const Model* CrewModel(int crew) {
@@ -272,8 +277,8 @@ void StepCamera(float dt) {
     Vector3 head{p.pos.x, p.st == no::State::PassedOut ? 0.4f : 1.55f, p.pos.y};
     // in a conversation the camera swings round to frame you both (from the side, looking at the pair's middle)
     int partner = p.talk.patron >= 0 ? p.talk.patron : p.flirt.patron;
-    if (partner >= 0 && partner < (int)S.N.patrons.size()) {
-        const no::Patron& c = S.N.patrons[partner];
+    if (partner >= 0 && partner < (int)NW().patrons.size()) {
+        const no::Patron& c = NW().patrons[partner];
         float toC = atan2f(c.pos.y - p.pos.y, c.pos.x - p.pos.x), want = toC - 0.75f;
         S.camYaw += atan2f(sinf(want - S.camYaw), cosf(want - S.camYaw)) * std::min(1.0f, dt * 3);
         head = {(p.pos.x + c.pos.x) / 2 - 0.55f * cosf(S.camYaw + PI / 2), 1.45f, (p.pos.y + c.pos.y) / 2 - 0.55f * sinf(S.camYaw + PI / 2)};
@@ -296,7 +301,7 @@ void StepCamera(float dt) {
 }
 void Render(float dt) {
     StepCamera(dt);
-    const no::Night& n = S.N;
+    const no::Night& n = NW();
     rt::SceneLight L;
     // gaslight: warm amber from the lamps, a cool blue at the windows, the room dimming as the night goes on (doc p. 6)
     float late = std::clamp((n.Hour() - 19) / 8, 0.0f, 1.0f);
@@ -325,12 +330,12 @@ void Render(float dt) {
 void Gather(float dt) {
     no::Player& p = Me();
     no::Input& in = p.in;
-    in.moveX = in.moveZ = 0; in.run = false;
+    in.moveX = in.moveZ = 0; in.run = false; in.faceYaw = S.camYaw;
     if (IsKeyPressed(KEY_H)) S.help = !S.help;
     bool canMove = p.st == no::State::Active && !S.menu && !S.shot && p.talk.patron < 0 && p.flirt.patron < 0 && p.leavingT <= 0 && !nog::Blocking(p);
     if (p.talk.patron >= 0 && IsKeyPressed(KEY_ESCAPE)) in.say = 6;
     if (p.flirt.patron >= 0 && IsKeyPressed(KEY_ESCAPE)) { if (p.flirt.offer) in.offer = 2; else in.flirtSay = 6; }
-    Vector2 md = MouseLook(!S.shot && !S.menu && !S.N.over && p.talk.patron < 0 && p.flirt.patron < 0 && !nog::Blocking(p));
+    Vector2 md = MouseLook(!S.shot && !S.menu && !NW().over && p.talk.patron < 0 && p.flirt.patron < 0 && !nog::Blocking(p));
     S.camYaw += md.x * 0.0025f; S.camPitch = std::clamp(S.camPitch - md.y * 0.002f, -0.9f, 0.35f);
     float wheel = GetMouseWheelMove(); S.camDist = std::clamp(S.camDist - wheel * 0.4f, 1.6f, 6.0f);
     if (canMove) {
@@ -351,25 +356,25 @@ void Gather(float dt) {
         if (IsKeyPressed(KEY_SPACE)) in.dodge = true;
         if (IsKeyPressed(KEY_R)) in.pickUp = true;
         if (IsKeyPressed(KEY_C)) in.smash = true;
-        if (IsKeyPressed(KEY_T)) { int near = S.N.NearestPatron(p, 1.8f); if (near >= 0) in.flirtWith = near; }
+        if (IsKeyPressed(KEY_T)) { int near = NW().NearestPatron(p, 1.8f); if (near >= 0) in.flirtWith = near; }
         if (in.attack) p.yaw = S.camYaw;   // (you swing where you're looking)
     }
     if (IsKeyPressed(KEY_E) && p.st == no::State::Active && !nog::Blocking(p)) {
-        int mach = 0, gk = S.N.NearGame(p, &mach);
-        bool byDog = Vector2Distance(p.pos, S.N.dog.pos) < 1.6f && S.N.dog.owner != p.id;
+        int mach = 0, gk = NW().NearGame(p, &mach);
+        bool byDog = Vector2Distance(p.pos, NW().dog.pos) < 1.6f && NW().dog.owner != p.id;
         if (S.menu) S.menu = false;
         else if (byDog) in.feedDog = true;
-        else if (S.N.NearServe(p) || S.N.NearHatch(p)) S.menu = true;
-        else if (S.N.NearDoor(p)) in.leave = true;
+        else if (NW().NearServe(p) || NW().NearHatch(p)) S.menu = true;
+        else if (NW().NearDoor(p)) in.leave = true;
         else if (gk >= 0 && p.talk.patron < 0) { if (gk <= no::GK_GOLF) nog::OpenMenu(gk, mach); else { in.startGame = gk; in.gameMachine = mach; in.gameOpp = -1; in.gameStake = 0; } }
-        else if (p.talk.patron < 0 && p.flirt.patron < 0) { int near = S.N.NearestPatron(p, 1.8f); if (near >= 0) in.talkTo = near; }
+        else if (p.talk.patron < 0 && p.flirt.patron < 0) { int near = NW().NearestPatron(p, 1.8f); if (near >= 0) in.talkTo = near; }
     }
-    if (S.menu && (IsKeyPressed(KEY_ESCAPE) || !(S.N.NearServe(p) || S.N.NearHatch(p)))) S.menu = false;
+    if (S.menu && (IsKeyPressed(KEY_ESCAPE) || !(NW().NearServe(p) || NW().NearHatch(p)))) S.menu = false;
     (void)dt;
 }
 void Bar(float x, float y, float w, float h, float k, Color c) { DrawRectangleRounded({x, y, w, h}, 0.5f, 6, Fade(Color{20, 12, 8, 255}, 0.75f)); if (k > 0) DrawRectangleRounded({x + 2, y + 2, std::max(2.0f, (w - 4) * std::clamp(k, 0.0f, 1.0f)), h - 4}, 0.5f, 6, c); }
 void DrawHud() {
-    no::Night& n = S.N; no::Player& p = Me();
+    no::Night& n = NW(); no::Player& p = Me();
     Color ink{250, 238, 214, 255}, dim{210, 190, 160, 255}, brass{230, 190, 110, 255};
     DrawTextCenteredBold(n.Clock(), SCREEN_W / 2.0f, 12, 24, n.Hour() >= no::D().lastCallHour ? Color{255, 160, 120, 255} : ink);
     if (n.Hour() >= no::D().lastCallHour) DrawTextCentered("LAST CALL: prices double", SCREEN_W / 2.0f, 40, 14, Color{255, 170, 130, 255});
@@ -536,7 +541,7 @@ void DrawHud() {
     nog::Frame(n, p, S.shot ? 1 / 60.0f : GetFrameTime());
 }
 void DrawMorning(Game& g) {
-    no::Night& n = S.N;
+    no::Night& n = NW();
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{236, 226, 200, 255});
     // the newspaper
     DrawTextCenteredBold("THE HARBOUR GAZETTE", SCREEN_W / 2.0f, 40, 40, Color{30, 26, 22, 255});
@@ -560,40 +565,86 @@ void DrawMorning(Game& g) {
         DrawRectangle((int)x, (int)yy + 2, (int)w, 1, ink);
         TxtBold(TextFormat("Score %d", total), x + w - 110, yy + 6, 17, ink);
     }
-    if (Button({SCREEN_W / 2.0f - 120, SCREEN_H - 80.0f, 240, 40}, "Back to the arcade", true, 16)) { S.active = false; g.scene = Scene::Arcade; }
+    if (Button({SCREEN_W / 2.0f - 120, SCREEN_H - 80.0f, 240, 40}, S.net ? "Back to the lobby" : "Back to the arcade", true, 16)) { LeaveNightOff(g); }
 }
 
 }  // namespace
 
-void StartNightOff(Game& g, int crew) {
+void StartNightOff(Game& g, int crew, int mode, int crowd) {
     std::string why;
     if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
-    no::Opts o; o.players = 1; o.seed = (uint32_t)GetRandomValue(1, 1 << 30);
+    S.net = nullptr; S.live = nullptr; S.N.mirror = false;
+    no::Opts o; o.players = 1; o.seed = (uint32_t)GetRandomValue(1, 1 << 30); o.mode = std::clamp(mode, 0, no::MD_COUNT - 1); o.crowd = std::clamp(crowd, 0, 3);
+    if (o.mode == no::MD_SOLO && o.crowd > 1) o.crowd = 1;   // (Solo: a Dead or Normal crowd)
     S.N.Init(o);
     S.N.players[0].crew = std::clamp(crew, 0, 5);
     S.me = 0; S.active = true; S.shot = false; S.menu = false; S.help = true; S.t = 0; S.walkPh.clear(); nog::Reset();
     S.camYaw = PI * 0.5f; S.camPitch = -0.28f; S.camDist = 3.2f; S.camAt = {Me().pos.x, 1.55f, Me().pos.y};
     g.scene = Scene::NightOff;
 }
-void LeaveNightOff(Game& g) { S.active = false; g.scene = Scene::Arcade; }
+// a networked night (stage 6): the arcade's session launched A Night Off; the host draws its real night, a guest its mirror
+void StartNightOffNet(Game& g, arcade::Session* net, const char* name, int crew) {
+    std::string why;
+    if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
+    S.net = net; S.live = nullptr; S.N = no::Night{};
+    S.netName = name ? name : "Sailor"; S.netCrew = std::clamp(crew, 0, 5); S.helloSent = false; S.seenVersion = -1;
+    S.me = std::max(0, net->MyPlayer()); S.active = true; S.shot = false; S.menu = false; S.help = true; S.t = 0; S.walkPh.clear(); nog::Reset();
+    S.camYaw = PI * 0.5f; S.camPitch = -0.28f; S.camDist = 3.2f; S.camAt = {19.5f, 1.55f, 1.5f};
+    g.scene = Scene::NightOff;
+}
+void LeaveNightOff(Game& g) {
+    if (S.net) { if (S.net->role == arcade::R_HOST) S.net->BackToLobby(); else S.net->Leave(); }
+    S.net = nullptr; S.live = nullptr;
+    S.active = false; g.scene = Scene::Arcade;
+}
+std::string NightOffOpts(int mode, int crowd, bool pvp) { return no::NightHostOpts(mode, crowd, pvp); }
 void SceneNightOff(Game& g) {
     if (!S.active) { StartNightOff(g, 0); if (!S.active) return; }
     float dt = S.shot ? 1 / 60.0f : std::min(GetFrameTime(), 1 / 30.0f);
-    if (S.N.over) { DrawMorning(g); return; }
+    if (S.net) {
+        arcade::Session& N = *S.net;
+        N.Update(GetTime(), dt);
+        if (N.stage != arcade::S_PLAYING) { S.net = nullptr; S.live = nullptr; S.active = false; g.scene = Scene::Arcade; return; }
+        S.me = std::max(0, N.MyPlayer());
+        if (N.role == arcade::R_HOST) S.live = no::NightHostWorld(N.HostGame());
+        else if (N.stateVersion != S.seenVersion && !N.Snapshot().empty()) {
+            S.seenVersion = N.stateVersion;
+            Reader r(N.Snapshot()); no::ReadNight(r, S.N);
+        }
+        no::Night& n = NW();
+        if (n.players.empty() || S.me >= (int)n.players.size()) { ClearBackground(Color{20, 14, 10, 255}); DrawTextCenteredBold("Ashore, to the Sodden Gull...", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 24, Color{240, 210, 150, 255}); return; }
+        if (!S.helloSent) { Writer o; no::OrderHello(o, S.netName, S.netCrew); N.Act(o); S.helloSent = true; S.camAt = {Me().pos.x, 1.55f, Me().pos.y}; }
+        if (n.over) { DrawMorning(g); return; }
+        Gather(dt);
+        S.t += dt;
+        Render(dt);
+        DrawHud();
+        // everything we did this frame goes to the host as an Input (the stick, the presses, the clicks in the panels)
+        Writer iw; no::WriteInput(Me().in, iw); N.Act(iw);
+        Me().in = no::Input{};
+        return;
+    }
+    if (NW().over) { DrawMorning(g); return; }
     Gather(dt);
-    if (!S.shot) S.N.Step(dt);
+    if (!S.shot) {   // (solo: the bots of an empty seat, none; the night steps here)
+        NW().Step(dt);
+    }
     S.t += dt;
     Render(dt);
     DrawHud();
 }
-void NightOffMenuTick(float) {}
-bool NightOffOwnsEsc() { if (!S.active || S.N.over) return false; const no::Player& p = Me(); return S.menu || p.talk.patron >= 0 || p.flirt.patron >= 0 || nog::Blocking(p); }
+void NightOffMenuTick(float dt) {
+    // (the game menu is open: a networked night goes on underneath, and our sailor stands still)
+    if (!S.active || !S.net) return;
+    no::Input in; Writer w; no::WriteInput(in, w); S.net->Act(w);
+    S.net->Update(GetTime(), dt);
+}bool NightOffOwnsEsc() { if (!S.active || NW().over) return false; const no::Player& p = Me(); return S.menu || p.talk.patron >= 0 || p.flirt.patron >= 0 || nog::Blocking(p); }
 // --shots: 0 walking in at 7, 1 at the bar ordering (the menu), 2 hammered at midnight in the games room, 3 the snug,
 // 4 passed out on the floor, 5 the morning paper
 void DebugNightOffShot(Game& g, int which) {
     StartNightOff(g, which % 6);
     S.shot = true; S.help = which == 0;
-    no::Night& n = S.N; no::Player& p = Me();
+    no::Night& n = NW(); no::Player& p = Me();
     auto at = [&](float x, float z, float yaw, float camYaw, float drunk) { p.pos = {x, z}; p.yaw = yaw; S.camYaw = camYaw; p.drunk = drunk; S.camAt = {x, 1.55f, z}; };
     if (which == 0) at(19.5f, 2.5f, PI * 0.5f, PI * 0.5f, 0);
     if (which == 1) { at(16.8f, 8.2f, PI * 0.5f, PI * 0.45f, 22); S.menu = true; n.t = 60 * no::SECONDS_PER_GAME_MINUTE * 1.5f; }
@@ -647,6 +698,19 @@ void DebugNightOffShot(Game& g, int which) {
             if (which == 19) { p.name = "You"; p.flirt.offer = true; n.FlirtOffer(p, true); n.over = true; }
             for (int k = 0; k < 30; k++) StepCamera(1 / 60.0f);
         }
+    }
+    if (which == 20) {   // a guest's view: a host's six-sailor night at 10 p.m., read from its snapshot into our mirror
+        static no::Night hostNight;
+        no::Opts o; o.players = 6; o.seed = 4321; o.startMinutes = 160; hostNight.Init(o);
+        for (auto& q : hostNight.players) { q.bot = true; q.botStyle = q.id % 2; q.botDrinkTo = 50; }
+        for (int i = 0; i < 400; i++) { for (auto& q : hostNight.players) hostNight.BotPlayer(q, 0.05f); hostNight.Step(0.05f); }
+        int view = 2; for (const auto& q : hostNight.players) if (q.game.kind < 0 && q.talk.patron < 0 && q.flirt.patron < 0 && q.st == no::State::Active) { view = q.id; break; }
+        Writer w; no::PackNight(hostNight, view, w); Reader r(w.b);
+        S.N = no::Night{}; no::ReadNight(r, S.N); S.me = view;
+        no::Player& me = Me(); me.in = no::Input{};
+        S.camYaw = me.yaw; S.camAt = {me.pos.x, 1.55f, me.pos.y}; S.camPitch = -0.3f; S.camDist = 4.0f;
+        for (int k = 0; k < 30; k++) StepCamera(1 / 60.0f);
+        return;
     }
     if (which == 17) {   // the alley dog, fed and following you in
         p.pos = Vector2Add(n.dog.pos, {0.6f, 0}); for (int k = 0; k < 3; k++) { p.in.feedDog = true; n.Step(0.02f); }

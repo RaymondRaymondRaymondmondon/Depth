@@ -292,6 +292,19 @@ int RunPatronCheck() {
     }
     check(d.traitNames.size() == 30 && d.genericSecrets.size() == 8, "thirty traits and eight generic secrets");
     for (int t = 0; t < T_COUNT; t++) if (d.talk.greet[t].v.empty() || d.talk.greet[t].v[0] == "...") check(t == T_BROODER, std::string("greetings for ") + TypeName(t));
+    // the walking graph: no link runs through the furniture or a wall (a patron or a bot would walk into it and stick)
+    {
+        const BarData& B = d.bar; std::string bad;
+        auto cross = [](Vector2 a, Vector2 b, Vector2 c, Vector2 e) { auto cr = [](Vector2 o, Vector2 p, Vector2 q) { return (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x); }; return ((cr(c, e, a) > 0) != (cr(c, e, b) > 0)) && ((cr(a, b, c) > 0) != (cr(a, b, e) > 0)); };
+        for (int i = 0; i < (int)B.navLinks.size(); i++) for (int j : B.navLinks[i]) {
+            if (j < i) continue;
+            Vector2 a = B.nav[i], b = B.nav[j]; bool hit = false;
+            for (int k = 0; k <= 40 && !hit; k++) { Vector2 q = Vector2Lerp(a, b, k / 40.0f); for (const auto& x : B.boxes) if (q.x > x.r.x - 0.25f && q.x < x.r.x + x.r.width + 0.25f && q.y > x.r.y - 0.25f && q.y < x.r.y + x.r.height + 0.25f) hit = true; }
+            for (const auto& w : B.walls) if (cross(a, b, w.a, w.b)) hit = true;
+            if (hit) bad += " " + B.navNames[i] + "-" + B.navNames[j];
+        }
+        check(bad.empty(), "the walking graph is clear of furniture and walls" + (bad.empty() ? std::string() : ":" + bad));
+    }
     printf(fails ? "patron-check: %d FAILED\n" : "patron-check: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

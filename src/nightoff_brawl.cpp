@@ -337,6 +337,7 @@ void Night::PlayerFightInput(Player& p, float dt) {
     Input& in = p.in; Combat& C = p.fight; Who me = PlayerW(p.id);
     C.blockT = in.block ? std::max(C.blockT, 0.15f) : C.blockT;
     if (in.dodge && C.dodgeT <= 0 && !C.Busy()) { C.dodgeT = FD().dodgeT; if (p.drunk >= FD().dodgeFall) { C.fallT = 1.4f; AddPop(p.pos, 1.6f, "Whoops", {230, 200, 160, 255}); } }
+    if (in.attack > 0 && in.faceYaw > -50) p.yaw = in.faceYaw;   // (you swing where you're looking)
     if (in.attack > 0) Attack(me, in.attack);
     // pick up the nearest weapon, or put down what you hold (behind the counter: the shotgun, if he isn't looking)
     if (in.pickUp && !C.Busy()) {

@@ -465,7 +465,7 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   - `depth.exe --flight-sim tropical <days> [careful|lagoon] [founder] [seed]`: the gate line. Careful reaches 40 in about 15 days with no deaths; lagoon-only starves.
 
 ## Mouthful (arcade game 8; build log in docs/MOUTHFUL_PROGRESS.md)
-- **Design:** `Reference_For_Future_MP_Games/Mouthful — Arcade Game 8 Design Document.pdf` (OCR in `docs/mouthful_pdf_pages/`). A 3D eat-and-grow arena: up to 12 mouths, tiers 1-8, six paths forked at tiers 2, 4 and 6, the crown at tier 8.
+- **Design:** `Reference_For_Future_MP_Games/Mouthful ï¿½ Arcade Game 8 Design Document.pdf` (OCR in `docs/mouthful_pdf_pages/`). A 3D eat-and-grow arena: up to 12 mouths, tiers 1-8, six paths forked at tiers 2, 4 and 6, the crown at tier 8.
 - **Code:**
   - `mouthful.h/.cpp`: the headless `mf::World`.
   - `mouthful_events.cpp`: the boat, orcas, red tide, whale fall, dusk, the eel garden.
@@ -486,3 +486,25 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 - **Data:** `data/mouthful/*.json` (tiers, paths/forms, sea, scoring, bots, skins).
 - **Checks:** `--mouthful-test`, `--mouthful-net-test`, `--mouthful-skins-test`, `--net-loop mouthful [mem]`, `--mouthful-round`, `--mouthful-duel`. Shots `mouthful_*`.
 - **The wardrobe:** `mouthful_wardrobe.txt` (gitignored).
+
+## A Night Off (arcade game 6; build log in docs/NIGHTOFF_PROGRESS.md)
+- **Design:** `Reference_For_Future_MP_Games/A Night Off â€” Arcade Game 6 Design Document.pdf` (OCR in `docs/nightoff_pdf_pages/`). A 1-6 player third-person night ashore at the Sodden Gull, 7 p.m. to 3 a.m. (4 real seconds a game minute); the drunk meter trades charisma for toughness; the morning paper is the scoreboard.
+- **Code (namespace `no`):**
+  - `nightoff.h/.cpp`: the headless `Night` (the bar, the meter, the menu, the tab, endings).
+  - `nightoff_patrons.cpp`: the crowd, the regulars, conversations.
+  - `nightoff_games.*` and `nightoff_tables.cpp`: darts, pool, golf, slots, scratch-offs and the fortune teller, with their bots.
+  - `nightoff_brawl.*`: fights, props, the bill.
+  - `nightoff_flirt.cpp`: flirting, going home, scoring, headlines.
+  - `nightoff_bots.cpp`: the modes, player tricks, the bot player, `--night-sim`.
+  - `nightoff_net.*`: the host and the snapshot `Visit`; any new field a screen draws must go in it.
+  - `nightoff_game.cpp` and `nightoff_gamesui.cpp`: the scene.
+- **Data:** `data/nightoff/` (bar, drinks, patrons, dialogue, games, fights, scoring).
+- **All play goes through `Input`** (`p.in`; the scene's `Gather` and panels write it; the host merges guests' inputs); never call Night actions from the scene directly.
+- **Checks:**
+  - `--night-test` (every stage's gates)
+  - `--patron-check` (it also proves the walking graph is clear of furniture)
+  - `--game-check <game>`
+  - `--night-sim`
+  - `--night-net-test`
+  - `--net-loop night [mem]`
+- **Shots:** `night_*`, `arcade_night`.

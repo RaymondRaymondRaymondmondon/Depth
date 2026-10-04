@@ -164,6 +164,7 @@ void Night::GameAction(Player& p) {
             if (act == 1 && !g.pool.ballInHand) {
                 bool miss = p.drunk > d.poolMissFrom && g.rng.U() < (p.drunk - d.poolMissFrom) / 150;
                 pool::Shot s; s.ang = in.gameAim.x; s.power = in.gamePower; s.english = in.gameEnglish;
+                g.shotTable = g.pool.t; g.shotTable.frames.clear(); g.shot = s; g.shotMiss = miss; g.shotSerial++;
                 g.pool.Play(s, miss);
                 g.replayLen = (int)g.pool.t.frames.size(); g.replayT = g.replayLen / 60.0f;
                 if (g.pool.turn == 1) g.botT = g.replayT + 1.2f;
@@ -173,6 +174,7 @@ void Night::GameAction(Player& p) {
             if (act == 1 && !g.over && g.golf.turn == 0 && g.replayT <= 0) {
                 g.golfPath.clear(); g.golfWho = 0; g.golfHole = g.golf.hole;
                 g.golfPath.push_back(g.golf.ball[0].p);
+                g.shotBall = g.golf.ball[0]; g.shotSim = g.golf.sim; g.shot.ang = in.gameAim.x; g.shot.power = in.gamePower; g.shotRain = g.golf.rain; g.shotSerial++;
                 g.golf.Shoot(in.gameAim.x, in.gamePower, &g.golfPath);
                 g.replayLen = (int)g.golfPath.size(); g.replayT = g.replayLen / 60.0f;
                 if (g.golf.lastHoled && g.golf.lastStrokes == 1) { Note(p, 5, TextFormat("A hole in one on %s.", golf::Course()[g.golf.lastHole].name.c_str())); Flag("hole_in_one", golf::Course()[g.golf.lastHole].name); }
@@ -240,6 +242,7 @@ void Night::StepGames(float dt) {
                 if (g.pool.ballInHand) { g.pool.t.b[0].p = pool::BotPlace(g.pool, g.rng); g.pool.t.b[0].in = false; g.pool.ballInHand = false; }
                 if (g.hustler && !g.tellShown && g.rng.U() < 0.3f) { g.caption = g.oppName + ": " + g.tell; g.captionT = 4; g.tellShown = true; }
                 pool::Shot s = pool::BotShot(g.pool, skill, g.rng);
+                g.shotTable = g.pool.t; g.shotTable.frames.clear(); g.shot = s; g.shotMiss = false; g.shotSerial++;
                 g.pool.Play(s);
                 g.replayLen = (int)g.pool.t.frames.size(); g.replayT = g.replayLen / 60.0f;
                 g.botT = g.replayT + 1.0f;
@@ -251,6 +254,7 @@ void Night::StepGames(float dt) {
             if (g.golf.turn == 1 && g.botT <= 0) {
                 float a, pw; golf::BotShot(g.golf, skill, g.rng, a, pw);
                 g.golfPath.clear(); g.golfWho = 1; g.golfHole = g.golf.hole; g.golfPath.push_back(g.golf.ball[1].p);
+                g.shotBall = g.golf.ball[1]; g.shotSim = g.golf.sim; g.shot.ang = a; g.shot.power = pw; g.shotRain = g.golf.rain; g.shotSerial++;
                 g.golf.Shoot(a, pw, &g.golfPath);
                 g.replayLen = (int)g.golfPath.size(); g.replayT = g.replayLen / 60.0f;
                 g.botT = g.replayT + 1.0f;

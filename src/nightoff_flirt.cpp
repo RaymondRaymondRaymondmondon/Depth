@@ -171,6 +171,7 @@ void Night::AskTrouble(Player& p) {
 
 // ---------------------------------------------------------------- the morning (doc pp. 3-4)
 std::vector<Night::ScoreLine> Night::ScoreBreakdown(const Player& p) const {
+    if (mirror && p.id >= 0 && p.id < (int)scoreCache.size()) return scoreCache[p.id];   // (a guest draws the host's)
     const ScoringData& s = SD(); std::vector<ScoreLine> L;
     float kept = p.money - 200;
     if (kept > 0) L.push_back({TextFormat("Money kept over your wages (%.0f)", kept), (int)(kept / s.moneyPer)});
@@ -184,11 +185,25 @@ std::vector<Night::ScoreLine> Night::ScoreBreakdown(const Player& p) const {
     if (p.kidneys >= 2) L.push_back({"Still have both kidneys", (int)s.bothKidneys});
     if (p.ending == E_WALKED && p.drunk < 20) L.push_back({"Walked home sober", (int)s.walkedSober});
     if (p.tab > 0) L.push_back({TextFormat("Unpaid tab (%.0f)", p.tab), (int)(floorf(p.tab / 10) * s.debtPer10)});
+    if (p.wager >= 0) {
+        bool hit = p.wager == WG_HOME ? p.ending == E_HOME_WITH : p.wager == WG_RICH ? p.money >= 700 : p.wager == WG_SOBER_FIGHT ? p.fightsWonSober > 0 : (p.kidneys >= 2 && p.ending != E_ARRESTED && p.ending != E_HOSPITAL && p.ending != E_KNOCKED_OUT);
+        L.push_back({std::string("The wager: ") + WagerName(p.wager) + (hit ? "" : " (lost)"), hit ? 300 : 0});
+    }
+    if (opts.mode == MD_LAST_STANDING && winner == p.id) L.push_back({"Last one standing", 200});
     return L;
 }
-int Night::Score(const Player& p) const { int s = 0; for (const auto& l : ScoreBreakdown(p)) s += l.points; return s; }
+int Night::Score(const Player& p) const {
+    // The Crew: one shared score; Rival Crews: a score per crew; otherwise your own
+    int s = 0;
+    for (const auto& q : players) {
+        bool counts = q.id == p.id || opts.mode == MD_CREW || (opts.mode == MD_RIVAL_CREWS && q.crew2 == p.crew2);
+        if (counts) for (const auto& l : ScoreBreakdown(q)) s += l.points;
+    }
+    return s;
+}
 static const char* Words(int n) { static const char* W[] = {"NO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX"}; return n >= 0 && n <= 6 ? W[n] : "MANY"; }
 std::string Night::Headline() const {
+    if (mirror && !headlineCache.empty()) return headlineCache;
     const ScoringData& s = SD();
     int n = (int)players.size(), passed = 0, sick = 0, walked = 0, drinks = 0, arrested = 0, hosp = 0, soberWins = 0;
     for (const auto& p : players) { passed += p.ending == E_PASSED_OUT; walked += p.ending == E_WALKED; drinks += p.drinks; arrested += p.ending == E_ARRESTED; hosp += p.ending == E_HOSPITAL; soberWins += p.fightsWonSober; for (const auto& m : p.log) sick += m.kind == 2; }
@@ -227,6 +242,7 @@ std::string Night::Headline() const {
     return "ANOTHER NIGHT AT THE SODDEN GULL";
 }
 std::vector<std::string> Night::MorningStory(const Player& p) const {
+    if (mirror && p.id >= 0 && p.id < (int)storyCache.size()) return storyCache[p.id];
     const ScoringData& s = SD(); std::vector<std::string> L;
     uint32_t k = (uint32_t)(p.id * 7 + p.drinks * 3 + (int)p.money);
     switch (p.ending) {
@@ -244,6 +260,7 @@ std::vector<std::string> Night::MorningStory(const Player& p) const {
         case E_THROWN_OUT: L.push_back("You woke " + (s.woke.count("thrown_out") ? Pick(s.woke.at("thrown_out"), k) : p.wokeAt) + "."); break;
         default: L.push_back("You woke " + p.wokeAt + "."); break;
     }
+    if (p.faceDrawn) L.push_back("Someone drew a moustache on your face. It's on the morning screen now, forever.");
     // the night's best moment and what it cost
     std::string best; for (const auto& m : p.log) if (m.kind == 5) best = m.text;
     if (!best.empty()) L.push_back("Best moment: " + best);

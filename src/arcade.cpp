@@ -4,6 +4,7 @@
 // ============================================================================
 #include "mouthful.h"
 #include "game.h"
+#include "nightoff.h"
 #include "arcade_session.h"
 #include "scuttle.h"
 #include "flight_net.h"
@@ -25,6 +26,8 @@ void ArcadeBetFrame();
 static void DrawBetResult();
 
 namespace {
+int gNoMode = 0, gNoCrowd = 1, gNoCrew = 0; bool gNoPvp = true;   // (A Night Off: the host's mode, crowd and fights; who you go ashore as)
+
 using namespace arcade;
 
 Session gSess;
@@ -232,7 +235,7 @@ void DrawReels(Game& g) {
             gError.clear();
             if (k == 0) {
                 std::string err;
-                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : ""; }
+                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp) : ""; }
                 else gError = "Couldn't host: " + err;
             } else if (k == 1) { gMode = MODE_JOIN; gJoinFocus = true; }
             else gMode = MODE_BROWSE;
@@ -295,16 +298,23 @@ void DrawReels(Game& g) {
         if (Button({c.x + 120, c.y + 236, 170, 36}, "Roost wardrobe", true, 14)) { gFlWardrobe = true; return; }
         DrawTextCentered("Host or Join to fly with friends (2-6; the host picks the map and the length in the lobby)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
-    if (selGame == G_NIGHT_OFF) {   // stage 1: one player, the bar, the drink
-        static int noCrew = 0;
+    if (selGame == G_NIGHT_OFF) {   // solo: one sailor, the bar, the night (the modes that make sense alone; Host above for friends)
         static const char* CREW[6] = {"the Diver", "the Whaler", "the Stowaway", "the Mechanic", "the Captain", "the Nurse"};
-        Rectangle l{c.x - 190, c.y + 52, 30, 26}, r{c.x + 160, c.y + 52, 30, 26};
-        DrawTextCenteredBold(TextFormat("ashore as %s", CREW[noCrew]), c.x, c.y + 54, 20, Color{230, 200, 150, 255});
-        DrawTextCenteredBold("<", l.x + 15, l.y, 22, Pal::Brass); DrawTextCenteredBold(">", r.x + 15, r.y, 22, Pal::Brass);
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { noCrew = (noCrew + 5) % 6; PlayCue("ui.click"); }
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { noCrew = (noCrew + 1) % 6; PlayCue("ui.click"); }
-        if (Button({c.x - 110, c.y + 236, 220, 36}, "Go ashore (solo)", true, 15)) { StartNightOff(g, noCrew); return; }
-        DrawTextCentered("WASD walks, the mouse looks, E orders at the bar; every drink trades charisma for toughness", c.x, c.y + 280, 13, SCREEN_DIM);
+        static const int SOLO_MODES[4] = {no::MD_NIGHT_OFF, no::MD_SOLO, no::MD_SOBER, no::MD_WAGER};
+        static const char* CROWD[3] = {"a dead night", "a normal night", "a packed night"};
+        static int soloMode = 0, soloCrowd = 1;
+        auto row = [&](float y, const char* text, int& v, int n) {
+            Rectangle l{c.x - 190, y, 30, 26}, r{c.x + 160, y, 30, 26};
+            DrawTextCenteredBold(text, c.x, y + 2, 19, Color{230, 200, 150, 255});
+            DrawTextCenteredBold("<", l.x + 15, l.y, 22, Pal::Brass); DrawTextCenteredBold(">", r.x + 15, r.y, 22, Pal::Brass);
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = (v + n - 1) % n; PlayCue("ui.click"); }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = (v + 1) % n; PlayCue("ui.click"); }
+        };
+        row(c.y + 44, TextFormat("ashore as %s", CREW[gNoCrew]), gNoCrew, 6);
+        row(c.y + 70, TextFormat("solo: %s", no::ModeName(SOLO_MODES[soloMode])), soloMode, 4);
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Go ashore (solo)", true, 15)) { StartNightOff(g, gNoCrew, SOLO_MODES[soloMode], soloCrowd); return; }
+        if (Button({c.x + 120, c.y + 241, 120, 26}, CROWD[soloCrowd], true, 12)) soloCrowd = (soloCrowd + 1) % 3;
+        DrawTextCentered(no::ModeRule(SOLO_MODES[soloMode]), c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (selGame == G_MOUTHFUL) {   // solo: you and the bots on the reef (stage 3 brings friends)
         static int mfBots = 11, mfLen = 1, mfLevel = 0;
@@ -586,10 +596,35 @@ void DrawLobby() {
         gSess.gameOpts = MouthfulOpts(LENS[mfLen], mfLevel, 12, gMfMode, gMfPath);
         if (ch) gSess.Chat(TextFormat("The round: %s, %d minutes, %s filling the water to twelve", mf::ModeName(gMfMode), LENS[mfLen], LEVELS[mfLevel]));
     }
+    if (gSess.game == G_NIGHT_OFF) {
+        // the host picks the mode (doc p. 24), the crowd (Dead, Normal, Packed, Random) and whether sailors may fight each other;
+        // everyone picks who they go ashore as
+        static const char* CROWD[4] = {"a dead night", "a normal night", "a packed night", "a random crowd"};
+        static const char* CREWN[6] = {"the Diver", "the Whaler", "the Stowaway", "the Mechanic", "the Captain", "the Nurse"};
+        auto pick = [&](float x, float y, const char* text, int& v, int n, bool on) {
+            Rectangle l{x - 150, y, 26, 26}, r{x + 124, y, 26, 26};
+            if (on) { DrawTextCenteredBold("<", l.x + 13, l.y + 2, 20, Pal::Brass); DrawTextCenteredBold(">", r.x + 13, r.y + 2, 20, Pal::Brass); }
+            DrawTextCenteredBold(text, x, y + 3, 17, Color{230, 200, 150, 255});
+            bool ch = false;
+            if (on && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = (v + n - 1) % n; ch = true; }
+            if (on && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = (v + 1) % n; ch = true; }
+            return ch;
+        };
+        bool ch = false;
+        if (host) {
+            ch |= pick(p.x + 195, p.y + p.height - 140, no::ModeName(gNoMode), gNoMode, no::MD_SOLO, true);
+            ch |= pick(p.x + 505, p.y + p.height - 140, CROWD[gNoCrowd], gNoCrowd, 4, true);
+            int pv = gNoPvp ? 1 : 0; ch |= pick(p.x + 195, p.y + p.height - 108, pv ? "sailors may fight sailors" : "no fights between sailors", pv, 2, true); gNoPvp = pv != 0;
+            gSess.gameOpts = NightOffOpts(gNoMode, gNoCrowd, gNoPvp);
+            if (ch) gSess.Chat(TextFormat("Tonight: %s, %s%s", no::ModeName(gNoMode), CROWD[gNoCrowd], gNoPvp ? "" : ", no fights between sailors"));
+        }
+        pick(p.x + 505, p.y + p.height - 108, TextFormat("ashore as %s", CREWN[gNoCrew]), gNoCrew, 6, true);
+        DrawTextCentered(no::ModeRule(gNoMode), p.x + p.width / 2, p.y + p.height - 76, 13, Color{200, 190, 170, 255});
+    }
     if (host) {
         std::string why;
         bool can = gSess.CanLaunch(&why);
-        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : gSess.game == G_MOUTHFUL ? "Into the water" : "Start the race";
+        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : gSess.game == G_MOUTHFUL ? "Into the water" : gSess.game == G_NIGHT_OFF ? "Go ashore" : "Start the race";
         if (Button({p.x + p.width - 250, p.y + p.height - 66, 220, 50}, go, can, 20)) { std::string w2; gSess.Launch(&w2); }
         if (!can) Txt(why, p.x + 30, p.y + p.height - 50, 15, SCREEN_DIM);
     } else if (gSess.mySeat >= 0) {
@@ -1011,6 +1046,7 @@ void DrawRoom(Game& g) {
             if (gSess.game == G_RED_TIDE) { StartRedTideNet(g, &gSess); return; }       // into the water (host or guest)
             if (gSess.game == G_FLIGHT) { StartFlightNet(g, &gSess, FlightFounderKey(gFlSel), gProfile.name.c_str()); return; }   // into the air (host or guest)
             if (gSess.game == G_MOUTHFUL) { StartMouthfulNet(g, &gSess, gProfile.name.c_str()); return; }                            // into the water (host or guest)
+            if (gSess.game == G_NIGHT_OFF) { StartNightOffNet(g, &gSess, gProfile.name.c_str(), gNoCrew); return; }                  // ashore (host or guest)
             DrawTable(g);
             break;
         case S_ENDED: {
