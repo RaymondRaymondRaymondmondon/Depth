@@ -241,5 +241,28 @@ Build order is the doc's p. 29 (nine stages).
 - Simpler than the doc: the billiards room plays eight-ball on both tables (no snooker or carom rules yet); the Monkey
   has darts and scratch-offs like the Gull; the high-stakes table is the card room's ordinary one.
 
+- **10d, seasonal nights** (`nightoff_seasons.cpp`, `nightoff_seasons.json`): the calendar picks one a month
+  (`SeasonToday`; the lobby and the solo menu show it and can force any, or none); it's held at the Gull, the Monkey
+  or either (`SeasonOn`), so the other bar is the quiet choice. The Harbour Festival (Packed, double events, three yard
+  stalls, fireworks at midnight: flirts a step easier, the police deaf), the Storm (rain, no ferry, the yard shut, the
+  power fails: candles, no slots, a lock-in, the Marguerite told in the dark), the Wedding at the Monkey (Cutter Jones
+  and Miss Ashby under an arch in the ballroom, an objection, a free bar, toasts), the Regatta (rivals, the ladder pays
+  triple, three wins sober is a headline, Sister Ash's refereed midnight brawl), New Year (to 4 a.m., the countdown, a
+  kiss for everyone, the goat for the unlucky, the year's card), the Wake of the Year (no fights, the confession round
+  at the bar: every secret, the thieves named), the Masquerade (masks drawn and names hidden, three thieves, unmask one
+  for their cooler, which stops the next theft) and the Cook's Birthday (free food, the frying pan given, Tam fights
+  anyone who hasn't eaten by half eleven). Headlines per season. Shots `night_season_*`.
+- **10e, skins and the token spin** (`nightoff_skins.cpp`, `nightoff_skins.json`): tokens per night (10, 1 per 50
+  score, 5 for a first headline, 20 for a first seasonal night) and 50 skins (10 in the store at 50-250; 40 on the
+  brass wheel, one token a spin, the doc's odds, duplicates not refunded; the doc's odds need about 410 spins for the
+  full forty, not its quoted 290). Saved in the profile and sent in the hello, so everyone sees them. Costumes are built
+  in code per shape (`DrawSkin`: the pint glass fills with your meter, the slot machine's reels follow your sway, the
+  Headline wears your best headline...). The jokes: the Constable confuses the police for 10 s, and the Golden Kidney
+  is stolen instead of a kidney. The cloakroom (the arcade's Night Off reel): a 3D mirror, the store, the wheel, the
+  wardrobe. Shots `night_cloakroom`, `night_skins_0..8`.
+- **The dog** (doc p. 42): fed once it follows for five minutes, twice all night, three times it fights for you; the
+  first to feed it names it (N); feeding it more than its owner steals it (a feud, and a headline).
+- **Headlines**: 89 templates; several per moment, picked by the night's seed (`Headline`).
+
 ## Next
-10d. Seasonal nights. 10e. Skins and the token spin. Then Scuffle.
+A Night Off's design document is built through p. 42. Next: Scuffle (arcade game 9).

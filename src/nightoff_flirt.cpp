@@ -254,7 +254,10 @@ std::string Night::Headline() const {
         else if (w.rfind("ev_", 0) == 0) { int ei = EventIndex(w.substr(3).c_str()); hit = ei >= 0 && events[ei].started; }
         else hit = flagged(w.c_str(), &who);
         if (!hit) continue;
-        std::string out = h.text;
+        // the variants for this moment (same "when", listed later): one of them, picked by the night's seed
+        std::vector<const std::string*> vars; for (const auto& v : s.headlines) if (v.when == w) vars.push_back(&v.text);
+        uint32_t hv = opts.seed * 2654435761u; for (char ch : w) hv = (hv ^ (uint8_t)ch) * 16777619u;
+        std::string out = vars.empty() ? h.text : *vars[(hv >> 7) % vars.size()];
         out = Replace(out, "{N}", Words(n)); out = Replace(out, "{S}", n == 1 ? "" : "S"); out = Replace(out, "{n}", TextFormat("%d", w == "any" ? drinks : n));
         out = Replace(out, "{who}", Upper(who.empty() ? std::string("A SAILOR") : who == "You" ? std::string("A SAILOR") : who)); out = Replace(out, "{thing}", Upper(thing));
         if (CurBar() == BAR_MONKEY) { out = Replace(out, "THE SODDEN GULL", "THE BRASS MONKEY"); out = Replace(out, "SODDEN GULL", "BRASS MONKEY"); out = Replace(out, "THE GULL'S", "THE MONKEY'S"); out = Replace(out, "THE GULL", "THE MONKEY"); out = Replace(out, "THE BARTENDER", "CELESTE"); out = Replace(out, "BARTENDER", "CELESTE"); }

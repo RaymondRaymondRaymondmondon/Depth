@@ -508,3 +508,9 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   - `--night-net-test`
   - `--net-loop night [mem]`
 - **Shots:** `night_*`, `arcade_night`.
+- **The second half of the doc (stage 10):** the cartel's wares (`nightoff_wares.cpp`), the 22-card fortune deck
+  (`fortune::Read`, `StepFate`), the Brass Monkey (per-bar data: `SetBar`/`DataOf`/`Opts::bar`, its house rules in
+  `nightoff_monkey.cpp`, the ferry `FerryFrom`), seasonal nights (`nightoff_seasons.cpp`, `Opts::season`), skins and
+  the token spin (`nightoff_skins.cpp`, the cloakroom `NightCloakroomPage`), the profile (`nightoff_profile.cpp`,
+  `nightoff_profile.txt`; both bartenders remember you separately). `gTravelRolls` is off in the earlier stages'
+  checks. `--net-loop night series [lagMs] [mem]` is the three-night gate. Details in docs/NIGHTOFF_PROGRESS.md.
