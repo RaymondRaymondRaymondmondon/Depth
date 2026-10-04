@@ -4,6 +4,8 @@
 // draws the round: the seabed, the coral, the web's fish, the mouths, the HUD, the fork, the crown and the results.
 #include "game.h"
 #include "mouthful.h"
+#include "mouthful_net.h"
+#include "arcade_session.h"
 #include "redtide_render.h"
 #include "input.h"
 #include "sound.h"
@@ -16,6 +18,8 @@ namespace {
 struct MouthfulScene {
     bool active = false, shot = false;
     mf::World W;
+    arcade::Session* net = nullptr; mf::World* live = nullptr;   // (a networked round: the host draws its real world, a guest its mirror)
+    int seenVersion = -1; float sinceSnap = 0; bool helloSent = false; std::string netName = "Mouth";
     float aimYaw = 0, aimPitch = 0, camYaw = 0, camPitch = -0.15f, camDist = 2;
     float t = 0;
     bool help = true, board = false;
@@ -28,6 +32,8 @@ struct MouthfulScene {
     mf::Opts opts;
 };
 MouthfulScene S;
+mf::World& WD() { return S.live ? *S.live : S.W; }
+
 
 Color Mix(Color a, Color b, float k) { k = std::clamp(k, 0.0f, 1.0f); return {(unsigned char)(a.r + (b.r - a.r) * k), (unsigned char)(a.g + (b.g - a.g) * k), (unsigned char)(a.b + (b.b - a.b) * k), 255}; }
 Color Shade(Color c, float k) { return {(unsigned char)std::clamp(c.r * k, 0.0f, 255.0f), (unsigned char)std::clamp(c.g * k, 0.0f, 255.0f), (unsigned char)std::clamp(c.b * k, 0.0f, 255.0f), c.a}; }
@@ -164,13 +170,13 @@ void EnsureModels() {
 }
 
 // ---------------------------------------------------------------- input
-mf::Mouth& Me() { return S.W.mouths[std::clamp(S.me, 0, (int)S.W.mouths.size() - 1)]; }
+mf::Mouth& Me() { return WD().mouths[std::clamp(S.me, 0, (int)WD().mouths.size() - 1)]; }
 void Gather(float dt) {
     mf::Mouth& m = Me();
     mf::Input in;
     if (IsKeyPressed(KEY_H)) S.help = !S.help;
     S.board = IsKeyDown(KEY_TAB);
-    Vector2 md = MouseLook(!S.shot && m.alive && !S.W.over && !m.pendingFork);
+    Vector2 md = MouseLook(!S.shot && m.alive && !WD().over && !m.pendingFork);
     S.aimYaw += md.x * 0.0026f;
     S.aimPitch = std::clamp(S.aimPitch - md.y * 0.0026f, -1.35f, 1.35f);
     if (IsKeyDown(KEY_A)) S.aimYaw -= dt * 1.4f;
@@ -186,7 +192,7 @@ void Gather(float dt) {
     if (m.pendingFork) for (int k = 0; k < (int)m.forkOpts.size() && k < 9; k++) if (IsKeyPressed(KEY_ONE + k)) in.fork = k;
     if (S.forkClick >= 0) { if (m.pendingFork) in.fork = S.forkClick; S.forkClick = -1; }
     // a walker jumps with Space
-    const mf::FormDef& F = S.W.FormOf(m);
+    const mf::FormDef& F = WD().FormOf(m);
     if (F.walker && IsKeyPressed(KEY_SPACE)) in.pitch = 1.2f;
     if (S.shot) { in = mf::Input{}; in.yaw = S.aimYaw; in.pitch = S.aimPitch; }
     m.in = in;
@@ -317,7 +323,7 @@ void Light(rt::SceneLight& L, const Camera3D& cam, float dusk) {
     }
 }
 void Render(float dt) {
-    mf::World& w = S.W;
+    mf::World& w = WD();
     mf::Mouth& m = Me();
     EnsureModels();
     // the camera: behind the mouth along the aim; it pulls back as you grow (a king sees the reef, a fry the next rock)
@@ -505,33 +511,85 @@ void DrawResults(Game& g, mf::World& w) {
 
 }  // namespace
 
-void LeaveMouthful(Game& g) { S.active = false; FreeModels(); g.scene = Scene::Arcade; }
+void LeaveMouthful(Game& g) {
+    if (S.net) { if (S.net->role == arcade::R_HOST) S.net->BackToLobby(); else S.net->Leave(); }
+    S.net = nullptr; S.live = nullptr;
+    S.active = false; FreeModels(); g.scene = Scene::Arcade;
+}
+// a networked round (stage 3): the arcade's session launched Mouthful; the host draws its real world, a guest its mirror
+void StartMouthfulNet(Game& g, arcade::Session* net, const char* name) {
+    std::string why;
+    if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
+    S.net = net; S.live = nullptr; S.W = mf::World{};
+    S.seenVersion = -1; S.sinceSnap = 0; S.helloSent = false; S.netName = name ? name : "Mouth";
+    S.active = true; S.shot = false; S.help = true; S.t = 0; S.me = std::max(0, net->MyPlayer());
+    S.aimYaw = 0; S.aimPitch = 0; S.camYaw = 0; S.camPitch = 0; S.camDist = 1;
+    g.scene = Scene::Mouthful;
+}
 void StartMouthful(Game& g, int bots, float minutes, int botLevel) {
     std::string why;
     if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
+    S.net = nullptr; S.live = nullptr; S.W.mirror = false;
     S.opts = mf::Opts{}; S.opts.humans = 1; S.opts.bots = std::clamp(bots, 0, 11); S.opts.minutes = minutes; S.opts.botLevel = botLevel; S.opts.seed = (uint32_t)GetRandomValue(1, 1 << 30);
-    S.W.Init(S.opts);
+    WD().Init(S.opts);
     S.me = 0; S.active = true; S.shot = false; S.help = true; S.t = 0;
-    S.aimYaw = S.W.mouths[0].yaw; S.aimPitch = 0; S.camYaw = S.aimYaw; S.camPitch = 0; S.camDist = 1;
+    S.aimYaw = WD().mouths[0].yaw; S.aimPitch = 0; S.camYaw = S.aimYaw; S.camPitch = 0; S.camDist = 1;
     g.scene = Scene::Mouthful;
 }
 void SceneMouthful(Game& g) {
     if (!S.active) { StartMouthful(g, 11, 15, 0); if (!S.active) return; }
     float dt = S.shot ? 1 / 60.0f : std::min(GetFrameTime(), 1 / 30.0f);
+    if (S.net) {
+        arcade::Session& N = *S.net;
+        N.Update(GetTime(), dt);
+        if (N.stage != arcade::S_PLAYING) { S.net = nullptr; S.live = nullptr; S.active = false; FreeModels(); g.scene = Scene::Arcade; return; }
+        S.me = std::max(0, N.MyPlayer());
+        if (N.role == arcade::R_HOST) S.live = mf::MouthfulHostWorld(N.HostGame());
+        else {
+            S.sinceSnap += dt;
+            if (N.stateVersion != S.seenVersion && !N.Snapshot().empty()) {
+                S.seenVersion = N.stateVersion;
+                Reader r(N.Snapshot());
+                if (mf::ReadWorld(r, S.W, S.W.mirror)) S.sinceSnap = 0;
+            } else if (S.W.mirror && S.sinceSnap < 0.3f) {
+                // between snapshots everything swims on along its last heading
+                for (auto& a : S.W.eco.agents) if (a.alive && a.diver < 0) a.pos = Vector3Add(a.pos, Vector3Scale(a.vel, dt));
+                for (auto& o : S.W.mouths) if (o.alive && o.id != S.me) o.pos = Vector3Add(o.pos, Vector3Scale(o.vel, dt));
+            }
+        }
+        mf::World& w = WD();
+        if (w.mouths.empty() || (!S.live && !w.mirror)) { ClearBackground(Color{30, 110, 130, 255}); DrawTextCenteredBold("Into the water...", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 24, WHITE); return; }
+        if (!S.helloSent) { Writer o; mf::OrderHello(o, S.netName); N.Act(o); S.helloSent = true; S.aimYaw = S.camYaw = w.mouths[S.me].yaw; }
+        Gather(dt);
+        Writer iw; mf::WriteInput(Me().in, iw); N.Act(iw);
+        if (!S.live) w.Predict(Me(), Me().in, dt);   // (a guest swims its own mouth ahead of the host)
+        S.t += dt;
+        Render(dt);
+        DrawHud(w);
+        if (w.over) DrawResults(g, w);
+        return;
+    }
     Gather(dt);
-    if (!S.shot) S.W.Step(dt);
+    if (!S.shot) WD().Step(dt);
     S.t += dt;
     Render(dt);
-    DrawHud(S.W);
-    if (S.W.over) DrawResults(g, S.W);
+    DrawHud(WD());
+    if (WD().over) DrawResults(g, WD());
 }
-void MouthfulMenuTick(float) {}
+std::string MouthfulOpts(int minutes, int botLevel, int fill) { return mf::MouthfulHostOpts(minutes, botLevel, fill); }
+void MouthfulMenuTick(float dt) {
+    // (the game menu is open: a networked round goes on underneath, and our mouth drifts on its last heading)
+    if (!S.active || !S.net) { if (S.active && !S.shot) WD().Step(dt); return; }
+    mf::Input in; in.yaw = S.aimYaw; in.pitch = S.aimPitch;
+    Writer w; mf::WriteInput(in, w); S.net->Act(w);
+    S.net->Update(GetTime(), dt);
+}
 // --shots: 0 a fry in the shallows among minnows, 1 the reef, 2 the wall, 3 the blue with tuna and a shark, 4 the trench
 // and the leviathan, 5 the first fork, 6 a king with the crown, 7 the results, 8 a line-up of forms
 void DebugMouthfulShot(Game& g, int which) {
     StartMouthful(g, 11, 15, 2);
     S.shot = true; S.help = which == 0;
-    mf::World& w = S.W;
+    mf::World& w = WD();
     mf::Mouth& m = Me();
     m.immuneT = which == 0 ? 6 : 0;
     auto place = [&](Vector3 p, float yaw, float pitch, float mass, const char* form) {
@@ -560,5 +618,15 @@ void DebugMouthfulShot(Game& g, int which) {
         for (auto& o : w.mouths) { if (o.id == m.id) continue; int fi = 1 + (k * 3) % ((int)mf::D().forms.size() - 1); o.form = fi; o.path = mf::D().forms[fi].path; o.mass = 300; o.tier = w.TierOfMass(o.mass); o.pos = {12.0f + (k % 6) * 3.2f, -40 + (k / 6) * 2.5f, 0}; o.yaw = PI; o.pitch = 0; o.vel = {0, 0, 0}; o.immuneT = 0; o.alive = true; k++; }
     }
     for (auto& o : w.mouths) if (o.agent >= 0) w.eco.agents[o.agent].pos = o.pos;
-    S.camDist = 0.7f + w.Length(m) * 3.0f;
+    if (which == 9) {
+        // a guest's screen: the round run a while by a host, mirrored from the snapshot for player 2
+        static mf::World host; mf::Opts o; o.humans = 2; o.bots = 10; o.seed = 4242; o.minutes = 15; o.botLevel = 2;
+        host.Init(o);
+        for (int i = 0; i < 2400; i++) host.Step(1 / 20.0f);
+        host.mouths[1].alive = true;
+        Writer wr; mf::WriteWorld(host, 1, wr); Reader r(wr.b);
+        S.W = mf::World{}; mf::ReadWorld(r, S.W, false);
+        S.me = 1; S.aimYaw = S.camYaw = S.W.mouths[1].yaw; S.aimPitch = S.camPitch = 0;
+    }
+    S.camDist = 0.7f + WD().Length(Me()) * 3.0f;
 }

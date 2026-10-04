@@ -229,7 +229,7 @@ void DrawReels(Game& g) {
             gError.clear();
             if (k == 0) {
                 std::string err;
-                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : ""; }
+                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : ""; }
                 else gError = "Couldn't host: " + err;
             } else if (k == 1) { gMode = MODE_JOIN; gJoinFocus = true; }
             else gMode = MODE_BROWSE;
@@ -530,10 +530,29 @@ void DrawLobby() {
         if (ch) gSess.Chat(std::string("The map: ") + FlightIsleTypeName(gFlIsle) + " homes, " + FlightArrangementName(gFlArr) + ", " + FlLengthName(gFlMinutes));
         (void)L;
     } else if (gSess.game == G_FLIGHT) DrawTextCentered(TextFormat("your founder: %s (pick it on the reel)", FlightFounderName(gFlSel)), p.x + 350, p.y + p.height - 104, 15, Color{180, 230, 220, 255});
+    if (gSess.game == G_MOUTHFUL && host) {
+        // the host picks the round's length (10, 15 or 20 minutes) and the bots that fill the water to twelve (doc p. 2)
+        static int mfLen = 1, mfLevel = 0;
+        static const int LENS[3] = {10, 15, 20};
+        static const char* LEVELS[4] = {"a mix of bots", "Minnow bots", "Hunter bots", "Shark bots"};
+        auto pick = [&](float x, float y, const char* text, int& v, int n) {
+            Rectangle l{x - 150, y, 26, 26}, r{x + 124, y, 26, 26};
+            DrawTextCenteredBold("<", l.x + 13, l.y + 2, 20, Pal::Brass); DrawTextCenteredBold(">", r.x + 13, r.y + 2, 20, Pal::Brass);
+            DrawTextCenteredBold(text, x, y + 3, 17, Color{230, 200, 150, 255});
+            bool ch = false;
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = (v + n - 1) % n; ch = true; }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = (v + 1) % n; ch = true; }
+            return ch;
+        };
+        bool ch = pick(p.x + 195, p.y + p.height - 140, TextFormat("%d-minute round", LENS[mfLen]), mfLen, 3);
+        ch |= pick(p.x + 505, p.y + p.height - 140, LEVELS[mfLevel], mfLevel, 4);
+        gSess.gameOpts = MouthfulOpts(LENS[mfLen], mfLevel, 12);
+        if (ch) gSess.Chat(TextFormat("The round: %d minutes, %s filling the water to twelve", LENS[mfLen], LEVELS[mfLevel]));
+    }
     if (host) {
         std::string why;
         bool can = gSess.CanLaunch(&why);
-        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : "Start the race";
+        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : gSess.game == G_MOUTHFUL ? "Into the water" : "Start the race";
         if (Button({p.x + p.width - 250, p.y + p.height - 66, 220, 50}, go, can, 20)) { std::string w2; gSess.Launch(&w2); }
         if (!can) Txt(why, p.x + 30, p.y + p.height - 50, 15, SCREEN_DIM);
     } else if (gSess.mySeat >= 0) {
@@ -954,6 +973,7 @@ void DrawRoom(Game& g) {
             if (gSess.game == G_TRAWL) { StartTrawlNet(g, &gSess, gTrawlFp); return; }   // aboard the Gannet (host or guest)
             if (gSess.game == G_RED_TIDE) { StartRedTideNet(g, &gSess); return; }       // into the water (host or guest)
             if (gSess.game == G_FLIGHT) { StartFlightNet(g, &gSess, FlightFounderKey(gFlSel), gProfile.name.c_str()); return; }   // into the air (host or guest)
+            if (gSess.game == G_MOUTHFUL) { StartMouthfulNet(g, &gSess, gProfile.name.c_str()); return; }                            // into the water (host or guest)
             DrawTable(g);
             break;
         case S_ENDED: {

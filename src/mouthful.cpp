@@ -879,6 +879,33 @@ void World::StepMouth(Mouth& m, float dt) {
     if (m.agent >= 0) { rt::Agent& a = eco.agents[m.agent]; a.pos = m.pos; a.vel = m.vel; a.alive = m.alive; a.zone = std::max(0, eco.ZoneAt(m.pos)); }
 }
 
+void World::Predict(Mouth& m, const Input& in0, float dt) {
+    if (!m.alive) return;
+    const Data& d = D();
+    const FormDef& F = FormOf(m);
+    Input in = in0;
+    if (m.reverseT > 0) { in.yaw = m.yaw - (in.yaw - m.yaw); in.pitch = -in.pitch; }
+    float turn = d.tiers[std::clamp(m.tier, 1, 8)].turn * DEG2RAD;
+    float dy = atan2f(sinf(in.yaw - m.yaw), cosf(in.yaw - m.yaw));
+    m.yaw += std::clamp(dy, -turn * dt, turn * dt);
+    float tp = F.walker && !m.airborne ? 0.0f : std::clamp(in.pitch, -1.35f, 1.35f);
+    m.pitch += std::clamp(tp - m.pitch, -turn * dt, turn * dt);
+    m.bank += (std::clamp(-dy * 1.5f, -0.7f, 0.7f) - m.bank) * std::min(1.0f, dt * 5);
+    bool frozen = m.stunT > 0 || m.holdT > 0 || m.ambush;
+    float target = in.swim && !frozen && !in.brake ? Speed(m) * (in.boost && m.stamina > 0.02f ? d.boostMul : 1) * (m.swallowT > 0 ? 0.35f : 1) : 0;
+    Vector3 f = Fwd(m.yaw, m.pitch);
+    if (m.dashT <= 0) {
+        Vector3 want = Vector3Scale(F.walker && !m.airborne ? Vector3Normalize({cosf(m.yaw), 0, sinf(m.yaw)}) : f, target);
+        m.vel = Vector3Lerp(m.vel, want, std::min(1.0f, dt * (F.walker ? 6.0f : 3.2f)));
+    }
+    m.pos = Vector3Add(m.pos, Vector3Scale(m.vel, dt));
+    float r = BodyRadius(Length(m)), fy = FloorY(m.pos.x, m.pos.z);
+    if (m.pos.y < fy + r) m.pos.y = fy + r;
+    if (F.walker && !m.airborne) m.pos.y = fy + r;
+    m.pos.y = std::min(m.pos.y, -0.3f);
+    m.pos.x = std::clamp(m.pos.x, X0 + 2, X1 - 2); m.pos.z = std::clamp(m.pos.z, Z0 + 2, Z1 - 2);
+}
+
 // ---------------------------------------------------------------- bots (doc p. 19): Minnow, Hunter, Shark
 bool World::Visible(const Mouth& v, const Mouth& m) const {
     float d = Vector3Distance(v.pos, m.pos);

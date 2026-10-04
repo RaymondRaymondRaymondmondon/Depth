@@ -23,6 +23,7 @@
 #include "voice.h"
 #include "flight.h"
 #include "mouthful.h"
+#include "mouthful_net.h"
 #include "flight_costumes.h"
 #include "study.h"
 #include "course.h"
@@ -220,7 +221,7 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"mouthful_wall", [](Game& g) { DebugMouthfulShot(g, 2); }}, {"mouthful_blue", [](Game& g) { DebugMouthfulShot(g, 3); }},
         {"mouthful_trench", [](Game& g) { DebugMouthfulShot(g, 4); }}, {"mouthful_fork", [](Game& g) { DebugMouthfulShot(g, 5); }},
         {"mouthful_king", [](Game& g) { DebugMouthfulShot(g, 6); }}, {"mouthful_results", [](Game& g) { DebugMouthfulShot(g, 7); }},
-        {"mouthful_lineup", [](Game& g) { DebugMouthfulShot(g, 8); }},
+        {"mouthful_lineup", [](Game& g) { DebugMouthfulShot(g, 8); }}, {"mouthful_guest", [](Game& g) { DebugMouthfulShot(g, 9); }},
         {"flight_dawn", [](Game& g) { DebugFlightShot(g, 0); }},
         {"flight_strike", [](Game& g) { DebugFlightShot(g, 1); }},
         {"flight_nest", [](Game& g) { DebugFlightShot(g, 2); }},
@@ -786,6 +787,7 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--flight-siege") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSiege(argc, argv); }
     // Mouthful (arcade game 8): the rules, a bot-only round, a duel of two forms
     if (argc >= 2 && strcmp(argv[1], "--mouthful-test") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--mouthful-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulNetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--mouthful-round") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulRound(argc > 2 ? atoi(argv[2]) : 11, argc > 3 ? (float)atof(argv[3]) : 15.0f, argc > 4 ? (uint32_t)atoi(argv[4]) : 1u, argc > 5 ? atoi(argv[5]) : 1); }
     if (argc >= 5 && strcmp(argv[1], "--mouthful-duel") == 0) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulDuel(argv[2], argv[3], (float)atof(argv[4]), argc > 5 ? atoi(argv[5]) : 40); }
     if (argc >= 2 && strcmp(argv[1], "--flight-society-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSocietyTest(); }
@@ -892,8 +894,9 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--course-seed-test") == 0) return RunCourseSeedTest(argc, argv, 2);
     if (argc >= 2 && strcmp(argv[1], "--scuttle-sim") == 0) return RunScuttleSim(argc >= 3 ? std::max(1, atoi(argv[2])) : 2000);
     if (argc >= 2 && strcmp(argv[1], "--net-loop") == 0) {
-        int lag = 0; bool mem = false, trawl = false, redtide = false, flight = false;
-        for (int i = 2; i < argc; i++) { if (strcmp(argv[i], "mem") == 0) mem = true; else if (strcmp(argv[i], "trawl") == 0) trawl = true; else if (strcmp(argv[i], "redtide") == 0) redtide = true; else if (strcmp(argv[i], "flight") == 0) flight = true; else if (strcmp(argv[i], "scuttle") != 0) lag = atoi(argv[i]); }
+        int lag = 0; bool mem = false, trawl = false, redtide = false, flight = false, mouthful = false;
+        for (int i = 2; i < argc; i++) { if (strcmp(argv[i], "mem") == 0) mem = true; else if (strcmp(argv[i], "trawl") == 0) trawl = true; else if (strcmp(argv[i], "redtide") == 0) redtide = true; else if (strcmp(argv[i], "flight") == 0) flight = true; else if (strcmp(argv[i], "mouthful") == 0) mouthful = true; else if (strcmp(argv[i], "scuttle") != 0) lag = atoi(argv[i]); }
+        if (mouthful) { SetTraceLogLevel(LOG_WARNING); return mf::RunMouthfulNetLoop(mem); }
         if (trawl) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlNetLoop(mem); }
         if (redtide) { SetTraceLogLevel(LOG_WARNING); return rt::RunRedTideNetLoop(mem); }
         if (flight) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightNetLoop(mem); }

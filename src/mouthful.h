@@ -163,6 +163,7 @@ struct World {
     void GrowCheck(Mouth& m);
     void PickFork(Mouth& m, int choice);
     void StepMouth(Mouth& m, float dt);
+    void Predict(Mouth& m, const Input& in, float dt);   // a guest's own mouth between snapshots: turning and swimming only
     void StepBot(Mouth& m, float dt);
     void StepNpc(float dt);
     bool DecideHook(rt::Agent& a, int idx);

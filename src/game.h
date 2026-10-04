@@ -881,6 +881,8 @@ void SceneFlight(Game& g);    // The Flight, arcade game 7: the Founder flown ov
 void SceneMouthful(Game& g);  // Mouthful, arcade game 8: eat and grow on the reef shelf (mouthful_game.cpp)
 void StartMouthful(Game& g, int bots = 11, float minutes = 15, int botLevel = 0);   // solo: you and up to 11 bots (botLevel 0 a mix of Minnow/Hunter/Shark)
 void LeaveMouthful(Game& g);
+void StartMouthfulNet(Game& g, arcade::Session* net, const char* name);   // a Deep Arcade round of Mouthful (host or guest)
+std::string MouthfulOpts(int minutes, int botLevel, int fill);
 void MouthfulMenuTick(float dt);
 void DebugMouthfulShot(Game& g, int which);
 void StartFlight(Game& g, const char* founder = "taloned", int isleType = 0, int arrangement = 0, int players = 4, int seasons = 0);   // seasons: the long match (2-4), 0 standard   // a whole map: your island type (0 tropical, 1 stack, 2 town, 3 atoll), the arrangement, 2-6 starting islands
