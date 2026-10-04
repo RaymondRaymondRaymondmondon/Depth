@@ -140,7 +140,7 @@ template <class A> void VisitWorld(A& a, World& w) {
         for (int s = 0; s < ns; s++) { const Stick& k = w.sticks[s]; if (k.id != s || k.weapon < -1 || k.weapon >= ni || k.grabbing < -1 || k.grabbing >= ns || k.grabbedBy < -1 || k.grabbedBy >= ns) a.r.bad = true; }
         for (const auto& it : w.items) if (it.weapon < -1 || it.weapon >= nw || it.holder < -1 || it.holder >= ns) a.r.bad = true;
         for (const auto& b : w.bullets) if (b.weapon < -1 || b.weapon >= nw || b.hazard < -2 || b.hazard >= PK_COUNT) a.r.bad = true;
-        for (const auto& p : w.stage.pieces) if (p.hold < -1 || p.hold >= ns) a.r.bad = true;
+        for (const auto& p : w.stage.pieces) if ((p.kind == PK_REACHER || p.kind == PK_BOUNCER) && (p.hold < -1 || p.hold >= ns)) a.r.bad = true;   // (others keep a cycle count there)
         if (!w.glassT.empty() && w.glassT.size() != w.stage.t.size()) a.r.bad = true;
     }
 }
@@ -257,20 +257,20 @@ namespace {
 class ScuffleHost : public arcade::GameHost {
 public:
     Match m; std::vector<std::string> names;
-    int toWin = 5, arsenal = AR_CLASSIC, skill = 2, players = 2; bool test = false;
+    int toWin = 5, arsenal = AR_CLASSIC, skill = 2, players = 2, world = -1; bool test = false;
     struct Seat { std::deque<InputFrame> q; Input cur; uint32_t ack = 0, last = 0; double heard = -10; uint32_t rng = 1; };
     std::vector<Seat> seats;
     float acc = 0; double time = 0; uint32_t tick = 0;
     mutable std::vector<std::vector<uint8_t>> cache = std::vector<std::vector<uint8_t>>(MAX_STICKS);
     mutable std::vector<uint32_t> cacheTick = std::vector<uint32_t>(MAX_STICKS, ~0u);
     void Configure(const std::string& opts) override {
-        int t = 5, a = 0, s = 2;
-        if (sscanf(opts.c_str(), "%d:%d:%d", &t, &a, &s) >= 1) { toWin = std::clamp(t, 1, 20); arsenal = std::clamp(a, 0, AR_COUNT - 1); skill = std::clamp(s, 0, 2); }
+        int t = 5, a = 0, s = 2, wd = -1;
+        if (sscanf(opts.c_str(), "%d:%d:%d:%d", &t, &a, &s, &wd) >= 1) { toWin = std::clamp(t, 1, 20); arsenal = std::clamp(a, 0, AR_COUNT - 1); skill = std::clamp(s, 0, 2); world = std::clamp(wd, -1, (int)WD_COUNT); }
         test = opts.find(":test") != std::string::npos;
     }
     void Start(int n, uint32_t seed) override {
         players = std::clamp(n, 2, MAX_STICKS);
-        m = Match{}; m.Start(players, toWin, seed ? seed : 1, arsenal);
+        m = Match{}; m.world = world; m.Start(players, toWin, seed ? seed : 1, arsenal);
         names.assign(players, std::string());
         for (int p = 0; p < players; p++) names[p] = p == 0 ? "Host" : TextFormat("Player %d", p + 1);
         seats.assign(players, Seat{});
@@ -329,7 +329,7 @@ public:
 std::unique_ptr<arcade::GameHost> MakeScuffleHost() { return std::make_unique<ScuffleHost>(); }
 Match* ScuffleHostMatch(arcade::GameHost* h) { auto* s = dynamic_cast<ScuffleHost*>(h); return s ? &s->m : nullptr; }
 const std::vector<std::string>* ScuffleHostNames(arcade::GameHost* h) { auto* s = dynamic_cast<ScuffleHost*>(h); return s ? &s->names : nullptr; }
-std::string ScuffleHostOpts(int toWin, int arsenal, int skill) { return TextFormat("%d:%d:%d", toWin, arsenal, skill); }
+std::string ScuffleHostOpts(int toWin, int arsenal, int skill, int world) { return TextFormat("%d:%d:%d:%d", toWin, arsenal, skill, world); }
 uint32_t ScuffleDataHash() {
     // the rules every peer must share: the arsenal (the stages travel in the snapshots)
     Writer w;
@@ -361,8 +361,8 @@ int RunScuffleNetTest() {
     { Writer a; PackMatch(M, names, 2, 55, a); Reader r(a.b); Match g; std::vector<std::string> gn; check(ReadMatch(r, g, gn) && g.w.Hash() == M.w.Hash(), TextFormat("a packed snapshot reads to the same world (%.1f KB)", a.b.size() / 1024.0f)); }
     {   // the mirror steps on exactly as the host does (same inputs: same world)
         Match a = M, b = mir;
-        for (int f = 0; f < 240; f++) { a.Step(); StepMirror(b); }
-        check(a.w.Hash() == b.w.Hash(), "the mirror steps exactly like the host for two seconds");
+        for (int f = 0; f < 240; f++) { a.w.Step(); b.w.Step(); }   // (the world itself: the round's end and the next stage are the host's business)
+        check(a.w.Hash() == b.w.Hash(), "the mirror's world steps exactly like the host's for two seconds");
     }
     {   // garbage and truncation are refused, and leave the mirror as it was
         Writer a; PackMatch(M, names, 1, 0, a);

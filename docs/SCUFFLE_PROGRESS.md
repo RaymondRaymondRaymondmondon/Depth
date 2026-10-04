@@ -127,6 +127,53 @@ The user is away (order of 2026-10-04: build it after A Night Off, don't stop). 
 - For stage 9 (internet play): snapshots are full floats at 30 Hz, about 80 KB/s for each guest; quantising the
   particles would roughly halve it.
 
+## Stage 5: the other five worlds, the generator, the finales (done)
+- **Tiles:** crumbling floor `c` (gone 0.7 s after the first step), the Cave's crystal `x` (shatters into shrapnel when
+  shot or blasted), the Reef's urchins `u` (sting and throw you off), water `~` and the Void's brine `b` (not solid:
+  you swim, a stroke a jump press, sink gently; drown after 8 s with your head under, 3 s in brine; only the harpoon
+  and the tesla gaff fire underwater), the Salon's bar `=`.
+- **Pieces** (`scuffle_hazards.cpp`, each with a tell before it hurts and its own cause of death):
+  - the Cave: stalactites (fall when shot), acid drips, the slipstream (a current; on a count it's the Reef's surge),
+    the toad (its tongue from the pool), the Lobster's claw;
+  - the Reef: reacher coral (holds you 1.2 s), eel holes (bite what's in front), sharks in the water below (0.5 s),
+    the kraken;
+  - Atlantis: grates (the Wyrm strikes up), the tuna lane (a ram), the sluice (floods a terrace on a cycle), columns
+    (topple when shot, crush what's under the arc, lie as rubble);
+  - the Void: the leviathan's lure (pulls), low gravity pockets, the sand worm's line;
+  - the Salon: the crowd (bottles), the dartboard, the pool table (balls), the bouncer (anyone standing on the bar
+    is thrown out), the dog.
+  Any piece can sleep until a second (`Piece::start`): that's how the finales' set pieces wait.
+- **Walls** (`StepWall`, per world): the Nautilus floods (kills); the Cave's ceiling comes down (kills); the Reef's
+  tide comes in and Atlantis sinks (water you swim in and drown in); the Void's abyss widens from its side and takes
+  the floor; closing time in the Salon, the bouncer clearing the room from the door.
+- **The generator** (`GenerateStage`, `scuffle_build.cpp`): the world's ground (decks and pits; floor and ceiling;
+  islands over the sharks' water; terraces; a floor with the abyss on one side; a closed room), 3-7 platforms on a grid
+  in the world's materials, 1-3 of its hazards and 1-2 movers, eight spawns as far apart as it can, and the
+  reachability check with the real movement code (a layout that fails is redrawn).
+- **The stages:** each world's forty is its three signature stages (hand-built: the Chimney, the Slipstream, the
+  Lobster; the Bommie, the Flats, the Drop-off; the Plaza, the Baths, the Cisterns; the Rim, the Overlook, the
+  Reactor; the Bar, the Pool Table, the Yard) and a mirrored variant of each, plus seventeen from the generator
+  (seeded per world, so the pack is the same each time it's written) and their mirrors. **A call made:** the doc
+  asks for 40 hand-built stages a world; the signature stages are hand-built and the rest come from the generator,
+  each checked, named, and written in the editor's text form so they can be opened and improved by hand.
+  Every world has **three finales** (64 x 36, twice the size, the wall at 30 s, the set piece at 12 s: the propeller
+  starts, the Lobster rises, the kraken reaches up from the drop-off, the Wyrm surfaces in the plaza, the leviathan's
+  lure appears, closing time with the whole bar thrown in). Match point is always a finale. `--scuffle-build-packs`
+  writes `data/scuffle/stages/<world>.txt` (about 45 KB each); `--scuffle-verify-all` passes all 258.
+- **The text form** now writes each piece on its own `+<letter> x= y= w= h= ...` line, so a current or a pocket can
+  lie over tiles (painting the letters over the grid lost the platforms under them). Letters in the grid still read.
+- **The match's worlds:** the solo panel and the host's lobby pick all six worlds, one world, or endless (a fresh
+  stage from the generator every round).
+- **The look** (`scuffle_worldart.inl`): each world's paper and backdrop (the Cave's umber rock and glow-mould, the
+  Reef's sun shafts and fish, Atlantis's colonnade, the Void's dark and the pale abyss, the Salon's panels, bottles and
+  lamps), each world's stone, the new tiles, every piece and its tell, water drawn over the sticks, the walls, and
+  the hazards' projectiles (shrapnel, bottles, darts, pool balls, acid). Pale ink and names in the dark worlds.
+- **The gate** (`--scuffle-test`, stage 5's 29 checks): water, brine, low gravity, crumbling floors, urchins, every
+  piece, "each world's wall closes in after 45 s" and "each world's finale set piece sleeps until its second, then
+  kills". Shots `scuffle_world_<world>`, `scuffle_wall_<world>`, `scuffle_finale_<world>`.
+- `--scuffle-sim 4 120` across all six worlds: rounds are 18 s (the new pits, the abyss and the sharks), falls 37% of
+  deaths: for the balance pass (stage 9).
+
 ## Next
-Stage 5: the other five worlds (the Cave, the Reef, Atlantis, the Void, the Salon) with their hazards, the generator,
-and each world's finale.
+Stage 6: the full arsenal (the other 36 weapons), gear, trinkets, mutators, events. Gate: `--scuffle-arsenal` shows
+every weapon wins somewhere.

@@ -301,7 +301,7 @@ void DrawReels(Game& g) {
         DrawTextCentered("Host or Join to fly with friends (2-6; the host picks the map and the length in the lobby)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (selGame == G_SCUFFLE) {   // solo: you and the bots (Host or Join above for friends: up to eight sticks)
-        static int sfBots = 3, sfSkill = 2, sfToWin = 1;
+        static int sfBots = 3, sfSkill = 2, sfToWin = 1, sfWorld = -1;
         static const char* SKILL[3] = {"Stumble bots", "Scrap bots", "Sharp bots"};
         static const int TOWIN[3] = {5, 10, 20};
         auto row = [&](float y, const char* text, int& v, int n, int lo) {
@@ -314,7 +314,8 @@ void DrawReels(Game& g) {
         row(c.y - 10, TextFormat("%d bot%s", sfBots, sfBots == 1 ? "" : "s"), sfBots, 7, 1);
         row(c.y + 16, SKILL[sfSkill], sfSkill, 3, 0);
         row(c.y + 42, TextFormat("first to %d", TOWIN[sfToWin]), sfToWin, 3, 0);
-        if (Button({c.x - 110, c.y + 236, 220, 36}, "Fight (solo)", true, 15)) { StartScuffle(g, sfBots, sfSkill, TOWIN[sfToWin]); return; }
+        row(c.y + 68, ScuffleWorldChoice(sfWorld), sfWorld, 8, -1);
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Fight (solo)", true, 15)) { StartScuffle(g, sfBots, sfSkill, TOWIN[sfToWin], sfWorld); return; }
         if (Button({c.x - 110, c.y + 278, 220, 30}, "The editor", true, 13)) { StartScuffleEditor(g); return; }
         DrawTextCentered("Host or Join to fight friends (2-8; the host picks the rounds and the arsenal in the lobby)", c.x, c.y + 316, 13, SCREEN_DIM);
     }
@@ -624,7 +625,7 @@ void DrawLobby() {
     }
     if (gSess.game == G_SCUFFLE && host) {
         // the host picks the rounds to win, the arsenal (doc p. 6) and how sharp the AI seats fight
-        static int sfWin = 1, sfArs = 0, sfSkill = 2;
+        static int sfWin = 1, sfArs = 0, sfSkill = 2, sfWorld = 0;   // (sfWorld: 0 all six, 1-6 one world, 7 endless)
         static const int WINS[3] = {3, 5, 10};
         static const char* SKILLS[3] = {"Stumble AI", "Scrap AI", "Sharp AI"};
         auto pick = [&](float x, float y, const char* text, int& v, int n) {
@@ -640,8 +641,9 @@ void DrawLobby() {
         bool ch = pick(p.x + 170, yy, TextFormat("first to %d", WINS[sfWin]), sfWin, 3);
         ch |= pick(p.x + 170, yy + 32, TextFormat("%s arsenal", sf::ArsenalName(sfArs)), sfArs, sf::AR_COUNT);
         ch |= pick(p.x + 440, yy, SKILLS[sfSkill], sfSkill, 3);
-        gSess.gameOpts = ScuffleOpts(WINS[sfWin], sfArs, sfSkill);
-        if (ch) gSess.Chat(TextFormat("The fight: first to %d, the %s arsenal", WINS[sfWin], sf::ArsenalName(sfArs)));
+        ch |= pick(p.x + 440, yy + 32, ScuffleWorldChoice(sfWorld - 1), sfWorld, 8);
+        gSess.gameOpts = ScuffleOpts(WINS[sfWin], sfArs, sfSkill, sfWorld - 1);
+        if (ch) gSess.Chat(TextFormat("The fight: first to %d, the %s arsenal, %s", WINS[sfWin], sf::ArsenalName(sfArs), ScuffleWorldChoice(sfWorld - 1)));
     }
     if (gSess.game == G_NIGHT_OFF) {
         // the host picks the mode (doc p. 24), the crowd (Dead, Normal, Packed, Random) and whether sailors may fight each other;
