@@ -19,7 +19,7 @@
 namespace sf {
 
 const char* ModeName(int m) {
-    static const char* N[MD_COUNT] = {"Classic", "Teams", "King of the Plank", "The Egg", "Hot Potato", "Hunt", "Duel", "Chaos", "Custom", "The Gauntlet"};
+    static const char* N[MD_COUNT] = {"Classic", "Teams", "King of the Plank", "The Egg", "Hot Potato", "Hunt", "Duel", "Chaos", "Custom", "The Gauntlet", "Boss Arena"};
     return m >= 0 && m < MD_COUNT ? N[m] : "?";
 }
 const char* ModeRule(int m) {
@@ -30,7 +30,8 @@ const char* ModeRule(int m) {
                                       "One Shark (200 HP, a harpoon, no crates) eats everyone before the wall; a shark's kill makes a shark.",
                                       "Two sticks, best of 7 on finale stages; each picks a weapon from the same three.",
                                       "A random mutator, a random arsenal and an event every round.", "Whatever the lobby sets.",
-                                      "Co-op: twenty generated stages, worse each time; reach the exit before the clock."};
+                                      "Co-op: twenty generated stages, worse each time; reach the exit before the clock.",
+                                      "Co-op: everyone against a Depth boss on its own stage (the stages pick: all six in turn, or one). Back after 4 s until the wall."};
     return m >= 0 && m < MD_COUNT ? N[m] : "?";
 }
 
@@ -68,13 +69,13 @@ void World::MovePlank() {
 void World::StepMode() {
     const float dt = STEP;
     if ((int)pts.size() != (int)sticks.size()) pts.assign(sticks.size(), 0);
-    bool respawns = mode == MD_KING || mode == MD_EGG || mode == MD_GAUNTLET || mode == MD_HUNT;
+    bool respawns = mode == MD_KING || mode == MD_EGG || mode == MD_GAUNTLET || mode == MD_HUNT || (mode == MD_BOSS && !(wallOn && t >= 150) && !boss.dead);   // (Boss Arena: back on a timer until the wall)
     for (auto& k : sticks) {
         if (k.alive || !respawns) continue;
         if (mode == MD_HUNT && !k.shark) {   // (eaten by a shark: you come back as one; killed otherwise, you're out)
             if (k.respawnT == 0 && k.lastHitBy >= 0 && k.lastHitBy < (int)sticks.size() && sticks[k.lastHitBy].shark) { k.respawnT = 1.5f; k.shark = true; }
         } else if (mode == MD_HUNT && k.respawnT <= 0) continue;   // (a dead shark stays dead; a new one is on its way back)
-        else if (k.respawnT == 0) k.respawnT = mode == MD_GAUNTLET ? 1.5f : 3.0f;
+        else if (k.respawnT == 0) k.respawnT = mode == MD_GAUNTLET ? 1.5f : mode == MD_BOSS ? 4.0f : 3.0f;
         if (k.respawnT > 0) { k.respawnT -= dt; if (k.respawnT <= 0) { k.respawnT = 0; Respawn(k); } }
     }
     if (mode == MD_KING) {
@@ -116,7 +117,7 @@ void World::StepMode() {
 }
 
 // ---------------------------------------------------------------- the match's side
-int Match::TeamOf(int i) const { return mode == MD_TEAMS ? i / std::max(1, teamSize) : mode == MD_GAUNTLET ? 0 : -1; }
+int Match::TeamOf(int i) const { return mode == MD_TEAMS ? i / std::max(1, teamSize) : mode == MD_GAUNTLET || mode == MD_BOSS ? 0 : -1; }
 bool Match::RoundOver(int* winner) {
     *winner = -1;
     auto credit = [&](int i) { if (i >= 0 && i < players) { wins[i]++; score[i] += 100 + (i < (int)trinkets.size() && trinkets[i] == TK_NONE ? 10 : 0); } };
@@ -149,6 +150,19 @@ bool Match::RoundOver(int* winner) {
         if (done > 0) { gStage++; float last = 0; for (const auto& k : w.sticks) if (k.finished >= 0) last = std::max(last, k.finished); gTime += last; for (int i = 0; i < players; i++) if (w.sticks[i].finished >= 0) credit(i); *winner = -2; log.push_back(TextFormat("Gauntlet stage %d cleared in %.1f s", gStage, last)); }
         else { gFailed = true; log.push_back(TextFormat("The Gauntlet ends at stage %d (out of time)", gStage + 1)); }
         if (gFailed || gStage >= 20) { champion = 0; }
+        return true;
+    }
+    case MD_BOSS: {   // (the boss down: the crew takes it; everyone down with no one coming back (or the wall): the boss does)
+        if (w.boss.dead) {
+            if (w.boss.deadT < 2.0f) return false;
+            gStage++; gTime += w.t; for (int i = 0; i < players; i++) credit(i); *winner = -2;
+            log.push_back(TextFormat("%s beaten in %.0f s", BossName(w.boss.kind), w.t));
+            if (gStage >= toWin) champion = 0;
+            return true;
+        }
+        bool any = false; for (const auto& k : w.sticks) if (k.present && (k.alive || k.respawnT > 0)) any = true;
+        if (any) return false;
+        gFailed = true; champion = 0; log.push_back(TextFormat("%s wins (%.0f%% of its health left)", BossName(w.boss.kind), w.boss.hp / std::max(1.0f, w.boss.maxHp) * 100));
         return true;
     }
     default: {   // (classic, potato, duel, chaos, custom: the last stick standing)

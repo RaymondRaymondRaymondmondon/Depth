@@ -327,7 +327,7 @@ void DrawReels(Game& g) {
                 if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = lo + (v - lo + 1) % n; PlayCue("ui.click"); }
             };
             cyc(272, "the mode", gScuffleMode, sf::MD_COUNT, 0, sf::ModeName(gScuffleMode));
-            cyc(316, "the stages", sfWorld, 8, -1, ScuffleWorldChoice(sfWorld));
+            cyc(316, gScuffleMode == sf::MD_BOSS ? "the boss" : "the stages", sfWorld, 8, -1, gScuffleMode == sf::MD_BOSS ? (sfWorld < 0 || sfWorld >= sf::WD_COUNT ? "all six in turn" : sf::BossName(sf::BossOfWorld(sfWorld))) : ScuffleWorldChoice(sfWorld));
             cyc(360, "your trinket (others see it)", gScuffleTrinket, sf::TK_COUNT + 1, -1, gScuffleTrinket < 0 ? "the game picks" : sf::TrinketName(gScuffleTrinket));
             cyc(404, "the rules", gScuffleRules, sf::MU_COUNT + 2, 0, ScuffleRulesChoice(gScuffleRules));
             const char* note = gScuffleMode != sf::MD_CLASSIC ? sf::ModeRule(gScuffleMode) : gScuffleTrinket >= 0 ? sf::TrinketText(gScuffleTrinket) : gScuffleRules >= 2 ? sf::MutatorText(gScuffleRules - 2) : "Gear is the E key (or the right mouse button).";
@@ -660,7 +660,7 @@ void DrawLobby() {
         ch |= pick(p.x + 140, yy + 30, TextFormat("%s arsenal", sf::ArsenalName(sfArs)), sfArs, sf::AR_COUNT);
         ch |= pick(p.x + 140, yy + 60, ScuffleRulesChoice(gScuffleRules), gScuffleRules, sf::MU_COUNT + 2);
         ch |= pick(p.x + 362, yy, SKILLS[sfSkill], sfSkill, 3);
-        ch |= pick(p.x + 362, yy + 30, ScuffleWorldChoice(sfWorld - 1), sfWorld, 8);
+        ch |= pick(p.x + 362, yy + 30, gScuffleMode == sf::MD_BOSS ? (sfWorld < 1 || sfWorld > sf::WD_COUNT ? "all six bosses" : sf::BossName(sf::BossOfWorld(sfWorld - 1))) : ScuffleWorldChoice(sfWorld - 1), sfWorld, 8);
         ch |= pick(p.x + 362, yy + 60, sf::ModeName(gScuffleMode), gScuffleMode, sf::MD_COUNT);
         gSess.gameOpts = ScuffleOpts(WINS[sfWin], sfArs, sfSkill, sfWorld - 1, ScuffleRulesMask(gScuffleRules), gScuffleRules == 1);
         if (ch) gSess.Chat(TextFormat("The fight: %s, first to %d, the %s arsenal, %s", sf::ModeName(gScuffleMode), WINS[sfWin], sf::ArsenalName(sfArs), ScuffleWorldChoice(sfWorld - 1)));

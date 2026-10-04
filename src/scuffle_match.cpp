@@ -80,6 +80,7 @@ void Match::Start(int nPlayers, int roundsToWin, uint32_t s, int ars) {
     if (mode == MD_KING) target = 60; if (mode == MD_EGG) target = 30;
     if (mode == MD_KING || mode == MD_EGG || mode == MD_GAUNTLET) toWin = 1;
     if (mode == MD_DUEL) toWin = 4;   // (best of 7)
+    if (mode == MD_BOSS) toWin = world >= 0 && world < WD_COUNT ? 1 : BK_COUNT;   // (one boss, or all six in turn)
     gStage = 0; gDeaths = 0; gTime = 0; gFailed = false;
     // trinkets: each player's pick, or the game picks (it's seeded)
     trinkets.resize(players, -1);
@@ -99,7 +100,10 @@ void Match::NewRound() {
     uint32_t rs = seed * 2654435761u + round * 7919u;
     roundMut = mutators; if (randomMutator) roundMut |= 1u << ((rs >> 12) % MU_COUNT);   // (the lobby's stack and Random's pick)
     bool mirror = (roundMut >> MU_MIRROR) & 1u;
-    if (mode == MD_GAUNTLET) w.Init(GauntletStage(gWorld, gStage, seed), players, rs);   // (the Gauntlet: its next stage)
+    static const int BOSS_ORDER[BK_COUNT] = {BK_LOBSTER, BK_KRAKEN, BK_WYRM, BK_SUN_GOD, BK_GOLIATH, BK_BOUNCER};   // (the doc's order)
+    int bossKind = world >= 0 && world < WD_COUNT ? BossOfWorld(world) : BOSS_ORDER[gStage % BK_COUNT];
+    if (mode == MD_BOSS) { fin = false; w.Init(BossArena(bossKind), players, rs); }
+    else if (mode == MD_GAUNTLET) w.Init(GauntletStage(gWorld, gStage, seed), players, rs);   // (the Gauntlet: its next stage)
     else if (world == WD_COUNT && custom.empty()) {   // (endless: a fresh stage from the generator each round, any world)
         Stage g = GenerateStage((int)(rs % WD_COUNT), rs, fin);
         w.Init(g, players, rs);
@@ -120,6 +124,7 @@ void Match::NewRound() {
     for (int i = 0; i < (int)w.sticks.size(); i++) { w.sticks[i].team = TeamOf(i); w.sticks[i].persona = (int)((i * 3 + seed) % PE_COUNT); }
     if (mode == MD_CHAOS) { w.event = (int)((rs >> 9) % RE_COUNT); w.arsenal = AR_RANDOM; }
     if (mode == MD_KING) w.MovePlank();
+    if (mode == MD_BOSS) { w.boss = MakeBoss(bossKind, players, w.stage); w.event = -1; w.friendlyFire = false; }
     if (mode == MD_HUNT && players > 1) {   // (the Shark: a different stick each round)
         sf::Stick& s = w.sticks[(round - 1) % players]; s.shark = true; s.hp = 200;
         int it = w.SpawnWeapon(WeaponIndex("harpoon"), s.pt[J_HAND_R].p, {0, 0}); w.Pickup(s, it); w.items[it].ammo = 99;
@@ -150,7 +155,7 @@ void Match::Step() {
     for (uint32_t i = evSeen; i < base + E.size(); i++) {
         const Event& e = E[i - base];
         if (e.kind == EV_DIE && e.by >= 0 && e.by < players && e.by != e.who && phase == P_FIGHT) { score[e.by] += 20 + (e.a == 1 ? 10 : e.a == 2 ? 20 : 0); roundKills[e.by]++; }
-        if (e.kind == EV_DIE && mode == MD_GAUNTLET && phase == P_FIGHT) gDeaths++;
+        if (e.kind == EV_DIE && (mode == MD_GAUNTLET || mode == MD_BOSS) && phase == P_FIGHT) gDeaths++;
         if (e.kind == EV_WALL) for (const auto& k : w.sticks) if (k.alive && k.present && k.id < players) score[k.id] += 10;
     }
     evSeen = base + (uint32_t)E.size();

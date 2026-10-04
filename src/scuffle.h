@@ -119,7 +119,24 @@ struct Input {
 // gear (doc p. 14): one crate in ten; a second slot used with the gear button, kept for the round
 enum Gear { GR_HOOK, GR_SHIELD, GR_JETPACK, GR_DECOY, GR_PARACHUTE, GR_SPRING, GR_ROPE, GR_MIRROR, GR_BALLOON, GR_FISHBOWL, GR_COUNT };
 // the modes (doc pp. 15-16; Boss Arena is stage 8)
-enum Mode { MD_CLASSIC, MD_TEAMS, MD_KING, MD_EGG, MD_POTATO, MD_HUNT, MD_DUEL, MD_CHAOS, MD_CUSTOM, MD_GAUNTLET, MD_COUNT };
+enum Mode { MD_CLASSIC, MD_TEAMS, MD_KING, MD_EGG, MD_POTATO, MD_HUNT, MD_DUEL, MD_CHAOS, MD_CUSTOM, MD_GAUNTLET, MD_BOSS, MD_COUNT };
+// Boss Arena (stage 8, scuffle_boss.cpp): one of six Depth bosses on its own stage, three phases each, the stage changing with them
+enum BossKind { BK_LOBSTER, BK_KRAKEN, BK_WYRM, BK_SUN_GOD, BK_GOLIATH, BK_BOUNCER, BK_COUNT };
+const char* BossName(int b);
+int BossOfWorld(int world);                                // (each world has its boss: the stage picker picks the boss)
+struct BossPart { Vector2 p{}; float r = 0.3f, mul = 1, hurt = 0; };   // (a hit circle: mul is what a blow does to it (0.25 armour, 1 body, 2 the weak point); hurt is what it does to a stick it touches)
+struct Boss {
+    int kind = -1; float hp = 0, maxHp = 0; int phase = 0; bool dead = false;
+    float t = 0, actT = 0, next = 2, hitT = 0, roarT = 0, deadT = 0;   // (the boss's clock; time in the current attack; until the next; a hit's flash; a phase change's roar)
+    int act = 0, target = -1, face = -1, side = 1, count = 0;
+    Vector2 pos{}, at{}, from{};                              // (where it stands; the attack's mark; where a move began)
+    float s[8] = {};                                         // (each boss's own numbers: a claw's sweep, an eye's rise, the inhale)
+    std::vector<BossPart> parts;                             // (rebuilt from the pose every step)
+    std::vector<Vector2> chain;                              // (a tentacle's or the wyrm's body)
+    std::vector<Vector3> marks;                              // (falling things' tells: x, y, seconds left)
+    std::vector<Rectangle> danger;                           // (where it's about to hurt: the bots step out)
+    float dmgBy[MAX_STICKS] = {};
+};
 const char* ModeName(int m);
 const char* ModeRule(int m);
 // bots' personalities (doc p. 16): a plain bot, one that always rushes, one that camps crates, one that only uses melee, one that taunts
@@ -225,6 +242,10 @@ struct World {
     void StepMode();
     void Respawn(Stick& k);
     void MovePlank();
+    Boss boss;                                             // (stage 8: Boss Arena's boss; kind -1 when there is none)
+    void StepBoss();
+    bool BossStrike(Vector2 at, float r, float dmg, int by, bool splash = false);
+    bool BossTouch(Vector2 at, float r) const;              // (would a shot here meet the boss)   // (a blow, a shot or a blast on the boss: true if it struck)
     bool EggHolder(int id) const { for (const auto& th : things) if (th.kind == TH_EGG && th.hold == id) return true; return false; }
     void StepThings();
     void StepStatus(Stick& k);                             // (burning, frozen, bubbled, netted, flipped, trapped)
@@ -306,7 +327,9 @@ struct Match {
     void Step();                                           // one fixed step: the phases, and the world while fighting
     bool Over() const { return phase == P_OVER; }
 };
-Stage GauntletStage(int world, int n, uint32_t seed);   // (the Gauntlet's nth stage: generated, worse each time, an exit)
+Stage GauntletStage(int world, int n, uint32_t seed);
+Stage BossArena(int kind);                                  // (stage 8: each boss's stage)
+Boss MakeBoss(int kind, int players, const Stage& s);       // (its health grows with the crew: half again for each stick past one)   // (the Gauntlet's nth stage: generated, worse each time, an exit)
 std::vector<Stage> StagePlaylist(int world = -1);           // a world's forty (-1: all six worlds); the stone stages if no pack is found
 std::vector<Stage> FinalePlaylist(int world = -1);
 

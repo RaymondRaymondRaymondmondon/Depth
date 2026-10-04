@@ -86,6 +86,7 @@ void Gather(sf::Input& in, const sf::Stick& k) {
 
 #include "scuffle_worldart.inl"
 #include "scuffle_arsenalart.inl"
+#include "scuffle_bossart.inl"
 // ---------------------------------------------------------------- drawing
 void DrawBackdrop(const sf::Stage& s) {
     if (s.world != sf::WD_NAUTILUS) { WorldBackdrop(s); return; }
@@ -234,6 +235,7 @@ void ReadEvents() {
         if (e.kind == sf::EV_WALL) S.wallMsgT = 2.5f;
         if (e.kind == sf::EV_EVENT && e.a < sf::RE_COUNT) { gEventBanner = 2.2f; gEventKind = (int)e.a; }
         if (e.kind == sf::EV_EVENT && (int)e.a == 200) { S.modeMsg = "The plank moves!"; S.modeMsgT = 2; }
+        if (e.kind == sf::EV_EVENT && (int)e.a == 410) { S.modeMsg = TextFormat("%s is beaten!", sf::BossName(S.M.w.boss.kind)); S.modeMsgT = 3; Splash(e.at, SplashInk(), 40, 7, 0.14f); }
         if (e.kind == sf::EV_EVENT && (int)e.a == 300) { S.modeMsg = TextFormat("%s is through the exit", StickName(e.who)); S.modeMsgT = 2; }
         if (e.kind == sf::EV_FREEZE) Splash(e.at, Color{200, 230, 245, 255}, e.a > 0 ? 14 : 6, 3, 0.06f);
         if (e.kind == sf::EV_ZAP) Splash(e.at, Color{170, 220, 255, 255}, 6, 3, 0.04f);
@@ -247,6 +249,10 @@ void StepCamera(float dt) {
     // frame the living sticks (the whole stage at most, 95 px a metre at the closest)
     float x0 = 1e9f, x1 = -1e9f, y0 = 1e9f, y1 = -1e9f; int n = 0;
     for (const auto& k : S.M.w.sticks) if (k.present && k.alive) { Vector2 p = k.pt[sf::J_PELVIS].p; x0 = std::min(x0, p.x); x1 = std::max(x1, p.x); y0 = std::min(y0, p.y); y1 = std::max(y1, p.y); n++; }
+    if (n > 0 && S.M.w.boss.kind >= 0) for (const auto& p : S.M.w.boss.parts) {   // (the boss is in the picture too, as far as the stage goes)
+        Vector2 q{std::clamp(p.p.x, 0.0f, S.M.w.stage.Width()), std::clamp(p.p.y, 0.0f, S.M.w.stage.Height())};
+        x0 = std::min(x0, q.x - p.r); x1 = std::max(x1, q.x + p.r); y0 = std::min(y0, q.y - p.r); y1 = std::max(y1, q.y + p.r);
+    }
     float sw = S.M.w.stage.Width(), sh = S.M.w.stage.Height();
     float fitAll = std::min(SCREEN_W / (sw + 1.5f), SCREEN_H / (sh + 1.0f));
     Vector2 want{sw / 2, sh / 2}; float z = fitAll;
@@ -372,6 +378,8 @@ void DrawWorld(float dt) {
     DrawStage();
     DrawModeGround();
     DrawFires();
+    bossart::Danger(S.M.w.boss);
+    bossart::Draw();
     for (const auto& k : S.M.w.sticks) if (!k.alive) DrawStick(k);
     for (const auto& k : S.M.w.sticks) if (k.alive) { DrawStick(k); DrawHeld(k); DrawStickStatus(k); }
     DrawThings();
@@ -408,7 +416,8 @@ DrawTextCentered(sf::ModeName(M.mode), SCREEN_W / 2.0f, 74, 13, ColorAlpha(NameI
     }
     if (M.mode == sf::MD_KING && M.w.plankT < 3 && M.phase == sf::Match::P_FIGHT) DrawTextCentered(TextFormat("the plank moves in %.0f", ceilf(M.w.plankT)), SCREEN_W / 2.0f, 92, 14, NameInk());
     if (me.alive == false && me.respawnT > 0) DrawTextCenteredBold(TextFormat("Back in %.1f", me.respawnT), SCREEN_W / 2.0f, SCREEN_H / 2.0f + 60, 26, NameInk());
-    if (S.modeMsgT > 0) DrawTextCenteredBold(S.modeMsg.c_str(), SCREEN_W / 2.0f, 116, 20, NameInk());
+    if (S.modeMsgT > 0) DrawTextCenteredBold(S.modeMsg.c_str(), SCREEN_W / 2.0f, M.mode == sf::MD_BOSS ? 150.0f : 116.0f, 20, NameInk());
+    if (M.mode == sf::MD_BOSS) bossart::Hud();
     if (M.mode == sf::MD_DUEL && M.phase == sf::Match::P_COUNT) {   // the Duel: three weapons on cards; 1-3 or a click picks yours
         DrawTextCenteredBold("Pick your weapon for the round (1, 2, 3)", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 74, 20, NameInk());
         for (int q = 0; q < 3; q++) {
@@ -425,7 +434,14 @@ DrawTextCentered(sf::ModeName(M.mode), SCREEN_W / 2.0f, 74, 13, ColorAlpha(NameI
     }
     if (S.wallMsgT > 0) DrawTextCenteredBold(WallLine(M.w.stage.world), SCREEN_W / 2.0f, 90, 26, DarkWorld(M.w.stage.world) ? Color{230, 210, 160, 255} : Color{40, 70, 110, 255});
     if (M.phase == sf::Match::P_COUNT) DrawTextCenteredBold("FIGHT!", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 56, Color{40, 30, 26, (unsigned char)(255 * std::clamp(1.4f - M.phaseT, 0.0f, 1.0f))});
-    if (M.phase == sf::Match::P_WIN) DrawTextCenteredBold(M.roundWinner >= 0 ? TextFormat("%s %s the round", StickName(M.roundWinner), M.roundWinner == S.me && !S.net ? "take" : "takes") : "A draw: everyone at once", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 34, M.roundWinner >= 0 ? StickColor(M.roundWinner) : INK);
+    if (M.phase == sf::Match::P_WIN) DrawTextCenteredBold(M.roundWinner >= 0 ? TextFormat("%s %s the round", StickName(M.roundWinner), M.roundWinner == S.me && !S.net ? "take" : "takes") : M.roundWinner == -2 && !M.log.empty() ? M.log.back().c_str() : M.mode == sf::MD_BOSS && !M.log.empty() ? M.log.back().c_str() : "A draw: everyone at once", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 34, M.roundWinner >= 0 ? StickColor(M.roundWinner) : INK);
+    if (M.phase == sf::Match::P_OVER && M.mode == sf::MD_BOSS) {   // the run's end: the bosses beaten, or the one that won
+        DrawRectangle(0, 0, SCREEN_W, SCREEN_H, ColorAlpha(PAPER, 0.85f));
+        DrawTextCenteredBold(M.gFailed ? TextFormat("%s wins", sf::BossName(M.w.boss.kind)) : M.toWin > 1 ? "Every boss beaten!" : TextFormat("%s is beaten!", sf::BossName(M.w.boss.kind)), SCREEN_W / 2.0f, 120, 40, INK);
+        DrawTextCentered(TextFormat("%d of %d bosses down, %.0f s of fighting, %d deaths", M.gStage, M.toWin, M.gTime + (M.gFailed ? M.w.t : 0), M.gDeaths), SCREEN_W / 2.0f, 170, 18, INK);
+        for (int i = 0; i < S.players && i < (int)M.w.sticks.size(); i++) DrawTextCentered(TextFormat("%s: %.0f damage to %s", StickName(i), M.w.boss.dmgBy[i], sf::BossName(M.w.boss.kind)), SCREEN_W / 2.0f, 220 + i * 22.0f, 15, StickColor(i));
+        return;
+    }
     if (M.phase == sf::Match::P_OVER && M.mode == sf::MD_GAUNTLET) {   // the run's end: how far, how fast, and the board
         DrawRectangle(0, 0, SCREEN_W, SCREEN_H, ColorAlpha(PAPER, 0.85f));
         DrawTextCenteredBold(TextFormat("The Gauntlet: %d stage%s cleared", M.gStage, M.gStage == 1 ? "" : "s"), SCREEN_W / 2.0f, 120, 40, INK);
@@ -448,6 +464,7 @@ int gScuffleTrinket = -1, gScuffleRules = 0, gScuffleMode = 0;   // (the arcade'
 uint32_t ScuffleRulesMask(int r) { return r >= 2 ? 1u << (r - 2) : 0; }
 void StartScuffle(Game& g, int bots, int skill, int toWin, int world) {
     S = ScuffleScene{};
+    gEventBanner = 0; gEventKind = -1;   // (no banner left over from the last match)
     S.active = true; S.players = gScuffleMode == sf::MD_DUEL ? 2 : std::clamp(bots + 1, gScuffleMode == sf::MD_HUNT ? 3 : 2, sf::MAX_STICKS); S.skill = std::clamp(skill, 0, 2); S.toWin = std::clamp(toWin, 1, 20);
     S.M.mode = gScuffleMode; S.M.world = world; S.M.mutators = ScuffleRulesMask(gScuffleRules); S.M.randomMutator = gScuffleRules == 1;
     S.M.trinkets.assign(S.players, -1); S.M.trinkets[0] = gScuffleTrinket;
@@ -461,6 +478,7 @@ void StartScuffle(Game& g, int bots, int skill, int toWin, int world) {
 // ---------------------------------------------------------------- a networked match (stage 4)
 void StartScuffleNet(Game& g, arcade::Session* net, const char* name) {
     S = ScuffleScene{};
+    gEventBanner = 0; gEventKind = -1;
     S.active = true; S.net = net; S.netName = name ? name : "Stick"; S.me = std::max(0, net->MyPlayer());
     uint32_t h = 99; for (int i = 0; i < 700; i++) { h = h * 1664525u + 1013904223u; float x = (float)((h >> 8) % SCREEN_W); h = h * 1664525u + 1013904223u; S.grain.push_back({x, (float)((h >> 8) % SCREEN_H)}); }
     S.zoom = 60; S.lastRound = -1;
@@ -618,6 +636,26 @@ void DebugScuffleShot(Game& g, int which) {
         w.fireT.assign(w.stage.t.size(), 0); for (int x = 20; x < 24; x++) w.fireT[6 * w.stage.w + x] = 0.5f;
         if (which == 6) { w.mut = 1u << sf::MU_BLACKOUT; int pt = w.AddThing(sf::TH_POTATO, {}, {}, 2.5f, -1); w.things[pt].on = 3; w.things[pt].p = w.sticks[3].pt[sf::J_HAND_R].p; gEventBanner = 2; gEventKind = sf::RE_GRAVITY_FLIP; }
         S.cam = {w.stage.Width() / 2, w.stage.Height() / 2}; S.zoom = 30; for (int i = 0; i < 120; i++) StepCamera(1 / 60.0f);
+        return;
+    }
+    if (which >= 60 && which < 60 + sf::BK_COUNT * 2) {   // a boss mid-fight (60 + boss: four bots, caught during an attack; 66 + boss: in its last phase)
+        int kind = (which - 60) % sf::BK_COUNT; bool late = which >= 60 + sf::BK_COUNT;
+        S = ScuffleScene{}; S.active = true; S.shot = true; S.players = 4; S.toWin = 1; gEventBanner = 0; gEventKind = -1;
+        uint32_t h = 99; for (int i = 0; i < 700; i++) { h = h * 1664525u + 1013904223u; float x = (float)((h >> 8) % SCREEN_W); h = h * 1664525u + 1013904223u; S.grain.push_back({x, (float)((h >> 8) % SCREEN_H)}); }
+        static const int WORLD_OF[sf::BK_COUNT] = {sf::WD_CAVE, sf::WD_NAUTILUS, sf::WD_ATLANTIS, sf::WD_REEF, sf::WD_VOID, sf::WD_SALON};
+        S.M.mode = sf::MD_BOSS; S.M.world = WORLD_OF[kind]; S.M.Start(4, 1, 4040 + kind);
+        uint32_t r[8] = {11, 22, 33, 44, 55, 66, 77, 88};
+        float from = getenv("DEPTH_BOSST") ? (float)atof(getenv("DEPTH_BOSST")) : 9;
+        for (int f = 0; f < 120 * 120 && !S.M.Over(); f++) {
+            for (int i = 0; i < 4; i++) sf::BotInput(S.M.w, i, S.M.w.sticks[i].in, r[i], 2);
+            if (late && S.M.w.boss.phase < 2 && S.M.phase == sf::Match::P_FIGHT) S.M.w.boss.hp = std::min(S.M.w.boss.hp, S.M.w.boss.maxHp * 0.3f);
+            S.M.Step();
+            const sf::Boss& B = S.M.w.boss;
+            if (S.M.phase == sf::Match::P_FIGHT && S.M.w.t > from && !B.danger.empty() && B.roarT <= 0 && (B.kind != sf::BK_KRAKEN || B.s[0] > 0.6f || B.act)) break;
+        }
+        S.evSeen = S.M.w.eventBase > 64 ? S.M.w.eventBase : 0; ReadEvents();
+        S.cam = {S.M.w.stage.Width() / 2, S.M.w.stage.Height() / 2}; S.zoom = 30;
+        for (int i = 0; i < 120; i++) StepCamera(1 / 60.0f);
         return;
     }
     if (which >= 40 && which < 40 + sf::MD_COUNT) {   // a mode's look (40 + mode), bots playing it for a while (the Duel: on the pick)

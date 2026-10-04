@@ -74,6 +74,7 @@ src/flight_long.cpp
     src/scuffle_arsenal.cpp
     src/scuffle_rules.cpp
     src/scuffle_modes.cpp
+    src/scuffle_boss.cpp
     src/data.cpp
     src/ui.cpp
     src/render.cpp

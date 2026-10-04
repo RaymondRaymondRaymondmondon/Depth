@@ -273,5 +273,50 @@ The user is away (order of 2026-10-04: build it after A Night Off, don't stop). 
   two rounds, the Gauntlet clears a stage), plus King's scoring, the Hunt's shark and the Duel's pick.
 - Shots: `scuffle_mode_teams|king|egg|hunt|duel|gauntlet`.
 
+## Stage 8: Boss Arena (done)
+- **Mode `MD_BOSS`** (`scuffle_boss.cpp`): everyone against a Depth boss on its own stage. The stage picker picks
+  the boss (each world has one: the Cave the Lobster, the Nautilus the Kraken, Atlantis the Wyrm, the Reef the Sun God,
+  the Void the Goliath, the Salon the Bouncer); "all six" fights them in the doc's order until one wins. The crew is
+  one team (no friendly fire); a fallen stick is back after 4 s until the wall (at 150 s); the boss wins when no one
+  is left or coming back. Health grows with the crew (half again per stick past one).
+- **The boss** is a headless state machine (`Boss` in scuffle.h): hit circles (`BossPart`: armour takes a quarter,
+  the body all, the weak point double) rebuilt from its pose every step; shots, blasts, fists, kicks and swings reach it
+  through `BossStrike` (`BossTouch` for a bullet's contact); every attack has a tell and marks where it will land
+  (`Boss::danger`: drawn as a hatched band; the bots step out of it or jump a low one); falling things are
+  `Boss::marks` (dust and a growing shadow, then a hazard bullet). Three phases at two thirds and a third of its
+  health: it roars (1.4 s) and **the stage changes** (`PhaseChange`).
+- **The six:**
+  - The Lobster: claw sweep along the floor (jump it), claw slam over you (the roof sheds crystal), bubbles; the eyes
+    are the weak point. Phase 2: the roof cracks (more crystal). Phase 3: it scuttles forward, the middle rope snaps,
+    the low ledge crumbles.
+  - The Kraken: the eye surfaces beside the hull (the only real weak point) and sinks; arms rise over the gunwale and
+    slam across the deck, or sweep at head height. Phase 2: two arms; the deckhouse is torn off. Phase 3: the deck
+    breaks and the eye comes up through the gap.
+  - The Wyrm: leaps out of one grate and arcs into another (the grate rattles and bubbles first); rears up spitting
+    acid (its head open). Phase 2: acid in the leap, the terraces crumble. Phase 3: double leaps, the cistern floods
+    (guns fail below the waterline).
+  - The Sun God: fire beams that sweep under you (a thin red line first), sun-rain. Phase 2: both hands; the high ropes
+    burn. Phase 3: it comes lower, its core splits open (a second weak point) and every scaffold catches fire.
+  - The Goliath: inhales (everything is pulled toward the mouth; holding a wall or a line halves it; inside, it chews;
+    then it snaps shut), spits a fan of bubbles, lurches forward. Its eye is the weak point, and the open mouth.
+    Phase 2: the ledge before it goes. Phase 3: the low rope goes too.
+  - The Bouncer: grabs and throws whoever is close, lobs stools, charges to the wall (dazed after: his head takes
+    triple), stomps a shockwave. Phase 2: throws the tables. Phase 3: brings the chandelier down.
+- **The bots** (`BossBot` in scuffle.cpp): out of the danger marks first (a jump over a low sweep), away from
+  hurting parts, armed up, then the weak point from the weapon's range (or up close with fists and blades).
+- **The look** (`scuffle_bossart.inl`): each boss inked from its own state (so a guest draws what the host sees),
+  the tells, the health bar with phase notches and the roar line; the camera frames the boss too.
+- **Network**: the whole `Boss` is in the snapshot `Visit`; `--scuffle-net-test` round-trips a Boss Arena match.
+- **The gate** (`--scuffle-test` stage 8): every arena crossable; the weak point doubles and armour quarters; a real
+  shot and a blast find it; the phases change every stage; **a duo of Sharp bots beats the Lobster** (7 of 8, about
+  40 s); four Sharp bots beat each boss (about 50-80 s, 3-11 deaths a fight) reaching phase 3; one Stumble bot alone
+  loses to the Kraken.
+- Also fixed: the event banner carried over between matches; a team's, the sharks' or the crew's round win showed
+  "A draw" on the round's banner.
+- Shots: `scuffle_boss_<lobster|kraken|wyrm|sungod|goliath|bouncer>[_late]` (`DEPTH_BOSST` = the second to
+  catch it from).
+
 ## Next
-Stage 8: Boss Arena (six bosses with phases). Gate: a duo beats the Lobster.
+Stage 9: cosmetics (skins and hats; hats fly off), the crate, replays, sound, internet play, the balance pass (the
+doc's targets: round length 25-45 s with four, 30-60 with eight, draws under 8%; deaths weapons 55%, hazards 30%,
+fists and throws 10%, the wall 5%; no weapon over 12% of kills on Random). Gate: all targets met or logged.

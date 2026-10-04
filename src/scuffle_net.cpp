@@ -147,6 +147,19 @@ template <class A> void VisitWorld(A& a, World& w) {
     a.vec(w.glassT, [&](float& g) { a.f(g); }, 256 * 128);
     a.i(w.mode); a.b(w.friendlyFire); a.vec(w.pts, [&](float& p) { a.f(p); }, MAX_STICKS);
     a.f(w.plank.x); a.f(w.plank.y); a.f(w.plank.width); a.f(w.plank.height); a.f(w.plankT); a.f(w.potatoNext); a.v2(w.goal); a.i(w.start);
+    {   // stage 8: the boss
+        Boss& B = w.boss;
+        a.i(B.kind); a.f(B.hp); a.f(B.maxHp); a.i(B.phase); a.b(B.dead);
+        a.f(B.t); a.f(B.actT); a.f(B.next); a.f(B.hitT); a.f(B.roarT); a.f(B.deadT);
+        a.i(B.act); a.i(B.target); a.i(B.face); a.i(B.side); a.i(B.count);
+        a.v2(B.pos); a.v2(B.at); a.v2(B.from); for (float& x : B.s) a.f(x);
+        a.vec(B.parts, [&](BossPart& p) { a.v2(p.p); a.f(p.r); a.f(p.mul); a.f(p.hurt); }, 64);
+        a.vec(B.chain, [&](Vector2& p) { a.v2(p); }, 1024);
+        a.vec(B.marks, [&](Vector3& m) { a.f(m.x); a.f(m.y); a.f(m.z); }, 64);
+        a.vec(B.danger, [&](Rectangle& r) { a.f(r.x); a.f(r.y); a.f(r.width); a.f(r.height); }, 64);
+        for (float& x : B.dmgBy) a.f(x);
+        if constexpr (A::reading) if (B.kind < -1 || B.kind >= BK_COUNT || B.target < -1 || B.target >= MAX_STICKS) a.r.bad = true;
+    }
     if constexpr (A::reading) {   // (indices that the step follows: all must point somewhere real)
         int ns = (int)w.sticks.size(), ni = (int)w.items.size(), nw = (int)Weapons().size();
         for (int s = 0; s < ns; s++) { const Stick& k = w.sticks[s]; if (k.id != s || k.weapon < -1 || k.weapon >= ni || k.grabbing < -1 || k.grabbing >= ns || k.grabbedBy < -1 || k.grabbedBy >= ns) a.r.bad = true; }
@@ -385,7 +398,7 @@ int RunScuffleNetTest() {
     { Writer a; WriteMatch(M, names, 2, 55, a); Reader r(a.b); int v = -1; uint32_t ack = 0; bool ok = ReadMatch(r, mir, mn, &v, &ack); check(ok && v == 2 && ack == 55 && mn.size() == 4 && mn[1] == "Ann" && mir.w.sticks.size() == M.w.sticks.size(), TextFormat("a guest builds the mirror from a snapshot (%d sticks, %d items)", (int)mir.w.sticks.size(), (int)mir.w.items.size())); }
     { Writer a; WriteMatch(M, names, 2, 55, a); Writer b; WriteMatch(mir, mn, 2, 55, b); check(a.b == b.b, TextFormat("the mirror writes back byte for byte (%d bytes)", (int)a.b.size())); }
     { Writer a; PackMatch(M, names, 2, 55, a); Reader r(a.b); Match g; std::vector<std::string> gn; check(ReadMatch(r, g, gn) && g.w.Hash() == M.w.Hash(), TextFormat("a packed snapshot reads to the same world (%.1f KB)", a.b.size() / 1024.0f)); }
-    for (int md : {MD_KING, MD_EGG, MD_HUNT, MD_TEAMS, MD_GAUNTLET}) {   // (stage 7: each mode's state travels; a mirror steps on as the host does)
+    for (int md : {MD_KING, MD_EGG, MD_HUNT, MD_TEAMS, MD_GAUNTLET, MD_BOSS}) {   // (stage 7: each mode's state travels; a mirror steps on as the host does)
         Match X; X.mode = md; X.friendlyFire = md != MD_TEAMS; X.Start(md == MD_GAUNTLET ? 2 : 4, 3, 99);
         uint32_t r2[4] = {5, 6, 7, 8}; int n = X.players;
         for (int f = 0; f < 120 * 8; f++) { for (int i = 0; i < n; i++) BotInput(X.w, i, X.w.sticks[i].in, r2[i], 2); X.Step(); }

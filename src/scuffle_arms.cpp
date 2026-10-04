@@ -242,6 +242,8 @@ void World::Fire(Stick& k) {
                 if (d.special == "chain") { Zap(it.b.p, o, 0, k.id, it.weapon); o.fireCool = std::max(o.fireCool, 0.8f); o.punchCool = std::max(o.punchCool, 0.8f); o.knockT = std::max(o.knockT, 0.4f); }   // (the tesla gaff sparks on, and the shock holds them a moment)
                 if (d.key == "poolcue" && it.count == 0) { it.count = 1; int h = SpawnWeapon(it.weapon, it.b.p, {aim.x * 3, 4}); items[h].count = 1; Emit(EV_HIT, it.b.p, -1, k.id, 0); }   // (the cue breaks in two: two weapons)
             }
+            if (boss.kind >= 0 && std::find(k.swingHit.begin(), k.swingHit.end(), 1000) == k.swingHit.end())   // (the boss: once a swing)
+                for (int s = 1; s <= 3; s++) if (BossStrike(Vector2Add(k.pt[J_NECK].p, Vector2Scale(aim, 0.3f + reach * s / 3)), 0.14f, d.dmg, k.id)) { k.swingHit.push_back(1000); break; }
         }
         k.fireWas = in.fire; return;
     }
@@ -294,6 +296,7 @@ void World::Explode(Vector2 at, float radius, float dmg, float knock, int owner,
         Vector2 dir = Vector2Normalize(Vector2Add(Vector2Subtract(k.pt[J_PELVIS].p, at), {0, 0.4f}));
         Hit(k, owner, dmg * f * (k.id == owner ? 0.25f : 1.0f), dir, knock * f, true, weapon >= 0 ? Def(weapon).name.c_str() : "an explosion");   // (your own blast hurts you less)
     }
+    if (owner >= -1) BossStrike(at, radius, dmg, owner, true);   // (the boss: a blast on its nearest part)
     for (auto& it : items) if (it.alive && it.holder < 0 && Vector2Distance(it.a.p, at) < radius) { Vector2 dir = Vector2Normalize(Vector2Subtract(it.a.p, at)); it.a.q = Vector2Subtract(it.a.q, Vector2Scale(dir, knock * STEP)); it.b.q = Vector2Subtract(it.b.q, Vector2Scale(dir, knock * STEP)); if (it.crate) it.chute = false; }
 }
 static bool Blocking(const Stick& k) { return k.alive && k.st != S_RAGDOLL && k.blockT > 0; }
@@ -343,6 +346,14 @@ void World::StepBullets() {
             // a stalactite hangs in open air: a shot anywhere on it brings it down
             if (b.hazard == -1) for (auto& pc : stage.pieces) if (pc.kind == PK_STALACTITE && pc.prog <= 0 && !pc.broken && t >= pc.start && b.p.x >= pc.x * TILE && b.p.x < (pc.x + pc.w) * TILE && b.p.y >= pc.y * TILE && b.p.y < (pc.y + pc.h) * TILE) { pc.prog = STEP; b.alive = false; Emit(EV_HIT, b.p, -1, b.owner, 0); break; }
             if (!b.alive) break;
+            // the boss (stage 8): a shot meets its nearest part (armour, body or the weak point)
+            if (b.hazard == -1 && boss.kind >= 0 && !boss.dead && std::find(b.hit.begin(), b.hit.end(), 1000) == b.hit.end() && BossTouch(b.p, 0.04f)) {
+                b.hit.push_back(1000);
+                if (b.explode) { Explode(b.p, b.area, b.areaDmg, b.knock, b.owner, b.weapon); b.alive = false; break; }
+                BossStrike(b.p, 0.04f, b.dmg, b.owner);
+                if (b.weapon >= 0 && !Def(b.weapon).special.empty() && SpecialHit(b, Vector2Subtract(b.p, step), nullptr)) { b.alive = false; break; }
+                if (--b.pierce <= 0) { b.alive = false; break; }
+            }
             // sticks: a block deflects it (along the blocker's aim); otherwise it hits (the head is its own body: a headshot)
             for (auto& k : sticks) {
                 if (!k.present) continue;
@@ -370,7 +381,7 @@ void World::StepBullets() {
                 if (b.explode) { Explode(b.p, b.area, b.areaDmg, b.knock, b.owner, b.weapon); b.alive = false; break; }
                 const WeaponDef& d = Def(b.weapon);
                 float dmg = b.dmg * (head && k.trinket != TK_THICK_SKULL ? d.head : 1.0f); if (head && k.gear == GR_FISHBOWL) dmg = std::max(0.0f, dmg - 10);
-                std::string cause = (b.deflected ? std::string("a deflected ") : std::string()) + (b.hazard == -2 ? std::string("crystal shrapnel") : b.hazard == PK_CROWD ? std::string("a bottle from the crowd") : b.hazard == PK_DART ? std::string("a dart") : b.hazard == PK_POOL ? std::string("a pool ball") : b.hazard == PK_DRIP ? std::string("acid") : b.hazard == -3 ? std::string("a turret") : d.name);
+                std::string cause = (b.deflected ? std::string("a deflected ") : std::string()) + (b.hazard == -2 ? std::string("crystal shrapnel") : b.hazard == PK_CROWD ? std::string("a bottle from the crowd") : b.hazard == PK_DART ? std::string("a dart") : b.hazard == PK_POOL ? std::string("a pool ball") : b.hazard == PK_DRIP ? std::string("acid") : b.hazard == -3 ? std::string("a turret") : b.hazard == -4 ? std::string(BossName(boss.kind)) : d.name);
                 Hit(k, b.owner, dmg, Vector2Normalize(b.v), b.knock, b.knock >= 10 || d.pin, cause.c_str());
                 if (d.pin && k.alive) k.ragT = std::max(k.ragT, 1.0f);   // (the harpoon pins: a second on the end of the line)
                 if (--b.pierce <= 0) { b.alive = false; break; }
@@ -386,7 +397,7 @@ void World::StepBullets() {
 //   Salon: closing time, the bouncer clears the room from the door
 void World::StepWall() {
     const ArmsTuning& a = Arms();
-    float start = Mut(MU_SUDDEN_WALL) ? 15 : finale ? a.finaleWall : a.wallStart, mid = start + (a.wallCenter - a.wallStart), all = start + (a.wallAll - a.wallStart);
+    float start = Mut(MU_SUDDEN_WALL) ? 15 : mode == MD_BOSS ? 150 : finale ? a.finaleWall : a.wallStart, mid = start + (a.wallCenter - a.wallStart), all = start + (a.wallAll - a.wallStart);
     if (!wallOn || t < start) { wallY = -10; ceilY = 1e9f; sideX = -10; return; }
     if (wallY < -5 && ceilY > 1e8f && sideX < -5) Emit(EV_WALL, {stage.Width() / 2, 0});
     float H = stage.Height(), W = stage.Width();
