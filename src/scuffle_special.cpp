@@ -16,7 +16,7 @@
 
 namespace sf {
 
-const char* GearName(int g) { static const char* N[GR_COUNT] = {"Grappling hook", "Shield", "Jetpack", "Decoy", "Parachute", "Spring", "Rope"}; return g >= 0 && g < GR_COUNT ? N[g] : "?"; }
+const char* GearName(int g) { static const char* N[GR_COUNT] = {"Grappling hook", "Shield", "Jetpack", "Decoy", "Parachute", "Spring", "Rope", "Mirror", "Balloon", "Fishbowl helmet"}; return g >= 0 && g < GR_COUNT ? N[g] : "?"; }
 static const WeaponDef& WDef(int i) { static WeaponDef none; return i >= 0 && i < (int)Weapons().size() ? Weapons()[i] : none; }
 static int Blame(const World& w, const Stick& k) { return k.lastHitBy >= 0 && w.t - k.lastHitT < 4 ? k.lastHitBy : -1; }
 
@@ -85,6 +85,7 @@ void World::StepStatus(Stick& k) {
         for (auto& a : k.pt) a.q.y -= gravity * dt * dt;   // (the body floats too)
     }
     if (k.gravT > 0) k.gravT -= dt;
+    if (k.balloonT > 0) { k.balloonT -= dt; k.vel.y = std::max(k.vel.y, 1.6f); k.st = S_AIR; k.fallTop = k.pos.y; }   // (the balloon: up, steering as you like)
     k.gearCool = std::max(0.0f, k.gearCool - dt);
 }
 
@@ -397,6 +398,13 @@ void World::StepGear(Stick& k) {
     case GR_PARACHUTE: if (held && !k.grounded && k.vel.y < -3) { k.vel.y = -3; k.fallTop = k.pos.y; } break;
     case GR_DECOY: if (press && k.gearCool <= 0) { int d = AddThing(TH_DECOY, k.pos, {}, 15, k.id); things[d].a = (float)k.face; k.gear = -1; Emit(EV_GEAR, k.pos, k.id, -1, GR_DECOY); } break;
     case GR_SPRING: if (press && k.grounded) { AddThing(TH_SPRING, k.pos, {}, 30, k.id); k.gear = -1; Emit(EV_GEAR, k.pos, k.id, -1, GR_SPRING); } break;
+    case GR_MIRROR:   // (a plate set down in front of you: it sends bullets and the laser back)
+        if (press) { int m = AddThing(TH_MIRROR, Vector2Add(k.pos, {(float)k.face * 0.7f, 0}), {}, 25, k.id); things[m].q = {(float)-k.face, 0}; k.gear = -1; Emit(EV_GEAR, k.pos, k.id, -1, GR_MIRROR); }
+        break;
+    case GR_BALLOON:   // (tied to you: you float up until it's popped, or it runs out)
+        if (press && k.balloonT <= 0) { k.balloonT = 6; k.gear = -1; Emit(EV_GEAR, k.pos, k.id, -1, GR_BALLOON); }
+        break;
+    case GR_FISHBOWL: break;   // (worn: you breathe and shoot underwater, and your head takes 10 less)
     case GR_ROPE:
         if (press) {   // (a rope at the feet, out in front: a bridge over a gap, a tripwire on a floor)
             int x = (int)floorf(k.pos.x / TILE) + k.face, y = (int)floorf((k.pos.y + 0.05f) / TILE) - (k.grounded ? 0 : 1);

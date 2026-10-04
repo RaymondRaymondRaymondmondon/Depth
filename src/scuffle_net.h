@@ -42,7 +42,7 @@ struct Predictor {
 std::unique_ptr<arcade::GameHost> MakeScuffleHost();
 Match* ScuffleHostMatch(arcade::GameHost* h);
 const std::vector<std::string>* ScuffleHostNames(arcade::GameHost* h);
-std::string ScuffleHostOpts(int toWin, int arsenal, int skill, int world = -1, uint32_t mutators = 0, bool randomMutator = false);   // (world: -1 all six, WD_COUNT endless from the generator)
+std::string ScuffleHostOpts(int toWin, int arsenal, int skill, int world = -1, uint32_t mutators = 0, bool randomMutator = false, int mode = 0);   // (world: -1 all six, WD_COUNT endless from the generator)
 uint32_t ScuffleDataHash();
 int RunScuffleNetTest();                                    // --scuffle-net-test
 int RunScuffleNetLoop(int lagMs, bool mem);                 // --net-loop scuffle [lagMs] [mem]: the doc's gate, eight players

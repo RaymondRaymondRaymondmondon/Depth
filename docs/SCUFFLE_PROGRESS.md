@@ -238,5 +238,40 @@ The user is away (order of 2026-10-04: build it after A Night Off, don't stop). 
   gear and trap crates at one in ten and one in thirty) and stage 6b (40: every trinket, mutator and event, and one
   round in four having an event).
 
+## Stage 7: the modes and the Gauntlet (done)
+- **The modes** (`scuffle_modes.cpp`, `Mode` in scuffle.h; picked on the solo plate and in the lobby, carried to guests
+  as the 7th field of the host options):
+  - Classic: the last stick standing.
+  - Teams: 2v2 or 4v4 by colour (a ring round the head, a bar under the scoreboard); friendly fire on (the doc), off
+    if the lobby says so (`Match::friendlyFire`).
+  - King of the Plank: a gold-roped plank, a point a second for a stick alone on it; first to 60; it moves every 20 s
+    (3 s of warning); the dead come back after 3 s.
+  - The Egg: hold it 30 s in all; the holder only punches; it breaks from a fall (a new one on the highest floor
+    under the middle after 2 s).
+  - Hot Potato: a bomb passes by touch, goes off at 10 s, then another.
+  - Hunt: one Shark (200 HP, a harpoon, no crates, a fin over the head); its kills become sharks.
+  - Duel: two sticks, best of 7 on finale stages; three weapons on cards during the count, 1-3 or a click picks.
+  - Chaos: a random mutator, a random arsenal and an event each round.
+  - Custom: whatever the lobby sets.
+  - The Gauntlet: co-op, twenty generated stages that get worse, an exit hatch with a chequered flag, a clock
+    (45 s, a second less each stage, never under 25), deaths counted; at the end the local board
+    `scuffle_gauntlet.txt` (gitignored; best 50 kept, top 10 shown: more stages, then less time).
+- **Bot personalities** (`Persona`): plain, rusher, camper, melee only, taunter.
+- **The bots' map** (`Nav`/`MoveVia` in scuffle.cpp): standing cells with walk, step, drop and jump links, searched
+  back from the goal by BFS and cached per stage layout and goal; bots use it for the Gauntlet's exit, the King's plank
+  and a loose egg. It turned the Gauntlet from 0 stages cleared to clearing them.
+- **Fixes along the way**: the egg now spawns on a floor (it used to fall from the top and break every time) and is
+  picked up anywhere along the body (it sat at the feet, out of the pelvis's 0.6 m reach); a newly infected shark's
+  respawn counts down; mode banners (the plank moving, a stick through the exit) no longer go through the mutator
+  event banner (their codes 200/300 were out of its range).
+- **Network**: every stage-7 field is in the snapshot `Visit` (stick team/shark/respawn/finished/balloon/persona;
+  the world's mode, friendly fire, points, plank, potato clock, goal, start; the match's mode, team size, target,
+  Duel offers and picks, the Gauntlet's run), and `Input::pick` rides in bits 4-5 of the button byte.
+  `--scuffle-net-test` checks that King, the Egg, Hunt, Teams and the Gauntlet survive a snapshot byte for byte and
+  that the mirror stays in step.
+- **The gate** (`--scuffle-test` stage 7): each mode finishes with bots (King about 235 s, the Egg about 54 s, Hunt in
+  two rounds, the Gauntlet clears a stage), plus King's scoring, the Hunt's shark and the Duel's pick.
+- Shots: `scuffle_mode_teams|king|egg|hunt|duel|gauntlet`.
+
 ## Next
-Stage 7: the modes (teams, objectives, Hunt, Duel) and the Gauntlet. Gate: each mode finishes with bots.
+Stage 8: Boss Arena (six bosses with phases). Gate: a duo beats the Lobster.

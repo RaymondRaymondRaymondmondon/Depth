@@ -76,10 +76,16 @@ void Match::Start(int nPlayers, int roundsToWin, uint32_t s, int ars) {
     players = std::clamp(nPlayers, 1, MAX_STICKS); toWin = std::max(1, roundsToWin); seed = s ? s : 1; arsenal = ars;
     wins.assign(players, 0); score.assign(players, 0); roundKills.assign(players, 0);
     playlist = custom.empty() ? StagePlaylist(world) : custom; round = 0; draws = 0; champion = -1; log.clear();
+    if (mode == MD_CHAOS) { randomMutator = true; arsenal = AR_RANDOM; }
+    if (mode == MD_KING) target = 60; if (mode == MD_EGG) target = 30;
+    if (mode == MD_KING || mode == MD_EGG || mode == MD_GAUNTLET) toWin = 1;
+    if (mode == MD_DUEL) toWin = 4;   // (best of 7)
+    gStage = 0; gDeaths = 0; gTime = 0; gFailed = false;
     // trinkets: each player's pick, or the game picks (it's seeded)
     trinkets.resize(players, -1);
     { uint32_t r = seed * 2246822519u + 99; for (auto& tk : trinkets) { r = r * 1664525u + 1013904223u; if (tk < 0 || tk >= TK_COUNT) tk = (int)((r >> 8) % TK_COUNT); } }
     finales = custom.empty() ? FinalePlaylist(world) : std::vector<Stage>{};
+    if (mode == MD_DUEL && !finales.empty()) playlist = finales;   // (the Duel: best of 7 on finale stages)
     // the rotation: shuffled by the seed (no stage twice until the list runs out)
     uint32_t r = seed;
     for (int i = (int)playlist.size() - 1; i > 0; i--) { r = r * 1664525u + 1013904223u; int j = (int)((r >> 8) % (uint32_t)(i + 1)); std::swap(playlist[i], playlist[j]); }
@@ -89,11 +95,12 @@ void Match::NewRound() {
     round++;
     bool matchPoint = false; for (int x : wins) matchPoint |= x >= toWin - 1;
     stageIdx = (round - 1) % std::max(1, (int)playlist.size());
-    bool fin = matchPoint && toWin > 1;
+    bool fin = (matchPoint && toWin > 1 && mode != MD_KING && mode != MD_EGG) || mode == MD_DUEL;
     uint32_t rs = seed * 2654435761u + round * 7919u;
     roundMut = mutators; if (randomMutator) roundMut |= 1u << ((rs >> 12) % MU_COUNT);   // (the lobby's stack and Random's pick)
     bool mirror = (roundMut >> MU_MIRROR) & 1u;
-    if (world == WD_COUNT && custom.empty()) {   // (endless: a fresh stage from the generator each round, any world)
+    if (mode == MD_GAUNTLET) w.Init(GauntletStage(gWorld, gStage, seed), players, rs);   // (the Gauntlet: its next stage)
+    else if (world == WD_COUNT && custom.empty()) {   // (endless: a fresh stage from the generator each round, any world)
         Stage g = GenerateStage((int)(rs % WD_COUNT), rs, fin);
         w.Init(g, players, rs);
     }
@@ -107,12 +114,35 @@ void Match::NewRound() {
     for (int i = 0; i < (int)w.sticks.size() && i < (int)trinkets.size(); i++) w.sticks[i].trinket = trinkets[i];
     w.ApplyRules();
     phase = P_COUNT; phaseT = 1.0f; roundWinner = -1;
+    // the mode (scuffle_modes.cpp)
+    w.mode = mode; w.friendlyFire = friendlyFire || mode == MD_GAUNTLET ? (mode != MD_GAUNTLET) : false;
+    w.wallOn = wallOn && mode != MD_KING && mode != MD_EGG && mode != MD_GAUNTLET;
+    for (int i = 0; i < (int)w.sticks.size(); i++) { w.sticks[i].team = TeamOf(i); w.sticks[i].persona = (int)((i * 3 + seed) % PE_COUNT); }
+    if (mode == MD_CHAOS) { w.event = (int)((rs >> 9) % RE_COUNT); w.arsenal = AR_RANDOM; }
+    if (mode == MD_KING) w.MovePlank();
+    if (mode == MD_HUNT && players > 1) {   // (the Shark: a different stick each round)
+        sf::Stick& s = w.sticks[(round - 1) % players]; s.shark = true; s.hp = 200;
+        int it = w.SpawnWeapon(WeaponIndex("harpoon"), s.pt[J_HAND_R].p, {0, 0}); w.Pickup(s, it); w.items[it].ammo = 99;
+    }
+    if (mode == MD_DUEL) {   // (three weapons offered, the same to both; the countdown is the time to choose)
+        phaseT = 4.0f; uint32_t r = rs;
+        for (int k = 0; k < 3; k++) { int wi; int tries = 0; do { r = r * 1664525u + 1013904223u; wi = (int)((r >> 8) % Weapons().size()); } while ((Weapons()[wi].support || Weapons()[wi].kind == "thrown" || (k > 0 && wi == duelOffer[0]) || (k > 1 && wi == duelOffer[1])) && ++tries < 50); duelOffer[k] = wi; }
+        for (int& p : duelPick) p = 0;
+    }
+    if (mode == MD_GAUNTLET) {   // (no crates; everyone at the start; the exit at the spawn farthest from it)
+        w.nextCrate = 1e9f; w.start = 0; float far = -1;
+        for (const auto& sp : w.stage.spawns) { float d = Vector2Distance(sp, w.stage.spawns[0]); if (d > far) { far = d; w.goal = sp; } }
+        for (auto& k : w.sticks) { k.finished = -1; w.Respawn(k); k.pos.x += (k.id - (players - 1) * 0.5f) * 0.4f; }
+    }
     std::fill(roundKills.begin(), roundKills.end(), 0);
     evSeen = w.eventBase;
 }
 void Match::Step() {
     if (phase == P_OVER) return;
-    if (phase == P_COUNT) { for (auto& k : w.sticks) k.in = Input{}; }
+    if (phase == P_COUNT) {
+        if (mode == MD_DUEL) for (int i = 0; i < players && i < MAX_STICKS; i++) { int p = w.sticks[i].in.pick; if (p >= 1 && p <= 3) duelPick[i] = p; }
+        for (auto& k : w.sticks) k.in = Input{};
+    }
     w.Step();
     if (phase == P_FIGHT && w.Mut(MU_FAST_FORWARD) && (w.frame & 1)) w.Step();   // (Fast Forward: half again as fast)
     // the round's scoring from the world's log: kills (and their bonuses), the wall
@@ -120,16 +150,22 @@ void Match::Step() {
     for (uint32_t i = evSeen; i < base + E.size(); i++) {
         const Event& e = E[i - base];
         if (e.kind == EV_DIE && e.by >= 0 && e.by < players && e.by != e.who && phase == P_FIGHT) { score[e.by] += 20 + (e.a == 1 ? 10 : e.a == 2 ? 20 : 0); roundKills[e.by]++; }
+        if (e.kind == EV_DIE && mode == MD_GAUNTLET && phase == P_FIGHT) gDeaths++;
         if (e.kind == EV_WALL) for (const auto& k : w.sticks) if (k.alive && k.present && k.id < players) score[k.id] += 10;
     }
     evSeen = base + (uint32_t)E.size();
-    if (phase == P_COUNT && (phaseT -= STEP) <= 0) phase = P_FIGHT;
-    else if (phase == P_FIGHT && (w.Living() <= 1 || w.t > 95)) {
-        phase = P_WIN; phaseT = 1.5f; roundWinner = -1;
-        if (w.Living() == 1) for (const auto& k : w.sticks) if (k.alive && k.present) roundWinner = k.id;
-        if (roundWinner >= 0) { wins[roundWinner]++; score[roundWinner] += 100 + (roundWinner < (int)trinkets.size() && trinkets[roundWinner] == TK_NONE ? 10 : 0); log.push_back(TextFormat("Round %d to stick %d (%.0f s)", round, roundWinner, w.t)); }
-        else { draws++; log.push_back(TextFormat("Round %d: a draw (%.0f s)", round, w.t)); }
-        for (int i = 0; i < players; i++) if (wins[i] >= toWin) { champion = i; score[i] += 300; }
+    int rw = -1;
+    if (phase == P_COUNT && (phaseT -= STEP) <= 0) {
+        phase = P_FIGHT;
+        if (mode == MD_DUEL) for (int i = 0; i < players && i < (int)w.sticks.size(); i++) {   // (each stick's pick, or the first if it chose none)
+            int p = duelPick[i] >= 1 ? duelPick[i] : 1 + (int)((seed + round * 31 + i * 7) % 3);
+            Stick& k = w.sticks[i]; if (k.weapon >= 0) w.DropWeapon(k, {0, 0}, false); int it = w.SpawnWeapon(duelOffer[p - 1], k.pt[J_HAND_R].p, {0, 0}); w.Pickup(k, it);
+        }
+    }
+    else if (phase == P_FIGHT && RoundOver(&rw)) {
+        phase = P_WIN; phaseT = 1.5f; roundWinner = rw;
+        if (champion < 0) for (int i = 0; i < players; i++) if (wins[i] >= toWin) { champion = i; score[i] += 300; break; }
+        if (mode == MD_GAUNTLET) { if (champion >= 0) phase = P_WIN; }
     }
     else if (phase == P_WIN && (phaseT -= STEP) <= 0) { if (champion >= 0) phase = P_OVER; else NewRound(); }
 }

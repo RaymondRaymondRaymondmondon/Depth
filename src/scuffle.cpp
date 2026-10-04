@@ -196,7 +196,7 @@ void World::StepController(Stick& k) {
     if (InLiquid(head)) {
         k.swimT += dt;
         bool brine = BrineAt(head);
-        if (k.swimT > (brine ? 3.0f : 8.0f) * (k.trinket == TK_BIG_LUNGS ? 2.0f : 1.0f)) { Kill(k, k.lastHitBy >= 0 && t - k.lastHitT < 4 ? k.lastHitBy : -1, brine ? "the brine" : "drowned"); return; }
+        if (k.gear != GR_FISHBOWL && k.swimT > (brine ? 3.0f : 8.0f) * (k.trinket == TK_BIG_LUNGS ? 2.0f : 1.0f)) { Kill(k, k.lastHitBy >= 0 && t - k.lastHitT < 4 ? k.lastHitBy : -1, brine ? "the brine" : "drowned"); return; }
     } else k.swimT = std::max(0.0f, k.swimT - dt * 4);
     // the floor under the feet: ice is slippery, a conveyor carries you
     uint8_t under = stage.At((int)floorf(k.pos.x / TILE), (int)floorf((k.pos.y - 0.05f) / TILE));
@@ -463,6 +463,8 @@ void World::StepFists(Stick& k) {
 
 // ---------------------------------------------------------------- damage
 void World::Hit(Stick& o, int by, float dmg, Vector2 dir, float knock, bool ragdoll, const char* cause) {
+    if (!friendlyFire && by >= 0 && by != o.id && SameTeam(by, o.id)) return;   // (Teams with friendly fire off; the Gauntlet)
+    if (o.balloonT > 0) { o.balloonT = 0; Emit(EV_BUBBLE, o.pt[J_HEAD].p, o.id, by, 1); }   // (the balloon pops)
     // the body flies whether or not it's alive
     knock *= o.trinket == TK_CAT_LEGS ? 1.2f : o.trinket == TK_DEADWEIGHT ? 0.5f : 1.0f;
     if (Mut(MU_ONE_HIT) && dmg > 0 && o.alive) dmg = std::max(dmg, o.hp + 1);   // (One Hit: everything kills)
@@ -499,6 +501,7 @@ void World::Kill(Stick& k, int by, const char* cause) {
 void World::Step() {
     frame++; t += STEP;
     StepRules();
+    StepMode();
     StepPieces();
     for (auto& k : sticks) if (k.present) { StepStatus(k); StepController(k); StepGear(k); StepFists(k); }
     for (auto& k : sticks) if (k.present) StepPose(k);
@@ -553,6 +556,63 @@ static void MoveToward(const World& w, const Stick& k, Vector2 goal, Input& in, 
     if (!k.grounded && k.vel.y > 0) in.jump = true;
     if (k.st == S_WALL) { in.moveX = (float)k.wallSide; if (k.climbT > 1.2f || dy < 0) in.jump = true; }
 }
+// ---------------------------------------------------------------- the bots' map (stage 7): the standing cells and how to get between them
+// (a walk, a step, a drop, a jump within reach), searched back from a goal; a bot follows the cells downhill. Cached per
+// stage layout and goal (a crumbled tile or a new goal makes a new one).
+namespace {
+struct NavField { uint64_t key = ~0ull; int w = 0, h = 0; std::vector<int> dist; std::vector<std::vector<int>> next; };
+bool StandCell(const Stage& s, int x, int y) { return x >= 0 && x < s.w && y >= 1 && y < s.h - 2 && (s.Solid(x, y - 1) || s.OneWay(x, y - 1)) && s.At(x, y - 1) != T_URCHIN && s.At(x, y - 1) != T_RAIL && !s.Solid(x, y) && !s.Solid(x, y + 1) && !s.Solid(x, y + 2); }
+bool Open(const Stage& s, int x, int y) { return !s.Solid(x, y) && !s.Solid(x, y + 1); }
+bool ArcClear(const Stage& s, int x0, int y0, int x1, int y1) {
+    int top = std::max(y0, y1) + 1, sx = x1 > x0 ? 1 : -1;
+    for (int y = y0; y <= top; y++) if (!Open(s, x0, y)) return false;
+    for (int x = x0; x != x1; x += sx) if (!Open(s, x, top)) return false;
+    for (int y = top; y >= y1; y--) if (!Open(s, x1, y)) return false;
+    return true;
+}
+const NavField& Nav(const Stage& s, int gx, int gy) {
+    static NavField cache[4]; static int turn = 0;
+    uint64_t key = 1469598103934665603ull; for (uint8_t t : s.t) { key ^= t; key *= 1099511628211ull; } key ^= (uint64_t)(gx * 4096 + gy) * 0x9E3779B97F4A7C15ull; key ^= (uint64_t)s.w << 40;
+    for (auto& c : cache) if (c.key == key) return c;
+    NavField& f = cache[turn++ % 4]; f = NavField{}; f.key = key; f.w = s.w; f.h = s.h;
+    int n = s.w * s.h; f.dist.assign(n, -1); f.next.assign(n, {});
+    std::vector<std::vector<int>> back(n);
+    for (int y = 1; y < s.h - 2; y++) for (int x = 0; x < s.w; x++) {
+        if (!StandCell(s, x, y)) continue;
+        int from = y * s.w + x;
+        auto link = [&](int tx, int ty) { if (tx < 0 || tx >= s.w || ty < 1 || ty >= s.h - 2 || !StandCell(s, tx, ty)) return; int to = ty * s.w + tx; f.next[from].push_back(to); back[to].push_back(from); };
+        for (int dx : {-1, 1}) {
+            link(x + dx, y);
+            if (Open(s, x, y + 2)) link(x + dx, y + 1);
+            if (!StandCell(s, x + dx, y) && Open(s, x + dx, y)) for (int yy = y - 1; yy >= 1; yy--) { if (s.Solid(x + dx, yy)) break; if (StandCell(s, x + dx, yy)) { link(x + dx, yy); break; } }   // (a drop)
+        }
+        for (int dx = -5; dx <= 5; dx++) for (int dy = -3; dy <= 4; dy++) if ((abs(dx) >= 2 || dy >= 2) && ArcClear(s, x, y, x + dx, y + dy)) link(x + dx, y + dy);   // (a jump)
+    }
+    // back from the goal (the standing cell under it)
+    int g = -1; for (int yy = gy; yy >= 1 && g < 0; yy--) for (int dx = 0; dx <= 3 && g < 0; dx++) for (int sgn : {1, -1}) if (g < 0 && StandCell(s, gx + dx * sgn, yy)) g = yy * s.w + gx + dx * sgn;
+    if (g < 0) return f;
+    std::vector<int> q{g}; f.dist[g] = 0;
+    for (size_t i = 0; i < q.size(); i++) for (int p : back[q[i]]) if (f.dist[p] < 0) { f.dist[p] = f.dist[q[i]] + 1; q.push_back(p); }
+    return f;
+}
+}  // namespace
+// head for `goal` by the map: to the next cell downhill, jumping when the next cell needs it; off the map, straight there
+static void MoveVia(const World& w, const Stick& k, Vector2 goal, Input& in) {
+    const Stage& s = w.stage;
+    const NavField& f = Nav(s, (int)floorf(goal.x / TILE), (int)floorf((goal.y + 0.05f) / TILE));
+    int cx = (int)floorf(k.pos.x / TILE), cy = (int)floorf((k.pos.y + 0.05f) / TILE), cur = cy * s.w + cx;
+    if (!k.grounded || cx < 0 || cx >= s.w || cy < 0 || cy >= s.h || f.dist.empty() || f.dist[cur] < 0) { MoveToward(w, k, goal, in, true); return; }
+    if (f.dist[cur] == 0) { MoveToward(w, k, goal, in, true); return; }
+    int best = -1, bd = f.dist[cur];
+    for (int to : f.next[cur]) if (f.dist[to] >= 0 && f.dist[to] < bd) { bd = f.dist[to]; best = to; }
+    if (best < 0) { MoveToward(w, k, goal, in, true); return; }
+    int tx = best % s.w, ty = best / s.w;
+    Vector2 at{(tx + 0.5f) * TILE, ty * TILE};
+    in.moveX = at.x > k.pos.x + 0.05f ? 1.0f : at.x < k.pos.x - 0.05f ? -1.0f : 0.0f;
+    bool jump = ty > cy || abs(tx - cx) >= 2;
+    if (jump && (abs(tx - cx) <= 1 || fabsf(k.pos.x - (cx + 0.5f) * TILE) < 0.2f || !StandCell(s, cx + (tx > cx ? 1 : -1), cy))) in.jump = true;
+    if (!k.grounded && k.vel.y > 0) in.jump = true;
+}
 void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
     auto R = [&]() { rng = rng * 1664525u + 1013904223u; return ((rng >> 8) & 0xffffff) / 16777216.0f; };
     const Stick& k = w.sticks[me];
@@ -560,9 +620,30 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
     in = Input{};
     if (!k.alive) return;
     if (k.st == S_RAGDOLL) { in.moveX = R() < 0.5f ? 1.0f : -1.0f; return; }   // (flailing to get up)
+    // the Gauntlet: no one to fight, an exit to reach
+    if (w.mode == MD_GAUNTLET) { if (k.finished < 0) MoveVia(w, k, w.goal, in); return; }
+    // the target: the nearest stick that isn't a teammate (the hunted go for the sharks, the sharks for the hunted)
     int tgt = -1; float bd = 1e9f;
-    for (const auto& o : w.sticks) if (o.id != me && o.present && o.alive) { float d = Vector2Distance(o.pos, k.pos); if (d < bd) { bd = d; tgt = o.id; } }
+    for (const auto& o : w.sticks) {
+        if (o.id == me || !o.present || !o.alive || w.SameTeam(me, o.id)) continue;
+        if (w.mode == MD_HUNT && o.shark == k.shark) continue;
+        float d = Vector2Distance(o.pos, k.pos); if (d < bd) { bd = d; tgt = o.id; }
+    }
     if (tgt < 0) { in.taunt = R() < 0.01f; return; }
+    // King of the Plank: get on the plank and fight whoever's near it; the Egg: get it, keep it, or chase whoever has it
+    if (w.mode == MD_KING) {
+        Vector2 pc{(w.plank.x + w.plank.width * 0.5f) * TILE, w.plank.y * TILE};
+        bool on = k.grounded && fabsf(k.pos.y - pc.y) < 0.25f && fabsf(k.pos.x - pc.x) < w.plank.width * TILE * 0.5f;
+        if (!on && bd > 2.2f) { MoveVia(w, k, pc, in); in.aim = Vector2Normalize(Vector2Subtract(w.sticks[tgt].pt[J_NECK].p, k.pt[J_NECK].p)); return; }
+    }
+    if (w.mode == MD_EGG) {
+        for (const auto& th : w.things) if (th.kind == TH_EGG && th.a <= 0) {
+            if (th.hold == me) { const Stick& o2 = w.sticks[tgt]; MoveToward(w, k, {k.pos.x - Sgn(o2.pos.x - k.pos.x) * 5, k.pos.y}, in, true); if (bd < 1.2f) { in.aim = Vector2Normalize(Vector2Subtract(o2.pt[J_NECK].p, k.pt[J_NECK].p)); in.fire = !fireWas; } return; }
+            if (th.hold < 0) { MoveVia(w, k, th.p, in); return; }
+            if (th.hold != tgt && th.hold >= 0 && th.hold < (int)w.sticks.size() && !w.SameTeam(me, th.hold)) { tgt = th.hold; bd = Vector2Distance(w.sticks[tgt].pos, k.pos); }
+        }
+    }
+    if (k.persona == PE_TAUNTER && bd > 5 && R() < 0.004f) { in.taunt = true; return; }   // (the taunter: a moment of showing off)
     const Stick& o = w.sticks[tgt];
     const WeaponDef* d = HeldDef(w, k);
     float err = skill >= 2 ? 0.03f : skill == 1 ? 0.09f : 0.2f;
@@ -591,8 +672,10 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
         for (int x = 0; x < w.stage.w; x++) for (int y = w.stage.h - 2; y >= 0; y--) { if (!(w.stage.Solid(x, y) && !w.stage.Solid(x, y + 1) && !w.stage.Solid(x, y + 2))) continue; float top = (y + 1) * TILE; if (top > w.wallY + 2.0f) { float c = fabsf((x + 0.5f) * TILE - k.pos.x) + fabsf(top - k.pos.y) * 0.5f; if (c < best) { best = c; goal = {(x + 0.5f) * TILE, top}; } } break; }
         if (best < 1e8f && (fabsf(goal.x - k.pos.x) > 0.5f || goal.y > k.pos.y + 0.3f)) { MoveToward(w, k, goal, in, false); in.aim = Vector2Normalize(Vector2Subtract(o.pt[J_NECK].p, k.pt[J_NECK].p)); return; }
     }
-    // empty-handed and nobody close: fetch the nearest crate or loose weapon
-    if (!d && bd > 2.5f) {
+    // the melee-only bot drops any gun it's given (duck and throw it at them)
+    if (k.persona == PE_MELEE && d && d->kind != "melee" && k.grounded) { in.moveY = -1; in.aim = Vector2Normalize(Vector2Subtract(w.sticks[tgt].pt[J_NECK].p, k.pt[J_NECK].p)); in.fire = !fireWas; return; }
+    // empty-handed and nobody close (a camper: whenever there's one near): fetch the nearest crate or loose weapon
+    if (!k.shark && w.mode != MD_EGG && ((!d && bd > 2.5f) || (k.persona == PE_CAMPER && !d && bd > 1.2f))) {
         int best = -1; float bdist = 14;
         for (int i = 0; i < (int)w.items.size(); i++) { const Item& it = w.items[i]; if (!it.alive || it.holder >= 0 || it.thrownT > 0 || (!it.crate && it.ammo <= 0 && it.weapon >= 0 && Weapons()[it.weapon].kind == "gun")) continue; float dd = Vector2Distance(it.a.p, k.pos) + (it.crate && it.chute ? 3 : 0); if (dd < bdist) { bdist = dd; best = i; } }
         if (best >= 0) { MoveToward(w, k, w.items[best].a.p, in, true); in.aim = {(float)k.face, 0}; return; }
@@ -601,7 +684,7 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
     if (d && (d->kind == "gun" || d->kind == "thrown")) {
         // keep the weapon's range: close in with a scatter gun, back off with a sniper
         // (long guns keep their distance; short ones close in: a flamethrower, a scatter gun, a tesla want to be near)
-        bool longGun = d->key == "sniper" || d->key == "carbine" || d->key == "harpoon" || d->key == "speargun" || d->key == "rocket" || d->key == "grenadelauncher" || d->key == "chum" || d->key == "flare";
+        bool longGun = k.persona != PE_RUSHER && (d->key == "sniper" || d->key == "carbine" || d->key == "harpoon" || d->key == "speargun" || d->key == "rocket" || d->key == "grenadelauncher" || d->key == "chum" || d->key == "flare");
         float want = d->range > 0 ? d->range * 0.4f : d->key == "sniper" || d->key == "carbine" ? 7.0f : d->key == "rocket" || d->key == "grenadelauncher" ? 5.0f : longGun ? 5.0f : 3.0f;
         Vector2 lead = Vector2Scale(o.vel, d->speed > 0 ? Vector2Distance(from, at) / d->speed * (skill >= 1 ? 0.8f : 0.0f) : 0);
         Vector2 aim = Vector2Normalize(Vector2Subtract(Vector2Add(at, lead), from));
@@ -637,6 +720,7 @@ int ScuffleStageChecks();
 int ScuffleWorldChecks();
 int ScuffleArsenalChecks();
 int ScuffleRulesChecks();
+int ScuffleModeChecks();
 static void Check(bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) Fails++; }
 static void Run(World& w, float seconds, void (*fn)(World&) = nullptr) { int n = (int)(seconds / STEP); for (int i = 0; i < n; i++) { if (fn) fn(w); w.Step(); } }
 static Stage Flat(int w = 40, int h = 18) { std::vector<std::string> rows(h, std::string(w, '.')); rows[h - 1] = std::string(w, '#'); rows[h - 2] = std::string(w, '#'); return StageFromText(rows, "Flat"); }
@@ -727,6 +811,7 @@ int RunScuffleTest() {
     Fails += ScuffleWorldChecks();
     Fails += ScuffleArsenalChecks();
     Fails += ScuffleRulesChecks();
+    Fails += ScuffleModeChecks();
     printf(Fails ? "Scuffle: %d check(s) FAILED\n" : "Scuffle: all checks passed\n", Fails);
     return Fails ? 1 : 0;
 }

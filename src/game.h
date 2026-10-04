@@ -885,7 +885,7 @@ void StartScuffleNet(Game& g, arcade::Session* net, const char* name);   // a ne
 void ScuffleMenuTick(float dt);                                          // (the game menu is open: the fight goes on)
 std::string ScuffleOpts(int toWin, int arsenal, int skill, int world = -1, uint32_t mutators = 0, bool randomMutator = false);
 const char* ScuffleWorldChoice(int world);
-extern int gScuffleTrinket, gScuffleRules;   // (the arcade's picks: your trinket, -1 the game picks; the rules: 0 none, 1 Random, 2+ one mutator)
+extern int gScuffleTrinket, gScuffleRules, gScuffleMode;   // (gScuffleMode: sf::Mode, the solo panel's and the lobby's pick)   // (the arcade's picks: your trinket, -1 the game picks; the rules: 0 none, 1 Random, 2+ one mutator)
 const char* ScuffleTrinketChoice(int t);
 const char* ScuffleRulesChoice(int r);
 uint32_t ScuffleRulesMask(int r);

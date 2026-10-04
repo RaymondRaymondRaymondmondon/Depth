@@ -326,12 +326,12 @@ void DrawReels(Game& g) {
                 if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = lo + (v - lo + n - 1) % n; PlayCue("ui.click"); }
                 if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = lo + (v - lo + 1) % n; PlayCue("ui.click"); }
             };
-            cyc(276, "the stages", sfWorld, 8, -1, ScuffleWorldChoice(sfWorld));
-            cyc(326, "your trinket (others see it)", gScuffleTrinket, sf::TK_COUNT + 1, -1, gScuffleTrinket < 0 ? "the game picks" : sf::TrinketName(gScuffleTrinket));
-            cyc(376, "the rules", gScuffleRules, sf::MU_COUNT + 2, 0, ScuffleRulesChoice(gScuffleRules));
-            const char* note = gScuffleTrinket >= 0 ? sf::TrinketText(gScuffleTrinket) : gScuffleRules >= 2 ? sf::MutatorText(gScuffleRules - 2) : "Gear is the E key (or the right mouse button).";
-            DrawWrapped(note, {40, 430, 244, 120}, 13, SCREEN_DIM);
-            if (gScuffleTrinket >= 0 && gScuffleRules >= 2) DrawWrapped(TextFormat("Rules: %s.", sf::MutatorText(gScuffleRules - 2)), {40, 500, 244, 60}, 13, SCREEN_DIM);
+            cyc(272, "the mode", gScuffleMode, sf::MD_COUNT, 0, sf::ModeName(gScuffleMode));
+            cyc(316, "the stages", sfWorld, 8, -1, ScuffleWorldChoice(sfWorld));
+            cyc(360, "your trinket (others see it)", gScuffleTrinket, sf::TK_COUNT + 1, -1, gScuffleTrinket < 0 ? "the game picks" : sf::TrinketName(gScuffleTrinket));
+            cyc(404, "the rules", gScuffleRules, sf::MU_COUNT + 2, 0, ScuffleRulesChoice(gScuffleRules));
+            const char* note = gScuffleMode != sf::MD_CLASSIC ? sf::ModeRule(gScuffleMode) : gScuffleTrinket >= 0 ? sf::TrinketText(gScuffleTrinket) : gScuffleRules >= 2 ? sf::MutatorText(gScuffleRules - 2) : "Gear is the E key (or the right mouse button).";
+            DrawWrapped(note, {40, 452, 244, 110}, 13, SCREEN_DIM);
         }
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Fight (solo)", true, 15)) { StartScuffle(g, sfBots, sfSkill, TOWIN[sfToWin], sfWorld); return; }
         if (Button({c.x - 110, c.y + 278, 220, 30}, "The editor", true, 13)) { StartScuffleEditor(g); return; }
@@ -661,9 +661,9 @@ void DrawLobby() {
         ch |= pick(p.x + 140, yy + 60, ScuffleRulesChoice(gScuffleRules), gScuffleRules, sf::MU_COUNT + 2);
         ch |= pick(p.x + 362, yy, SKILLS[sfSkill], sfSkill, 3);
         ch |= pick(p.x + 362, yy + 30, ScuffleWorldChoice(sfWorld - 1), sfWorld, 8);
-        DrawTextCentered(gScuffleTrinket >= 0 ? TextFormat("your trinket: %s", sf::TrinketName(gScuffleTrinket)) : "your trinket: the game picks", p.x + 362, yy + 64, 13, SCREEN_DIM);
+        ch |= pick(p.x + 362, yy + 60, sf::ModeName(gScuffleMode), gScuffleMode, sf::MD_COUNT);
         gSess.gameOpts = ScuffleOpts(WINS[sfWin], sfArs, sfSkill, sfWorld - 1, ScuffleRulesMask(gScuffleRules), gScuffleRules == 1);
-        if (ch) gSess.Chat(TextFormat("The fight: first to %d, the %s arsenal, %s", WINS[sfWin], sf::ArsenalName(sfArs), ScuffleWorldChoice(sfWorld - 1)));
+        if (ch) gSess.Chat(TextFormat("The fight: %s, first to %d, the %s arsenal, %s", sf::ModeName(gScuffleMode), WINS[sfWin], sf::ArsenalName(sfArs), ScuffleWorldChoice(sfWorld - 1)));
     }
     if (gSess.game == G_NIGHT_OFF) {
         // the host picks the mode (doc p. 24), the crowd (Dead, Normal, Packed, Random) and whether sailors may fight each other;

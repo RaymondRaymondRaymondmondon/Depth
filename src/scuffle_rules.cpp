@@ -82,9 +82,10 @@ void World::StepRules() {
         k.jumpWas = k.in.jump;
     }
     // the hot potato: from 3 s someone holds it; it passes by touch; at 10 s it goes off
-    if (Mut(MU_HOT_POTATO)) {
+    if (Mut(MU_HOT_POTATO) || mode == MD_POTATO) {
         int pot = -1; for (int i = 0; i < (int)things.size(); i++) if (things[i].alive && things[i].kind == TH_POTATO) pot = i;
-        if (pot < 0 && t > 3 && t < 3 + dt * 1.5f) {
+        if (pot < 0 && ((potatoNext < 0 && t > 3) || (potatoNext > 0 && t >= potatoNext))) {
+            potatoNext = 0;
             std::vector<int> live; for (const auto& k : sticks) if (k.alive && k.present) live.push_back(k.id);
             if (!live.empty()) { int p = AddThing(TH_POTATO, {}, {}, 10, -1); things[p].on = live[(int)(Rand() * live.size()) % live.size()]; Emit(EV_EVENT, sticks[things[p].on].pt[J_NECK].p, things[p].on, -1, 100); }
         }
@@ -96,7 +97,7 @@ void World::StepRules() {
                 if (th.cool <= 0) for (const auto& o : sticks) if (o.id != h.id && o.alive && o.present && Vector2Distance(o.pt[J_PELVIS].p, h.pt[J_PELVIS].p) < 0.75f) { th.owner = h.id; th.on = o.id; th.cool = 0.5f; Emit(EV_GRAB, o.pt[J_NECK].p, o.id, h.id); break; }
                 if (!h.alive) { std::vector<int> live; for (const auto& k : sticks) if (k.alive && k.present) live.push_back(k.id); if (!live.empty()) th.on = live[(int)(Rand() * live.size()) % live.size()]; }
             }
-            if (th.life <= dt) { Explode(th.p, 2.6f, 140, 16, th.owner, -1); th.alive = false; }
+            if (th.life <= dt) { Explode(th.p, 2.6f, 140, 16, th.owner, -1); th.alive = false; potatoNext = mode == MD_POTATO ? t + 1.5f : 1e9f; }   // (the Hot Potato mode: another comes)
         }
     }
     // the event: a one-second tell, then it happens

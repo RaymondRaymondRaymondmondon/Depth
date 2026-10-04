@@ -9,6 +9,8 @@
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <ctime>
 #include <vector>
 
 namespace {
@@ -18,7 +20,8 @@ struct ScuffleScene {
     sf::Match M;
     int players = 4, skill = 2, toWin = 5, arsenal = sf::AR_CLASSIC; int lastRound = 0;
     std::vector<uint32_t> botRng;
-    float acc = 0, t = 0, wallMsgT = 0;
+    float acc = 0, t = 0, wallMsgT = 0, modeMsgT = 0; std::string modeMsg;
+    bool boardDone = false; std::vector<std::string> board; int boardMine = -1;   // (the Gauntlet's local leaderboard, scuffle_gauntlet.txt)
     Vector2 cam{}; float zoom = 60;
     std::vector<Blot> blots; uint32_t evSeen = 0;
     std::vector<Vector2> grain;
@@ -36,6 +39,7 @@ const char* StickName(int i) {
     if (i >= 0 && i < (int)S.names.size() && !S.names[i].empty()) return S.names[i].c_str();
     static const char* N[sf::MAX_STICKS] = {"You", "Old Marlow", "Big Ruth", "Sly Pennick", "Cutter Jones", "Pip", "Nellie Bright", "Boxer Mags"}; return N[std::clamp(i, 0, sf::MAX_STICKS - 1)];
 }
+Color TeamColor(int t) { return t == 0 ? Color{200, 60, 50, 255} : t == 1 ? Color{50, 100, 210, 255} : t == 2 ? Color{60, 160, 70, 255} : Color{220, 170, 30, 255}; }
 Vector2 W2S(Vector2 w) { return {(w.x - S.cam.x) * S.zoom + SCREEN_W / 2.0f, SCREEN_H / 2.0f - (w.y - S.cam.y) * S.zoom}; }
 Vector2 S2W(Vector2 s) { return {(s.x - SCREEN_W / 2.0f) / S.zoom + S.cam.x, (SCREEN_H / 2.0f - s.y) / S.zoom + S.cam.y}; }
 
@@ -48,6 +52,21 @@ void Splash(Vector2 at, Color c, int n, float sp, float r) {
     }
 }
 
+Rectangle DuelCard(int q) { return {SCREEN_W / 2.0f - 270 + q * 190, SCREEN_H / 2.0f - 40, 160, 110}; }
+// the Gauntlet's board: one line per run (stages, seconds, deaths, world, date), best first (more stages, then less time)
+void GauntletRecord(int stages, float secs, int deaths, int world) {
+    struct Run { int st; float s; int d, w; std::string when; };
+    std::vector<Run> runs;
+    if (FILE* f = fopen("scuffle_gauntlet.txt", "r")) { char line[256]; while (fgets(line, sizeof line, f)) { Run r{}; char when[64] = ""; if (sscanf(line, "%d %f %d %d %63s", &r.st, &r.s, &r.d, &r.w, when) >= 4) { r.when = when; runs.push_back(r); } } fclose(f); }
+    time_t now = time(nullptr); char stamp[32]; strftime(stamp, sizeof stamp, "%Y-%m-%d", localtime(&now));
+    runs.push_back({stages, secs, deaths, world, stamp}); size_t mine = runs.size() - 1;
+    std::vector<size_t> order(runs.size()); for (size_t i = 0; i < order.size(); i++) order[i] = i;
+    std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) { return runs[a].st != runs[b].st ? runs[a].st > runs[b].st : runs[a].s < runs[b].s; });
+    if (order.size() > 50) order.resize(50);
+    if (FILE* f = fopen("scuffle_gauntlet.txt", "w")) { for (size_t i : order) fprintf(f, "%d %.2f %d %d %s\n", runs[i].st, runs[i].s, runs[i].d, runs[i].w, runs[i].when.c_str()); fclose(f); }
+    S.board.clear(); S.boardMine = -1;
+    for (size_t k = 0; k < order.size() && k < 10; k++) { const Run& r = runs[order[k]]; if (order[k] == mine) S.boardMine = (int)k; S.board.push_back(TextFormat("%2d.  %d stages   %.1f s   %d deaths   %s   %s", (int)k + 1, r.st, r.s, r.d, ScuffleWorldChoice(r.w), r.when.c_str())); }
+}
 // ---------------------------------------------------------------- input: the keys and the mouse into sf::Input
 void Gather(sf::Input& in, const sf::Stick& k) {
     in = sf::Input{};
@@ -58,6 +77,8 @@ void Gather(sf::Input& in, const sf::Stick& k) {
     in.fire = IsMouseButtonDown(MOUSE_BUTTON_LEFT) || IsKeyDown(KEY_J);
     in.taunt = IsKeyPressed(KEY_T);
     in.gear = IsKeyDown(KEY_E) || IsMouseButtonDown(MOUSE_BUTTON_RIGHT);   // (the gear button)
+    if (IsKeyDown(KEY_ONE)) in.pick = 1; if (IsKeyDown(KEY_TWO)) in.pick = 2; if (IsKeyDown(KEY_THREE)) in.pick = 3;   // (the Duel: the weapon for the round)
+    if (S.M.mode == sf::MD_DUEL && S.M.phase == sf::Match::P_COUNT && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) for (int q = 0; q < 3; q++) if (CheckCollisionPointRec(GetMousePosition(), DuelCard(q))) { in.pick = q + 1; in.fire = false; return; }
     Vector2 m = S2W(GetMousePosition()), d = Vector2Subtract(m, k.pt[sf::J_NECK].p);
     in.aim = Vector2Length(d) > 0.05f ? Vector2Normalize(d) : Vector2{(float)k.face, 0};
     if (IsKeyDown(KEY_J) && !IsMouseButtonDown(MOUSE_BUTTON_LEFT)) in.aim = {(float)k.face, 0};   // (the keyboard's fist: straight ahead)
@@ -211,7 +232,9 @@ void ReadEvents() {
         if (e.kind == sf::EV_BLOCK) Splash(e.at, Color{250, 245, 225, 255}, 8, 3.0f, 0.05f);
         if (e.kind == sf::EV_CRATE_OPEN) Splash(e.at, Color{150, 110, 60, 255}, 8, 3.0f, 0.06f);
         if (e.kind == sf::EV_WALL) S.wallMsgT = 2.5f;
-        if (e.kind == sf::EV_EVENT) { gEventBanner = 2.2f; gEventKind = (int)e.a; }
+        if (e.kind == sf::EV_EVENT && e.a < sf::RE_COUNT) { gEventBanner = 2.2f; gEventKind = (int)e.a; }
+        if (e.kind == sf::EV_EVENT && (int)e.a == 200) { S.modeMsg = "The plank moves!"; S.modeMsgT = 2; }
+        if (e.kind == sf::EV_EVENT && (int)e.a == 300) { S.modeMsg = TextFormat("%s is through the exit", StickName(e.who)); S.modeMsgT = 2; }
         if (e.kind == sf::EV_FREEZE) Splash(e.at, Color{200, 230, 245, 255}, e.a > 0 ? 14 : 6, 3, 0.06f);
         if (e.kind == sf::EV_ZAP) Splash(e.at, Color{170, 220, 255, 255}, 6, 3, 0.04f);
         if (e.kind == sf::EV_BUBBLE && e.a > 0) Splash(e.at, Color{250, 230, 250, 255}, 8, 2.5f, 0.05f);
@@ -294,14 +317,65 @@ void DrawHeld(const sf::Stick& k) {
     const sf::Item& it = S.M.w.items[k.weapon];
     DrawWeaponAt(it.weapon, it.a.p, it.b.p, 1, it.count);
 }
+// ---------------------------------------------------------------- the modes in the world (stage 7): the plank, the exit, the egg, mirrors, balloons, sharks
+void DrawModeGround() {
+    const sf::World& w = S.M.w; float px = S.zoom * sf::TILE;
+    if (w.mode == sf::MD_KING) {   // the marked plank: gold rope along its top, flags at both ends; it flashes when it's about to move
+        Vector2 a = W2S({w.plank.x * sf::TILE, w.plank.y * sf::TILE}), b = W2S({(w.plank.x + w.plank.width) * sf::TILE, w.plank.y * sf::TILE});
+        float fl = w.plankT < 3 && fmodf(S.t * 4, 1.0f) < 0.5f ? 0.4f : 1;
+        DrawRectangleV({a.x, a.y - 5}, {b.x - a.x, 7}, ColorAlpha(Color{240, 196, 60, 255}, 0.85f * fl));
+        DrawLineEx({a.x, a.y - 5}, {b.x, a.y - 5}, 2, INK);
+        for (Vector2 e : {a, b}) { DrawLineEx(e, {e.x, e.y - px * 1.6f}, 3, INK); DrawTri({e.x, e.y - px * 1.6f}, {e.x + px * 0.6f, e.y - px * 1.35f}, {e.x, e.y - px * 1.1f}, ColorAlpha(Color{240, 196, 60, 255}, fl)); }
+    }
+    if (w.mode == sf::MD_GAUNTLET) {   // the exit: a hatch in a brass frame with a chequered flag over it
+        Vector2 g = W2S(w.goal);
+        DrawRectangleV({g.x - px * 0.6f, g.y - px * 2.2f}, {px * 1.2f, px * 2.2f}, Color{40, 34, 30, 255});
+        DrawRectangleLinesEx({g.x - px * 0.6f, g.y - px * 2.2f, px * 1.2f, px * 2.2f}, 3, Color{200, 160, 70, 255});
+        Vector2 pole{g.x + px * 0.8f, g.y};
+        DrawLineEx(pole, {pole.x, pole.y - px * 3}, 3, INK);
+        float wave = sinf(S.t * 5) * px * 0.06f;
+        for (int i = 0; i < 4; i++) for (int j = 0; j < 3; j++) DrawRectangleV({pole.x + i * px * 0.22f, pole.y - px * 3 + j * px * 0.22f + wave * i}, {px * 0.22f, px * 0.22f}, (i + j) % 2 ? WHITE : INK);
+    }
+}
+void DrawModeOver() {
+    const sf::World& w = S.M.w; float px = S.zoom * sf::TILE;
+    for (const auto& th : w.things) {
+        if (!th.alive) continue;
+        if (th.kind == sf::TH_EGG && th.a <= 0) {   // the egg: speckled, wobbling when it's loose
+            Vector2 c = W2S(th.p); float r = px * 0.32f, wob = th.hold < 0 ? sinf(S.t * 6) * 0.08f : 0;
+            DrawEllipse((int)c.x, (int)c.y, r * 0.85f + 2, r * 1.1f + 2, INK); DrawEllipse((int)c.x, (int)c.y, r * 0.85f, r * 1.1f, Color{246, 238, 214, 255});
+            for (int i = 0; i < 5; i++) DrawCircleV({c.x + sinf(i * 2.1f + wob) * r * 0.5f, c.y + cosf(i * 1.3f) * r * 0.6f}, 1.6f, Color{150, 120, 90, 255});
+            if (th.hold < 0) { float u = 0.5f + 0.5f * sinf(S.t * 3); DrawRing(c, r * 1.5f, r * 1.5f + 2, 0, 360, 24, ColorAlpha(Color{240, 196, 60, 255}, u)); }
+        }
+        if (th.kind == sf::TH_MIRROR) {   // a mirror on a stand: silvered glass, a brass frame
+            Vector2 b = W2S(th.p), t = W2S({th.p.x, th.p.y + 1.3f});
+            DrawRectangleV({b.x - 5, t.y}, {10, b.y - t.y}, Color{200, 160, 70, 255});
+            DrawRectangleV({b.x - 3, t.y + 2}, {6, b.y - t.y - 4}, ColorLerp(Color{200, 220, 230, 255}, WHITE, 0.4f + 0.3f * sinf(S.t * 2)));
+            DrawRectangleLinesEx({b.x - 5, t.y, 10, b.y - t.y}, 1.5f, INK);
+        }
+    }
+    for (const auto& k : w.sticks) {
+        if (!k.present || !k.alive) continue;
+        Vector2 h = W2S(k.pt[sf::J_HEAD].p);
+        if (k.balloonT > 0) {   // a balloon on a string from the hand
+            Vector2 hand = W2S(k.pt[sf::J_HAND_L].p), b{hand.x + sinf(S.t * 2) * 6, h.y - px * 1.8f};
+            DrawLineEx(hand, b, 1.2f, INK); DrawEllipse((int)b.x, (int)b.y - 12, 13, 16, INK); DrawEllipse((int)b.x, (int)b.y - 12, 11, 14, ColorAlpha(StickColor(k.id), 0.9f));
+        }
+        if (k.gear == sf::GR_FISHBOWL) { float r = k.pt[sf::J_HEAD].r * S.zoom * 1.6f; DrawRing(h, r, r + 2, 0, 360, 24, ColorAlpha(Color{180, 220, 240, 255}, 0.8f)); DrawCircleV(h, r, ColorAlpha(Color{180, 220, 240, 255}, 0.15f)); }
+        if (k.shark) { Vector2 f{h.x, h.y - k.pt[sf::J_HEAD].r * S.zoom - 4}; DrawTri({f.x - 9, f.y}, {f.x + 7, f.y}, {f.x + 4, f.y - 16}, Color{110, 130, 150, 255}); DrawLineEx({f.x - 9, f.y}, {f.x + 4, f.y - 16}, 1.5f, INK); }   // (the shark's fin)
+        if (k.team >= 0 && S.M.mode != sf::MD_HUNT) DrawRing({h.x, h.y}, k.pt[sf::J_HEAD].r * S.zoom + 3, k.pt[sf::J_HEAD].r * S.zoom + 6, 0, 360, 24, TeamColor(k.team));
+    }
+}
 // the world, in order: the stage, burning wood, the dead, the living with what they hold and what's happening to them,
 // crates, loose weapons and bullets (and the water over all of it), the things the arsenal leaves, ink, and the screen's effects
 void DrawWorld(float dt) {
     DrawStage();
+    DrawModeGround();
     DrawFires();
     for (const auto& k : S.M.w.sticks) if (!k.alive) DrawStick(k);
     for (const auto& k : S.M.w.sticks) if (k.alive) { DrawStick(k); DrawHeld(k); DrawStickStatus(k); }
     DrawThings();
+    DrawModeOver();
     DrawArms();
     DrawBlots(dt);
     DrawScreenFx(dt);
@@ -315,20 +389,51 @@ void DrawHud() {
         DrawRectangleRounded({x, 12, 150, 38}, 0.3f, 6, ColorAlpha(i == S.me && S.net ? Color{60, 44, 30, 255} : Color{20, 16, 14, 255}, 0.75f));
         DrawCircleV({x + 13, 25}, 7, k.alive ? StickColor(i) : Color{110, 106, 100, 255});
         Txt(StickName(i), x + 26, 16, 13, Color{240, 230, 210, 255});
-        Txt(TextFormat("%d", M.score[i]), x + 26, 33, 11, Color{200, 190, 170, 255});
+        bool timed = M.mode == sf::MD_KING || M.mode == sf::MD_EGG;
+        Txt(timed && i < (int)M.w.pts.size() ? TextFormat("%.0f / %.0f", M.w.pts[i], M.target) : k.shark ? "SHARK" : M.mode == sf::MD_GAUNTLET && k.finished >= 0 ? TextFormat("out at %.1f s", k.finished) : TextFormat("%d", M.score[i]), x + 26, 33, 11, k.shark ? Color{150, 190, 230, 255} : Color{200, 190, 170, 255});
+        if (k.team >= 0 && M.mode != sf::MD_HUNT) DrawRectangle((int)x, 46, 150, 3, TeamColor(k.team));
         if (k.trinket != sf::TK_NONE) Txt(sf::TrinketName(k.trinket), x + 4, 0, 10, DarkWorld(M.w.stage.world) ? Color{220, 190, 120, 255} : Color{120, 80, 30, 255});   // (everyone can see what everyone took)
         for (int wn = 0; wn < S.toWin && wn < 20; wn++) DrawCircleV({x + 72 + (wn % 10) * 7.5f, 37.0f + (wn / 10) * 7}, 2.6f, wn < M.wins[i] ? StickColor(i) : Color{80, 74, 66, 255});
         x += 158;
     }
-    DrawTextCentered(TextFormat("Round %d   -   first to %d   -   %s%s", M.round, S.toWin, M.w.stage.name.c_str(), M.w.finale ? "   (match point: the wall at 30 s)" : ""), SCREEN_W / 2.0f, 58, 14, NameInk());
+DrawTextCentered(sf::ModeName(M.mode), SCREEN_W / 2.0f, 74, 13, ColorAlpha(NameInk(), 0.8f));
+    DrawTextCentered(TextFormat("Round %d   -   first to %d   -   %s%s", M.round, S.toWin, M.w.stage.name.c_str(), M.w.finale && M.mode != sf::MD_DUEL && M.mode != sf::MD_GAUNTLET ? "   (match point: the wall at 30 s)" : ""), SCREEN_W / 2.0f, 58, 14, NameInk());
     // your weapon and its ammo
     const sf::Stick& me = M.w.sticks[std::clamp(S.me, 0, (int)M.w.sticks.size() - 1)];
     if (me.weapon >= 0 && me.weapon < (int)M.w.items.size()) { const sf::Item& it = M.w.items[me.weapon]; const sf::WeaponDef& d = sf::Weapons()[it.weapon]; DrawTextCenteredBold(d.kind == "gun" ? TextFormat("%s   %d", d.name.c_str(), it.ammo) : d.name.c_str(), SCREEN_W / 2.0f, SCREEN_H - 50.0f, 18, it.ammo == 0 && d.kind == "gun" ? Color{170, 60, 40, 255} : NameInk()); if (it.ammo == 0 && d.kind == "gun") DrawTextCentered("(empty: click to throw it)", SCREEN_W / 2.0f, SCREEN_H - 30.0f, 12, NameInk()); }
     if (me.gear >= 0) DrawTextCentered(TextFormat("%s%s   (E or right mouse)", sf::GearName(me.gear), me.gear == sf::GR_JETPACK ? TextFormat(": %.0f%%", me.gearFuel / 3 * 100) : ""), SCREEN_W / 2.0f, SCREEN_H - 72.0f, 13, NameInk());
     if (me.carry >= 0 && me.carry < (int)M.w.items.size()) DrawTextCentered(TextFormat("on your back: %s (E swaps)", sf::Weapons()[M.w.items[me.carry].weapon].name.c_str()), SCREEN_W / 2.0f, SCREEN_H - 88.0f, 12, NameInk());
+    if (M.mode == sf::MD_GAUNTLET) {   // the run: the stage, the clock, the deaths
+        DrawTextCenteredBold(TextFormat("Stage %d   %.1f s   %d deaths   (%.0f s left)", M.gStage + 1, M.gTime + M.w.t, M.gDeaths, std::max(0.0f, std::max(25.0f, 45.0f - M.gStage) - M.w.t)), SCREEN_W / 2.0f, 92, 20, NameInk());
+    }
+    if (M.mode == sf::MD_KING && M.w.plankT < 3 && M.phase == sf::Match::P_FIGHT) DrawTextCentered(TextFormat("the plank moves in %.0f", ceilf(M.w.plankT)), SCREEN_W / 2.0f, 92, 14, NameInk());
+    if (me.alive == false && me.respawnT > 0) DrawTextCenteredBold(TextFormat("Back in %.1f", me.respawnT), SCREEN_W / 2.0f, SCREEN_H / 2.0f + 60, 26, NameInk());
+    if (S.modeMsgT > 0) DrawTextCenteredBold(S.modeMsg.c_str(), SCREEN_W / 2.0f, 116, 20, NameInk());
+    if (M.mode == sf::MD_DUEL && M.phase == sf::Match::P_COUNT) {   // the Duel: three weapons on cards; 1-3 or a click picks yours
+        DrawTextCenteredBold("Pick your weapon for the round (1, 2, 3)", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 74, 20, NameInk());
+        for (int q = 0; q < 3; q++) {
+            Rectangle r = DuelCard(q); int wi = M.duelOffer[q]; bool mine = S.me < sf::MAX_STICKS && M.duelPick[S.me] == q + 1;
+            DrawRectangleRounded(r, 0.12f, 6, ColorAlpha(mine ? Color{70, 52, 30, 255} : Color{20, 16, 14, 255}, 0.85f));
+            DrawRectangleRoundedLinesEx(r, 0.12f, 6, mine ? 3.0f : 1.5f, Color{200, 160, 70, 255});
+            if (wi >= 0 && wi < (int)sf::Weapons().size()) {
+                float z = S.zoom; S.zoom = 70; Vector2 c{r.x + r.width / 2, r.y + 50};
+                Vector2 wc = S2W(c); DrawWeaponAt(wi, {wc.x - 0.4f, wc.y}, {wc.x + 0.6f, wc.y}, 1); S.zoom = z;
+                DrawTextCentered(sf::Weapons()[wi].name.c_str(), r.x + r.width / 2, r.y + 80, 14, Color{240, 230, 210, 255});
+            }
+            DrawTextCenteredBold(TextFormat("%d", q + 1), r.x + 14, r.y + 6, 16, Color{200, 160, 70, 255});
+        }
+    }
     if (S.wallMsgT > 0) DrawTextCenteredBold(WallLine(M.w.stage.world), SCREEN_W / 2.0f, 90, 26, DarkWorld(M.w.stage.world) ? Color{230, 210, 160, 255} : Color{40, 70, 110, 255});
     if (M.phase == sf::Match::P_COUNT) DrawTextCenteredBold("FIGHT!", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 56, Color{40, 30, 26, (unsigned char)(255 * std::clamp(1.4f - M.phaseT, 0.0f, 1.0f))});
     if (M.phase == sf::Match::P_WIN) DrawTextCenteredBold(M.roundWinner >= 0 ? TextFormat("%s %s the round", StickName(M.roundWinner), M.roundWinner == S.me && !S.net ? "take" : "takes") : "A draw: everyone at once", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 34, M.roundWinner >= 0 ? StickColor(M.roundWinner) : INK);
+    if (M.phase == sf::Match::P_OVER && M.mode == sf::MD_GAUNTLET) {   // the run's end: how far, how fast, and the board
+        DrawRectangle(0, 0, SCREEN_W, SCREEN_H, ColorAlpha(PAPER, 0.85f));
+        DrawTextCenteredBold(TextFormat("The Gauntlet: %d stage%s cleared", M.gStage, M.gStage == 1 ? "" : "s"), SCREEN_W / 2.0f, 120, 40, INK);
+        DrawTextCentered(TextFormat("%.1f s on the clock, %d deaths%s", M.gTime, M.gDeaths, M.gFailed ? ", out of time" : ""), SCREEN_W / 2.0f, 170, 18, INK);
+        DrawTextCenteredBold("Best runs on this ship", SCREEN_W / 2.0f, 220, 18, INK);
+        for (int i = 0; i < (int)S.board.size() && i < 10; i++) DrawTextCentered(S.board[i].c_str(), SCREEN_W / 2.0f, 250 + i * 22.0f, 15, i == S.boardMine ? Color{180, 60, 40, 255} : INK);
+        return;
+    }
     if (M.phase == sf::Match::P_OVER) {
         int best = std::max(0, M.champion);
         DrawRectangle(0, 0, SCREEN_W, SCREEN_H, ColorAlpha(PAPER, 0.8f));
@@ -339,14 +444,14 @@ void DrawHud() {
 }
 } // namespace
 
-int gScuffleTrinket = -1, gScuffleRules = 0;   // (the arcade's picks: your trinket (-1: the game picks); the rules: 0 none, 1 Random each round, 2+ one mutator)
+int gScuffleTrinket = -1, gScuffleRules = 0, gScuffleMode = 0;   // (the arcade's picks: your trinket (-1: the game picks); the rules: 0 none, 1 Random each round, 2+ one mutator)
 uint32_t ScuffleRulesMask(int r) { return r >= 2 ? 1u << (r - 2) : 0; }
 void StartScuffle(Game& g, int bots, int skill, int toWin, int world) {
     S = ScuffleScene{};
-    S.active = true; S.players = std::clamp(bots + 1, 2, sf::MAX_STICKS); S.skill = std::clamp(skill, 0, 2); S.toWin = std::clamp(toWin, 1, 20);
-    S.M.world = world; S.M.mutators = ScuffleRulesMask(gScuffleRules); S.M.randomMutator = gScuffleRules == 1;
+    S.active = true; S.players = gScuffleMode == sf::MD_DUEL ? 2 : std::clamp(bots + 1, gScuffleMode == sf::MD_HUNT ? 3 : 2, sf::MAX_STICKS); S.skill = std::clamp(skill, 0, 2); S.toWin = std::clamp(toWin, 1, 20);
+    S.M.mode = gScuffleMode; S.M.world = world; S.M.mutators = ScuffleRulesMask(gScuffleRules); S.M.randomMutator = gScuffleRules == 1;
     S.M.trinkets.assign(S.players, -1); S.M.trinkets[0] = gScuffleTrinket;
-    S.M.Start(S.players, S.toWin, (uint32_t)GetRandomValue(1, 1 << 30), S.arsenal);
+    S.M.Start(S.players, S.toWin, (uint32_t)GetRandomValue(1, 1 << 30), S.arsenal); S.toWin = S.M.toWin;
     S.botRng.resize(S.players);
     for (int i = 0; i < S.players; i++) S.botRng[i] = 1234567u + i * 7919u + (uint32_t)GetRandomValue(0, 1 << 20);
     uint32_t h = 99; for (int i = 0; i < 700; i++) { h = h * 1664525u + 1013904223u; float x = (float)((h >> 8) % SCREEN_W); h = h * 1664525u + 1013904223u; S.grain.push_back({x, (float)((h >> 8) % SCREEN_H)}); }
@@ -361,7 +466,7 @@ void StartScuffleNet(Game& g, arcade::Session* net, const char* name) {
     S.zoom = 60; S.lastRound = -1;
     g.scene = Scene::Scuffle;
 }
-std::string ScuffleOpts(int toWin, int arsenal, int skill, int world, uint32_t mutators, bool randomMutator) { return sf::ScuffleHostOpts(toWin, arsenal, skill, world, mutators, randomMutator); }
+std::string ScuffleOpts(int toWin, int arsenal, int skill, int world, uint32_t mutators, bool randomMutator) { return sf::ScuffleHostOpts(toWin, arsenal, skill, world, mutators, randomMutator, gScuffleMode); }
 const char* ScuffleTrinketChoice(int t) { return t < 0 ? "the game picks your trinket" : TextFormat("trinket: %s", sf::TrinketName(t)); }
 const char* ScuffleRulesChoice(int r) { return r <= 0 ? "no mutators" : r == 1 ? "a Random mutator each round" : sf::MutatorName(r - 2); }
 const char* ScuffleWorldChoice(int w) { return w < 0 ? "all six worlds" : w >= sf::WD_COUNT ? "endless (the generator)" : sf::WorldName(w); }
@@ -447,12 +552,12 @@ static bool EditorPlaying();
 static void EditorBackFromPlay();
 void SceneScuffle(Game& g) {
     float dt = std::min(GetFrameTime(), 1 / 20.0f);
-    if (S.active && S.net) { S.t += dt; S.wallMsgT = std::max(0.0f, S.wallMsgT - dt); NetFrame(g, dt); return; }
+    if (S.active && S.net) { S.t += dt; S.wallMsgT = std::max(0.0f, S.wallMsgT - dt); S.modeMsgT = std::max(0.0f, S.modeMsgT - dt); NetFrame(g, dt); return; }
     if (EditorFrame(g)) return;
     if (EditorPlaying() && IsKeyPressed(KEY_P)) { EditorBackFromPlay(); return; }
     if (!S.active) { StartScuffle(g, 3, 2, 5); }
     if (S.shot) dt = 1 / 60.0f;
-    S.t += dt; S.wallMsgT = std::max(0.0f, S.wallMsgT - dt);
+    S.t += dt; S.wallMsgT = std::max(0.0f, S.wallMsgT - dt); S.modeMsgT = std::max(0.0f, S.modeMsgT - dt);
     // the inputs (you and the bots), then the fixed steps (the match runs the rounds)
     if (!S.shot && !S.M.Over()) {
         S.acc += dt;
@@ -465,6 +570,7 @@ void SceneScuffle(Game& g) {
         }
     }
     ReadEvents();
+    if (S.M.Over() && S.M.mode == sf::MD_GAUNTLET && !S.boardDone && !S.shot && !EditorPlaying()) { S.boardDone = true; GauntletRecord(S.M.gStage, S.M.gTime, S.M.gDeaths, S.M.gWorld); }
     StepCamera(dt);
     DrawWorld(dt);
     DrawHud();
@@ -512,6 +618,23 @@ void DebugScuffleShot(Game& g, int which) {
         w.fireT.assign(w.stage.t.size(), 0); for (int x = 20; x < 24; x++) w.fireT[6 * w.stage.w + x] = 0.5f;
         if (which == 6) { w.mut = 1u << sf::MU_BLACKOUT; int pt = w.AddThing(sf::TH_POTATO, {}, {}, 2.5f, -1); w.things[pt].on = 3; w.things[pt].p = w.sticks[3].pt[sf::J_HAND_R].p; gEventBanner = 2; gEventKind = sf::RE_GRAVITY_FLIP; }
         S.cam = {w.stage.Width() / 2, w.stage.Height() / 2}; S.zoom = 30; for (int i = 0; i < 120; i++) StepCamera(1 / 60.0f);
+        return;
+    }
+    if (which >= 40 && which < 40 + sf::MD_COUNT) {   // a mode's look (40 + mode), bots playing it for a while (the Duel: on the pick)
+        int mode = which - 40, n = mode == sf::MD_DUEL ? 2 : mode == sf::MD_GAUNTLET ? 2 : mode == sf::MD_HUNT ? 5 : 4;
+        S = ScuffleScene{}; S.active = true; S.shot = true; S.players = n; S.toWin = 5;
+        uint32_t h = 99; for (int i = 0; i < 700; i++) { h = h * 1664525u + 1013904223u; float x = (float)((h >> 8) % SCREEN_W); h = h * 1664525u + 1013904223u; S.grain.push_back({x, (float)((h >> 8) % SCREEN_H)}); }
+        S.M.mode = mode; if (mode == sf::MD_TEAMS) S.M.friendlyFire = false; S.M.Start(n, 5, 2024);
+        uint32_t r[8] = {11, 22, 33, 44, 55, 66, 77, 88};
+        float until = mode == sf::MD_DUEL ? 0 : mode == sf::MD_GAUNTLET ? 4 : 14;
+        for (int f = 0; f < 120 * 60 && !(mode == sf::MD_DUEL && S.M.phase == sf::Match::P_COUNT && S.M.phaseT > 0.5f) && !(S.M.phase == sf::Match::P_FIGHT && S.M.w.t >= until && mode != sf::MD_DUEL); f++) {
+            for (int i = 0; i < n; i++) sf::BotInput(S.M.w, i, S.M.w.sticks[i].in, r[i], 2);
+            S.M.Step();
+        }
+        if (mode == sf::MD_DUEL) S.M.duelPick[0] = 2;
+        S.evSeen = S.M.w.eventBase > 64 ? S.M.w.eventBase : 0; ReadEvents();
+        S.cam = {S.M.w.stage.Width() / 2, S.M.w.stage.Height() / 2}; S.zoom = 30;
+        for (int i = 0; i < 120; i++) StepCamera(1 / 60.0f);
         return;
     }
     if (which >= 10) {   // a world's look (10 + world: a signature stage mid-fight; 20 + world: its wall closing in; 30 + world: a finale's set piece)

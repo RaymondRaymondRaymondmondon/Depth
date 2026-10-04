@@ -147,6 +147,7 @@ void World::StepItems() {
             if (resting && it.chute) { it.chute = false; }
             for (auto& k : sticks) {
                 if (!k.present || !k.alive) continue;
+                if (k.shark || EggHolder(k.id)) continue;   // (the Shark takes no crates; the egg's holder only punches)
                 // falling hard (no parachute): it crushes the stick it lands on
                 if (!it.chute && vel.y < -5 && Vector2Distance(it.a.p, k.pt[J_HEAD].p) < 0.45f) { Hit(k, -1, Arms().crush, {0, -1}, 3, true, "a crate"); Emit(EV_CRUSH, it.a.p, k.id); }
                 // a crate opens on touch: the weapon goes into an empty hand, or pops out
@@ -185,7 +186,7 @@ void World::StepItems() {
         }
         // a loose weapon is picked up by an empty hand (or swapped for by a duck)
         if (it.thrownT <= 0 && (it.ammo > 0 || Def(it.weapon).kind != "gun")) for (auto& k : sticks) {
-            if (!k.present || !k.alive || k.st == S_RAGDOLL || k.grabbing >= 0 || !Touching(k, it.a.p, 0.05f)) continue;
+            if (!k.present || !k.alive || k.st == S_RAGDOLL || k.grabbing >= 0 || k.shark || EggHolder(k.id) || !Touching(k, it.a.p, 0.05f)) continue;
             if (k.weapon < 0 || (k.st == S_DUCK && k.in.moveY < -0.5f && k.fireCool <= 0 && k.weapon != i)) { Pickup(k, i); break; }
         }
         if (it.a.p.y < -6) it.alive = false;
@@ -248,7 +249,7 @@ void World::Fire(Stick& k) {
     if (it.ammo <= 0) { if (press) { Emit(EV_EMPTY, it.b.p, k.id); DropWeapon(k, Vector2Add(Vector2Scale(aim, 14), {0, 2}), true); } k.fireWas = in.fire; return; }
     bool trigger = d.hold ? in.fire : press;
     // underwater only the harpoon and the tesla gaff work (doc p. 11)
-    if ((InLiquid(it.b.p) || InLiquid(k.pt[J_HEAD].p)) && d.key != "harpoon" && d.key != "speargun" && d.key.find("tesla") == std::string::npos && k.trinket != TK_BIG_LUNGS) trigger = false;
+    if ((InLiquid(it.b.p) || InLiquid(k.pt[J_HEAD].p)) && d.key != "harpoon" && d.key != "speargun" && d.key.find("tesla") == std::string::npos && k.trinket != TK_BIG_LUNGS && k.gear != GR_FISHBOWL) trigger = false;
     if (d.spinup > 0) { k.spin = in.fire ? std::min(d.spinup, k.spin + STEP) : std::max(0.0f, k.spin - STEP * 2); if (k.spin < d.spinup) trigger = false; }
     if (d.scope > 0) {   // (the sniper: the press starts the aim, the shot leaves a moment later where you aim then)
         if (k.aimT > 0) { k.aimT -= STEP; trigger = k.aimT <= 0; if (trigger) k.aimT = 0; }
@@ -337,6 +338,8 @@ void World::StepBullets() {
                 if (Vector2Distance(b.p, it.a.p) < it.a.r + 0.05f) { it.shot = true; it.a.q = Vector2Subtract(it.a.q, Vector2Scale(Vector2Normalize(b.v), 2 * STEP)); if (b.explode) Explode(b.p, b.area, b.areaDmg, b.knock, b.owner, b.weapon); b.alive = false; break; }
             }
             if (!b.alive) break;
+            // a mirror sends it back
+            for (auto& th : things) if (th.alive && th.kind == TH_MIRROR && fabsf(b.p.x - th.p.x) < 0.12f && b.p.y > th.p.y && b.p.y < th.p.y + 1.3f && b.v.x * th.q.x < 0) { b.v.x = -b.v.x; b.p.x = th.p.x + th.q.x * 0.13f; b.owner = th.owner; b.deflected = true; b.hit.clear(); step = Vector2Scale(b.v, STEP / n); Emit(EV_BLOCK, b.p, -1, th.owner); }
             // a stalactite hangs in open air: a shot anywhere on it brings it down
             if (b.hazard == -1) for (auto& pc : stage.pieces) if (pc.kind == PK_STALACTITE && pc.prog <= 0 && !pc.broken && t >= pc.start && b.p.x >= pc.x * TILE && b.p.x < (pc.x + pc.w) * TILE && b.p.y >= pc.y * TILE && b.p.y < (pc.y + pc.h) * TILE) { pc.prog = STEP; b.alive = false; Emit(EV_HIT, b.p, -1, b.owner, 0); break; }
             if (!b.alive) break;
@@ -366,7 +369,7 @@ void World::StepBullets() {
                 b.hit.push_back(k.id);
                 if (b.explode) { Explode(b.p, b.area, b.areaDmg, b.knock, b.owner, b.weapon); b.alive = false; break; }
                 const WeaponDef& d = Def(b.weapon);
-                float dmg = b.dmg * (head && k.trinket != TK_THICK_SKULL ? d.head : 1.0f);
+                float dmg = b.dmg * (head && k.trinket != TK_THICK_SKULL ? d.head : 1.0f); if (head && k.gear == GR_FISHBOWL) dmg = std::max(0.0f, dmg - 10);
                 std::string cause = (b.deflected ? std::string("a deflected ") : std::string()) + (b.hazard == -2 ? std::string("crystal shrapnel") : b.hazard == PK_CROWD ? std::string("a bottle from the crowd") : b.hazard == PK_DART ? std::string("a dart") : b.hazard == PK_POOL ? std::string("a pool ball") : b.hazard == PK_DRIP ? std::string("acid") : b.hazard == -3 ? std::string("a turret") : d.name);
                 Hit(k, b.owner, dmg, Vector2Normalize(b.v), b.knock, b.knock >= 10 || d.pin, cause.c_str());
                 if (d.pin && k.alive) k.ragT = std::max(k.ragT, 1.0f);   // (the harpoon pins: a second on the end of the line)

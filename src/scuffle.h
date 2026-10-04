@@ -81,7 +81,7 @@ Reach CheckReachable(const Stage& s);
 std::vector<Stage> LoadWorldPack(int world);               // the built-in stages (data/scuffle/stages/<world>.txt)
 std::vector<Stage> BuildNautilus();                        // (the builder behind nautilus.txt; --scuffle-build-packs writes it)
 std::vector<Stage> BuildWorld(int world);                  // a world's forty and its three finales (scuffle_build.cpp)
-Stage GenerateStage(int world, uint32_t seed, bool finale = false, int* tries = nullptr);
+Stage GenerateStage(int world, uint32_t seed, bool finale = false, int* tries = nullptr, int boost = 0);   // (boost: extra hazards: the Gauntlet's stages get worse)
 Stage MirrorStage(const Stage& s);                         // (left for right: the Mirror mutator, the packs' variants)   // the generator (doc p. 11): checked with the real movement code
 int RunScuffleBuildPacks();
 int RunScuffleVerify(const std::string& codeOrAll);       // --scuffle-verify <code> | --scuffle-verify-all
@@ -114,9 +114,16 @@ struct Input {
     bool jump = false, fire = false;     // held
     bool taunt = false;
     bool gear = false;                   // (stage 6: the gear button, held)
+    int pick = 0;                        // (stage 7: the Duel's weapon pick, 1-3, while the round counts down)
 };
 // gear (doc p. 14): one crate in ten; a second slot used with the gear button, kept for the round
-enum Gear { GR_HOOK, GR_SHIELD, GR_JETPACK, GR_DECOY, GR_PARACHUTE, GR_SPRING, GR_ROPE, GR_COUNT };
+enum Gear { GR_HOOK, GR_SHIELD, GR_JETPACK, GR_DECOY, GR_PARACHUTE, GR_SPRING, GR_ROPE, GR_MIRROR, GR_BALLOON, GR_FISHBOWL, GR_COUNT };
+// the modes (doc pp. 15-16; Boss Arena is stage 8)
+enum Mode { MD_CLASSIC, MD_TEAMS, MD_KING, MD_EGG, MD_POTATO, MD_HUNT, MD_DUEL, MD_CHAOS, MD_CUSTOM, MD_GAUNTLET, MD_COUNT };
+const char* ModeName(int m);
+const char* ModeRule(int m);
+// bots' personalities (doc p. 16): a plain bot, one that always rushes, one that camps crates, one that only uses melee, one that taunts
+enum Persona { PE_PLAIN, PE_RUSHER, PE_CAMPER, PE_MELEE, PE_TAUNTER, PE_COUNT };
 const char* GearName(int g);
 // trinkets (doc pp. 11-12): one per stick for the match, an edge with a cost, open for everyone to see
 enum Trinket { TK_NONE, TK_SPRING_HEELS, TK_THICK_SKULL, TK_LUCKY_CRATE, TK_LONG_ARMS, TK_MAGNET_PALMS, TK_CAT_LEGS, TK_BIG_LUNGS, TK_QUICK_DRAW,
@@ -160,6 +167,8 @@ struct Stick {
     int gear = -1; float gearFuel = 3, gearCool = 0; Vector2 hook{}; bool hookOn = false, gearWas = false;
     float aimT = 0;                                        // (a scoped shot on its way: it fires when this runs out)
     float steadyT = 0;                                     // (just back on your feet: no ragdoll for a moment, so nothing can keep you down)
+    // stage 7: the modes
+    int team = -1; bool shark = false; float respawnT = 0, finished = -1, balloonT = 0; int persona = PE_PLAIN;
     int trinket = TK_NONE; float size = 1; bool airJump = false, windUsed = false; int carry = -1;   // (stage 6b: the trinket; Giants and Tiny; the Spring Heels' second jump; the Second Wind; the Pack Rat's second weapon)
     // the round's story
     int kills = 0; int lastHitBy = -1; float lastHitT = -10; std::string cause;
@@ -174,7 +183,8 @@ enum EventKind { EV_PUNCH = 1, EV_HIT, EV_HAYMAKER, EV_KICK, EV_JUMP, EV_LAND, E
 // stage 6: the things the strange weapons leave in the world (doc pp. 6-8, 14): a swarm of bees, a snake, fish come to
 // chum, a black hole, chum in the water, a portal, a bear trap, a turret, a mine, a banana peel, a decoy, a spring, a
 // stuck charge, and a beam (the laser's and the tesla's, for the drawing)
-enum ThingKind : uint8_t { TH_SWARM, TH_SNAKE, TH_FISH, TH_HOLE, TH_CHUM, TH_PORTAL, TH_TRAP, TH_TURRET, TH_MINE, TH_PEEL, TH_DECOY, TH_SPRING, TH_STUCK, TH_BEAM, TH_DOG, TH_POTATO, TH_COUNT };
+enum ThingKind : uint8_t { TH_SWARM, TH_SNAKE, TH_FISH, TH_HOLE, TH_CHUM, TH_PORTAL, TH_TRAP, TH_TURRET, TH_MINE, TH_PEEL, TH_DECOY, TH_SPRING, TH_STUCK, TH_BEAM, TH_DOG, TH_POTATO,
+                          TH_EGG, TH_MIRROR, TH_COUNT };
 struct Thing {
     uint8_t kind = TH_SWARM; bool alive = true;
     Vector2 p{}, v{}, q{};                                // (position, velocity; q: a beam's far end, a portal's facing)
@@ -208,6 +218,14 @@ struct World {
     void ApplyRules();                                     // (after Init: gravity, sizes, the wall's start, the arsenal)
     void StepRules();                                      // (the event, the hot potato, ragdoll royale)
     void Resize(Stick& k, float size);
+    // stage 7 (scuffle_modes.cpp): the mode's rules in the world: teams and friendly fire, respawns, the plank, the egg,
+    // the hunt's sharks, the gauntlet's exit
+    int mode = MD_CLASSIC; bool friendlyFire = true; std::vector<float> pts; Rectangle plank{}; float plankT = 0, potatoNext = -1; Vector2 goal{}; int start = 0;
+    bool SameTeam(int a, int b) const { return a >= 0 && b >= 0 && a < (int)sticks.size() && b < (int)sticks.size() && sticks[a].team >= 0 && sticks[a].team == sticks[b].team; }
+    void StepMode();
+    void Respawn(Stick& k);
+    void MovePlank();
+    bool EggHolder(int id) const { for (const auto& th : things) if (th.kind == TH_EGG && th.hold == id) return true; return false; }
     void StepThings();
     void StepStatus(Stick& k);                             // (burning, frozen, bubbled, netted, flipped, trapped)
     bool SpecialHit(Bullet& b, Vector2 at, Stick* k);      // (a special bullet's impact on a stick or a tile: true if it's spent)
@@ -275,6 +293,12 @@ struct Match {
     uint32_t mutators = 0; bool randomMutator = false;     // (the lobby's rules; Random: one picked each round)
     std::vector<int> trinkets;                             // (each player's trinket, -1: let the game pick)
     uint32_t roundMut = 0;                                 // (this round's rules: the stack plus Random's pick)
+    // stage 7: the mode (scuffle_modes.cpp)
+    int mode = MD_CLASSIC, teamSize = 2; bool friendlyFire = true, wallOn = true; float target = 0;   // (target: King's 60 points, the Egg's 30 s)
+    int duelOffer[3] = {-1, -1, -1}, duelPick[MAX_STICKS] = {};   // (the Duel: three weapons offered before each round, and each stick's pick)
+    int gStage = 0, gDeaths = 0, gWorld = 0; float gTime = 0; bool gFailed = false;   // (the Gauntlet's run)
+    int TeamOf(int i) const;
+    bool RoundOver(int* winner);                           // (the mode's end of a round: true, and the round's winning stick, -1 a draw, -2 a team's or the sharks' win)
     int world = -1;                                        // (the lobby's world: -1 all six; WD_COUNT the generator, endless)
     std::vector<Stage> finales;                            // (the match point's stages: the playlist's worlds' finales)
     void Start(int nPlayers, int roundsToWin, uint32_t seed, int arsenal = AR_CLASSIC);
@@ -282,6 +306,7 @@ struct Match {
     void Step();                                           // one fixed step: the phases, and the world while fighting
     bool Over() const { return phase == P_OVER; }
 };
+Stage GauntletStage(int world, int n, uint32_t seed);   // (the Gauntlet's nth stage: generated, worse each time, an exit)
 std::vector<Stage> StagePlaylist(int world = -1);           // a world's forty (-1: all six worlds); the stone stages if no pack is found
 std::vector<Stage> FinalePlaylist(int world = -1);
 

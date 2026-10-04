@@ -214,7 +214,7 @@ void SetPiece(G& g, float at) {
 }
 }  // namespace
 
-Stage GenerateStage(int world, uint32_t seed, bool finale, int* triesOut) {
+Stage GenerateStage(int world, uint32_t seed, bool finale, int* triesOut, int boost) {
     world = std::clamp(world, 0, WD_COUNT - 1);
     static const char* WORDS[WD_COUNT][2][10] = {
         {{"Boiler", "Bilge", "Ballast", "Pump", "Hatch", "Gantry", "Valve", "Chain", "Rivet", "Coal"}, {"Room", "Deck", "Run", "Locker", "Well", "Bay", "Walk", "Trunk", "Gallery", "Shaft"}},
@@ -233,7 +233,7 @@ Stage GenerateStage(int world, uint32_t seed, bool finale, int* triesOut) {
         Platforms(g, finale ? g.Ri(8, 14) : g.Ri(3, 7));
         std::vector<int> kit = Kit(world), mv = Movers(world);
         int nh = finale ? g.Ri(2, 4) : g.Ri(1, 3);
-        for (int i = 0; i < nh; i++) Hazard(g, kit[g.Ri(0, (int)kit.size() - 1)]);
+        for (int i = 0; i < nh + boost; i++) Hazard(g, kit[g.Ri(0, (int)kit.size() - 1)]);
         int nm = finale ? g.Ri(2, 3) : g.Ri(1, 2);
         for (int i = 0; i < nm; i++) Hazard(g, mv[g.Ri(0, (int)mv.size() - 1)]);
         if (world == WD_REEF && g.R() < 0.3f) Hazard(g, PK_STREAM);
