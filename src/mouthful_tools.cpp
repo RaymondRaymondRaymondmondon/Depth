@@ -116,6 +116,49 @@ int RunMouthfulTest() {
     w.Respawn(v, false); v.immuneT = 0; SetMass(w, v, 5000); w.GrowCheck(v); v.pos = Vector3Add(HOLLOW, {6, 10, 0});
     for (int k = 0; k < 400 && v.alive; k++) { v.in = Input{}; w.StepMouth(v, 0.05f); w.StepNpc(0.05f); }
     Check(!v.alive && w.levAte, "a king in the hollow wakes the leviathan, and it eats");
+    // ---- the dangers that aren't players (stage 5)
+    {
+        World e; Opts eo; eo.humans = 2; eo.bots = 0; eo.seed = 31; e.Init(eo);
+        Mouth& a = e.mouths[0]; Mouth& b = e.mouths[1];
+        a.immuneT = b.immuneT = 0;
+        auto still = [&](Mouth& m) { m.in = Input{}; m.in.yaw = m.yaw; };
+        // the boat's net: a tier-3 in it is hauled up
+        e.boat = Boat{}; e.boat.on = true; e.boat.net = true; e.boat.dirZ = 1; e.boat.speed = 0; e.boat.pos = {60, 0, 0};
+        SetMass(e, a, 150); a.pos = e.boat.NetCentre(); still(a);
+        for (int k = 0; k < 200 && a.alive; k++) { e.StepEvents(0.05f); e.StepMouth(a, 0.05f); }
+        Check(!a.alive && a.lastCause == "the boat's net", "the boat's net hauls up a tier-3 that doesn't boost out");
+        // a hook: its bait holds you for 3 s and takes a fifth; a friend biting the line frees you
+        e.Respawn(a, false); a.immuneT = 0; SetMass(e, a, 200); e.boat = Boat{}; e.boat.on = true; e.boat.hooks = true; e.boat.speed = 0; e.boat.pos = {60, 0, 0};
+        Hook hk; hk.pos = {60, -8, 0}; e.boat.hookList.push_back(hk);
+        a.pos = {59.6f, -8, 0}; Face(a, hk.pos); a.biteCd = 0; a.swallowT = 0; e.Bite(a);
+        Check(e.boat.hookList[0].held == a.id, "biting the bait: hooked");
+        float m0 = a.mass;
+        for (int k = 0; k < 70; k++) { still(a); e.StepEvents(0.05f); e.StepMouth(a, 0.05f); }
+        Check(a.alive && a.mass < m0 * 0.85f && e.boat.hookList[0].held < 0, TextFormat("three seconds on the line takes a fifth (%.0f of %.0f)", a.mass, m0));
+        Hook h2; h2.pos = {70, -8, 5}; h2.held = b.id; e.boat.hookList.push_back(h2); e.Respawn(b, false); b.immuneT = 0;
+        SetMass(e, a, 200); a.pos = {69.5f, -8, 5}; Face(a, h2.pos); a.biteCd = 0; a.swallowT = 0; e.Bite(a);
+        Check(e.boat.hookList[1].held < 0, "a bite on a friend's line frees them");
+        // the orca pod hunts the biggest
+        e.boat = Boat{}; e.boat.nextT = 1e9f;
+        SetMass(e, a, 3000); a.pos = {80, -30, 0}; e.GrowCheck(a);
+        e.orcas.at = e.time; e.StepEvents(0.05f);
+        Check(e.orcas.on && e.orcas.agents.size() == 3, "the orca pod arrives (three of them)");
+        float d0 = Vector3Distance(e.eco.agents[e.orcas.agents[0]].pos, a.pos);
+        for (int k = 0; k < 40; k++) { still(a); e.StepEvents(0.05f); }
+        Check(Vector3Distance(e.eco.agents[e.orcas.agents[0]].pos, a.pos) < d0 - 10, "...and swims for the biggest mouth");
+        e.orcas.on = false;
+        // the red tide blinds; the whale fall feeds; the eel garden bites a fry
+        e.bloomAt = e.time; e.bloom = Bloom{}; e.StepEvents(0.01f);
+        a.pos = e.bloom.pos; a.blindT = 0; e.StepEvents(0.05f);
+        Check(e.bloom.on && a.blindT > 0, "the red tide blinds what's in it");
+        e.fallAt = e.time; e.fall = WhaleFall{}; e.StepEvents(0.01f);
+        SetMass(e, a, 700); a.pos = Vector3Add(e.fall.pos, {1, 1, 0}); Face(a, e.fall.pos); a.biteCd = 0; a.swallowT = 0; a.blindT = 0;
+        float left = e.fall.left, ma = a.mass; e.Bite(a);
+        Check(e.fall.on && e.fall.left < left && a.mass > ma, "the whale fall: a mouthful of the feast");
+        e.Respawn(b, false); b.immuneT = 0; b.pos = {EEL_GARDEN.x, FloorY(EEL_GARDEN.x, EEL_GARDEN.z) + 0.3f, EEL_GARDEN.z}; float mb = b.mass;
+        for (int k = 0; k < 100; k++) { still(b); e.StepEvents(0.05f); b.pos = {EEL_GARDEN.x, FloorY(EEL_GARDEN.x, EEL_GARDEN.z) + 0.3f, EEL_GARDEN.z}; }
+        Check(!b.alive || b.mass < mb, "the eel garden bites a fry passing over it");
+    }
     printf(gFails ? "Mouthful: %d check(s) FAILED\n" : "Mouthful: all checks passed\n", gFails);
     return gFails ? 1 : 0;
 }

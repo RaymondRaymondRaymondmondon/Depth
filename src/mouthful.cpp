@@ -208,6 +208,7 @@ void World::Init(const Opts& o) {
     mouths.clear(); clouds.clear(); feed.clear(); plankton.clear();
     firstKingT = -1; crownsChanged = 0; for (int& d : deathsBy) d = 0; for (int& t : bestTierByPath) t = 0;
     levAwakeT = 0; levNoise = 0; levAte = false;
+    boat = Boat{}; bloom = Bloom{}; fall = WhaleFall{}; orcas = OrcaPod{}; duskDone = false;
     // the sea: Red Tide's species and web (sea/reef/), the five bands as zones, the spawn rows from mouthful_sea.json
     const rt::MapData& base = rt::Map("mouthful_reef");
     sea = std::make_unique<rt::MapData>();
@@ -251,6 +252,11 @@ void World::Init(const Opts& o) {
         if (m.species[a.sp].name == "Leviathan") { leviathan = i; a.pos = a.home = Vector3Add(HOLLOW, {0, 6, 0}); }
     }
     deadT.assign(eco.agents.size(), 0);
+    // the round's clock (doc p. 13, scaled to its length): the orca pod at a random minute 5-10, dusk at 10:00, the
+    // whale fall at 11:00, the red tide somewhere in the middle; the first boat a minute or so in
+    duskAt = roundLen * 10 / 15; fallAt = roundLen * 11 / 15;
+    orcas.at = roundLen * (5 + 5 * Rand()) / 15; bloomAt = roundLen * (4 + 4 * Rand()) / 15;
+    boat.nextT = 50 + Rand() * 40;
     // plankton clouds: a fry's first meal (1 mass a second inside one), drifting over the shallows and the reef's edge
     for (int i = 0; i < 18; i++) {
         float x = -290 + Rand() * (i < 12 ? 120 : 220), z = Z0 + 10 + Rand() * (Z1 - Z0 - 20);
@@ -378,7 +384,7 @@ void World::KillMouth(Mouth& m, int byMouth, int byAgent, const char* cause) {
     if (m.agent >= 0) eco.agents[m.agent].alive = false;
     eco.AddBlood(m.pos, 4 + m.mass * 0.02f);
     std::string c = cause;
-    int kind = c == "player" ? 0 : c == "leviathan" ? 3 : c == "npc" ? 1 : 2;
+    int kind = DeathKind(c);
     deathsBy[kind]++;
     if (kind == 3) levAte = true;
     Mouth* k = byMouth >= 0 && byMouth < (int)mouths.size() && byMouth != m.id ? &mouths[byMouth] : nullptr;
@@ -434,6 +440,24 @@ void World::Bite(Mouth& m, bool free) {
         if (!a.alive || a.diver >= 0) continue;
         if (fabsf(a.pos.x - m.pos.x) > reach + 8 || fabsf(a.pos.z - m.pos.z) > reach + 8) continue;
         if (InFront(mouthAt, fwd, a.pos, reach, AgentRadius(*eco.map, a.sp), cosA, &dd) && dd < bd) { bd = dd; bestA = i; bestM = -1; }
+    }
+    // a baited hook in front: its bait is a trap (held 3 s, a fifth of you); a bite on someone else's line frees them
+    if (boat.on) for (auto& hk : boat.hookList) {
+        if (hk.gone || hk.held == m.id) continue;
+        float hd;
+        if (!InFront(mouthAt, fwd, hk.pos, reach, 0.15f, cosA, &hd) || hd > bd) continue;
+        if (hk.held >= 0) { mouths[hk.held].holdT = 0; Say(m.name + " bit through the line and freed " + mouths[hk.held].name + ".", Color{180, 240, 200, 255}); hk.held = -1; hk.gone = true; return; }
+        hk.held = m.id; hk.heldT = 0; m.holdT = 0.5f;
+        if (!m.bot) Say("HOOKED! Three seconds on the line (a friend can bite it through).", Color{255, 170, 140, 255});
+        return;
+    }
+    // the whale fall: tear off a mouthful
+    if (fall.on && Vector3Distance(m.pos, fall.pos) < reach + 4) {
+        float chunk = std::min(fall.left, 8 + m.mass * 0.04f) ;
+        fall.left -= chunk;
+        Feed(m, chunk * (F.ps == PS_SCAVENGER ? 2 : 1), false);
+        eco.AddBlood(fall.pos, 2);
+        if (bestM < 0 && bestA < 0) return;
     }
     if (bestM < 0 && bestA < 0) {
         for (int i = 0; i < (int)eco.corpses.size(); i++) { const rt::Corpse& c = eco.corpses[i]; if (!c.active) continue; if (InFront(mouthAt, fwd, c.pos, reach, 0.3f, cosA, &dd) && dd < bd) { bd = dd; bestC = i; } }
@@ -976,6 +1000,8 @@ void World::StepBot(Mouth& m, float dt) {
             float dd = Vector3Distance(a.pos, m.pos);
             if (dd < sense * (i == leviathan ? 2.5f : 0.8f) && dd < td) { td = dd; tpos = a.pos; }
         }
+        // the net: anything tier 3 or under keeps away from it
+        if (boat.on && boat.net && m.tier <= 3) { Vector3 nc = boat.NetCentre(); float dd = Vector3Distance(nc, m.pos); if (dd < 22 && dd < td) { td = dd; tpos = nc; } }
         // a bot that knows better keeps out of the leviathan's hollow once it's big
         bool levFear = m.botLevel >= 2 && m.tier >= 6 && Vector3Distance(m.pos, HOLLOW) < 60;
         if (levFear && td > 40) { td = 40; tpos = HOLLOW; }
@@ -1027,6 +1053,8 @@ void World::StepBot(Mouth& m, float dt) {
                 float v = o.mass / (dd + 4) * (FormOf(o).path == P_BLOB ? 0.3f : 1.5f) * (goKing ? 3 : 1);
                 if (v > best) { best = v; m.tgtMouth = o.id; m.tgtAgent = -1; }
             }
+            if (fall.on && m.tier >= 5 && !m.fleeing && Vector3Distance(fall.pos, m.pos) < 260 && best < 3) { m.tgtAgent = -1; m.tgtMouth = -1; m.goal = fall.pos; best = 3; }   // (the feast)
+            if (boat.on && boat.chum && m.tier <= 4 && m.botLevel <= 2) { Vector3 c{boat.pos.x, -2, boat.pos.z - boat.dirZ * 12}; float dd = Vector3Distance(c, m.pos); if (dd < 60 && 2.0f / (dd + 4) > best) { best = 2.0f / (dd + 4); m.tgtAgent = -1; m.tgtMouth = -1; m.goal = c; } }
             if (m.tier <= 2 && best < 0.15f) for (const auto& p : plankton) { float dd = Vector3Distance(p.pos, m.pos); if (dd < sense * 2 && 1.2f / (dd + 4) > best) { best = 1.2f / (dd + 4); m.tgtAgent = -1; m.tgtMouth = -1; m.goal = p.pos; } }
             if (m.tgtAgent < 0 && m.tgtMouth < 0 && (best <= 0 || Vector3Distance(m.goal, m.pos) < 4)) {
                 if (Vector3Distance(m.goal, m.pos) < 6 || m.goal.x == 0 || Rand() < 0.02f) { m.goal = BandGoal(*this, m.tier, m.botLevel); m.goal.z = std::clamp(m.pos.z + (m.goal.z - m.pos.z) * 0.35f, Z0 + 10, Z1 - 10); m.goal.y = std::clamp(m.goal.y, FloorY(m.goal.x, m.goal.z) + 1.5f, -1.5f); }
@@ -1100,6 +1128,7 @@ void World::StepBot(Mouth& m, float dt) {
         if (use) in.ability = true;
     }
     if (m.ambush && !chasing && !m.fleeing) { in.swim = false; }
+    if (fall.on && !m.fleeing && Vector3Distance(m.goal, fall.pos) < 1 && Vector3Distance(m.pos, fall.pos) < Reach(m) + 4) { in.bite = true; in.swim = false; }
     if (m.dashT > 0 && chasing) in.bite = true;   // (a dash is a pass with the jaws open)
     // a walker jumps toward what's above it
     if (F.walker && !m.airborne && to.y > 2.5f && dist < 6) in.pitch = 1;
@@ -1113,6 +1142,7 @@ void World::Step(float dt) {
     for (auto& m : mouths) if (m.bot) StepBot(m, dt);
     eco.Step(dt);
     StepNpc(dt);
+    StepEvents(dt);
     if (((int)(time * 30)) & 1) { for (int i = (int)mouths.size() - 1; i >= 0; i--) StepMouth(mouths[i], dt); }
     else for (auto& m : mouths) StepMouth(m, dt);   // (alternating who moves first: nobody always bites first)
     // the web's fish stay above the seabed, and the dead come back in their home water (the World's own refill)

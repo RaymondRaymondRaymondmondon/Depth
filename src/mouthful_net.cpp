@@ -94,6 +94,14 @@ template <class A> void Visit(A& a, World& w, int viewer) {
     for (auto& m : w.mouths) { VisitMouth(a, m, m.id == viewer); if (a.bad()) return; }
     a.vec(w.clouds, [&](Cloud& c) { P16(a, c.pos); a.f(c.r); a.f(c.t); a.i(c.owner); a.i(c.kind); });
     a.vec(w.plankton, [&](Plankton& p) { P16(a, p.pos); a.f(p.r); });
+    // the dangers that aren't players (stage 5)
+    { Boat& b = w.boat; a.b(b.on); P16(a, b.pos); a.f(b.dirZ); a.b(b.net); a.b(b.hooks); a.b(b.chum); a.f(b.nextT);
+      a.vec(b.hookList, [&](Hook& h) { P16(a, h.pos); a.i(h.held); a.b(h.gone); });
+      a.vec(b.netted, [&](int& k) { a.i(k); }); }
+    { Bloom& r = w.bloom; a.b(r.on); a.b(r.done); P16(a, r.pos); a.f(r.r); a.f(r.t); }
+    { WhaleFall& f = w.fall; a.b(f.on); a.b(f.done); P16(a, f.pos); a.f(f.left); }
+    { OrcaPod& o = w.orcas; a.b(o.on); a.b(o.done); a.f(o.t); a.vec(o.agents, [&](int& k) { a.i(k); }); }
+    a.b(w.duskDone);
     std::vector<FeedLine> tail;
     if constexpr (!A::reading) { size_t k = std::min<size_t>(w.feed.size(), 12); tail.assign(w.feed.end() - k, w.feed.end()); }
     a.vec(A::reading ? w.feed : tail, [&](FeedLine& f) { a.s(f.text); a.f(f.t); int c = f.c.r | f.c.g << 8 | f.c.b << 16; a.i(c); if constexpr (A::reading) f.c = {(unsigned char)(c & 255), (unsigned char)((c >> 8) & 255), (unsigned char)((c >> 16) & 255), 255}; });

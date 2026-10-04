@@ -12,6 +12,7 @@
 // ============================================================================
 #include "raylib.h"
 #include "redtide.h"
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -117,6 +118,21 @@ struct Mouth {
 struct Cloud { Vector3 pos; float r = 5, t = 3; int owner = -1; int kind = 0; };   // 0 ink, 1 toxin
 struct Plankton { Vector3 pos; float r = 5; Vector3 drift{}; };
 struct FeedLine { std::string text; float t = 0; Color c{255, 255, 255, 255}; };
+// ---------------------------------------------------------------- the dangers that aren't players (doc pp. 11-12; stage 5)
+struct Hook { Vector3 pos{}; int held = -1; float heldT = 0; bool gone = false; };   // a baited hook on its line (held: the mouth on it)
+struct Boat {
+    bool on = false; Vector3 pos{}; float dirZ = 1, speed = 4; float nextT = 70;
+    bool net = false, hooks = false, chum = false;           // its gear this crossing
+    std::vector<Hook> hookList; std::vector<int> netted;      // mouths in the net (hauled up when it surfaces)
+    std::vector<float> nettedT;
+    Vector3 NetCentre() const { return {pos.x, -7, pos.z - dirZ * 16}; }
+};
+struct Bloom { bool on = false; Vector3 pos{}; float r = 45, t = 0; bool done = false; };          // the red tide
+struct WhaleFall { bool on = false; Vector3 pos{}; float left = 300, t = 0; bool done = false; };  // the feast in the trench
+struct OrcaPod { bool on = false; bool done = false; float t = 0, at = 0; std::vector<int> agents; uint32_t top3 = 0; std::vector<int> deathsAt; };
+constexpr Vector3 EEL_GARDEN{-125, 0, 60};   // a patch of the reef floor (y from the floor)
+constexpr float EEL_GARDEN_R = 9;
+
 struct Opts { int humans = 1; int bots = 11; float minutes = 15; int mode = 0; int botLevel = 0; uint32_t seed = 1; };   // botLevel 0: a mix
 
 struct World {
@@ -128,6 +144,11 @@ struct World {
     std::vector<float> preyMass;                      // by species index (the web's mass of a whole one)
     std::vector<int> npcEats;                         // by species index: the highest mouth tier an NPC predator hunts (0 none)
     std::vector<float> reviveS, deadT;                // the World's refill: seconds before a dead fish comes back (by species), and per agent
+    Boat boat; Bloom bloom; WhaleFall fall; OrcaPod orcas;
+    float duskAt = 600, fallAt = 660, bloomAt = 420; bool duskDone = false;
+    float Dusk() const { return std::clamp((time - duskAt) / 30, 0.0f, 1.0f); }
+    bool HighTide() const { return time > roundLen - 60; }
+    void StepEvents(float dt);
     Opts opts;
     float time = 0, roundLen = 900; bool over = false; int winner = -1;
     int king = -1;                                    // the mouth wearing the crown
@@ -176,6 +197,8 @@ struct World {
 
 float ScoreOf(const World& w, const Mouth& m);     // the round score so far (mass eaten, kills, the crown, tiers)
 bool SwallowOk(const World& w, const Mouth& by, const Mouth& t);
+
+int DeathKind(const std::string& cause);           // 0 players, 1 NPC predators, 2 the boat and hazards, 3 the leviathan
 
 // tools (main.cpp)
 int RunMouthfulTest();                               // --mouthful-test

@@ -175,7 +175,7 @@ void Gather(float dt) {
     mf::Mouth& m = Me();
     mf::Input in;
     if (IsKeyPressed(KEY_H)) S.help = !S.help;
-    S.board = IsKeyDown(KEY_TAB);
+    S.board = IsKeyDown(KEY_TAB) || (WD().HighTide() && !WD().over);   // (the final minute pins the food chain on screen)
     Vector2 md = MouseLook(!S.shot && m.alive && !WD().over && !m.pendingFork);
     S.aimYaw += md.x * 0.0026f;
     S.aimPitch = std::clamp(S.aimPitch - md.y * 0.0026f, -1.35f, 1.35f);
@@ -250,7 +250,7 @@ void DrawWorld(const mf::World& w, const Camera3D& cam) {
     rt::DrawCubeGlow(MatrixMultiply(MatrixScale(mf::BRINE_R * 1.7f, 0.1f, mf::BRINE_R * 1.7f), MatrixTranslate(mf::BRINE.x, mf::FloorY(mf::BRINE.x, mf::BRINE.z) + 0.6f, mf::BRINE.z)), {40, 70, 90, 255}, 0.4f);
     for (int i = 0; i < 6; i++) {   // the vents' glow
         float x = 150 + Hash((float)i, 21) * 130, z = -50 + Hash((float)i, 23) * 100, y0 = mf::FloorY(x, z) + 5.5f + Hash((float)i, 25) * 4;
-        if (Vector3Distance({x, y0, z}, cam.position) < 120) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.2f, 0.6f, 1.2f), MatrixTranslate(x, y0, z)), {255, 140, 70, 255}, 1.6f);
+        if (Vector3Distance({x, y0, z}, cam.position) < 120) for (int j = 0; j < 16; j++) { float u = fmodf(S.t * 0.4f + j / 16.0f, 1.0f); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.2f, 0.2f, 0.2f), MatrixTranslate(x + sinf(j * 2.1f + S.t) * u * 1.5f, y0 + u * 9, z + cosf(j * 1.7f) * u * 1.5f)), {255, 150, 80, 255}, 1.6f * (1 - u)); }
     }
     if (cam.position.y < -110) for (int k = 0; k < 90; k++) {   // bioluminescent motes drifting round the eye
         float a = k * 2.399f, r = 4 + (k % 9) * 2.2f, y = ((k * 37) % 23 - 11) * 1.1f;
@@ -270,7 +270,13 @@ void DrawWorld(const mf::World& w, const Camera3D& cam) {
     for (const auto& c : w.clouds) {
         float k = std::clamp(c.t, 0.0f, 1.0f);
         Color col = c.kind == 0 ? Color{18, 14, 30, 255} : Color{150, 190, 60, 255};
-        for (int j = 0; j < 9; j++) { float a = j * 0.7f; Vector3 q{c.pos.x + cosf(a) * c.r * 0.45f, c.pos.y + sinf(a * 1.7f) * c.r * 0.3f, c.pos.z + sinf(a) * c.r * 0.45f}; float s = c.r * 0.7f * k; rt::DrawWorldCube(q, {s, s, s}, col); }
+        // a billow of puffs: dense in the middle, thinning at the edge, swelling as it spreads
+        for (int j = 0; j < 70; j++) {
+            float a = j * 2.399f, rr = c.r * sqrtf((j + 0.5f) / 70) * (0.7f + 0.3f * (1 - k)), y = sinf(j * 1.3f) * c.r * 0.45f;
+            Vector3 q{c.pos.x + cosf(a) * rr, c.pos.y + y, c.pos.z + sinf(a) * rr};
+            float s = c.r * 0.22f * (1.2f - (float)j / 70) * std::max(0.3f, k);
+            rt::DrawWorldCube(q, {s, s, s}, col);
+        }
     }
     // the web's fish (near enough to see) and the leviathan
     for (int i = 0; i < (int)w.eco.agents.size(); i++) {
@@ -288,6 +294,58 @@ void DrawWorld(const mf::World& w, const Camera3D& cam) {
         if (i == w.leviathan && w.levAwakeT <= 0) tint = Shade(tint, 0.7f);
         rt::DrawCreature(cm, a.pos, yaw, pitch, 1.0f, S.t * cm.freq * (0.6f + inten * 0.6f) + (a.rng % 1000) * 0.01f, inten, tint);
     }
+    // ---- the dangers that aren't players
+    const mf::Boat& B = w.boat;
+    if (B.on) {
+        // the boat: a dark hull on the bright skin of the surface, its shadow sliding over the floor below
+        Matrix hull = MatrixMultiply(MatrixMultiply(MatrixScale(3.2f, 1.4f, 9), MatrixRotateY(0)), MatrixTranslate(B.pos.x, 0.2f, B.pos.z));
+        rt::DrawCubeM(hull, {40, 36, 34, 255});
+        rt::DrawWorldCube({B.pos.x, 0.4f, B.pos.z - B.dirZ * 4.8f}, {0.6f, 1.2f, 0.6f}, {30, 28, 28, 255});   // (the screw's housing)
+        float fy = mf::FloorY(B.pos.x, B.pos.z);
+        rt::DrawWorldCube({B.pos.x, fy + 0.05f, B.pos.z}, {4.5f, 0.05f, 11}, {20, 30, 34, 255});
+        if (B.net) {   // the net: a curtain of mesh trailing behind and below
+            Vector3 c = B.NetCentre();
+            for (int i = -5; i <= 5; i++) rt::DrawWorldCube({c.x + i * 2.0f, -6.5f, c.z}, {0.05f, 13, 0.05f}, {210, 210, 190, 255});
+            for (int j = 0; j < 7; j++) rt::DrawWorldCube({c.x, -1 - j * 2.0f, c.z}, {20, 0.05f, 0.05f}, {210, 210, 190, 255});
+            rt::DrawWorldCube({c.x, -0.5f, (c.z + B.pos.z) * 0.5f}, {0.04f, 0.04f, fabsf(c.z - B.pos.z)}, {200, 200, 180, 255});
+        }
+        for (const auto& hk : B.hookList) {   // the hooks: a line down from the surface, a bait fish, a glint
+            if (hk.gone) continue;
+            rt::DrawWorldCube({hk.pos.x, hk.pos.y * 0.5f, hk.pos.z}, {0.02f, -hk.pos.y, 0.02f}, {220, 220, 220, 255});
+            rt::DrawCreature(rt::Creature("mouthful_reef", "Sardine"), Vector3Add(hk.pos, {0, -0.1f, 0}), 1.57f, 0, 1.2f, S.t * 3, 0.4f, WHITE);
+            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.05f, 0.12f, 0.05f), MatrixTranslate(hk.pos.x, hk.pos.y - 0.25f, hk.pos.z)), {255, 250, 220, 255}, 1.0f + 0.6f * sinf(S.t * 7));
+        }
+        if (B.chum) for (int k = 0; k < 24; k++) {   // the chum line: red clouds in the wake
+            float zz = B.pos.z - B.dirZ * (4 + k * 1.2f);
+            Vector3 q{B.pos.x + sinf(k * 1.7f + S.t) * 1.5f, -1.0f - (k % 5) * 0.6f, zz};
+            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.5f, 0.3f, 0.5f), MatrixTranslate(q.x, q.y, q.z)), {170, 40, 30, 255}, 0.3f);
+        }
+    }
+    if (w.bloom.on) for (int k = 0; k < 420; k++) {   // the red tide: a rust-red bloom of motes hanging in the water
+        float a = k * 2.399f, r = w.bloom.r * sqrtf((k + 0.5f) / 420);
+        Vector3 q{w.bloom.pos.x + cosf(a + S.t * 0.02f) * r, -1 - (k % 13) * 1.7f + sinf(S.t * 0.4f + k) * 0.4f, w.bloom.pos.z + sinf(a + S.t * 0.02f) * r};
+        if (Vector3Distance(q, cam.position) < 50) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.12f, 0.12f, 0.12f), MatrixTranslate(q.x, q.y, q.z)), {190, 60, 40, 255}, 0.4f);
+    }
+    if (w.fall.on || w.fall.done) {   // the whale fall: a carcass on the trench floor (its ribs bare as it's eaten)
+        Vector3 c = w.fall.pos;
+        if (Vector3Distance(c, cam.position) < 160) {
+            float k = std::clamp(w.fall.left / 300, 0.0f, 1.0f);
+            rt::DrawCreature(rt::Creature("mouthful_reef", "Orca"), c, 0.4f, 0, 2.4f, 0, 0, Color{(unsigned char)(150 + 60 * k), (unsigned char)(140 + 50 * k), (unsigned char)(140 + 40 * k), 255});
+            for (int r = 0; r < 9; r++) rt::DrawWorldCube({c.x - 6 + r * 1.5f, c.y + 1.5f, c.z}, {0.25f, 3.5f, 0.25f}, {226, 220, 204, 255});
+            // the scavengers' light: a swarm of glowing motes over the carcass, so it can be found in the dark
+            for (int j = 0; j < 60; j++) { float a = j * 2.399f + S.t * 0.3f, r = 2 + (j % 7) * 1.1f; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.06f, 0.06f, 0.06f), MatrixTranslate(c.x + cosf(a) * r, c.y + 1 + (j % 5) * 0.8f, c.z + sinf(a) * r)), j % 3 ? Color{120, 230, 220, 255} : Color{200, 255, 180, 255}, 1.4f); }
+        }
+    }
+    {   // the eel garden: little heads poking up out of the sand
+        float gy = mf::FloorY(mf::EEL_GARDEN.x, mf::EEL_GARDEN.z);
+        if (Vector3Distance({mf::EEL_GARDEN.x, gy, mf::EEL_GARDEN.z}, cam.position) < 70) for (int k = 0; k < 28; k++) {
+            float a = k * 2.399f, r = mf::EEL_GARDEN_R * sqrtf((k + 0.5f) / 28);
+            float x = mf::EEL_GARDEN.x + cosf(a) * r, z = mf::EEL_GARDEN.z + sinf(a) * r, y = mf::FloorY(x, z);
+            float h = 0.35f + 0.2f * sinf(S.t * 1.3f + k);
+            rt::DrawWorldCube({x, y + h * 0.5f, z}, {0.06f, h, 0.06f}, {214, 196, 120, 255});
+            rt::DrawWorldCube({x + 0.03f, y + h, z}, {0.09f, 0.07f, 0.07f}, {200, 180, 100, 255});
+        }
+    }
     // the corpses: a pale drifting body
     for (const auto& c : w.eco.corpses) if (c.active && Vector3Distance(c.pos, cam.position) < 50) rt::DrawWorldCube(c.pos, {0.25f, 0.12f, 0.4f}, {200, 190, 180, 255});
     for (const auto& m : w.mouths) DrawMouth(w, m, m.id == S.me);
@@ -301,6 +359,8 @@ void Light(rt::SceneLight& L, const Camera3D& cam, float dusk) {
     Color fog = depth < 15 ? Mix(shallow, blue, depth / 60) : depth < 120 ? Mix(Mix(shallow, blue, 0.25f), deep, (depth - 15) / 105) : Mix(deep, trench, std::min(1.0f, (depth - 120) / 120));
     if (band == mf::B_SHALLOWS) fog = Mix(fog, Color{90, 190, 186, 255}, 0.4f);
     fog = Mix(fog, Color{14, 20, 40, 255}, dusk * 0.6f);
+    const mf::World& W = WD();
+    if (W.bloom.on && Vector2Distance({cam.position.x, cam.position.z}, {W.bloom.pos.x, W.bloom.pos.z}) < W.bloom.r) fog = Mix(fog, Color{120, 40, 30, 255}, 0.6f);
     L.fog = fog;
     L.fogDensity = band == mf::B_TRENCH ? 0.05f : band == mf::B_BLUE ? 0.022f : 0.026f;
     L.water = 1; L.surf = 3;
@@ -354,7 +414,7 @@ void Render(float dt) {
     S.cam.up = {0, 1, 0};
     S.cam.fovy = 64 + (m.boosting ? 6 : 0);
     S.cam.projection = CAMERA_PERSPECTIVE;
-    float dusk = std::clamp((w.time - w.roundLen * 2 / 3) / 30, 0.0f, 1.0f);
+    float dusk = w.Dusk();
     rt::SceneLight Lt;
     Light(Lt, S.cam, dusk);
     rt::ApplyGameQuality();
@@ -378,6 +438,15 @@ void DrawHud(mf::World& w) {
     bool high = w.time > w.roundLen - 60;
     DrawTextCenteredBold(TextFormat("%d:%02d%s", left / 60, left % 60, high ? "  HIGH TIDE" : w.time > w.roundLen * 2 / 3 ? "  dusk" : ""), SCREEN_W / 2.0f, 12, 24, high ? gold : ink);
     if (m.alive) Txt(TextFormat("%s, %.0f m", mf::BandName(mf::BandAt(m.pos)), -m.pos.y), 18, 14, 16, dim);
+    {
+        std::string warn;
+        if (w.orcas.on && w.orcas.t > 0) warn = TextFormat("THE ORCA POD hunts the three biggest mouths (%.0f s)", w.orcas.t);
+        else if (w.levAwakeT > 0) warn = "THE LEVIATHAN IS AWAKE";
+        else if (w.fall.on) warn = TextFormat("A whale fall in the trench: %.0f mass of feast left", w.fall.left);
+        else if (w.bloom.on) warn = TextFormat("Red tide over the reef (%.0f s)", w.bloom.t);
+        else if (w.boat.on) warn = std::string("A boat overhead") + (w.boat.net ? ": a net" : "") + (w.boat.hooks ? ": hooks" : "") + (w.boat.chum ? ": a chum line" : "");
+        if (!warn.empty()) DrawTextCenteredBold(warn, SCREEN_W / 2.0f, 42, 16, w.orcas.on || w.levAwakeT > 0 ? Color{255, 150, 130, 255} : Color{220, 236, 255, 255});
+    }
     // the leaderboard (the top six and you), the crown beside the king
     {
         auto b = w.Board();
@@ -630,6 +699,19 @@ void DebugMouthfulShot(Game& g, int which) {
         for (auto& o : w.mouths) { if (o.id == m.id) continue; int fi = 1 + (k * 3) % ((int)mf::D().forms.size() - 1); o.form = fi; o.path = mf::D().forms[fi].path; o.mass = 300; o.tier = w.TierOfMass(o.mass); o.pos = {12.0f + (k % 6) * 3.2f, -40 + (k / 6) * 2.5f, 0}; o.yaw = PI; o.pitch = 0; o.vel = {0, 0, 0}; o.immuneT = 0; o.alive = true; k++; }
     }
     for (auto& o : w.mouths) if (o.agent >= 0) w.eco.agents[o.agent].pos = o.pos;
+    if (which == 10) {   // the boat with a net and hooks, from below in the shallows
+        w.boat = mf::Boat{}; w.boat.on = true; w.boat.net = true; w.boat.hooks = true; w.boat.dirZ = 1; w.boat.pos = {-230, 0, 12};
+        for (int k = 0; k < 4; k++) { mf::Hook h; h.pos = {-236 + k * 4.0f, -3.5f - k * 0.7f, 12}; w.boat.hookList.push_back(h); }
+        place({-232, -6.5f, -2}, PI * 0.5f, 0.35f, 60, "moray");
+    }
+    if (which == 11) {   // the orca pod in the blue
+        place({60, -30, 0}, 0, 0.05f, 2600, "tiger_p"); w.GrowCheck(m);
+        w.orcas.at = w.time; w.StepEvents(0.01f);
+        for (size_t k = 0; k < w.orcas.agents.size(); k++) { auto& a = w.eco.agents[w.orcas.agents[k]]; a.pos = {72.0f + k * 3, -28 - k * 1.5f, -4.0f + k * 5}; a.vel = {-6, 0, 1}; }
+    }
+    if (which == 12) { w.bloomAt = w.time; w.StepEvents(0.01f); place(Vector3Add(w.bloom.pos, {-20, 0, 0}), 0, -0.1f, 140, "reef_squid"); m.pos.y = std::max(m.pos.y, mf::FloorY(m.pos.x, m.pos.z) + 3); }
+    if (which == 13) { w.fallAt = w.time; w.StepEvents(0.01f); w.fall.left = 180; place(Vector3Add(w.fall.pos, {-14, 6, 2}), 0, -0.35f, 1600, "croc"); gather("Rattail", 6, w.fall.pos, 5); }
+    if (which == 14) { w.time = w.duskAt + 40; place({-120, -14, 20}, 0.3f, -0.1f, 400, "octopus"); gather("Sardine", 30, {-110, -10, 23}, 6); }
     if (which == 9) {
         // a guest's screen: the round run a while by a host, mirrored from the snapshot for player 2
         static mf::World host; mf::Opts o; o.humans = 2; o.bots = 10; o.seed = 4242; o.minutes = 15; o.botLevel = 2;
