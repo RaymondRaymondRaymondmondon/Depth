@@ -26,13 +26,13 @@ Input QuantizeInput(const Input& in) {
 static void PutInput(Writer& w, const Input& in) {
     w.U8((uint32_t)(uint8_t)(int8_t)Q127(in.moveX)); w.U8((uint32_t)(uint8_t)(int8_t)Q127(in.moveY));
     w.U16(Vector2Length(in.aim) > 1e-4f ? QAng(in.aim) : 0);
-    w.U8((in.jump ? 1 : 0) | (in.fire ? 2 : 0) | (in.taunt ? 4 : 0));
+    w.U8((in.jump ? 1 : 0) | (in.fire ? 2 : 0) | (in.taunt ? 4 : 0) | (in.gear ? 8 : 0));
 }
 static Input GetInput(Reader& r) {
     Input in;
     in.moveX = (int8_t)(uint8_t)r.U8() / 127.0f; in.moveY = (int8_t)(uint8_t)r.U8() / 127.0f;
     in.aim = DeAng(r.U16());
-    int f = (int)r.U8(); in.jump = f & 1; in.fire = f & 2; in.taunt = f & 4;
+    int f = (int)r.U8(); in.jump = f & 1; in.fire = f & 2; in.taunt = f & 4; in.gear = f & 8;
     in.moveX = std::clamp(in.moveX, -1.0f, 1.0f); in.moveY = std::clamp(in.moveY, -1.0f, 1.0f);
     return in;
 }
@@ -77,7 +77,7 @@ struct In {
     bool bad() const { return r.bad; }
 };
 template <class A> void VisitP(A& a, Particle& p) { a.v2(p.p); a.v2(p.q); a.f(p.r); a.f(p.invMass); }
-template <class A> void VisitInput(A& a, Input& in) { a.f(in.moveX); a.f(in.moveY); a.v2(in.aim); a.b(in.jump); a.b(in.fire); a.b(in.taunt); }
+template <class A> void VisitInput(A& a, Input& in) { a.f(in.moveX); a.f(in.moveY); a.v2(in.aim); a.b(in.jump); a.b(in.fire); a.b(in.taunt); a.b(in.gear); }
 template <class A> void VisitStick(A& a, Stick& k) {
     a.i(k.id); a.b(k.alive); a.b(k.present); a.f(k.hp);
     a.v2(k.pos); a.v2(k.vel); a.f(k.halfW); a.f(k.height);
@@ -94,6 +94,8 @@ template <class A> void VisitStick(A& a, Stick& k) {
     for (int& x : k.killsBy) a.i(x);
     a.f(k.walkPh); a.f(k.breathe);
     a.f(k.swimT); a.f(k.hazT); a.f(k.sharkT); a.b(k.wet);
+    a.f(k.burnT); a.f(k.frozenT); a.f(k.bubbleT); a.f(k.netT); a.f(k.gravT); a.f(k.trapT);
+    a.i(k.gear); a.f(k.gearFuel); a.f(k.gearCool); a.v2(k.hook); a.b(k.hookOn); a.b(k.gearWas);
     a.i(k.kills); a.i(k.lastHitBy); a.f(k.lastHitT); a.s(k.cause);
     VisitInput(a, k.in);
 }
@@ -134,12 +136,19 @@ template <class A> void VisitWorld(A& a, World& w) {
     }, 4096);
     a.f(w.nextCrate); a.f(w.wallY); a.i(w.arsenal); a.b(w.finale); a.b(w.wallOn); a.i(w.crates);
     a.f(w.ceilY); a.f(w.sideX); a.i(w.wallSide);
+    a.vec(w.things, [&](Thing& th) {
+        int kind = th.kind; a.i(kind); if constexpr (A::reading) { if (kind < 0 || kind >= TH_COUNT) a.r.bad = true; th.kind = (uint8_t)std::clamp(kind, 0, TH_COUNT - 1); }
+        a.b(th.alive); a.v2(th.p); a.v2(th.v); a.v2(th.q); a.f(th.life); a.f(th.t); a.f(th.a); a.f(th.cool); a.i(th.owner); a.i(th.on); a.i(th.hold); a.i(th.weapon);
+    }, 2048);
+    a.vec(w.fireT, [&](float& f) { a.f(f); }, 256 * 128); a.f(w.inkT); a.f(w.flashT);
     a.vec(w.glassT, [&](float& g) { a.f(g); }, 256 * 128);
     if constexpr (A::reading) {   // (indices that the step follows: all must point somewhere real)
         int ns = (int)w.sticks.size(), ni = (int)w.items.size(), nw = (int)Weapons().size();
         for (int s = 0; s < ns; s++) { const Stick& k = w.sticks[s]; if (k.id != s || k.weapon < -1 || k.weapon >= ni || k.grabbing < -1 || k.grabbing >= ns || k.grabbedBy < -1 || k.grabbedBy >= ns) a.r.bad = true; }
         for (const auto& it : w.items) if (it.weapon < -1 || it.weapon >= nw || it.holder < -1 || it.holder >= ns) a.r.bad = true;
         for (const auto& b : w.bullets) if (b.weapon < -1 || b.weapon >= nw || b.hazard < -2 || b.hazard >= PK_COUNT) a.r.bad = true;
+        for (const auto& th : w.things) if (th.on < -1 || th.on >= ns || th.weapon < -1 || th.weapon >= nw) a.r.bad = true;
+        for (const auto& k : w.sticks) if (k.gear < -1 || k.gear >= GR_COUNT) a.r.bad = true;
         for (const auto& p : w.stage.pieces) if ((p.kind == PK_REACHER || p.kind == PK_BOUNCER) && (p.hold < -1 || p.hold >= ns)) a.r.bad = true;   // (others keep a cycle count there)
         if (!w.glassT.empty() && w.glassT.size() != w.stage.t.size()) a.r.bad = true;
     }

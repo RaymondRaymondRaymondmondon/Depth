@@ -70,6 +70,8 @@ src/flight_long.cpp
     src/scuffle_hazards.cpp
     src/scuffle_worlds.cpp
     src/scuffle_build.cpp
+    src/scuffle_special.cpp
+    src/scuffle_arsenal.cpp
     src/data.cpp
     src/ui.cpp
     src/render.cpp

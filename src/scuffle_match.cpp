@@ -163,7 +163,7 @@ int ScuffleArmsChecks() {
       int c = w.DropCrate(10.0f); float y0 = w.items[c].a.p.y; Settle(w, 1.0f); float fell = y0 - w.items[c].a.p.y;
       AC(fell > 1.5f && fell < 2.6f, TextFormat("a crate on its parachute falls about 2 m a second (%.1f)", fell));
       for (int i = 0; i < 1200 && k.weapon < 0; i++) { k.in.moveX = w.items[c].a.p.x > k.pos.x ? 1.0f : -1.0f; w.Step(); }
-      AC(k.weapon >= 0 && w.items[k.weapon].weapon >= 0 && Weapons()[w.items[k.weapon].weapon].stage <= 2, TextFormat("it opens on touch: %s, in hand", k.weapon >= 0 ? Weapons()[w.items[k.weapon].weapon].name.c_str() : "nothing")); }
+      AC(k.weapon >= 0 && w.items[k.weapon].weapon >= 0 && Weapons()[w.items[k.weapon].weapon].stage <= 6, TextFormat("it opens on touch: %s, in hand", k.weapon >= 0 ? Weapons()[w.items[k.weapon].weapon].name.c_str() : "nothing")); }
     // guns: damage, the headshot, knockback, recoil, pierce, explosions
     auto duel = [&](const char* key, float gap, float bh, std::function<void(World&, Stick&, Stick&)> after) {
         World w; w.Init(FlatArena(), 2, 9); w.nextCrate = 1e9f; Stick& a = w.sticks[0]; Stick& b = w.sticks[1]; a.pos = {5, 1.2f}; b.pos = {5 + gap, 1.2f}; Settle(w, 0.6f);

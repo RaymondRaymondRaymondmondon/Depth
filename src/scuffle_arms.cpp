@@ -15,7 +15,7 @@
 
 namespace sf {
 
-constexpr int CURRENT_STAGE = 2;   // (weapons whose "stage" is later stay out of the crates until then)
+constexpr int CURRENT_STAGE = 6;   // (weapons whose "stage" is later stay out of the crates until then: all 48 are in from stage 6)
 struct ArmsData { std::vector<WeaponDef> w; ArmsTuning t; float kindW[AR_COUNT][3] = {}; std::vector<std::string> only[AR_COUNT]; };
 static const ArmsData& AD() {
     static ArmsData d = [] {
@@ -31,7 +31,7 @@ static const ArmsData& AD() {
         }
         static const char* AR[AR_COUNT] = {"classic", "melee", "chaos", "snakes", "random"}; static const char* K[3] = {"gun", "melee", "thrown"};
         for (int a = 0; a < AR_COUNT; a++) { for (int k = 0; k < 3; k++) d.kindW[a][k] = j["arsenals"][AR[a]][K[k]].F(a == AR_RANDOM ? 1 : 0); for (const Json& o : j["arsenals"][AR[a]]["only"].a) d.only[a].push_back(o.Str0()); }
-        const Json& c = j["crates"]; d.t.crateFirst = c["first"].F(3); d.t.crateEvery = c["every"].F(5); d.t.chuteFall = c["parachute_fall"].F(2); d.t.crush = c["crush"].F(30); d.t.crateThrown = c["thrown_dmg"].F(20);
+        const Json& c = j["crates"]; d.t.crateFirst = c["first"].F(3); d.t.crateEvery = c["every"].F(5); d.t.chuteFall = c["parachute_fall"].F(2); d.t.crush = c["crush"].F(30); d.t.crateThrown = c["thrown_dmg"].F(20); d.t.gearChance = c["gear_chance"].F(0.1f); d.t.trapChance = c["trap_chance"].F(0.033f);
         d.t.emptyThrow = j["empty_throw_dmg"].F(10); d.t.blockWindow = j["block_window"].F(0.15f);
         const Json& w = j["wall"]; d.t.wallStart = w["start"].F(45); d.t.wallCenter = w["center"].F(60); d.t.wallAll = w["all"].F(70); d.t.finaleWall = w["finale_start"].F(30);
         return d;
@@ -145,6 +145,18 @@ void World::StepItems() {
                 // a crate opens on touch: the weapon goes into an empty hand, or pops out
                 if (it.alive && Touching(k, it.a.p, it.a.r)) {
                     it.alive = false;
+                    float roll = Rand();
+                    if (roll < Arms().gearChance) {   // (one crate in ten is gear: it goes to the gear slot)
+                        k.gear = std::min(GR_COUNT - 1, (int)(Rand() * GR_COUNT)); k.gearFuel = 3; k.gearCool = 0.3f;
+                        Emit(EV_GEAR, it.a.p, k.id, -1, (float)k.gear);
+                        break;
+                    }
+                    if (roll < Arms().gearChance + Arms().trapChance) {   // (one in thirty is a trap: a snake, bees, a flashbang)
+                        int which = std::min(2, (int)(Rand() * 3));
+                        if (which == 0) Snakes(it.a.p, 1, -1); else if (which == 1) { AddThing(TH_SWARM, it.a.p, {}, 6, -1); Emit(EV_BEES, it.a.p); } else { flashT = 1.5f; Emit(EV_FLASH, it.a.p); }
+                        Emit(EV_CRATE_OPEN, it.a.p, k.id, -1, -1);
+                        break;
+                    }
                     int w = SpawnWeapon(RollWeapon(), it.a.p, {0, 3});
                     Emit(EV_CRATE_OPEN, it.a.p, k.id, -1, (float)items[w].weapon);
                     if (k.weapon < 0 && k.grabbing < 0) Pickup(k, w);
@@ -181,19 +193,44 @@ void World::Fire(Stick& k) {
     Vector2 aim = Vector2Length(in.aim) > 0.1f ? Vector2Normalize(in.aim) : Vector2{(float)k.face, 0};
     if (fabsf(aim.x) > 0.2f) k.face = aim.x > 0 ? 1 : -1;
     k.fireCool = std::max(0.0f, k.fireCool - STEP);
+    // duck and click: throw whatever you hold (the axe spins for 60; anything else is 10)
+    if (press && k.st == S_DUCK && d.kind != "thrown") { Emit(EV_THROW, it.b.p, k.id); DropWeapon(k, Vector2Add(Vector2Scale(aim, 15), {0, 3}), true); k.fireWas = in.fire; return; }
+    if (d.kind == "thrown") {   // (charges, bombs, traps, peels, hives, jars, bottles: one a click; the last one leaves the hand)
+        if (press && it.count > 0 && k.fireCool <= 0) {
+            Bullet b; b.p = it.b.p; b.v = Vector2Add(Vector2Scale(aim, 13), {0, 3}); b.owner = k.id; b.weapon = it.weapon; b.dmg = d.dmg; b.knock = 3; b.grav = gravity;
+            b.bounces = d.bounce; b.life = 4; b.pierce = 1;
+            bullets.push_back(b); it.count--; k.fireCool = 0.35f;
+            Emit(EV_THROW, it.b.p, k.id, -1, (float)it.weapon);
+            if (it.count <= 0) { it.alive = false; k.weapon = -1; }
+        }
+        k.fireWas = in.fire; return;
+    }
     if (d.kind == "melee") {
         k.swingT = std::max(0.0f, k.swingT - STEP);
         if (d.blocks) k.blockT = 0.05f;                                   // (the frying pan: a shield while held)
-        if (press && k.swingT <= 0) { k.swingT = d.swing; k.swingHit.clear(); if (d.deflect) k.blockT = std::max(k.blockT, Arms().blockWindow); Emit(EV_SWING, it.b.p, k.id, -1, (float)it.weapon); }
+        if (press && k.swingT <= 0) {
+            k.swingT = d.swing; k.swingHit.clear(); if (d.deflect) k.blockT = std::max(k.blockT, Arms().blockWindow); Emit(EV_SWING, it.b.p, k.id, -1, (float)it.weapon);
+            if (d.key == "trident" && k.grounded && aim.y < -0.6f) { k.vel.y = 15; k.vel.x += k.face * 3; k.st = S_AIR; k.grounded = false; Emit(EV_JUMP, k.pos, k.id); }   // (a pole vault)
+        }
         float u = k.swingT > 0 ? 1 - k.swingT / d.swing : 2;
+        float reach = d.reach * (d.key == "poolcue" && it.count > 0 ? 0.55f : 1.0f);   // (a broken cue is half as long)
+        if (d.key == "sledge" && u > 0.5f && u < 0.5f + STEP / std::max(0.05f, d.swing) * 1.5f) {   // (the sledgehammer breaks any tile it comes down on)
+            Vector2 hp = Vector2Add(k.pt[J_NECK].p, Vector2Scale(aim, 0.3f + reach));
+            int tx = (int)floorf(hp.x / TILE), ty = (int)floorf(hp.y / TILE);
+            for (int dy = 0; dy >= -1; dy--) if (stage.Solid(tx, ty + dy) && ty + dy > 0) { stage.Set(tx, ty + dy, T_EMPTY); Emit(EV_HIT, {(tx + 0.5f) * TILE, (ty + dy + 0.5f) * TILE}, -1, k.id, 0); break; }
+        }
         if (u > 0.3f && u < 0.8f) {
             for (auto& o : sticks) {
                 if (o.id == k.id || !o.present || std::find(k.swingHit.begin(), k.swingHit.end(), o.id) != k.swingHit.end()) continue;
                 bool hit = false;
-                for (int s = 1; s <= 3 && !hit; s++) { Vector2 p = Vector2Add(k.pt[J_NECK].p, Vector2Scale(aim, 0.3f + d.reach * s / 3)); for (int j : {J_HEAD, J_NECK, J_PELVIS}) hit |= Vector2Distance(o.pt[j].p, p) < o.pt[j].r + 0.14f; }
+                for (int s = 1; s <= 3 && !hit; s++) { Vector2 p = Vector2Add(k.pt[J_NECK].p, Vector2Scale(aim, 0.3f + reach * s / 3)); for (int j : {J_HEAD, J_NECK, J_PELVIS}) hit |= Vector2Distance(o.pt[j].p, p) < o.pt[j].r + 0.14f; }
                 if (!hit) continue;
                 k.swingHit.push_back(o.id);
-                Hit(o, k.id, d.dmg, Vector2Normalize(Vector2Add(aim, {0, 0.3f})), d.knock, d.knock >= 8, d.name.c_str());
+                Vector2 dir = Vector2Normalize(Vector2Add(aim, {0, 0.3f}));
+                if (d.key == "whip") dir = Vector2Normalize(Vector2Add(Vector2Subtract(k.pt[J_PELVIS].p, o.pt[J_PELVIS].p), {0, 0.6f}));   // (the whip pulls them in)
+                Hit(o, k.id, d.dmg, dir, d.key == "whip" ? 9.0f : d.knock, d.knock >= 8 || d.key == "whip", d.name.c_str());
+                if (d.special == "chain") Zap(it.b.p, o, 0, k.id, it.weapon);   // (the tesla gaff sparks on)
+                if (d.key == "poolcue" && it.count == 0) { it.count = 1; int h = SpawnWeapon(it.weapon, it.b.p, {aim.x * 3, 4}); items[h].count = 1; Emit(EV_HIT, it.b.p, -1, k.id, 0); }   // (the cue breaks in two: two weapons)
             }
         }
         k.fireWas = in.fire; return;
@@ -202,16 +239,20 @@ void World::Fire(Stick& k) {
     if (it.ammo <= 0) { if (press) { Emit(EV_EMPTY, it.b.p, k.id); DropWeapon(k, Vector2Add(Vector2Scale(aim, 14), {0, 2}), true); } k.fireWas = in.fire; return; }
     bool trigger = d.hold ? in.fire : press;
     // underwater only the harpoon and the tesla gaff work (doc p. 11)
-    if ((InLiquid(it.b.p) || InLiquid(k.pt[J_HEAD].p)) && d.key != "harpoon" && d.key.find("tesla") == std::string::npos) trigger = false;
+    if ((InLiquid(it.b.p) || InLiquid(k.pt[J_HEAD].p)) && d.key != "harpoon" && d.key != "speargun" && d.key.find("tesla") == std::string::npos) trigger = false;
     if (d.spinup > 0) { k.spin = in.fire ? std::min(d.spinup, k.spin + STEP) : std::max(0.0f, k.spin - STEP * 2); if (k.spin < d.spinup) trigger = false; }
     if (trigger && k.fireCool <= 0) {
         k.fireCool = 1 / std::max(0.1f, d.rate); it.ammo--;
-        for (int n = 0; n < std::max(1, d.pellets); n++) {
+        if (d.speed <= 0 && !d.special.empty()) SpecialFire(k, d, it, aim);   // (the beams: the tesla, the gravity gun, the laser)
+        else for (int n = 0; n < std::max(1, d.pellets); n++) {
             float ang = atan2f(aim.y, aim.x) + (Rand() - 0.5f) * d.spread * DEG2RAD;
             Bullet b; b.p = it.b.p; if (d.twin && (it.ammo % 2)) b.p = Vector2Add(b.p, {0, -0.12f});   // (twin pistols: one barrel, then the other)
             b.v = {cosf(ang) * d.speed, sinf(ang) * d.speed}; b.owner = k.id; b.weapon = it.weapon; b.dmg = d.dmg; b.knock = d.knock; b.grav = d.gravity * gravity;
             b.pierce = std::max(1, d.pierce); b.bounces = d.bounce; b.explode = d.area > 0; b.area = d.area; b.areaDmg = d.areaDmg; b.fuse = d.fuse;
             b.life = d.range > 0 ? d.range / std::max(1.0f, d.speed) : 3.0f;
+            if (d.special == "blackhole") b.life = 0.9f;   // (it opens where it is after 0.9 s, or on what it hits)
+            if (d.special == "bees") b.life = 0.7f;
+            if (d.special == "boomerang") { b.life = 2.5f; b.pierce = 3; }
             bullets.push_back(b);
         }
         // the recoil moves the body (a minigun pushes you back; aim it down and it's a jetpack)
@@ -226,6 +267,7 @@ void World::Fire(Stick& k) {
 void World::Explode(Vector2 at, float radius, float dmg, float knock, int owner, int weapon) {
     Emit(EV_EXPLODE, at, -1, owner, radius);
     ShotAt(at, radius * 0.6f);
+    for (auto& th : things) if (th.alive && (th.kind == TH_SNAKE || th.kind == TH_SWARM || th.kind == TH_FISH || th.kind == TH_PEEL || th.kind == TH_TRAP) && Vector2Distance(th.p, at) < radius) th.alive = false;   // (a blast clears snakes, bees, fish and what lies on the floor)
     for (auto& k : sticks) {
         if (!k.present) continue;
         float d = Vector2Distance(at, k.pt[J_PELVIS].p);
@@ -238,12 +280,18 @@ void World::Explode(Vector2 at, float radius, float dmg, float knock, int owner,
 }
 static bool Blocking(const Stick& k) { return k.alive && k.st != S_RAGDOLL && k.blockT > 0; }
 void World::StepBullets() {
+    bullets.reserve(bullets.size() + 256);   // (an impact can add bullets mid-loop: shrapnel; no reallocation under the reference)
     for (auto& b : bullets) {
         if (!b.alive) continue;
         b.age += STEP; b.life -= STEP;
         if (b.fuse > 0 && b.age >= b.fuse) { Explode(b.p, b.area, b.areaDmg, b.knock, b.owner, b.weapon); b.alive = false; continue; }
-        if (b.life <= 0) { if (b.explode) Explode(b.p, b.area, b.areaDmg, b.knock, b.owner, b.weapon); b.alive = false; continue; }
+        if (b.life <= 0) { if (b.explode) Explode(b.p, b.area, b.areaDmg, b.knock, b.owner, b.weapon); else SpecialHit(b, b.p, nullptr); b.alive = false; continue; }
         b.v.y -= b.grav * STEP;
+        if (b.hazard == -1 && b.weapon >= 0 && Def(b.weapon).special == "boomerang" && b.age > 0.45f && b.owner >= 0 && b.owner < (int)sticks.size()) {   // (it comes back; it hits you if you missed)
+            Stick& o = sticks[b.owner]; Vector2 d = Vector2Subtract(o.pt[J_NECK].p, b.p); float L = Vector2Length(d);
+            if (L < 0.45f) { if (b.hit.empty() && o.alive) Hit(o, b.owner, Def(b.weapon).dmg, Vector2Normalize(b.v), 3, false, "your own boomerang"); b.alive = false; continue; }
+            b.v = Vector2Lerp(b.v, Vector2Scale(d, 18 / std::max(0.01f, L)), 0.12f);
+        }
         float dist = Vector2Length(b.v) * STEP; int n = std::max(1, (int)ceilf(dist / 0.12f));
         Vector2 step = Vector2Scale(b.v, STEP / n);
         for (int s = 0; s < n && b.alive; s++) {
@@ -258,6 +306,7 @@ void World::StepBullets() {
                     b.p = prev; step = Vector2Scale(b.v, STEP / n);
                     continue;
                 }
+                if (SpecialHit(b, prev, nullptr)) { b.alive = false; break; }   // (stage 6: a portal, fire on wood, a placed trap, a charge that sticks...)
                 if (b.explode && b.fuse <= 0) Explode(prev, b.area, b.areaDmg, b.knock, b.owner, b.weapon);
                 else if (b.fuse <= 0) Emit(EV_HIT, prev, -1, b.owner, 0);
                 if (b.fuse > 0) { b.v = {0, 0}; b.p = prev; break; }   // (a grenade with no bounces left sits and fizzes)
@@ -291,11 +340,13 @@ void World::StepBullets() {
                     Emit(EV_BLOCK, b.p, k.id); break;
                 }
                 if (!body) continue;
+                if (Def(b.weapon).special == "boomerang" && k.id == b.owner) continue;   // (its owner is met by the return, above)
+                if (SpecialHit(b, b.p, &k)) { b.hit.push_back(k.id); b.alive = false; break; }
                 b.hit.push_back(k.id);
                 if (b.explode) { Explode(b.p, b.area, b.areaDmg, b.knock, b.owner, b.weapon); b.alive = false; break; }
                 const WeaponDef& d = Def(b.weapon);
                 float dmg = b.dmg * (head ? d.head : 1.0f);
-                std::string cause = (b.deflected ? std::string("a deflected ") : std::string()) + (b.hazard == -2 ? std::string("crystal shrapnel") : b.hazard == PK_CROWD ? std::string("a bottle from the crowd") : b.hazard == PK_DART ? std::string("a dart") : b.hazard == PK_POOL ? std::string("a pool ball") : b.hazard == PK_DRIP ? std::string("acid") : d.name);
+                std::string cause = (b.deflected ? std::string("a deflected ") : std::string()) + (b.hazard == -2 ? std::string("crystal shrapnel") : b.hazard == PK_CROWD ? std::string("a bottle from the crowd") : b.hazard == PK_DART ? std::string("a dart") : b.hazard == PK_POOL ? std::string("a pool ball") : b.hazard == PK_DRIP ? std::string("acid") : b.hazard == -3 ? std::string("a turret") : d.name);
                 Hit(k, b.owner, dmg, Vector2Normalize(b.v), b.knock, b.knock >= 10 || d.pin, cause.c_str());
                 if (d.pin && k.alive) k.ragT = std::max(k.ragT, 2.0f);   // (the harpoon pins: two seconds on the end of the line)
                 if (--b.pierce <= 0) { b.alive = false; break; }

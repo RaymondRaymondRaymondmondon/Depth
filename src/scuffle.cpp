@@ -123,7 +123,8 @@ float World::GravityAt(Vector2 p) const {
 
 // ---------------------------------------------------------------- spawning
 void World::Init(const Stage& s, int players, uint32_t seed) {
-    stage = s; rng = seed ? seed : 1; frame = 0; t = 0; events.clear(); eventBase = 0;
+    stage = s; rng = (seed ? seed : 1) * 2654435761u + 0x6D2B79F5u; for (int i = 0; i < 3; i++) Rand();   // (mixed: neighbouring seeds draw unlike numbers)
+    frame = 0; t = 0; events.clear(); eventBase = 0;
     items.clear(); bullets.clear(); nextCrate = Arms().crateFirst; wallY = -10; crates = 0;
     ceilY = 1e9f; sideX = -10; glassT.clear();
     // the Void's abyss is on the side with more bottomless columns; the Salon's bouncer comes in from the door (the left)
@@ -195,7 +196,8 @@ void World::StepController(Stick& k) {
     } else k.swimT = std::max(0.0f, k.swimT - dt * 4);
     // the floor under the feet: ice is slippery, a conveyor carries you
     uint8_t under = stage.At((int)floorf(k.pos.x / TILE), (int)floorf((k.pos.y - 0.05f) / TILE));
-    float target = mx * (k.wet ? 4.0f : 8.0f), accel = ground ? 70.0f : k.wet ? 20.0f : 34.0f;
+    bool oar = k.wet && k.weapon >= 0 && k.weapon < (int)items.size() && items[k.weapon].weapon >= 0 && Weapons()[items[k.weapon].weapon].key == "oar";   // (an oar: row twice as fast)
+    float target = mx * (k.wet ? (oar ? 8.0f : 4.0f) : 8.0f), accel = ground ? 70.0f : k.wet ? 20.0f : 34.0f;
     if (ground && (under == T_CONV_L || under == T_CONV_R)) k.pos.x += (under == T_CONV_R ? 3.0f : -3.0f) * dt;
     if (k.st == S_DIVE) accel = 2;
     if (ground && fabsf(mx) < 0.1f) accel = 55;
@@ -207,7 +209,7 @@ void World::StepController(Stick& k) {
     else if (k.st == S_DUCK && in.moveY >= -0.5f) k.st = S_STAND;
     if (!ground && in.moveY < -0.5f && k.st != S_DIVE && k.st != S_WALL && k.st != S_PRONE) { k.st = S_DIVE; k.vel.x = k.face * 10.0f; k.vel.y = std::min(k.vel.y, -1.0f); }
     // gravity, the variable jump (a release while rising cuts it), coyote time
-    float g = gravity * GravityAt(mid) * (k.wet ? 0.22f : 1.0f);
+    float g = gravity * GravityAt(mid) * (k.wet ? 0.22f : 1.0f) * (k.gravT > 0 ? -1.0f : 1.0f) * (k.bubbleT > 0 ? 0.0f : 1.0f);
     k.vel.y -= g * dt;
     if (k.wet) {   // (a stroke on each press; held, you rise slowly; the water drags)
         if (jumpPress && !ground) { k.vel.y = std::max(k.vel.y, 5.0f); Emit(EV_JUMP, k.pos, k.id); }
@@ -285,6 +287,7 @@ void World::StepController(Stick& k) {
 
 // ---------------------------------------------------------------- the pose drive (the ragdoll half follows the controller)
 void World::StepPose(Stick& k) {
+    if (k.frozenT > 0 && k.alive) return;
     float target = (!k.alive || k.st == S_RAGDOLL) ? 0.0f : (k.grabbedBy >= 0 ? 0.15f : k.hitT > 0 ? 0.35f : 1.0f);
     if (k.getUpT > 0) target = std::min(target, 1 - k.getUpT / 0.4f);
     k.stiff += (target - k.stiff) * std::min(1.0f, STEP * 14);
@@ -336,7 +339,9 @@ void World::StepParticles() {
     const float dt = STEP;
     for (auto& k : sticks) {
         if (!k.present) continue;
-        for (auto& a : k.pt) { Vector2 v = Vector2Scale(Vector2Subtract(a.p, a.q), 0.997f); a.q = a.p; a.p = Vector2Add(a.p, Vector2Add(v, V(0, -gravity * dt * dt))); }
+        if (k.frozenT > 0 && k.alive) { for (auto& a : k.pt) a.q = a.p; continue; }   // (frozen: a statue)
+        float g = gravity * (k.gravT > 0 ? -1.0f : 1.0f);
+        for (auto& a : k.pt) { Vector2 v = Vector2Scale(Vector2Subtract(a.p, a.q), 0.997f); a.q = a.p; a.p = Vector2Add(a.p, Vector2Add(v, V(0, -g * dt * dt))); }
     }
     for (int it = 0; it < 6; it++) {
         for (auto& k : sticks) {
@@ -449,9 +454,14 @@ void World::StepFists(Stick& k) {
 void World::Hit(Stick& o, int by, float dmg, Vector2 dir, float knock, bool ragdoll, const char* cause) {
     // the body flies whether or not it's alive
     float pk = knock * (ragdoll ? 1.0f : 0.6f);
-    for (auto& a : o.pt) a.q = Vector2Subtract(a.q, Vector2Scale(dir, pk * STEP));
+    // (the kick tops the body up to pk along dir rather than adding to it: eight pellets at once are one big shove, not eight)
+    for (auto& a : o.pt) { float along = Vector2DotProduct(Vector2Subtract(a.p, a.q), dir) / STEP; float add = std::max(0.0f, pk - std::max(0.0f, along)); a.q = Vector2Subtract(a.q, Vector2Scale(dir, add * STEP)); }
     Emit(ragdoll ? EV_HAYMAKER : EV_HIT, o.pt[J_NECK].p, o.id, by, dmg);
     if (!o.alive) return;
+    // stage 6: a hit pops a bubble, frees a bear trap, and shatters ice (a frozen stick takes 20 more and falls apart)
+    if (o.bubbleT > 0) { o.bubbleT = 0; Emit(EV_BUBBLE, o.pt[J_PELVIS].p, o.id, by, 1); }
+    if (o.trapT > 0 && by >= 0) o.trapT = 0;
+    if (o.frozenT > 0) { o.frozenT = 0; dmg += 20; ragdoll = true; Emit(EV_FREEZE, o.pt[J_PELVIS].p, o.id, by, 1); }
     o.hp -= dmg; o.lastHitBy = by; o.lastHitT = t; o.hitT = 0.25f;
     o.vel = Vector2Add(Vector2Scale(o.vel, 0.3f), Vector2Scale(dir, knock)); o.knockT = 0.35f;
     if (o.grabbing >= 0) { sticks[o.grabbing].grabbedBy = -1; o.grabbing = -1; }
@@ -473,10 +483,11 @@ void World::Kill(Stick& k, int by, const char* cause) {
 void World::Step() {
     frame++; t += STEP;
     StepPieces();
-    for (auto& k : sticks) if (k.present) { StepController(k); StepFists(k); }
+    for (auto& k : sticks) if (k.present) { StepStatus(k); StepController(k); StepGear(k); StepFists(k); }
     for (auto& k : sticks) if (k.present) StepPose(k);
     StepParticles();
     StepArms();
+    StepThings();
     for (auto& k : sticks) {
         if (!k.present) continue;
         // a thrown stick is a projectile: 15 to it and to whoever it hits
@@ -491,6 +502,7 @@ void World::Step() {
         Vector2 c = k.pt[J_PELVIS].p;
         if (stage.wrap && k.st == S_RAGDOLL && (c.x < -0.3f || c.x > stage.Width() + 0.3f)) { float sh = c.x < 0 ? stage.Width() : -stage.Width(); for (auto& a : k.pt) { a.p.x += sh; a.q.x += sh; } c.x += sh; }
         if (k.alive && (c.y < -2.5f || (!stage.wrap && (c.x < -3 || c.x > stage.Width() + 3)))) { Emit(EV_FALL_OUT, c, k.id); Kill(k, k.lastHitBy >= 0 && t - k.lastHitT < 4 ? k.lastHitBy : -1, "fell out"); }
+        if (k.alive && c.y > stage.Height() + 8) { Emit(EV_FALL_OUT, c, k.id); Kill(k, k.lastHitBy >= 0 && t - k.lastHitT < 4 ? k.lastHitBy : -1, "fell into the sky"); }   // (the gravity gun, a bubble)
         if (!k.alive && c.y < -8) k.present = false;   // (gone off the bottom: no more body)
     }
 }
@@ -537,6 +549,25 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
     const Stick& o = w.sticks[tgt];
     const WeaponDef* d = HeldDef(w, k);
     float err = skill >= 2 ? 0.03f : skill == 1 ? 0.09f : 0.2f;
+    if (w.flashT > 0 || w.inkT > 0) err *= 4;   // (blinded: it sprays)
+    // gear (stage 6): the jetpack, the parachute or the hook out of a fall; the shield against a gun; the rest now and then
+    if (k.gear >= 0) {
+        bool overPit = !k.grounded && Bottomless(w, (int)floorf(k.pos.x / TILE));
+        const WeaponDef* od = HeldDef(w, o);
+        switch (k.gear) {
+            case GR_JETPACK: in.gear = (overPit && k.vel.y < 0) || w.wallY > k.pos.y - 1.5f; break;
+            case GR_PARACHUTE: in.gear = !k.grounded && k.vel.y < -6; break;
+            case GR_SHIELD: in.gear = od && od->kind == "gun" && bd < 12 && w.LineOfSight(k.pt[J_NECK].p, o.pt[J_NECK].p); break;
+            case GR_HOOK:
+                if (overPit && k.vel.y < -2) {   // (a line up and toward the nearer edge)
+                    in.gear = true; int c = (int)floorf(k.pos.x / TILE), side = 1;
+                    for (int dd = 1; dd < 12; dd++) { if (!Bottomless(w, c + dd)) { side = 1; break; } if (!Bottomless(w, c - dd)) { side = -1; break; } }
+                    in.aim = Vector2Normalize({(float)side * 0.7f, 1}); in.moveX = (float)side; return;
+                }
+                break;
+            default: in.gear = R() < 0.003f; break;
+        }
+    }
     // the wall is up: get above it first
     if (w.wallY > k.pos.y - 2.5f) {
         float best = 1e9f; Vector2 goal = k.pos;
@@ -550,16 +581,17 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
         if (best >= 0) { MoveToward(w, k, w.items[best].a.p, in, true); in.aim = {(float)k.face, 0}; return; }
     }
     Vector2 from = k.pt[J_NECK].p, at = o.pt[o.st == S_DUCK ? J_HEAD : J_NECK].p;
-    if (d && d->kind == "gun") {
+    if (d && (d->kind == "gun" || d->kind == "thrown")) {
         // keep the weapon's range: close in with a scatter gun, back off with a sniper
         float want = d->range > 0 ? d->range * 0.6f : d->key == "sniper" || d->key == "carbine" ? 7.0f : d->key == "rocket" || d->key == "grenadelauncher" ? 5.0f : 4.0f;
         Vector2 lead = Vector2Scale(o.vel, d->speed > 0 ? Vector2Distance(from, at) / d->speed * (skill >= 1 ? 0.8f : 0.0f) : 0);
         Vector2 aim = Vector2Normalize(Vector2Subtract(Vector2Add(at, lead), from));
+        if (d->kind == "thrown") aim = Vector2Normalize(Vector2Add(aim, {0, 0.25f + 0.02f * bd}));   // (a lob)
         float a = atan2f(aim.y, aim.x) + (R() - 0.5f) * 2 * err; in.aim = {cosf(a), sinf(a)};
         bool los = w.LineOfSight(from, at);
         if (!los || bd > want * 1.6f) MoveToward(w, k, o.pos, in, true);
         else if (bd < want * 0.5f && skill >= 1) { MoveToward(w, k, {k.pos.x - Sgn(o.pos.x - k.pos.x) * 3, k.pos.y}, in, true); }
-        int ammo = w.items[k.weapon].ammo;
+        int ammo = d->kind == "thrown" ? w.items[k.weapon].count : w.items[k.weapon].ammo;
         bool shoot = los && bd < std::max(want * 2.2f, 6.0f) && R() < (skill >= 2 ? 0.9f : skill == 1 ? 0.5f : 0.25f);
         if (ammo <= 0) shoot = bd < 7 && los;   // (empty: throw it at them)
         if (d->hold) in.fire = shoot; else in.fire = shoot && !fireWas;
@@ -581,6 +613,7 @@ static int Fails = 0;
 int ScuffleArmsChecks();
 int ScuffleStageChecks();
 int ScuffleWorldChecks();
+int ScuffleArsenalChecks();
 static void Check(bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) Fails++; }
 static void Run(World& w, float seconds, void (*fn)(World&) = nullptr) { int n = (int)(seconds / STEP); for (int i = 0; i < n; i++) { if (fn) fn(w); w.Step(); } }
 static Stage Flat(int w = 40, int h = 18) { std::vector<std::string> rows(h, std::string(w, '.')); rows[h - 1] = std::string(w, '#'); rows[h - 2] = std::string(w, '#'); return StageFromText(rows, "Flat"); }
@@ -669,6 +702,7 @@ int RunScuffleTest() {
     Fails += ScuffleArmsChecks();
     Fails += ScuffleStageChecks();
     Fails += ScuffleWorldChecks();
+    Fails += ScuffleArsenalChecks();
     printf(Fails ? "Scuffle: %d check(s) FAILED\n" : "Scuffle: all checks passed\n", Fails);
     return Fails ? 1 : 0;
 }

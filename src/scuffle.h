@@ -103,7 +103,7 @@ const std::vector<WeaponDef>& Weapons();
 int WeaponIndex(const std::string& key);
 enum Arsenal { AR_CLASSIC, AR_MELEE, AR_CHAOS, AR_SNAKES, AR_RANDOM, AR_COUNT };
 const char* ArsenalName(int a);
-struct ArmsTuning { float crateFirst = 3, crateEvery = 5, chuteFall = 2, crush = 30, crateThrown = 20, emptyThrow = 10, blockWindow = 0.15f, wallStart = 45, wallCenter = 60, wallAll = 70, finaleWall = 30; };
+struct ArmsTuning { float crateFirst = 3, crateEvery = 5, chuteFall = 2, crush = 30, crateThrown = 20, emptyThrow = 10, blockWindow = 0.15f, wallStart = 45, wallCenter = 60, wallAll = 70, finaleWall = 30, gearChance = 0.1f, trapChance = 0.033f; };
 const ArmsTuning& Arms();
 
 // ---------------------------------------------------------------- input (all play, bots too, goes through this)
@@ -112,7 +112,11 @@ struct Input {
     Vector2 aim{1, 0};                   // where the free arm points (a unit vector)
     bool jump = false, fire = false;     // held
     bool taunt = false;
+    bool gear = false;                   // (stage 6: the gear button, held)
 };
+// gear (doc p. 14): one crate in ten; a second slot used with the gear button, kept for the round
+enum Gear { GR_HOOK, GR_SHIELD, GR_JETPACK, GR_DECOY, GR_PARACHUTE, GR_SPRING, GR_ROPE, GR_COUNT };
+const char* GearName(int g);
 
 // ---------------------------------------------------------------- a stick
 enum StickState : uint8_t { S_STAND, S_AIR, S_WALL, S_DUCK, S_DIVE, S_PRONE, S_RAGDOLL, S_DEAD };
@@ -137,6 +141,9 @@ struct Stick {
     int killsBy[4] = {};                                   // (unused yet: kill kinds for the scoring)
     float walkPh = 0, breathe = 0;
     float swimT = 0, hazT = 0, sharkT = 0; bool wet = false;          // (stage 5: seconds with the head under water; a hazard's cooldown on this stick; swimming)
+    // stage 6: what the strange weapons do to a stick (seconds left), the gear slot and its state
+    float burnT = 0, frozenT = 0, bubbleT = 0, netT = 0, gravT = 0, trapT = 0;
+    int gear = -1; float gearFuel = 3, gearCool = 0; Vector2 hook{}; bool hookOn = false, gearWas = false;
     // the round's story
     int kills = 0; int lastHitBy = -1; float lastHitT = -10; std::string cause;
     Input in;
@@ -145,7 +152,18 @@ struct Stick {
 // ---------------------------------------------------------------- the world (one round on one stage)
 struct Event { int kind = 0; Vector2 at{}; float a = 0; int who = -1, by = -1; };   // (the scene's sounds and splashes)
 enum EventKind { EV_PUNCH = 1, EV_HIT, EV_HAYMAKER, EV_KICK, EV_JUMP, EV_LAND, EV_DIE, EV_THROW, EV_GRAB, EV_BONK, EV_FALL_OUT,
-                 EV_SHOT, EV_EXPLODE, EV_BLOCK, EV_CRATE_OPEN, EV_PICKUP, EV_EMPTY, EV_CHUTE, EV_SWING, EV_CRUSH, EV_WALL };
+                 EV_SHOT, EV_EXPLODE, EV_BLOCK, EV_CRATE_OPEN, EV_PICKUP, EV_EMPTY, EV_CHUTE, EV_SWING, EV_CRUSH, EV_WALL,
+                 EV_ZAP, EV_FREEZE, EV_BURN, EV_BUBBLE, EV_PORTAL, EV_SNAKE, EV_BEES, EV_GEAR, EV_INK, EV_FLASH, EV_TRAP, EV_EVENT };
+// stage 6: the things the strange weapons leave in the world (doc pp. 6-8, 14): a swarm of bees, a snake, fish come to
+// chum, a black hole, chum in the water, a portal, a bear trap, a turret, a mine, a banana peel, a decoy, a spring, a
+// stuck charge, and a beam (the laser's and the tesla's, for the drawing)
+enum ThingKind : uint8_t { TH_SWARM, TH_SNAKE, TH_FISH, TH_HOLE, TH_CHUM, TH_PORTAL, TH_TRAP, TH_TURRET, TH_MINE, TH_PEEL, TH_DECOY, TH_SPRING, TH_STUCK, TH_BEAM, TH_COUNT };
+struct Thing {
+    uint8_t kind = TH_SWARM; bool alive = true;
+    Vector2 p{}, v{}, q{};                                // (position, velocity; q: a beam's far end, a portal's facing)
+    float life = 5, t = 0, a = 0, cool = 0;               // (seconds left; age; a kind's number: a portal's pair index, a charge's fuse)
+    int owner = -1, on = -1, hold = -1, weapon = -1;      // (who made it; the stick it's on; the stick it holds; the weapon behind it)
+};
 // a crate on its parachute, or a weapon lying loose (a weapon in a hand is drawn from the hand: Stick::weapon)
 struct Item {
     bool alive = true, crate = false, chute = false, shot = false; int weapon = -1, ammo = 0, holder = -1, count = 0;
@@ -165,6 +183,18 @@ struct World {
     std::vector<Item> items; std::vector<Bullet> bullets; float nextCrate = 3, wallY = -10; int arsenal = AR_CLASSIC; bool finale = false, wallOn = true;
     int crates = 0;
     float ceilY = 1e9f, sideX = -10; int wallSide = 1;     // (the other worlds' walls: the Cave's ceiling coming down; the Void's abyss and the Salon's bouncer from a side)
+    // stage 6 (scuffle_special.cpp): the strange weapons' things, burning tiles, the screen's ink and flash
+    std::vector<Thing> things; std::vector<float> fireT; float inkT = 0, flashT = 0;
+    void StepThings();
+    void StepStatus(Stick& k);                             // (burning, frozen, bubbled, netted, flipped, trapped)
+    bool SpecialHit(Bullet& b, Vector2 at, Stick* k);      // (a special bullet's impact on a stick or a tile: true if it's spent)
+    void SpecialFire(Stick& k, const WeaponDef& d, Item& it, Vector2 aim);   // (the beams and the thrown things)
+    void StepGear(Stick& k);
+    void Burn(Stick& k, float s, int by);
+    void Freeze(Stick& k, float s, int by);
+    void Zap(Vector2 from, Stick& first, float dmg, int by, int weapon);
+    int AddThing(int kind, Vector2 p, Vector2 v, float life, int owner);
+    void Snakes(Vector2 at, int n, int owner);
     bool InLiquid(Vector2 p) const;                        // (water, brine, the tide, a live sluice)
     bool BrineAt(Vector2 p) const;
     float GravityAt(Vector2 p) const;                      // (low gravity pockets)
