@@ -50,11 +50,12 @@ int World::RollWeapon() {
     float tot = 0; std::vector<float> wt(W.size(), 0);
     for (int i = 0; i < (int)W.size(); i++) {
         if (W[i].stage > CURRENT_STAGE) continue;
+        if (Mut(MU_PACIFIST) && W[i].kind == "gun") continue;   // (Pacifist: guns don't drop)
         float x = d.kindW[std::clamp(arsenal, 0, AR_COUNT - 1)][KindIdx(W[i].kind)];
         if (!d.only[arsenal].empty()) x = std::find(d.only[arsenal].begin(), d.only[arsenal].end(), W[i].key) != d.only[arsenal].end() ? 1.0f : 0.0f;
         wt[i] = x; tot += x;
     }
-    if (tot <= 0) { for (int i = 0; i < (int)W.size(); i++) if (W[i].stage <= CURRENT_STAGE) { wt[i] = 1; tot += 1; } }
+    if (tot <= 0) { for (int i = 0; i < (int)W.size(); i++) if (W[i].stage <= CURRENT_STAGE && !(Mut(MU_PACIFIST) && W[i].kind == "gun")) { wt[i] = 1; tot += 1; } }
     float u = Rand() * tot;
     for (int i = 0; i < (int)W.size(); i++) { u -= wt[i]; if (u <= 0 && wt[i] > 0) return i; }
     return 0;
@@ -75,8 +76,11 @@ int World::SpawnWeapon(int weapon, Vector2 at, Vector2 vel) {
     return (int)items.size() - 1;
 }
 void World::Pickup(Stick& k, int i) {
+    if (k.trinket == TK_PACK_RAT && k.weapon >= 0 && k.carry < 0 && k.weapon != i) { items[i].holder = k.id; items[i].thrownT = 0; k.carry = i; Emit(EV_PICKUP, k.pt[J_HAND_R].p, k.id, -1, (float)items[i].weapon); return; }   // (Pack Rat: the second weapon on the back)
     if (k.weapon >= 0) DropWeapon(k, {0, 2}, false);
-    items[i].holder = k.id; items[i].thrownT = 0; k.weapon = i; k.fireCool = 0.15f; k.spin = 0;
+    const WeaponDef& wd = Def(items[i].weapon);
+    if (k.trinket == TK_QUICK_DRAW && wd.kind == "gun" && items[i].ammo == wd.ammo && items[i].count == 0) { items[i].ammo = std::max(1, (int)ceilf(wd.ammo * 0.8f)); items[i].count = -1; }   // (Quick Draw: ammo -20%; count -1 marks the first shot)
+    items[i].holder = k.id; items[i].thrownT = 0; k.weapon = i; k.fireCool = k.trinket == TK_QUICK_DRAW ? 0.0f : 0.15f; k.spin = 0;
     Emit(EV_PICKUP, k.pt[J_HAND_R].p, k.id, -1, (float)items[i].weapon);
 }
 void World::DropWeapon(Stick& k, Vector2 vel, bool thrown) {
@@ -91,6 +95,9 @@ void World::StepCrates() {
     if (t < nextCrate) return;
     nextCrate += Arms().crateEvery;
     // a random column with something to land on (the stage's crate zones, until the editor marks them)
+    if (luckyFor >= 0 && crates == 0 && luckyFor < (int)sticks.size() && sticks[luckyFor].alive) {   // (Lucky Crate: the first one comes straight down on you)
+        int c = DropCrate(sticks[luckyFor].pos.x); items[c].chute = false; items[c].a.p.y = items[c].a.q.y = std::min(stage.Height() + 0.8f, sticks[luckyFor].pos.y + 7); return;
+    }
     for (int tries = 0; tries < 20; tries++) {
         int x = 1 + (int)(Rand() * (stage.w - 2));
         bool floor = false; for (int y = 0; y < stage.h; y++) floor |= stage.Solid(x, y);
@@ -239,13 +246,14 @@ void World::Fire(Stick& k) {
     if (it.ammo <= 0) { if (press) { Emit(EV_EMPTY, it.b.p, k.id); DropWeapon(k, Vector2Add(Vector2Scale(aim, 14), {0, 2}), true); } k.fireWas = in.fire; return; }
     bool trigger = d.hold ? in.fire : press;
     // underwater only the harpoon and the tesla gaff work (doc p. 11)
-    if ((InLiquid(it.b.p) || InLiquid(k.pt[J_HEAD].p)) && d.key != "harpoon" && d.key != "speargun" && d.key.find("tesla") == std::string::npos) trigger = false;
+    if ((InLiquid(it.b.p) || InLiquid(k.pt[J_HEAD].p)) && d.key != "harpoon" && d.key != "speargun" && d.key.find("tesla") == std::string::npos && k.trinket != TK_BIG_LUNGS) trigger = false;
     if (d.spinup > 0) { k.spin = in.fire ? std::min(d.spinup, k.spin + STEP) : std::max(0.0f, k.spin - STEP * 2); if (k.spin < d.spinup) trigger = false; }
     if (trigger && k.fireCool <= 0) {
-        k.fireCool = 1 / std::max(0.1f, d.rate); it.ammo--;
+        k.fireCool = 1 / std::max(0.1f, d.rate); if (!Mut(MU_INFINITE_AMMO)) it.ammo--;
+        bool steady = it.count == -1; if (steady) it.count = 0;   // (Quick Draw: the first shot after a pick-up has no spread)
         if (d.speed <= 0 && !d.special.empty()) SpecialFire(k, d, it, aim);   // (the beams: the tesla, the gravity gun, the laser)
         else for (int n = 0; n < std::max(1, d.pellets); n++) {
-            float ang = atan2f(aim.y, aim.x) + (Rand() - 0.5f) * d.spread * DEG2RAD;
+            float ang = atan2f(aim.y, aim.x) + (steady ? 0.0f : (Rand() - 0.5f) * d.spread * DEG2RAD);
             Bullet b; b.p = it.b.p; if (d.twin && (it.ammo % 2)) b.p = Vector2Add(b.p, {0, -0.12f});   // (twin pistols: one barrel, then the other)
             b.v = {cosf(ang) * d.speed, sinf(ang) * d.speed}; b.owner = k.id; b.weapon = it.weapon; b.dmg = d.dmg; b.knock = d.knock; b.grav = d.gravity * gravity;
             b.pierce = std::max(1, d.pierce); b.bounces = d.bounce; b.explode = d.area > 0; b.area = d.area; b.areaDmg = d.areaDmg; b.fuse = d.fuse;
@@ -253,6 +261,8 @@ void World::Fire(Stick& k) {
             if (d.special == "blackhole") b.life = 0.9f;   // (it opens where it is after 0.9 s, or on what it hits)
             if (d.special == "bees") b.life = 0.7f;
             if (d.special == "boomerang") { b.life = 2.5f; b.pierce = 3; }
+            if (Mut(MU_MOON_SHOT)) { b.v = Vector2Scale(b.v, 0.35f); b.life /= 0.35f; }   // (slow and visible)
+            if (Mut(MU_RICOCHET)) b.bounces = std::max(b.bounces, 1);
             bullets.push_back(b);
         }
         // the recoil moves the body (a minigun pushes you back; aim it down and it's a jetpack)
@@ -345,7 +355,7 @@ void World::StepBullets() {
                 b.hit.push_back(k.id);
                 if (b.explode) { Explode(b.p, b.area, b.areaDmg, b.knock, b.owner, b.weapon); b.alive = false; break; }
                 const WeaponDef& d = Def(b.weapon);
-                float dmg = b.dmg * (head ? d.head : 1.0f);
+                float dmg = b.dmg * (head && k.trinket != TK_THICK_SKULL ? d.head : 1.0f);
                 std::string cause = (b.deflected ? std::string("a deflected ") : std::string()) + (b.hazard == -2 ? std::string("crystal shrapnel") : b.hazard == PK_CROWD ? std::string("a bottle from the crowd") : b.hazard == PK_DART ? std::string("a dart") : b.hazard == PK_POOL ? std::string("a pool ball") : b.hazard == PK_DRIP ? std::string("acid") : b.hazard == -3 ? std::string("a turret") : d.name);
                 Hit(k, b.owner, dmg, Vector2Normalize(b.v), b.knock, b.knock >= 10 || d.pin, cause.c_str());
                 if (d.pin && k.alive) k.ragT = std::max(k.ragT, 2.0f);   // (the harpoon pins: two seconds on the end of the line)
@@ -362,7 +372,7 @@ void World::StepBullets() {
 //   Salon: closing time, the bouncer clears the room from the door
 void World::StepWall() {
     const ArmsTuning& a = Arms();
-    float start = finale ? a.finaleWall : a.wallStart, mid = start + (a.wallCenter - a.wallStart), all = start + (a.wallAll - a.wallStart);
+    float start = Mut(MU_SUDDEN_WALL) ? 15 : finale ? a.finaleWall : a.wallStart, mid = start + (a.wallCenter - a.wallStart), all = start + (a.wallAll - a.wallStart);
     if (!wallOn || t < start) { wallY = -10; ceilY = 1e9f; sideX = -10; return; }
     if (wallY < -5 && ceilY > 1e8f && sideX < -5) Emit(EV_WALL, {stage.Width() / 2, 0});
     float H = stage.Height(), W = stage.Width();

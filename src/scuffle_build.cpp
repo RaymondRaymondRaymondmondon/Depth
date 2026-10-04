@@ -368,6 +368,7 @@ Stage MirrorOf(const Stage& in, const std::string& name) {
 }
 }  // namespace
 
+Stage MirrorStage(const Stage& s) { return MirrorOf(s, s.name); }
 std::vector<Stage> BuildWorld(int world) {
     std::vector<Stage> v;
     if (world == WD_NAUTILUS) v = BuildNautilus();

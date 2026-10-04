@@ -81,7 +81,8 @@ Reach CheckReachable(const Stage& s);
 std::vector<Stage> LoadWorldPack(int world);               // the built-in stages (data/scuffle/stages/<world>.txt)
 std::vector<Stage> BuildNautilus();                        // (the builder behind nautilus.txt; --scuffle-build-packs writes it)
 std::vector<Stage> BuildWorld(int world);                  // a world's forty and its three finales (scuffle_build.cpp)
-Stage GenerateStage(int world, uint32_t seed, bool finale = false, int* tries = nullptr);   // the generator (doc p. 11): checked with the real movement code
+Stage GenerateStage(int world, uint32_t seed, bool finale = false, int* tries = nullptr);
+Stage MirrorStage(const Stage& s);                         // (left for right: the Mirror mutator, the packs' variants)   // the generator (doc p. 11): checked with the real movement code
 int RunScuffleBuildPacks();
 int RunScuffleVerify(const std::string& codeOrAll);       // --scuffle-verify <code> | --scuffle-verify-all
 Stage StoneStage();                                        // stage 1's one stone stage (the doc's gate)
@@ -117,6 +118,19 @@ struct Input {
 // gear (doc p. 14): one crate in ten; a second slot used with the gear button, kept for the round
 enum Gear { GR_HOOK, GR_SHIELD, GR_JETPACK, GR_DECOY, GR_PARACHUTE, GR_SPRING, GR_ROPE, GR_COUNT };
 const char* GearName(int g);
+// trinkets (doc pp. 11-12): one per stick for the match, an edge with a cost, open for everyone to see
+enum Trinket { TK_NONE, TK_SPRING_HEELS, TK_THICK_SKULL, TK_LUCKY_CRATE, TK_LONG_ARMS, TK_MAGNET_PALMS, TK_CAT_LEGS, TK_BIG_LUNGS, TK_QUICK_DRAW,
+               TK_PACK_RAT, TK_THICK_COAT, TK_LOUD_MOUTH, TK_SECOND_WIND, TK_SNAKE_CHARMER, TK_DEADWEIGHT, TK_COUNT };
+const char* TrinketName(int t);
+const char* TrinketText(int t);                            // (the edge, and the cost)
+// mutators (doc pp. 12-13): lobby rules that stack (a bit each); Random picks one a round
+enum Mutator { MU_LOW_GRAVITY, MU_MOON_SHOT, MU_RICOCHET, MU_BIG_HEADS, MU_INFINITE_AMMO, MU_ONE_HIT, MU_RAGDOLL_ROYALE, MU_SNAKES, MU_HOT_POTATO,
+               MU_BLACKOUT, MU_GIANTS, MU_TINY, MU_MIRROR, MU_VAMPIRE, MU_SUDDEN_WALL, MU_PACIFIST, MU_FAST_FORWARD, MU_COUNT };
+const char* MutatorName(int m);
+const char* MutatorText(int m);
+// mid-round events (doc pp. 13-14): one round in four, at a random second from 10 to 30, after a one-second tell
+enum RoundEvent { RE_FLOOD, RE_REACH, RE_LIGHTS_OUT, RE_CRATE_RAIN, RE_EARTHQUAKE, RE_SWAP, RE_DOG, RE_GRAVITY_FLIP, RE_BOUNCER, RE_FISH_STORM, RE_COUNT };
+const char* EventName(int e);
 
 // ---------------------------------------------------------------- a stick
 enum StickState : uint8_t { S_STAND, S_AIR, S_WALL, S_DUCK, S_DIVE, S_PRONE, S_RAGDOLL, S_DEAD };
@@ -144,6 +158,7 @@ struct Stick {
     // stage 6: what the strange weapons do to a stick (seconds left), the gear slot and its state
     float burnT = 0, frozenT = 0, bubbleT = 0, netT = 0, gravT = 0, trapT = 0;
     int gear = -1; float gearFuel = 3, gearCool = 0; Vector2 hook{}; bool hookOn = false, gearWas = false;
+    int trinket = TK_NONE; float size = 1; bool airJump = false, windUsed = false; int carry = -1;   // (stage 6b: the trinket; Giants and Tiny; the Spring Heels' second jump; the Second Wind; the Pack Rat's second weapon)
     // the round's story
     int kills = 0; int lastHitBy = -1; float lastHitT = -10; std::string cause;
     Input in;
@@ -157,7 +172,7 @@ enum EventKind { EV_PUNCH = 1, EV_HIT, EV_HAYMAKER, EV_KICK, EV_JUMP, EV_LAND, E
 // stage 6: the things the strange weapons leave in the world (doc pp. 6-8, 14): a swarm of bees, a snake, fish come to
 // chum, a black hole, chum in the water, a portal, a bear trap, a turret, a mine, a banana peel, a decoy, a spring, a
 // stuck charge, and a beam (the laser's and the tesla's, for the drawing)
-enum ThingKind : uint8_t { TH_SWARM, TH_SNAKE, TH_FISH, TH_HOLE, TH_CHUM, TH_PORTAL, TH_TRAP, TH_TURRET, TH_MINE, TH_PEEL, TH_DECOY, TH_SPRING, TH_STUCK, TH_BEAM, TH_COUNT };
+enum ThingKind : uint8_t { TH_SWARM, TH_SNAKE, TH_FISH, TH_HOLE, TH_CHUM, TH_PORTAL, TH_TRAP, TH_TURRET, TH_MINE, TH_PEEL, TH_DECOY, TH_SPRING, TH_STUCK, TH_BEAM, TH_DOG, TH_POTATO, TH_COUNT };
 struct Thing {
     uint8_t kind = TH_SWARM; bool alive = true;
     Vector2 p{}, v{}, q{};                                // (position, velocity; q: a beam's far end, a portal's facing)
@@ -185,6 +200,12 @@ struct World {
     float ceilY = 1e9f, sideX = -10; int wallSide = 1;     // (the other worlds' walls: the Cave's ceiling coming down; the Void's abyss and the Salon's bouncer from a side)
     // stage 6 (scuffle_special.cpp): the strange weapons' things, burning tiles, the screen's ink and flash
     std::vector<Thing> things; std::vector<float> fireT; float inkT = 0, flashT = 0;
+    // stage 6b (scuffle_rules.cpp): the match's mutators (a bit each), this round's event, the hot potato, the flood, the dark
+    uint32_t mut = 0; int event = -1; float eventAt = 0; int leader = -1; float floodY = -10, lightsT = 0, reachX = -10; int reachRow = -1; bool moversStopped = false; int luckyFor = -1;
+    bool Mut(int m) const { return (mut >> m) & 1u; }
+    void ApplyRules();                                     // (after Init: gravity, sizes, the wall's start, the arsenal)
+    void StepRules();                                      // (the event, the hot potato, ragdoll royale)
+    void Resize(Stick& k, float size);
     void StepThings();
     void StepStatus(Stick& k);                             // (burning, frozen, bubbled, netted, flipped, trapped)
     bool SpecialHit(Bullet& b, Vector2 at, Stick* k);      // (a special bullet's impact on a stick or a tile: true if it's spent)
@@ -249,6 +270,9 @@ struct Match {
     std::vector<std::string> log;                          // (the round's story lines)
     uint32_t evSeen = 0;
     std::vector<Stage> custom;                             // (a playlist of the group's own: the editor's "play now", a pasted pack)
+    uint32_t mutators = 0; bool randomMutator = false;     // (the lobby's rules; Random: one picked each round)
+    std::vector<int> trinkets;                             // (each player's trinket, -1: let the game pick)
+    uint32_t roundMut = 0;                                 // (this round's rules: the stack plus Random's pick)
     int world = -1;                                        // (the lobby's world: -1 all six; WD_COUNT the generator, endless)
     std::vector<Stage> finales;                            // (the match point's stages: the playlist's worlds' finales)
     void Start(int nPlayers, int roundsToWin, uint32_t seed, int arsenal = AR_CLASSIC);

@@ -36,6 +36,7 @@ void World::StepPieces() {
         if (t < p.start) continue;   // (asleep: a finale's set piece before its second)
         p.cool = std::max(0.0f, p.cool - STEP);
         if (p.kind >= PK_STALACTITE) { StepHazard(p); continue; }
+        if ((p.kind == PK_PISTON || p.kind == PK_ELEVATOR) && moversStopped) continue;   // (the Earthquake stopped them)
         if (p.kind == PK_PISTON || p.kind == PK_ELEVATOR) {
             float u = fmodf(t / std::max(0.2f, p.period) + p.phase, 1.0f), ext;
             if (p.kind == PK_ELEVATOR) ext = 0.5f - 0.5f * cosf(u * 2 * PI);

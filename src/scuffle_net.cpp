@@ -48,7 +48,7 @@ bool ReadInputs(Reader& r, std::vector<InputFrame>& out) {
     for (int k = 0; k < n; k++) { InputFrame f; f.seq = first + k; f.in = GetInput(r); if (r.bad) return false; out.push_back(f); }
     return true;
 }
-void OrderHello(Writer& w, const std::string& name) { w.U8(SA_HELLO); w.Str(name.substr(0, 20)); }
+void OrderHello(Writer& w, const std::string& name, int trinket) { w.U8(SA_HELLO); w.Str(name.substr(0, 20)); w.U8((uint32_t)(trinket + 1)); }
 
 // ---------------------------------------------------------------- the snapshot (one Visit for writing and reading)
 namespace {
@@ -96,6 +96,7 @@ template <class A> void VisitStick(A& a, Stick& k) {
     a.f(k.swimT); a.f(k.hazT); a.f(k.sharkT); a.b(k.wet);
     a.f(k.burnT); a.f(k.frozenT); a.f(k.bubbleT); a.f(k.netT); a.f(k.gravT); a.f(k.trapT);
     a.i(k.gear); a.f(k.gearFuel); a.f(k.gearCool); a.v2(k.hook); a.b(k.hookOn); a.b(k.gearWas);
+    a.i(k.trinket); a.f(k.size); a.b(k.airJump); a.b(k.windUsed); a.i(k.carry);
     a.i(k.kills); a.i(k.lastHitBy); a.f(k.lastHitT); a.s(k.cause);
     VisitInput(a, k.in);
 }
@@ -141,6 +142,7 @@ template <class A> void VisitWorld(A& a, World& w) {
         a.b(th.alive); a.v2(th.p); a.v2(th.v); a.v2(th.q); a.f(th.life); a.f(th.t); a.f(th.a); a.f(th.cool); a.i(th.owner); a.i(th.on); a.i(th.hold); a.i(th.weapon);
     }, 2048);
     a.vec(w.fireT, [&](float& f) { a.f(f); }, 256 * 128); a.f(w.inkT); a.f(w.flashT);
+    a.u(w.mut); a.i(w.event); a.f(w.eventAt); a.i(w.leader); a.f(w.floodY); a.f(w.lightsT); a.f(w.reachX); a.i(w.reachRow); a.b(w.moversStopped); a.i(w.luckyFor);
     a.vec(w.glassT, [&](float& g) { a.f(g); }, 256 * 128);
     if constexpr (A::reading) {   // (indices that the step follows: all must point somewhere real)
         int ns = (int)w.sticks.size(), ni = (int)w.items.size(), nw = (int)Weapons().size();
@@ -148,7 +150,8 @@ template <class A> void VisitWorld(A& a, World& w) {
         for (const auto& it : w.items) if (it.weapon < -1 || it.weapon >= nw || it.holder < -1 || it.holder >= ns) a.r.bad = true;
         for (const auto& b : w.bullets) if (b.weapon < -1 || b.weapon >= nw || b.hazard < -2 || b.hazard >= PK_COUNT) a.r.bad = true;
         for (const auto& th : w.things) if (th.on < -1 || th.on >= ns || th.weapon < -1 || th.weapon >= nw) a.r.bad = true;
-        for (const auto& k : w.sticks) if (k.gear < -1 || k.gear >= GR_COUNT) a.r.bad = true;
+        for (const auto& k : w.sticks) if (k.gear < -1 || k.gear >= GR_COUNT || k.carry < -1 || k.carry >= ni || k.trinket < 0 || k.trinket >= TK_COUNT || !(k.size > 0.1f && k.size < 4)) a.r.bad = true;
+        if (w.event < -1 || w.event >= RE_COUNT) a.r.bad = true;
         for (const auto& p : w.stage.pieces) if ((p.kind == PK_REACHER || p.kind == PK_BOUNCER) && (p.hold < -1 || p.hold >= ns)) a.r.bad = true;   // (others keep a cycle count there)
         if (!w.glassT.empty() && w.glassT.size() != w.stage.t.size()) a.r.bad = true;
     }
@@ -266,20 +269,20 @@ namespace {
 class ScuffleHost : public arcade::GameHost {
 public:
     Match m; std::vector<std::string> names;
-    int toWin = 5, arsenal = AR_CLASSIC, skill = 2, players = 2, world = -1; bool test = false;
+    int toWin = 5, arsenal = AR_CLASSIC, skill = 2, players = 2, world = -1; uint32_t muts = 0; bool randomMut = false, test = false;
     struct Seat { std::deque<InputFrame> q; Input cur; uint32_t ack = 0, last = 0; double heard = -10; uint32_t rng = 1; };
     std::vector<Seat> seats;
     float acc = 0; double time = 0; uint32_t tick = 0;
     mutable std::vector<std::vector<uint8_t>> cache = std::vector<std::vector<uint8_t>>(MAX_STICKS);
     mutable std::vector<uint32_t> cacheTick = std::vector<uint32_t>(MAX_STICKS, ~0u);
     void Configure(const std::string& opts) override {
-        int t = 5, a = 0, s = 2, wd = -1;
-        if (sscanf(opts.c_str(), "%d:%d:%d:%d", &t, &a, &s, &wd) >= 1) { toWin = std::clamp(t, 1, 20); arsenal = std::clamp(a, 0, AR_COUNT - 1); skill = std::clamp(s, 0, 2); world = std::clamp(wd, -1, (int)WD_COUNT); }
+        int t = 5, a = 0, s = 2, wd = -1, rnd = 0; unsigned mu = 0;
+        if (sscanf(opts.c_str(), "%d:%d:%d:%d:%u:%d", &t, &a, &s, &wd, &mu, &rnd) >= 1) { toWin = std::clamp(t, 1, 20); arsenal = std::clamp(a, 0, AR_COUNT - 1); skill = std::clamp(s, 0, 2); world = std::clamp(wd, -1, (int)WD_COUNT); muts = mu & ((1u << MU_COUNT) - 1); randomMut = rnd != 0; }
         test = opts.find(":test") != std::string::npos;
     }
     void Start(int n, uint32_t seed) override {
         players = std::clamp(n, 2, MAX_STICKS);
-        m = Match{}; m.world = world; m.Start(players, toWin, seed ? seed : 1, arsenal);
+        m = Match{}; m.world = world; m.mutators = muts; m.randomMutator = randomMut; m.Start(players, toWin, seed ? seed : 1, arsenal);
         names.assign(players, std::string());
         for (int p = 0; p < players; p++) names[p] = p == 0 ? "Host" : TextFormat("Player %d", p + 1);
         seats.assign(players, Seat{});
@@ -298,7 +301,12 @@ public:
             s.heard = time;
             return false;
         }
-        if (kind == SA_HELLO) { std::string n = r.Str(); if (r.bad || n.empty()) return false; names[p] = n.substr(0, 20); std::fill(cacheTick.begin(), cacheTick.end(), ~0u); return true; }
+        if (kind == SA_HELLO) {
+            std::string n = r.Str(); if (r.bad || n.empty()) return false; names[p] = n.substr(0, 20);
+            int tk = (int)r.U8() - 1;   // (their trinket: for this match, and for this round if it has only begun)
+            if (!r.bad && tk >= 0 && tk < TK_COUNT && p < (int)m.trinkets.size()) { m.trinkets[p] = tk; if (m.w.t < 3 && p < (int)m.w.sticks.size()) m.w.sticks[p].trinket = tk; }
+            std::fill(cacheTick.begin(), cacheTick.end(), ~0u); return true;
+        }
         return false;
     }
     bool Tick(float dt, uint32_t ai) override {
@@ -338,7 +346,7 @@ public:
 std::unique_ptr<arcade::GameHost> MakeScuffleHost() { return std::make_unique<ScuffleHost>(); }
 Match* ScuffleHostMatch(arcade::GameHost* h) { auto* s = dynamic_cast<ScuffleHost*>(h); return s ? &s->m : nullptr; }
 const std::vector<std::string>* ScuffleHostNames(arcade::GameHost* h) { auto* s = dynamic_cast<ScuffleHost*>(h); return s ? &s->names : nullptr; }
-std::string ScuffleHostOpts(int toWin, int arsenal, int skill, int world) { return TextFormat("%d:%d:%d:%d", toWin, arsenal, skill, world); }
+std::string ScuffleHostOpts(int toWin, int arsenal, int skill, int world, uint32_t mutators, bool randomMutator) { return TextFormat("%d:%d:%d:%d:%u:%d", toWin, arsenal, skill, world, mutators, randomMutator ? 1 : 0); }
 uint32_t ScuffleDataHash() {
     // the rules every peer must share: the arsenal (the stages travel in the snapshots)
     Writer w;

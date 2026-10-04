@@ -76,6 +76,9 @@ void Match::Start(int nPlayers, int roundsToWin, uint32_t s, int ars) {
     players = std::clamp(nPlayers, 1, MAX_STICKS); toWin = std::max(1, roundsToWin); seed = s ? s : 1; arsenal = ars;
     wins.assign(players, 0); score.assign(players, 0); roundKills.assign(players, 0);
     playlist = custom.empty() ? StagePlaylist(world) : custom; round = 0; draws = 0; champion = -1; log.clear();
+    // trinkets: each player's pick, or the game picks (it's seeded)
+    trinkets.resize(players, -1);
+    { uint32_t r = seed * 2246822519u + 99; for (auto& tk : trinkets) { r = r * 1664525u + 1013904223u; if (tk < 0 || tk >= TK_COUNT) tk = (int)((r >> 8) % TK_COUNT); } }
     finales = custom.empty() ? FinalePlaylist(world) : std::vector<Stage>{};
     // the rotation: shuffled by the seed (no stage twice until the list runs out)
     uint32_t r = seed;
@@ -88,13 +91,21 @@ void Match::NewRound() {
     stageIdx = (round - 1) % std::max(1, (int)playlist.size());
     bool fin = matchPoint && toWin > 1;
     uint32_t rs = seed * 2654435761u + round * 7919u;
+    roundMut = mutators; if (randomMutator) roundMut |= 1u << ((rs >> 12) % MU_COUNT);   // (the lobby's stack and Random's pick)
+    bool mirror = (roundMut >> MU_MIRROR) & 1u;
     if (world == WD_COUNT && custom.empty()) {   // (endless: a fresh stage from the generator each round, any world)
         Stage g = GenerateStage((int)(rs % WD_COUNT), rs, fin);
         w.Init(g, players, rs);
     }
-    else if (fin && !finales.empty()) w.Init(finales[(rs >> 8) % finales.size()], players, rs);   // (match point: a finale stage, the wall at 30 s)
-    else w.Init(playlist[stageIdx], players, rs);
+    else if (fin && !finales.empty()) { const Stage& f = finales[(rs >> 8) % finales.size()]; w.Init(mirror ? MirrorStage(f) : f, players, rs); }   // (match point: a finale stage, the wall at 30 s)
+    else w.Init(mirror ? MirrorStage(playlist[stageIdx]) : playlist[stageIdx], players, rs);
     w.arsenal = arsenal; w.finale = fin;
+    // the round's rules; one round in four an event, at 10-30 s; the trinkets
+    w.mut = roundMut;
+    w.event = ((rs >> 4) % 4 == 0) ? (int)((rs >> 9) % RE_COUNT) : -1; w.eventAt = 10 + (float)((rs >> 16) % 2000) / 100.0f;
+    w.leader = -1; { int best = 0; for (int i = 0; i < (int)wins.size(); i++) if (wins[i] > best) { best = wins[i]; w.leader = i; } }
+    for (int i = 0; i < (int)w.sticks.size() && i < (int)trinkets.size(); i++) w.sticks[i].trinket = trinkets[i];
+    w.ApplyRules();
     phase = P_COUNT; phaseT = 1.0f; roundWinner = -1;
     std::fill(roundKills.begin(), roundKills.end(), 0);
     evSeen = w.eventBase;
@@ -103,6 +114,7 @@ void Match::Step() {
     if (phase == P_OVER) return;
     if (phase == P_COUNT) { for (auto& k : w.sticks) k.in = Input{}; }
     w.Step();
+    if (phase == P_FIGHT && w.Mut(MU_FAST_FORWARD) && (w.frame & 1)) w.Step();   // (Fast Forward: half again as fast)
     // the round's scoring from the world's log: kills (and their bonuses), the wall
     const auto& E = w.events; uint32_t base = w.eventBase; if (evSeen < base) evSeen = base;
     for (uint32_t i = evSeen; i < base + E.size(); i++) {
@@ -115,7 +127,7 @@ void Match::Step() {
     else if (phase == P_FIGHT && (w.Living() <= 1 || w.t > 95)) {
         phase = P_WIN; phaseT = 1.5f; roundWinner = -1;
         if (w.Living() == 1) for (const auto& k : w.sticks) if (k.alive && k.present) roundWinner = k.id;
-        if (roundWinner >= 0) { wins[roundWinner]++; score[roundWinner] += 100; log.push_back(TextFormat("Round %d to stick %d (%.0f s)", round, roundWinner, w.t)); }
+        if (roundWinner >= 0) { wins[roundWinner]++; score[roundWinner] += 100 + (roundWinner < (int)trinkets.size() && trinkets[roundWinner] == TK_NONE ? 10 : 0); log.push_back(TextFormat("Round %d to stick %d (%.0f s)", round, roundWinner, w.t)); }
         else { draws++; log.push_back(TextFormat("Round %d: a draw (%.0f s)", round, w.t)); }
         for (int i = 0; i < players; i++) if (wins[i] >= toWin) { champion = i; score[i] += 300; }
     }

@@ -20,7 +20,7 @@ struct InputFrame { uint32_t seq = 0; Input in; };
 Input QuantizeInput(const Input& in);                       // what the host will read (a guest predicts with the same)
 void WriteInputs(const std::vector<InputFrame>& frames, Writer& w);
 bool ReadInputs(Reader& r, std::vector<InputFrame>& out);   // (after the SA_INPUTS byte)
-void OrderHello(Writer& w, const std::string& name);
+void OrderHello(Writer& w, const std::string& name, int trinket = -1);
 
 void WriteMatch(Match& m, std::vector<std::string>& names, int viewer, uint32_t ack, Writer& out);
 void PackMatch(Match& m, std::vector<std::string>& names, int viewer, uint32_t ack, Writer& out);   // compressed
@@ -42,7 +42,7 @@ struct Predictor {
 std::unique_ptr<arcade::GameHost> MakeScuffleHost();
 Match* ScuffleHostMatch(arcade::GameHost* h);
 const std::vector<std::string>* ScuffleHostNames(arcade::GameHost* h);
-std::string ScuffleHostOpts(int toWin, int arsenal, int skill, int world = -1);   // (world: -1 all six, WD_COUNT endless from the generator)
+std::string ScuffleHostOpts(int toWin, int arsenal, int skill, int world = -1, uint32_t mutators = 0, bool randomMutator = false);   // (world: -1 all six, WD_COUNT endless from the generator)
 uint32_t ScuffleDataHash();
 int RunScuffleNetTest();                                    // --scuffle-net-test
 int RunScuffleNetLoop(int lagMs, bool mem);                 // --net-loop scuffle [lagMs] [mem]: the doc's gate, eight players
