@@ -82,6 +82,24 @@ void World::Init(int humans, int bots, int md, uint32_t seed) {
     int bat = ItemIndex("battery"), alm = ItemIndex("almond"), ch = ItemIndex("chalk");
     for (auto& p : crew) { if (bat >= 0) p.tools[0] = {bat, 1, 0}; if (alm >= 0) p.tools[1] = {alm, 1, 0}; if (ch >= 0 && p.id == 0) p.tools[2] = {ch, D().items[ch].charges, 0}; }
     daySeed = rng; EndDay(false); day = 1; memo = "Welcome to the Liminal Recovery Bureau. Your first quota is " + std::to_string(quota) + ". The portal is through the door.";
+    won = false; score = 0; marks.clear();
+    // the modes (design doc p. 35)
+    if (mode == 2) { quota = (int)(quota * 0.6f); memo = "Noclip Roulette: every exit is a noclip somewhere. The quota is low. Good luck."; }
+    if (mode == 3) memo = "Lights Out: every level plays by Level 6's rule today.";
+    if (mode == 4) { memo = "Expedition: one long day (60 minutes), no shop in the field, scored on what you bring back."; }
+    if (mode == 5) memo = "Lonely: it's just you. Fewer entities. More of the other thing.";
+    if (mode == 6 && humans >= 3) { int k = RandI(humans); crew[k].impostor = true; memo = "One of you isn't one of you. Extract and leave it behind."; }
+    if (mode == 1) {   // Lost: no Surface, nothing in the pockets, Lab Alpha dormant; find a Lab and restart it to escape. One life.
+        for (auto& l : labs) { l.online = false; l.doorOpen = false; l.fuel = 0; }
+        for (auto& p : crew) for (auto& t : p.tools) t = Tool{};
+        memo = "Lost: you're in the Lobby with nothing. Find a Lab, restart it, and get out. One life each.";
+        BeginDay(); int wl = 1 + RandI(4); Level& lv = L(wl); int k = 0;
+        // wake on a deeper level, as far from every Lab as the Lobby allows (a reachable cell: a path to Lab Alpha's door)
+        Vector3 wake = lv.start; float bestD = -1; for (int t = 0; t < 400; t++) { int x = RandI(lv.w), z = RandI(lv.h); if (!lv.Walkable(x, z) || lv.At(x, z) == T_PIT || lv.At(x, z) == T_DEEP || lv.At(x, z) == T_LABFLOOR) continue; Vector3 c = lv.Center(x, z); float md = 1e9f; for (const auto& lp : lv.labs) md = std::min(md, Vector2Distance({c.x, c.z}, {lv.Center(lp.doorX, lp.doorZ).x, lv.Center(lp.doorX, lp.doorZ).z}));
+            if (md > bestD && !lv.labs.empty() && !Path(wl, c, lv.Center(lv.labs[0].doorX, lv.labs[0].doorZ), 20000).empty()) { bestD = md; wake = c; } }
+        for (auto& p : crew) { p.level = wl; p.p = Vector3Add(wake, {(float)(k % 3) * 0.6f, 0, (float)(k / 3) * 0.6f}); if (lv.Solid(lv.CellX(p.p.x), lv.CellZ(p.p.z))) p.p = wake; k++; }
+        int fuel = ItemIndex("fuel"); if (fuel >= 0) crew[0].tools[0] = {fuel, 1, 0};   // (one canister between you: the Bureau's last kindness)
+    }
 }
 Level& World::L(int level) {
     auto it = levels.find(level);
@@ -129,7 +147,7 @@ bool World::LineOfSight(int level, Vector3 a, Vector3 b) const {
 float World::LightAt(int level, Vector3 at) const {
     auto it = levels.find(level); if (it == levels.end()) return 0; const Level& lv = it->second;
     int cx = lv.CellX(at.x), cz = lv.CellZ(at.z); float best = 0;
-    bool out = overtime || (level == 1 && lightsOutT > 0);
+    bool out = overtime || (level == 1 && lightsOutT > 0) || mode == 3;
     if (!out) for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) { int x = cx + dx, z = cz + dz; if (x < 0 || z < 0 || x >= lv.w || z >= lv.h) continue; uint8_t l = lv.light[z * lv.w + x]; if (l) best = std::max(best, (l >= 128 && l < 255 ? 0.6f : 1.0f) * (dx || dz ? 0.6f : 1.0f)); }
     if (level == 10 || level == 11) best = std::max(best, overtime ? 0.1f : 0.8f);   // (the open sky)
     // a Lab with its generator running is lit
@@ -151,8 +169,9 @@ std::vector<int> World::Path(int level, Vector3 from, Vector3 to, int maxNodes) 
 // ---------------------------------------------------------------- the day
 void World::BeginDay() {
     inDay = true; clock = D().dayStart; overtime = false; hourT = 0; levels.clear(); items.clear(); ents.clear(); seenCells.clear(); lightsOutT = 0; lockdownT = 0; lockdownNext = 120;
+    marks.clear(); trapRooms.clear();
     LabState* ins = insertion >= 0 && insertion < (int)labs.size() ? &labs[insertion] : nullptr;
-    if (!ins || !ins->online) { ins = &labs[0]; insertion = 0; }
+    if (!ins || (!ins->online && mode != 1)) { ins = &labs[0]; insertion = 0; }
     Level& lv = L(ins->level); const LabPlan& lp = lv.labs[ins->idx];
     int k = 0;
     for (auto& p : crew) {
@@ -168,6 +187,27 @@ void World::BeginDay() {
 }
 void World::EndDay(bool extracted) {
     (void)extracted;
+    // today's contract: paid if it was done (some are checked against the bay and the map now)
+    if (contract >= 0 && inDay) {
+        const ContractDef& c = D().contracts[contract];
+        if (c.id == "retrieval") for (const auto& l : bay) if (l.def == contractTarget) contractDone = true;
+        if (c.id == "survey" && SeenFraction(contractLevel) >= 0.8f) contractDone = true;
+        if (c.id == "specimen") for (const auto& l : bay) if (l.def >= 0 && D().loot[l.def].props.find("living") != std::string::npos) contractDone = true;
+        if (contractDone) { int pay = (c.creditMin + c.creditMax) / 2; credit += pay; cash += c.cash; Emit(E_SALE, -1, 2, -1, {}, (float)pay, "contract: " + c.name); }
+    }
+    // the Bureau's memo, written from the day's log
+    if (inDay) {
+        std::string m; int deaths = 0, noclips = 0; std::string worst;
+        for (const auto& p : crew) { deaths += p.st == PS_DEAD || p.st == PS_TAKEN; if (p.noclipCount >= 2) worst = p.name + " noclipped " + std::to_string(p.noclipCount) + " times; please stop. "; noclips += p.noclipCount; }
+        int got = 0; for (const auto& l : bay) got += l.value;
+        if (deaths) m += std::to_string(deaths) + (deaths == 1 ? " employee" : " employees") + " did not clock out. ";
+        m += worst;
+        m += got ? "The loading bay received " + std::to_string((int)bay.size()) + " items (est. $" + std::to_string(got) + "). " : "The loading bay received nothing. The Bureau notes this. ";
+        if (contractDone && contract >= 0) m += "Contract '" + D().contracts[contract].name + "' completed. ";
+        memo = m;
+        for (auto& p : crew) p.noclipCount = 0;
+    }
+    if (mode == 4 && inDay) { score = credit; for (const auto& l : bay) score += l.value; failed = true; won = true; }   // (Expedition: one day, scored)
     inDay = false;
     for (auto& p : crew) { if (p.st == PS_DEAD || p.st == PS_TAKEN) p.st = PS_SURFACE; p.st = PS_SURFACE; p.hands = Loot{}; p.pocket[0] = p.pocket[1] = Loot{}; }
     day++;
@@ -175,7 +215,9 @@ void World::EndDay(bool extracted) {
     daySeed = rng ^ (uint32_t)(day * 2654435761u); forecast.clear(); for (int k = 0; k < 3; k++) forecast.push_back(RandI(LEVELS));
     fenceRate.assign(8, 100); for (int& r : fenceRate) r = 60 + RandI(101);
     std::vector<int> offer; for (int i = 0; i < (int)D().contracts.size(); i++) if (D().contracts[i].id != "party" && D().contracts[i].id != "rescue") offer.push_back(i);
-    contract = offer.empty() ? -1 : offer[RandI((int)offer.size())]; contractDone = false; contractLevel = RandI(5); contractTarget = 0;
+    contract = offer.empty() ? -1 : offer[RandI((int)offer.size())]; contractDone = false; contractLevel = std::min(LEVELS - 1, RandI(4) + (week - 1) * 2); contractTarget = 0;
+    { int band = D().levels[contractLevel].lootBand; std::vector<int> pool; for (int i = 0; i < (int)D().loot.size(); i++) if (D().loot[i].level == band) pool.push_back(i); if (!pool.empty()) contractTarget = pool[RandI((int)pool.size())]; }
+    if (contract >= 0) { const std::string& cid = D().contracts[contract].id; if (cid == "retrieval") memo += " Today: bring back a " + D().loot[contractTarget].name + " from Level " + std::to_string(contractLevel) + "."; if (cid == "survey") memo += " Today: map 80% of Level " + std::to_string(contractLevel) + "."; }
     Emit(E_DAY_END);
 }
 void World::NextWeek() {
@@ -185,6 +227,7 @@ void World::NextWeek() {
 
 // ---------------------------------------------------------------- the crew
 void World::Hurt(Player& p, float dmg, const std::string& cause, int injury) {
+    if (p.impostor) return;   // (the social-deduction mode's Skin-Stealer can't die)
     if (p.st != PS_ALIVE) { if (p.st == PS_DOWNED && dmg >= 30) Kill(p, cause); return; }
     p.health -= dmg; p.injuries |= injury; p.lastCause = cause; Emit(E_HURT, p.id, -1, p.level, p.p, dmg, cause);
     if (injury & IN_BLEED) p.bleedT = 0;
@@ -216,6 +259,7 @@ void World::Drop(Player& p, bool throwIt) {
 }
 void World::Transit(Player& p, int to, bool noclip, const std::string& how) {
     int from = p.level; to = std::clamp(to, 0, LEVELS - 1);
+    if (mode == 2 && how != "shot" && how != "test") { to = RandI(10); noclip = true; }   // (Noclip Roulette: every exit is a noclip to a random level)
     Level& lv = L(to);
     // arrive at the way back if there is one (a door from `from`), else somewhere in the level
     Vector3 at = lv.start; bool placed = false;
@@ -231,7 +275,10 @@ void World::Transit(Player& p, int to, bool noclip, const std::string& how) {
 void World::Move(Player& p, Vector3 wish, float speed) {
     Level& lv = L(p.level); float r = 0.3f;
     Vector3 np = Vector3Add(p.p, Vector3Scale(wish, speed * STEP));
-    auto blocked = [&](float x, float z) { int cx = lv.CellX(x), cz = lv.CellZ(z); uint8_t t = lv.At(cx, cz); if (lv.Solid(cx, cz)) return true; if (t == T_BLAST) { LabState* lab = nullptr; for (int k = 0; k < (int)lv.labs.size(); k++) if (lv.labs[k].doorX == cx && lv.labs[k].doorZ == cz) lab = Lab(p.level, k); return lab && (!lab->doorOpen || (lab->locked && false)); } return false; };
+    bool keycard = false; if (p.level == 5) for (const Loot& l : {p.pocket[0], p.pocket[1]}) if (l.def >= 0 && D().loot[l.def].name == "Key card") keycard = true;
+    auto blocked = [&](float x, float z) { int cx = lv.CellX(x), cz = lv.CellZ(z); uint8_t t = lv.At(cx, cz); if (lv.Solid(cx, cz)) return true;
+        if (t == T_DOOR && p.level == 5 && !keycard && (cx + cz) % 3 != 0) return true;   // (the hotel's rooms: most doors want a key card)
+        if (t == T_BLAST) { LabState* lab = nullptr; for (int k = 0; k < (int)lv.labs.size(); k++) if (lv.labs[k].doorX == cx && lv.labs[k].doorZ == cz) lab = Lab(p.level, k); return lab && (!lab->doorOpen || (lab->locked && false)); } return false; };
     // axis by axis against the cells (a circle of radius r)
     float ox = np.x; for (float s : {-r, r}) if (blocked(np.x + s, p.p.z - r * 0.7f) || blocked(np.x + s, p.p.z + r * 0.7f)) { np.x = p.p.x; break; }
     for (float s : {-r, r}) if (blocked(np.x - r * 0.7f, np.z + s) || blocked(np.x + r * 0.7f, np.z + s)) { np.z = p.p.z; break; }
@@ -252,8 +299,12 @@ void World::StepMeters(Player& p) {
     if (mood == "haven") { /* the windows */ if (fl & CF_WINDOW) { p.windowT += dt; if (p.windowT > 3) { p.sanity -= 10; p.windowT = 0; } } }
     if (overtime) drain *= 2;
     if (labLit) { drain -= 5.0f / 60; p.health = std::min(100.0f, p.health + dt * 0.1f); }
-    for (const auto& w : items) (void)w;
+    for (const auto& w : items) if (w.level == p.level && w.loot.def < 0 && w.noiseT > 0 && D().items[-1 - w.loot.def].use == "musicbox" && Vector3Distance(w.p, p.p) < 5) drain -= 0.2f;   // (a music box: +2 every 10 s)
     p.sanity = std::clamp(p.sanity - drain * dt, 0.0f, 100.0f);
+    // Level 13: stare at a mirror too long and your reflection steps out
+    if (p.level == 13) { Vector3 f{cosf(p.yaw), 0, sinf(p.yaw)}; int fx = lv.CellX(p.p.x + f.x * CELL), fz = lv.CellZ(p.p.z + f.z * CELL); if (lv.Flags(fx, fz) & CF_MIRROR) { p.mirrorT += dt; if (p.mirrorT > 5) { p.mirrorT = -20; Entity e; e.def = EntityIndex("mirrorthing"); e.level = 13; e.uid = nextUid++; e.p = lv.Center(fx - (int)roundf(f.x), fz - (int)roundf(f.z)); e.st = ES_CHASE; if (e.def >= 0) ents.push_back(e); Emit(E_TELL, p.id, e.def, 13, e.p, 0, "your reflection is late"); } } else p.mirrorT = std::max(0.0f, p.mirrorT - dt); }
+    // Level 18: it's hard to leave. After ten minutes, the Stay prompt every minute (Y would take it)
+    if (p.level == 18) { p.stayT += dt; if (p.stayT > 600) { p.stayPromptT -= dt; if (p.stayPromptT <= -50) { p.stayPromptT = 10; Emit(E_STAY, p.id, -1, 18, p.p); } } } else { p.stayT = 0; p.stayPromptT = 0; }
     if (p.sanity <= 0 && p.lostT <= 0 && p.st == PS_ALIVE) { p.lostT = 10; p.sanity = 5; Emit(E_LOST, p.id, -1, p.level, p.p); }
     // health: bleeding
     if (p.injuries & IN_BLEED) { p.bleedT += dt; if (p.bleedT >= 3) { p.bleedT = 0; Hurt(p, 1, "bled out"); } }
@@ -282,7 +333,7 @@ void World::StepMeters(Player& p) {
 void World::StepPlayer(Player& p) {
     float dt = STEP; Input& in = p.in;
     p.yaw = in.yaw; p.pitch = std::clamp(in.pitch, -1.4f, 1.4f);
-    p.jumpCool = std::max(0.0f, p.jumpCool - dt * (D().dayEnd - D().dayStart) / D().dayReal);   // (in in-game minutes)
+    p.jumpCool = std::max(0.0f, p.jumpCool - dt * (D().dayEnd - D().dayStart) / dayLen());   // (in in-game minutes)
     p.noise = 0;
     if (p.st == PS_SURFACE) return;
     if (p.st == PS_DEAD) {   // a Wanderer: drifts through walls at walking speed
@@ -392,6 +443,9 @@ void World::Interact(Player& p) {
     // a door exit: E to go through
     int cx = lv.CellX(front.x), cz = lv.CellZ(front.z), pcx = lv.CellX(p.p.x), pcz = lv.CellZ(p.p.z);
     for (const auto& e : lv.exits) if (!e.noclip && ((e.cx == cx && e.cz == cz) || (e.cx == pcx && e.cz == pcz))) { Transit(p, e.to, false, e.label); return; }
+    // Level 14's beds heal (ten seconds on a gurney); Level 15's terminals: a hack stops the Sentries for two minutes
+    if (p.level == 14 && (lv.Flags(pcx, pcz) & CF_ROOM) && p.health < 100) { p.stunT = 10; p.health = 100; p.injuries = 0; Emit(E_TELL, p.id, -1, 14, p.p, 3, "you lie down on a gurney: fully healed"); return; }
+    if (p.level == 15 && lv.At(cx, cz) == T_LOW) { p.stunT = 5; for (auto& e : ents) if (e.level == 15 && D().entities[e.def].id == "sentry") e.stunT = 120; Emit(E_TELL, p.id, -1, 15, p.p, 3, "the terminal's pattern matches: the Sentries power down"); return; }
 }
 void World::UseTool(Player& p) {
     Tool& t = p.tools[std::clamp(p.sel, 0, 4)]; if (t.item < 0) return; const ItemDef& it = D().items[t.item]; const std::string& u = it.use;
@@ -408,6 +462,15 @@ void World::UseTool(Player& p) {
         Emit(E_TELL, p.id, -1, p.level, wi.p, 4, u);
     }
     else if (u == "crowbar" || u == "shotgun" || u == "camera") { Emit(E_SHOT, p.id, t.item, p.level, p.Eye(), 0, u); ToolOnEntities(p, u); }
+    else if (u == "chalk") {   // a chalk arrow on the wall in front (it lasts the day)
+        Level& lv = L(p.level); Vector3 f{cosf(p.yaw), 0, sinf(p.yaw)}; Vector3 at = p.p; for (float d = 0.4f; d < 3; d += 0.2f) { Vector3 q = Vector3Add(p.p, Vector3Scale(f, d)); if (lv.Solid(lv.CellX(q.x), lv.CellZ(q.z))) break; at = q; }
+        marks.push_back({p.level, at, p.yaw}); consume();
+    }
+    else if (u == "grapple" || u == "rope") {   // across a pit (the grapple: 15 m to the far edge) / down one safely (the rope: the pit's exit without the fall)
+        Level& lv = L(p.level); Vector3 f{cosf(p.yaw), 0, sinf(p.yaw)};
+        if (u == "rope") { int cx = lv.CellX(p.p.x + f.x * CELL), cz = lv.CellZ(p.p.z + f.z * CELL); if (lv.At(cx, cz) == T_PIT) { for (const auto& e : lv.exits) if (e.cx == cx && e.cz == cz) { Transit(p, e.to, false, "down a rope"); return; } Transit(p, std::min(LEVELS - 1, p.level + 1), false, "down a rope"); } return; }
+        for (float d = 2; d <= 15; d += 0.5f) { Vector3 q = Vector3Add(p.p, Vector3Scale(f, d)); int cx = lv.CellX(q.x), cz = lv.CellZ(q.z); if (lv.Solid(cx, cz)) break; if (d > 3 && lv.Walkable(cx, cz) && lv.At(cx, cz) != T_PIT && lv.At(cx, cz) != T_DEEP) { bool crossed = false; for (float e2 = 1; e2 < d; e2 += 0.5f) { Vector3 m = Vector3Add(p.p, Vector3Scale(f, e2)); if (lv.At(lv.CellX(m.x), lv.CellZ(m.z)) == T_PIT) crossed = true; } if (crossed) { p.p = lv.Center(cx, cz); Emit(E_TELL, p.id, -1, p.level, p.p, 3, "the hook bites; you swing across"); return; } } }
+    }
     if (u == "shotgun") consume();
 }
 float World::Noise(int level, Vector3 at) const {
@@ -437,13 +500,15 @@ void World::Extract(LabState& lab) {
     for (auto& l : labs) if (&l == &lab || (l.online && l.fuel > 0 && !overtime && l.level != 12)) { for (auto& c : l.crate) bay.push_back(c); l.crate.clear(); }
     for (auto& p : crew) if (InPortalHall(p, lab)) { for (Loot* l : {&p.hands, &p.pocket[0], &p.pocket[1]}) if (l->def >= 0) { bay.push_back(*l); *l = Loot{}; } p.st = PS_SURFACE; if (p.carryWith >= 0) p.carryWith = -1; }
     Emit(E_EXTRACT, -1, -1, lab.level);
+    if (mode == 1) { won = true; failed = true; }   // (Lost: you escaped)
+    if (mode == 6) { bool impostorLeft = false, crewUp = false; for (const auto& p : crew) { if (p.impostor && p.st != PS_SURFACE) impostorLeft = true; if (!p.impostor && p.st == PS_SURFACE) crewUp = true; } if (impostorLeft && crewUp) { won = true; failed = true; memo = "The crew got out and left the thing wearing a friend behind."; } }
     bool anyoneLeft = false; for (const auto& p : crew) if (p.st == PS_ALIVE || p.st == PS_DOWNED) anyoneLeft = true;
     if (!anyoneLeft) EndDay(true);
 }
 void World::StepLabs() {
     float dt = STEP;
     for (auto& l : labs) {
-        l.cooldown = std::max(0.0f, l.cooldown - dt);
+        l.cooldown = std::max(0.0f, l.cooldown - dt); l.sirenT = std::max(0.0f, l.sirenT - dt); l.cargoCool = std::max(0.0f, l.cargoCool - dt);
         if (l.charging) {
             l.charge += dt / ((l.upgrades >> 3) & 1 ? 20.0f : 30.0f);
             if (l.charge >= 1) { l.charging = false; l.charge = 0; l.openT = 20; Emit(E_PORTAL_OPEN, -1, -1, l.level); }
@@ -460,7 +525,7 @@ void World::Command(Player& p, const nc::Command& c) {
     switch (c.kind) {
         case C_NAME: if (!c.s.empty()) p.name = c.s.substr(0, 16); break;
         case C_BUY: if (!inDay && c.a >= 0 && c.a < (int)D().items.size() && cash >= D().items[c.a].price) { if (D().items[c.a].id == "shotgun") { bool owned = false; for (auto& o : crew) for (auto& t : o.tools) if (t.item == c.a) owned = true; if (owned) break; } if (giveTool(c.a)) cash -= D().items[c.a].price; } break;
-        case C_LAB_BUY: { LabState* lab = LabAt(p.level, p.p); if (!inDay || !lab || !lab->online || c.a < 0 || c.a >= (int)D().items.size()) break; int pr = price(D().items[c.a].price, p.level); if (cash >= pr && giveTool(c.a)) cash -= pr; break; }
+        case C_LAB_BUY: { LabState* lab = LabAt(p.level, p.p); if (!inDay || mode == 4 || !lab || !lab->online || c.a < 0 || c.a >= (int)D().items.size()) break; int pr = price(D().items[c.a].price, p.level); if (cash >= pr && giveTool(c.a)) cash -= pr; break; }
         case C_BUY_SUIT: if (!inDay && c.a >= 0 && c.a < (int)D().suits.size() && !((p.suits >> c.a) & 1) && cash >= D().suits[c.a].price) { cash -= D().suits[c.a].price; p.suits |= 1u << c.a; if (D().suits[c.a].id == "bigpack") p.toolSlots = 5; } break;
         case C_BUY_UPGRADE: if (!inDay && c.a >= 0 && c.a < (int)D().labUps.size() && c.b >= 0 && c.b < (int)labs.size() && labs[c.b].online && !((labs[c.b].upgrades >> c.a) & 1) && cash >= D().labUps[c.a].price) { cash -= D().labUps[c.a].price; labs[c.b].upgrades |= 1u << c.a; } break;
         case C_SELL_BUREAU: case C_SELL_FENCE: case C_SELL_ALL: {
@@ -498,7 +563,16 @@ void World::Command(Player& p, const nc::Command& c) {
             }
             break;
         }
+        case C_COSMETIC: { int k = c.b; if (k < -1 || k >= (int)D().cosmetics.size()) break; switch (c.a) { case 0: p.hat = k; break; case 1: p.vest = k; break; case 2: p.lamp_c = k; break; case 3: p.suitCos = k; break; default: p.costume = k; break; } break; }
+        case C_SIREN: { LabState* lab = LabAt(p.level, p.p); if (lab && lab->online && ((lab->upgrades >> 6) & 1)) { lab->sirenT = 40; Emit(E_TELL, p.id, -1, p.level, p.p, 6, "the Siren wails across the level"); } break; }
+        case C_CARGO: { LabState* lab = LabAt(p.level, p.p); if (!lab || !lab->online || !((lab->upgrades >> 5) & 1) || lab->cargoCool > 0 || c.a < 0 || c.a >= (int)labs.size() || !labs[c.a].online || &labs[c.a] == lab) break; for (auto& l : lab->crate) labs[c.a].crate.push_back(l); lab->crate.clear(); lab->cargoCool = 50; Emit(E_TELL, p.id, -1, p.level, p.p, 3, "the cargo link hums: the crate is somewhere else now"); break; }
+        case C_GRAB: {   // the social-deduction mode's Skin-Stealer takes a teammate (one per level)
+            if (!p.impostor || p.takenOnLevel == p.level || !inDay) break;
+            for (auto& o : crew) if (o.id != p.id && o.st == PS_ALIVE && o.level == p.level && Vector3Distance(o.p, p.p) < 1.8f) { o.st = PS_TAKEN; o.deaths++; o.lastCause = "taken by someone wearing a friend"; p.takenOnLevel = p.level; Emit(E_TAKEN, o.id, -1, o.level, o.p, 0, "a Skin-Stealer"); break; }
+            break;
+        }
         case C_ACCEPT: {   // a Partygoer's invitation: off to the Level 5 ballroom, pockets emptied
+            if (p.stayPromptT > 0 && p.level == 18) { p.st = PS_SURFACE; p.hands = Loot{}; p.pocket[0] = p.pocket[1] = Loot{}; Emit(E_TAKEN, p.id, -1, 18, p.p, 4, "they had a lovely time"); break; }
             for (auto& e : ents) if (e.level == p.level && D().entities[e.def].id == "partygoer" && Vector3Distance(e.p, p.p) < 4) { p.pocket[0] = p.pocket[1] = Loot{}; p.hands = Loot{}; Transit(p, 5, true, "the party"); Level& lv = L(5); p.p = lv.Center(lv.w / 2, lv.h / 2); break; }
             break;
         }
@@ -509,12 +583,17 @@ void World::Command(Player& p, const nc::Command& c) {
 // ---------------------------------------------------------------- the clock
 void World::Step() {
     if (!inDay) { for (auto& p : crew) { for (auto& c : p.cmds) Command(p, c); p.cmds.clear(); } return; }
-    float gameRate = (D().dayEnd - D().dayStart) / D().dayReal;   // in-game minutes per real second
+    float gameRate = (D().dayEnd - D().dayStart) / dayLen();   // in-game minutes per real second
     clock += STEP * gameRate; hourT += STEP * gameRate;
     if (!overtime && clock >= D().dayEnd) { overtime = true; Emit(E_OVERTIME); for (auto& l : labs) { l.charging = false; l.charge = 0; } }
     // Level 1's lights-out periods; Level 16's lockdowns
     if (lightsOutT > 0) lightsOutT -= STEP; else if (Rand() < STEP / 240) lightsOutT = 120 + Rand() * 180;
     lockdownNext -= STEP; if (lockdownNext <= 0) { lockdownT = 60; lockdownNext = 240 + Rand() * 120; Emit(E_LOCKDOWN, -1, -1, 16); } lockdownT = std::max(0.0f, lockdownT - STEP);
+    // Level 1's supply crates: they appear and vanish when nobody's looking
+    if (levels.count(1) && Rand() < STEP / 45) {
+        Level& lv = levels[1]; int band = D().levels[1].lootBand; std::vector<int> pool; for (int i = 0; i < (int)D().loot.size(); i++) if (D().loot[i].level == band) pool.push_back(i);
+        for (int tries = 0; tries < 30 && !pool.empty(); tries++) { int x = RandI(lv.w), z = RandI(lv.h); if (lv.At(x, z) != T_FLOOR) continue; Vector3 at = lv.Center(x, z); bool seenNow = false; for (const auto& p : crew) if (p.level == 1 && p.Alive() && (Vector3Distance(p.p, at) < 20 || LineOfSight(1, p.Eye(), Vector3Add(at, {0, 0.5f, 0})))) seenNow = true; if (seenNow) continue; WorldItem wi; wi.level = 1; wi.p = at; wi.loot.def = pool[RandI((int)pool.size())]; wi.loot.value = D().loot[wi.loot.def].min + RandI(D().loot[wi.loot.def].max - D().loot[wi.loot.def].min + 1); wi.loot.foundOn = 1; wi.loot.uid = nextUid++; items.push_back(wi); break; }
+    }
     for (auto& p : crew) if (p.present) StepPlayer(p);
     // dropped lights and toys burn down
     for (auto& w : items) w.noiseT = std::max(0.0f, w.noiseT - STEP);
@@ -531,7 +610,7 @@ void World::Step() {
     }
     // everyone gone (dead, taken or up): the day ends; if nobody made it, the death fee
     bool anyAlive = false, anyUp = false; for (const auto& p : crew) { if (p.st == PS_ALIVE || p.st == PS_DOWNED) anyAlive = true; if (p.st == PS_SURFACE) anyUp = true; }
-    if (!anyAlive) { if (!anyUp) cash -= (int)(cash * D().deathFee); EndDay(anyUp); }
+    if (!anyAlive) { if (mode == 1 && !won) { failed = true; memo = "Lost: nobody found the way out."; } if (!anyUp) cash -= (int)(cash * D().deathFee); EndDay(anyUp); }
 }
 
 

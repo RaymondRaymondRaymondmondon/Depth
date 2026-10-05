@@ -86,7 +86,7 @@ struct Input {
     bool sprint = false, crouch = false, use = false, useHeld = false, drop = false, throwIt = false, lamp = false, primary = false, primaryHeld = false;
     int slot = -1;                                     // select a tool slot (presses)
 };
-enum CmdKind : uint8_t { C_NONE, C_BUY, C_BUY_SUIT, C_BUY_UPGRADE, C_SELL_BUREAU, C_SELL_FENCE, C_SELL_ALL, C_CONTRACT, C_INSERT, C_START_DAY, C_PORTAL, C_PORTAL_PAUSE, C_JUMP, C_LAB_BUY, C_SLEEP, C_LOCK, C_SUMMON, C_TRADE, C_ACCEPT, C_DECLINE, C_NAME, C_READY, C_GRAB };
+enum CmdKind : uint8_t { C_SIREN = 40, C_CARGO, C_COSMETIC, C_NONE = 0, C_BUY, C_BUY_SUIT, C_BUY_UPGRADE, C_SELL_BUREAU, C_SELL_FENCE, C_SELL_ALL, C_CONTRACT, C_INSERT, C_START_DAY, C_PORTAL, C_PORTAL_PAUSE, C_JUMP, C_LAB_BUY, C_SLEEP, C_LOCK, C_SUMMON, C_TRADE, C_ACCEPT, C_DECLINE, C_NAME, C_READY, C_GRAB };
 struct Command { uint8_t kind = C_NONE; int a = 0, b = 0; std::string s; };
 struct Player {
     int id = 0; bool present = true, bot = false; std::string name;
@@ -102,7 +102,8 @@ struct Player {
     int hat = -1, vest = -1, lamp_c = -1, costume = -1, suitCos = -1;   // cosmetics
     Input in; std::vector<Command> cmds;
     // bots
-    int botGoal = -1; Vector3 botTarget{}; float botThink = 0; std::vector<int> botPath; int botMode = 0;
+    int botGoal = -1; Vector3 botTarget{}; float botThink = 0; std::vector<int> botPath; int botMode = 0; int botFrom = -1; float botLevelT = 0;
+    float stayT = 0, stayPromptT = 0, mirrorT = 0, hackT = 0; bool impostor = false; int takenOnLevel = -1;   // (Level 18's Stay; Level 13's mirrors; Level 15's terminals; the social-deduction mode)
     bool Alive() const { return st == PS_ALIVE || st == PS_DOWNED; }
     float Height() const { return crouched ? 1.0f : 1.65f; }
     Vector3 Eye() const { return {p.x, p.y + Height(), p.z}; }
@@ -113,7 +114,7 @@ struct Player {
 struct LabState {
     int level = 0, idx = 0; bool online = false, doorOpen = false, locked = false; float fuel = 0;   // fuel: in-game days left
     std::vector<Loot> crate; float charge = 0; bool charging = false; float openT = 0, cooldown = 0; int jumpFor = -1; float jumpT = 0; int jumpTo = -1;
-    uint32_t upgrades = 0;
+    uint32_t upgrades = 0; float sirenT = 0, cargoCool = 0;
 };
 // an entity
 enum EState : uint8_t { ES_IDLE, ES_WANDER, ES_STALK, ES_CHASE, ES_ATTACK, ES_FLEE, ES_STUN, ES_HIDDEN, ES_TAKE, ES_GONE };
@@ -132,7 +133,8 @@ struct World {
     std::vector<Event> events; uint32_t evCount = 0; uint32_t rng = 1, nextUid = 1;
     // the campaign
     int mode = 0, week = 1, day = 1; int quota = 600, credit = 0, cash = 120; bool failed = false; int weeksSurvived = 0;
-    int contract = -1; int contractTarget = 0, contractLevel = 0; bool contractDone = false; std::vector<int> forecast; std::vector<int> fenceRate;   // per category, percent
+    int contract = -1; int contractTarget = 0, contractLevel = 0; bool contractDone = false; bool won = false; int score = 0; std::vector<int> trapRooms;   // (won: Lost mode's escape, or the crew's win in Skin-Stealer)
+    std::vector<int> forecast; std::vector<int> fenceRate;   // per category, percent
     std::vector<Sale> sold; std::vector<Loot> bay;      // the loading bay: today's extracted loot, waiting to be sold
     uint32_t dossier = 0;                               // bits: entities photographed (by index)
     std::vector<uint32_t> seen;                         // per level, a cell bitmap of what the crew has seen (the map), packed
@@ -141,7 +143,9 @@ struct World {
     bool inDay = false; float clock = 360; bool overtime = false; float hourT = 0; int insertion = 0; uint32_t daySeed = 1;
     float lightsOutT = 0; float lockdownT = 0, lockdownNext = 0;   // (Level 1's lights-out; Level 16's lockdowns)
     std::string memo;
-    bool mirror = false;              // a guest's copy: levels are generated for drawing, but no loot is rolled (the host's comes in the snapshot)
+    bool mirror = false;
+    struct Mark { int level; Vector3 at; float yaw; }; std::vector<Mark> marks;   // exit chalk on the walls (for the day)
+    float dayLen() const { return mode == 4 ? 3600.0f : D().dayReal; }           // (Expedition: one long hour)              // a guest's copy: levels are generated for drawing, but no loot is rolled (the host's comes in the snapshot)
     // setup and the clock
     void Init(int humans, int bots, int mode, uint32_t seed);
     void Step();

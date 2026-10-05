@@ -209,7 +209,7 @@ LevelGfx& Gfx(const Level& L) {
 }
 // the light grid this frame: steady panels, flickering ones, Level 1's lights-out, Overtime, Labs with power
 void UpdateLights(const World& w, const Level& L, LevelGfx& G, float t, float sanity, const Player* me) {
-    bool out = w.overtime || (L.id == 1 && w.lightsOutT > 0);
+    bool out = w.overtime || (L.id == 1 && w.lightsOutT > 0) || w.mode == 3;
     for (int i = 0; i < L.w * L.h; i++) {
         uint8_t l = L.light[i]; float b = 0;
         if (l == 255) b = 1; else if (l >= 128) { float ph = (l - 128) * 0.37f; b = (sinf(t * (3 + (l % 7)) + ph) > -0.6f && Nz(i, (int)(t * 8), 3) > 0.08f) ? 0.9f : 0.15f; } else if (l > 0) b = l / 255.0f;
@@ -353,7 +353,22 @@ void DrawCrewMember(const World& w, const Player& p, float t, bool asFaceling) {
     if (p.suitCos >= 0) { const std::string& id = D().cosmetics[p.suitCos].id; k.body = id == "suit_navy" ? Color{30, 40, 80, 255} : id == "suit_olive" ? Color{80, 90, 50, 255} : id == "wallpaper_suit" ? Color{200, 180, 90, 255} : id == "director_coat" ? Color{20, 20, 24, 255} : id == "suit_hivis" ? Color{250, 200, 30, 255} : k.body; }
     if (asFaceling) { k = LookOf("faceling"); }
     Vector3 at = p.p; if (p.st == PS_DOWNED) { Box(Vector3Add(at, {0, 0.25f, 0}), {0.5f, 0.3f, 1.6f}, k.body, p.yaw); Box(Vector3Add(at, {0, 0.25f, 0.9f}), {0.35f, 0.3f, 0.3f}, k.head, p.yaw); return; }
+    if (!asFaceling && p.hat >= 0) { const std::string& id = D().cosmetics[p.hat].id; k.hatC = id == "st_smiley" ? Color{250, 220, 40, 255} : id == "st_bureau" ? Color{60, 80, 160, 255} : id == "st_hazard" ? Color{250, 140, 20, 255} : id == "st_stars" ? Color{200, 200, 230, 255} : id == "pipe_hat" ? Color{120, 124, 130, 255} : id == "scarecrow_hat" ? Color{120, 90, 50, 255} : id == "exit_hat" ? Color{40, 200, 80, 255} : k.hatC; }
     Figure(at, p.yaw, k, Vector2Length({p.vel.x, p.vel.z}) > 0.3f ? t * 8 + p.id : 0);
+    if (!asFaceling) {   // toppers and costumes over the figure
+        Matrix f = Frame(at, p.yaw); float H = k.height, hy = H * 0.86f;
+        auto cid = [&](int i) { return i >= 0 && i < (int)D().cosmetics.size() ? D().cosmetics[i].id : std::string(); };
+        std::string h = cid(p.hat), c = cid(p.costume);
+        if (h == "party_hat") BallM(f, {0, hy + H * 0.22f, 0}, {0.12f, 0.22f, 0.12f}, {240, 60, 160, 255});
+        if (h == "faceling_mask") BallM(f, {0, hy, 0.13f}, {0.2f, 0.24f, 0.06f}, {235, 230, 225, 255});
+        if (h == "smiler_grin") BoxM(f, {0, hy - 0.04f, 0.16f}, {0.2f, 0.04f, 0.02f}, {255, 255, 255, 255}, 2.0f);
+        if (h == "lava_lamp") BallM(f, {0, hy + H * 0.2f, 0}, {0.09f, 0.18f + 0.03f * sinf(t * 2), 0.09f}, {255, 90, 40, 255}, 2.5f);
+        if (h == "exit_hat") BoxM(f, {0, hy + H * 0.19f, 0.16f}, {0.2f, 0.07f, 0.02f}, {40, 255, 90, 255}, 3.0f);
+        if (c == "moth_wings") { float fl = 0.25f * sinf(t * 6); BoxM(f, {-0.35f, H * 0.62f, -0.15f}, {0.5f, 0.6f + fl, 0.02f}, {200, 190, 160, 255}); BoxM(f, {0.35f, H * 0.62f, -0.15f}, {0.5f, 0.6f - fl, 0.02f}, {200, 190, 160, 255}); }
+        if (c == "balloon") { BallM(Frame(Vector3Add(at, {0.4f, H + 0.6f + sinf(t * 1.5f + p.id) * 0.08f, 0}), 0), {0, 0, 0}, {0.3f, 0.36f, 0.3f}, {90, 200, 255, 255}); Box({at.x + 0.4f, H * 0.5f + 0.6f, at.z}, {0.01f, H, 0.01f}, WHITE); }
+        if (c == "hound_costume") { BoxM(f, {-0.1f, hy + 0.12f, 0}, {0.06f, 0.16f, 0.1f}, {60, 50, 40, 255}); BoxM(f, {0.1f, hy + 0.12f, 0}, {0.06f, 0.16f, 0.1f}, {60, 50, 40, 255}); BoxM(f, {0, H * 0.45f, -0.3f}, {0.06f, 0.06f, 0.35f}, {60, 50, 40, 255}); }
+        if (c == "almond_costume") BallM(f, {0, H * 0.55f, 0}, {0.42f, 0.6f, 0.38f}, {220, 200, 160, 255});
+    }
     if (p.hands.def >= 0) DrawLoot(p.hands, Vector3Add(at, {cosf(p.yaw) * 0.5f, 0.9f, sinf(p.yaw) * 0.5f}), t, p.yaw);
     (void)w;
 }
@@ -412,6 +427,7 @@ void Render(const World& w, const View& v) {
     DrawLabFittings(w, L, v.t);
     for (const auto& item : w.items) if (item.level == v.level && Vector3Distance(item.p, v.cam.position) < 45) { if (item.loot.def >= 0) DrawLoot(item.loot, item.p, v.t, (item.loot.uid % 7) * 0.9f); else { const std::string& u = D().items[-1 - item.loot.def].use; Color c = u == "flare" ? Color{255, 60, 40, 255} : u == "glowstick" ? Color{80, 255, 120, 255} : u == "musicbox" ? Color{200, 160, 90, 255} : Color{150, 150, 160, 255}; Box(Vector3Add(item.p, {0, 0.1f, 0}), {0.12f, 0.12f, 0.3f}, c, 0, u == "flare" || u == "glowstick" ? 3.0f : 0); } }
     for (const auto& e : w.ents) if (e.level == v.level && Vector3Distance(e.p, v.cam.position) < 50) DrawEntity(w, e, v.t, v.me);
+    for (const auto& m : w.marks) if (m.level == v.level && Vector3Distance(m.at, v.cam.position) < 30) { Matrix f = Frame(Vector3Add(m.at, {0, 1.4f, 0}), m.yaw); BoxM(f, {0, 0, 0.05f}, {0.5f, 0.06f, 0.02f}, Color{240, 240, 235, 255}, 0.4f); BoxM(f, {0.2f, 0.08f, 0.05f}, {0.2f, 0.06f, 0.02f}, Color{240, 240, 235, 255}, 0.4f); }
     for (const auto& e : v.fakes) DrawEntity(w, e, v.t, v.me);
     for (const auto& p : w.crew) if (p.level == v.level && p.id != v.me) DrawCrewMember(w, p, v.t, v.teammatesAsFacelings);
     // the transparent last: glass, water

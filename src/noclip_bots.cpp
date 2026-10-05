@@ -50,9 +50,22 @@ void BotInput(World& w, int me, Input& in, std::vector<Command>& cmds, uint32_t&
     int labIdx = Online(w, p.level); LabState* lab = labIdx >= 0 ? &w.labs[labIdx] : nullptr; Level& lv = w.L(p.level);
     // going home: late, or the crew's crate is enough, or the pockets are full
     bool full = p.hands.def >= 0 || (p.pocket[0].def >= 0 && p.pocket[1].def >= 0);
-    bool late = w.clock > 1260 || (w.CrateTotal() + 50 >= w.quota - w.credit && w.clock > 900 && w.day == D().daysPerWeek);
-    if (!lab) {   // no Lab here: back the way we came (the nearest exit; a noclip if it comes to it)
-        float bd = 1e9f; Vector3 tgt = p.p; for (const auto& e : lv.exits) { float d = Vector3Distance(lv.Center(e.cx, e.cz), p.p); if (d < bd) { bd = d; tgt = lv.Center(e.cx, e.cz); } }
+    bool late = w.mode == 1 || w.clock > 1260 || (w.CrateTotal() + 50 >= w.quota - w.credit && w.clock > 900 && w.day == D().daysPerWeek);
+    p.botLevelT += STEP;
+    if (!lab) {
+        // a dormant Lab here and fuel in hand: restart it (Lost mode's way out, and a new home for the crew)
+        if (tool("fuel") >= 0) for (int i = 0; i < (int)w.labs.size(); i++) { const LabState& l = w.labs[i]; if (l.level != p.level || l.online || l.idx >= (int)lv.labs.size()) continue;
+            const LabPlan& dp = lv.labs[l.idx];
+            if (!l.doorOpen) { Vector3 b = lv.Center(dp.breakerX, dp.breakerZ); if (Vector3Distance(b, p.p) < 1.5f) o.use = true; else Follow(w, p, o, b, true); in = o; return; }   // the breaker first
+            for (const auto& sp : dp.spots) if (sp.part == LP_GEN) { if (Vector2Distance({sp.at.x, sp.at.z}, {p.p.x, p.p.z}) < 1.4f) { o.use = true; o.yaw = atan2f(sp.at.z - p.p.z, sp.at.x - p.p.x); } else Follow(w, p, o, sp.at, true); in = o; return; } }
+        // Lost: stay with whoever carries the fuel
+        if (w.mode == 1) { for (const auto& q : w.crew) if (q.id != me && q.level == p.level && q.Alive()) { bool has = false; for (int k = 0; k < q.toolSlots; k++) if (q.tools[k].item == ItemIndex("fuel")) has = true; if (has) { if (Vector3Distance(q.p, p.p) > 2.5f) Follow(w, p, o, q.p, true); in = o; return; } } }
+        // otherwise back the way we came (the door to where we came from, else the nearest exit; a noclip if it comes to it)
+        float bd = 1e9f; Vector3 tgt = p.p; for (const auto& e : lv.exits) { float d = Vector3Distance(lv.Center(e.cx, e.cz), p.p); if (p.botFrom >= 0 && e.to == p.botFrom && !e.noclip) d -= 500; if (d < bd) { bd = d; tgt = lv.Center(e.cx, e.cz); } } if (bd < -400) bd += 500;
+        // ...unless we came here to scout: loot what's near first, for a while
+        if (p.botFrom >= 0 && p.botLevelT < 150 && !(p.hands.def >= 0 || (p.pocket[0].def >= 0 && p.pocket[1].def >= 0)) && w.clock < 1100) {
+            for (const auto& it : w.items) if (it.level == p.level && it.loot.def >= 0 && D().loot[it.loot.def].size != "h" && Vector3Distance(it.p, p.p) < 30) { if (Vector3Distance(it.p, p.p) < 1.4f) { o.use = true; o.yaw = atan2f(it.p.z - p.p.z, it.p.x - p.p.x); } else Follow(w, p, o, it.p, false); in = o; return; }
+        }
         if (!Follow(w, p, o, tgt, true) || bd < 1.2f) { o.use = true; o.sprint = true; o.moveX = 1; }
         in = o; return;
     }
@@ -84,6 +97,11 @@ void BotInput(World& w, int me, Input& in, std::vector<Command>& cmds, uint32_t&
         in = o; return;
     }
     p.botGoal = -1;
+    // nothing near and the day is young: one bot in three goes deeper through a real door, remembering the way back
+    if (me % 3 == 1 && w.clock < 800 && p.botLevelT > 120) {
+        const Exit* best = nullptr; for (const auto& e : lv.exits) if (!e.noclip && e.to > p.level && (!best || e.to < best->to)) best = &e;
+        if (best) { Vector3 at = lv.Center(best->cx, best->cz); int from = p.level; if (Vector3Distance(at, p.p) < 1.2f) { o.use = true; o.moveX = 1; p.botFrom = from; p.botLevelT = 0; } else Follow(w, p, o, at, false); in = o; return; }
+    }
     // nothing near: wander outward toward the unseen
     if (Vector3Distance(p.botTarget, p.p) < 2 || p.botThink <= 0) { for (int t = 0; t < 30; t++) { int x = (int)(R() * lv.w), z = (int)(R() * lv.h); if (lv.Walkable(x, z) && lv.At(x, z) != T_PIT && lv.At(x, z) != T_DEEP) { p.botTarget = lv.Center(x, z); break; } } }
     Follow(w, p, o, p.botTarget, false);
@@ -193,6 +211,30 @@ int RunNoclipTest() {
         World w; w.Init(0, 3, 0, 31); uint32_t r = 5; int steps = 0; int day0 = w.day;
         while (w.day == day0 && steps < 60 * 30 * 40) { for (auto& p : w.crew) BotInput(w, p.id, p.in, p.cmds, r); w.Step(); steps++; }
         Check(w.day > day0 && !w.bay.empty(), "a bot crew of three works a day and extracts with loot", Fm("bay %.0f items, %.1f min", w.bay.size(), steps * STEP / 60));
+    }
+    // the modes
+    {   // Lost: a bot crew finds the breaker, restarts Lab Alpha, and gets out
+        World w; w.Init(0, 2, 1, 37); uint32_t r = 9; int steps = 0;
+        while (!w.failed && steps < 30 * 60 * 12) { for (auto& p : w.crew) BotInput(w, p.id, p.in, p.cmds, r); w.Step(); steps++; }
+        Check(w.failed && w.won, "Lost: the bots work the breaker, restart Lab Alpha with the one canister and escape", Fm("%.1f min", steps * STEP / 60));
+    }
+    {   // Expedition: one day, then a score
+        World w; w.Init(0, 3, 4, 41); uint32_t r = 11; int steps = 0;
+        while (!w.failed && steps < 30 * 60 * 70) { for (auto& p : w.crew) BotInput(w, p.id, p.in, p.cmds, r); w.Step(); steps++; }
+        Check(w.failed && w.won && w.score > 0, "Expedition: one long day, scored on the haul", Fm("score %.0f in %.1f min", w.score, steps * STEP / 60));
+    }
+    {   // Roulette: a door is a noclip to a random level
+        World w; w.Init(1, 0, 2, 43); w.crew[0].cmds.push_back(Command{C_START_DAY}); w.Step(); Player& p = w.crew[0]; int n0 = p.noclipCount;
+        w.Transit(p, 1, false, "door"); Check(p.noclipCount == n0 + 1 && p.level >= 0 && p.level <= 9, "Noclip Roulette: every exit noclips to a random level (0-9)", Fm("level %.0f", p.level));
+    }
+    {   // Skin-Stealer: with three players one is the impostor, and it can't be hurt
+        World w; w.Init(3, 0, 6, 47); int imp = -1; for (auto& p : w.crew) if (p.impostor) imp = p.id;
+        bool ok = imp >= 0; if (ok) { w.crew[0].cmds.push_back(Command{C_START_DAY}); w.Step(); Player& q = w.crew[imp]; float h = q.health; w.Hurt(q, 50, "test"); ok = q.health == h; }
+        Check(ok, "Skin-Stealer: one of three players is the impostor and can't be hurt", Fm("impostor %.0f", imp));
+    }
+    {   // the Siren: an upgraded Lab's Siren wails for a while
+        World w; w.Init(1, 0, 0, 53); w.labs[0].upgrades |= 1 << 6; w.crew[0].cmds.push_back(Command{C_START_DAY}); w.Step();
+        w.crew[0].cmds.push_back(Command{C_SIREN}); w.Step(); Check(w.labs[0].sirenT > 0, "the Siren upgrade sounds from the desk", Fm("%.0f s", w.labs[0].sirenT));
     }
     std::printf(gFails ? "NOCLIP: %d check(s) FAILED\n" : "NOCLIP: all checks passed\n", gFails);
     return gFails ? 1 : 0;

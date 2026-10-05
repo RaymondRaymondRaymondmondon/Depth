@@ -18,7 +18,7 @@ static bool Looking(const World& w, const Player& p, const Entity& e, float cone
 static bool Lone(const World& w, const Player& p) { for (const auto& o : w.crew) if (o.id != p.id && o.level == p.level && o.Alive() && Vector3Distance(o.p, p.p) < 15) return false; return true; }
 
 void World::SpawnEntities(float dt) {
-    float gameRate = (D().dayEnd - D().dayStart) / D().dayReal;
+    float gameRate = (D().dayEnd - D().dayStart) / dayLen();
     std::vector<int> occupied; for (const auto& p : crew) if (p.Alive() && std::find(occupied.begin(), occupied.end(), p.level) == occupied.end()) occupied.push_back(p.level);
     for (int lvId : occupied) {
         const LevelDef& def = D().levels[lvId]; Level& lv = L(lvId);
@@ -73,12 +73,15 @@ void World::StepEntity(Entity& e) {
         Vector3 np = Vector3Add(e.p, step); int cx = lv.CellX(np.x), cz = lv.CellZ(np.z);
         if (lv.Solid(cx, cz)) return;
         if (b == "light" && LightAt(e.level, np) > 0.75f && lv.light[cz * lv.w + cx] > 0) return;
+        if (b == "light") { LabState* lab = LabAt(e.level, np); if (lab && ((lab->upgrades >> 0) & 1)) return; }   // (floodlights: no Smilers inside)
         // a Lab's locked or shut blast door holds it (reinforced: twice as long)
         if (lv.At(cx, cz) == T_BLAST) { for (int k = 0; k < (int)lv.labs.size(); k++) if (lv.labs[k].doorX == cx && lv.labs[k].doorZ == cz) { LabState* lab = Lab(e.level, k); if (lab && (!lab->doorOpen || lab->locked)) return; } }
         e.yaw = atan2f(d.z, d.x); e.p = np; e.v = Vector3Scale(step, 1 / dt);
     };
     auto wander = [&](float speed) { if (Vector3Distance(e.goal, e.p) < 1 || e.t > 20) { e.t = 0; for (int t = 0; t < 20; t++) { int x = lv.CellX(e.p.x) + RandI(17) - 8, z = lv.CellZ(e.p.z) + RandI(17) - 8; if (lv.Walkable(x, z) && lv.At(x, z) != T_PIT && lv.At(x, z) != T_LABFLOOR) { e.goal = lv.Center(x, z); break; } } e.path.clear(); } moveTo(e.goal, speed); };
     auto attack = [&](Player& p, float dmg, int injury, const char* cause) { if (e.cool > 0) return; e.cool = 1.6f; Hurt(p, dmg, cause, injury); };
+    // the Siren: everything on the level comes to the Lab
+    for (const auto& l : labs) if (l.level == e.level && l.sirenT > 0 && b != "seer" && b != "leviathan") { const LabPlan& lp = lv.labs[l.idx]; moveTo(lv.Center(lp.doorX, lp.doorZ), ed.chase); return; }
     Player* P = tgt >= 0 ? &crew[tgt] : nullptr;
     if (!P) { if (b != "seer" && b != "leviathan") wander(ed.walk); return; }
     // seeing an entity costs a little sanity (once a minute per entity)

@@ -42,8 +42,13 @@ const Color INK{235, 232, 220, 255}, DIM{170, 166, 150, 255}, WARN{255, 160, 110
 void Say(const std::string& s, Color c = INK) { S.subs.push_back({s, S.t, c}); while (S.subs.size() > 6) S.subs.pop_front(); }
 
 // the profile: arcade tokens (10 a day survived, 50 a quota, 25 a new entity photographed)
-void LoadTokens() { if (S.profLoaded) return; S.profLoaded = true; std::ifstream f("noclip_profile.txt"); std::string k; while (f >> k) if (k == "tokens") f >> S.tokens; }
-void SaveTokens() { std::ofstream f("noclip_profile.txt"); f << "tokens " << S.tokens << "\n"; }
+struct NcProfile { int career = 0; std::vector<std::string> owned; std::string eq[5]; } gNcProf;
+void LoadTokens() { if (S.profLoaded) return; S.profLoaded = true; std::ifstream f("noclip_profile.txt"); std::string k; while (f >> k) { if (k == "tokens") f >> S.tokens; else if (k == "career") f >> gNcProf.career; else if (k == "own") { std::string s; f >> s; gNcProf.owned.push_back(s); } else if (k == "eq") { int slot; std::string s; f >> slot >> s; if (slot >= 0 && slot < 5) gNcProf.eq[slot] = s; } } }
+void SaveTokens() { std::ofstream f("noclip_profile.txt"); f << "tokens " << S.tokens << "\ncareer " << gNcProf.career << "\n"; for (auto& s : gNcProf.owned) f << "own " << s << "\n"; for (int k = 0; k < 5; k++) if (!gNcProf.eq[k].empty()) f << "eq " << k << " " << gNcProf.eq[k] << "\n"; }
+int CosIdx(const std::string& id) { for (int i = 0; i < (int)D().cosmetics.size(); i++) if (D().cosmetics[i].id == id) return i; return -1; }
+int SlotOf(const std::string& kind) { return kind == "hat" ? 0 : kind == "vest" ? 1 : kind == "lamp" ? 2 : kind == "suit" ? 3 : 4; }
+std::string RankName() { std::string r = "Intern"; for (const auto& x : D().ranks) if (gNcProf.career >= x.second) r = x.first; return r; }
+int RankIdx() { int r = 0; for (int i = 0; i < (int)D().ranks.size(); i++) if (gNcProf.career >= D().ranks[i].second) r = i; return r; }
 
 // ---------------------------------------------------------------- events: subtitles for the tells, the feed, sound
 void ReadEvents() {
@@ -75,6 +80,8 @@ void ReadEvents() {
             case E_TRADE: if (mine) Say(e.a > 0 ? "You paid for drinks." : "The Faceling takes it, and leaves you almond water.", OK); break;
             case E_CRATE: if (mine && !S.shot) NoclipCue(NCC_CLICK, 0.6f, 0); break;
             case E_PICKUP: if (mine && !S.shot) NoclipCue(NCC_PICKUP, 0.6f, 0); break;
+            case E_STAY: if (mine) Say("Stay? It's lovely here. (Y to stay. You won't be back until morning.)", Color{255, 230, 200, 255}); break;
+            case E_SALE: if (e.by == 0 || e.by == 2) { gNcProf.career += (int)e.a; SaveTokens(); } break;
             case E_SHUTDOWN: Say("The Bureau has stopped maintaining your portals.", WARN); break;
             case E_QUOTA: Say("Quota met. Next week's: " + std::to_string((int)e.a), OK); S.tokens += D().tokQuota; SaveTokens(); break;
             default: break;
@@ -87,7 +94,8 @@ void ReadEvents() {
 void Hallucinate(float dt) {
     const Player& p = Me(); if (p.st != PS_ALIVE) { S.fakes.clear(); return; }
     S.fakeT -= dt;
-    if (p.sanity < 50 && S.fakeT <= 0 && S.fakes.size() < 2) {
+    float hal = W().mode == 5 ? 15.0f : 0.0f;
+    if (p.sanity < 50 + hal && S.fakeT <= 0 && S.fakes.size() < 2) {
         S.fakeT = 8 + (rand() % 100) / 10.0f;
         Entity f; f.hallucination = true; f.def = EntityIndex(p.sanity < 30 && rand() % 2 ? "hound" : "faceling"); if (f.def < 0) f.def = 0; f.level = p.level;
         float a = p.yaw + ((rand() % 200) / 100.0f - 1) * 1.2f; f.p = Vector3Add(p.p, {cosf(a) * 9, 0, sinf(a) * 9}); f.uid = 900000 + rand() % 1000; f.st = ES_CHASE;
@@ -124,6 +132,7 @@ void Gather() {
             else { bool traded = false; for (const auto& e : w.ents) { const std::string& id = D().entities[e.def].id; if (e.level == p.level && Vector3Distance(e.p, p.p) < 2.6f && ((id == "faceling" && e.mimicOf == -2) || id == "innkeeper")) { Send(Command{C_TRADE}); traded = true; break; } } if (!traded) in.use = true; }
         }
         if (IsKeyPressed(KEY_Y)) Send(Command{C_ACCEPT});
+        if (p.impostor && IsKeyPressed(KEY_R)) Send(Command{C_GRAB});
         if (IsKeyPressed(KEY_M)) S.map = true;
         if (IsKeyPressed(KEY_F1)) S.help = !S.help;
     } else {
@@ -156,6 +165,8 @@ void PanelDesk() {
     y += 52;
     Txt("Jump to another online Lab (10 s; one an hour each):", r.x + 20, y, 15, INK); y += 24;
     for (int i = 0; i < (int)w.labs.size(); i++) { const LabState& l = w.labs[i]; if (!l.online || &l == lab) continue; if (Row({r.x + 20, y, 640, 26}, LabName(l) + (l.fuel > 0 ? "" : " (no fuel)"), p.jumpCool > 0 ? TextFormat("in %d min", (int)p.jumpCool) : "jump", l.fuel > 0 && p.jumpCool <= 0 && !w.overtime && can)) { Command c; c.kind = C_JUMP; c.a = i; Send(c); S.panel = -1; } y += 30; }
+    if ((lab->upgrades >> 6) & 1) { if (Button({r.x + 460, r.y + 118, 200, 36}, lab->sirenT > 0 ? "The Siren is wailing" : "Sound the Siren", lab->sirenT <= 0 && can, 14)) Send(Command{C_SIREN}); }
+    if ((lab->upgrades >> 5) & 1) { y += 10; Txt(lab->cargoCool > 0 ? "Cargo link: cooling down" : "Cargo link: send this crate to", r.x + 20, y, 14, INK); y += 22; if (lab->cargoCool <= 0) for (int i = 0; i < (int)w.labs.size(); i++) { const LabState& l = w.labs[i]; if (!l.online || &l == lab) continue; if (Row({r.x + 20, y, 640, 24}, LabName(l), "send", can)) { Command c; c.kind = C_CARGO; c.a = i; Send(c); } y += 28; } }
     if (lab->jumpFor == S.me) DrawTextCentered(TextFormat("jumping in %.0f s: stay in the hall", lab->jumpT), r.x + r.width / 2, y + 6, 16, OK);
 }
 void PanelShop() {
@@ -228,6 +239,17 @@ void DrawHud(Game& g) {
         for (const auto& e : w.ents) { const std::string& id = D().entities[e.def].id; if (e.level == p.level && Vector3Distance(e.p, p.p) < 2.6f && ((id == "faceling" && e.mimicOf == -2) || id == "innkeeper")) prompt = id == "faceling" ? "E: trade (a pocket thing for almond water)" : "E: pay for drinks ($20)"; }
         if (!prompt.empty() && S.panel < 0 && !S.map) DrawTextCentered(prompt, cx, cy + 34, 16, INK);
     }
+    {   // the scanner, if you carry one
+        bool scanner = false; for (int k = 0; k < p.toolSlots; k++) if (p.tools[k].item == ItemIndex("scanner")) scanner = true;
+        if (scanner) {
+            Vector2 sc{SCREEN_W - 100.0f, SCREEN_H - 190.0f}; DrawCircleV(sc, 70, Color{10, 30, 14, 210}); DrawCircleLines((int)sc.x, (int)sc.y, 70, Color{60, 200, 90, 255}); DrawCircleLines((int)sc.x, (int)sc.y, 35, Color{40, 120, 60, 255});
+            auto blip = [&](Vector3 at) { Vector3 d = Vector3Subtract(at, p.p); float a = atan2f(d.z, d.x) - p.yaw - PI / 2, L = Vector2Length({d.x, d.z}); if (L > 20) return; DrawCircleV({sc.x + cosf(a) * L * 3.4f, sc.y + sinf(a) * L * 3.4f}, 3, Color{120, 255, 140, (unsigned char)(160 + 90 * sinf(S.t * 6))}); };
+            for (const auto& e : w.ents) { const std::string& id = D().entities[e.def].id; if (e.level == p.level && id != "skinstealer" && id != "crew" && id != "mirrorthing" && id != "seer") blip(e.p); }
+            for (const auto& q : w.crew) if (q.id != S.me && q.level == p.level && q.Alive() && !q.impostor) blip(q.p);
+            Txt("SCANNER", sc.x - 26, sc.y + 74, 11, Color{60, 200, 90, 255});
+        }
+    }
+    if (p.impostor) DrawTextCentered(p.takenOnLevel == p.level ? "You are the Skin-Stealer. You've fed on this level." : "You are the Skin-Stealer. R takes a teammate within reach (one per level). You can't die.", cx, 64, 15, Color{255, 120, 120, 255});
     if (p.lostT > 0) DrawTextCenteredBold("LOST", cx, cy - 80, 30, WARN);
     if (p.blackoutT > 0) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{0, 0, 0, (unsigned char)(255 * std::min(1.0f, p.blackoutT))});
     if (S.help && S.panel < 0 && !S.map) {
@@ -248,7 +270,15 @@ void DrawSurface(Game& g) {
     static const char* TABS[6] = {"Whiteboard", "Loading bay", "Shop", "Lab upgrades", "Dossier", "Insertion"};
     for (int k = 0; k < 6; k++) if (Button({r.x + 10 + k * 148.0f, r.y + 8, 140, 30}, TABS[k], true, 14)) S.surfTab = k;
     float y = r.y + 56;
-    Txt(TextFormat("Quota %d   Credit %d   Cash $%d   Days left this week: %d", w.quota, w.credit, w.cash, std::max(0, D().daysPerWeek - w.day + 1)), r.x + 20, y, 18, w.credit >= w.quota ? OK : INK); y += 30;
+    Txt(TextFormat("Quota %d   Credit %d   Cash $%d   Days left this week: %d", w.quota, w.credit, w.cash, std::max(0, D().daysPerWeek - w.day + 1)), r.x + 20, y, 18, w.credit >= w.quota ? OK : INK);
+    Txt(TextFormat("%s (%d career credit)", RankName().c_str(), gNcProf.career), r.x + r.width - 20 - MeasureTxt(TextFormat("%s (%d career credit)", RankName().c_str(), gNcProf.career), 14), y + 3, 14, DIM); y += 30;
+    if (w.failed && w.mode != 0) {
+        const char* head = w.mode == 1 ? (w.won ? "You found the way out." : "Nobody found the way out.") : w.mode == 4 ? "Expedition over" : w.mode == 6 ? (w.won ? "The crew got out and left it behind." : "The thing wearing a friend wins.") : "The Bureau has stopped maintaining your portals.";
+        DrawTextCenteredBold(head, cx, y + 60, 24, w.won ? OK : WARN);
+        if (w.mode == 4) DrawTextCentered(TextFormat("Score: %d (credit plus everything in the bay)", w.score), cx, y + 100, 18, INK);
+        if (Button({cx - 100, y + 150, 200, 40}, "Back to the arcade", true, 16)) { LeaveNoclip(g); }
+        return;
+    }
     if (w.failed) { DrawTextCenteredBold("MEMO: The Bureau has stopped maintaining your portals.", cx, y + 60, 22, WARN); DrawTextCentered(TextFormat("Weeks survived: %d.  Entities documented: %d.  It was nice knowing you.", w.weeksSurvived, [&] { int n = 0; for (int k = 0; k < 32; k++) n += (w.dossier >> k) & 1; return n; }()), cx, y + 96, 16, INK); if (Button({cx - 100, y + 140, 200, 40}, "Back to the arcade", true, 16)) { LeaveNoclip(g); } return; }
     switch (S.surfTab) {
         case 0: {   // the whiteboard
@@ -336,6 +366,8 @@ void StartNoclip(Game& g, int bots, int mode) {
     S = NcScene{}; S.active = true; S.bots = std::clamp(bots, 0, MAX_CREW - 1); LoadTokens();
     S.Wm.Init(1, S.bots, mode, (uint32_t)GetRandomValue(1, 1 << 30));
     S.Wm.crew[0].name = "You";
+    { Player& me = S.Wm.crew[0]; int rk = RankIdx(); const char* gear[4] = {nullptr, "flashlight", "radio", "scanner"}; for (int k = 1; k <= std::min(rk, 3); k++) { int it = ItemIndex(gear[k]); for (int s = 0; s < me.toolSlots && it >= 0; s++) if (me.tools[s].item < 0) { me.tools[s] = {it, 1, 0}; break; } }
+      for (int s = 0; s < 5; s++) if (!gNcProf.eq[s].empty()) { int ci = CosIdx(gNcProf.eq[s]); if (s == 0) me.hat = ci; else if (s == 1) me.vest = ci; else if (s == 2) me.lamp_c = ci; else if (s == 3) me.suitCos = ci; else me.costume = ci; } }
     S.botRng.resize(S.Wm.crew.size()); for (size_t i = 0; i < S.botRng.size(); i++) S.botRng[i] = 4242u * (uint32_t)(i + 1) + (uint32_t)GetRandomValue(0, 1 << 20);
     S.camYaw = 0; S.camPitch = 0; S.lastDay = S.Wm.day;
     g.scene = Scene::Noclip;
@@ -360,7 +392,7 @@ void SceneNoclip(Game& g) {
         if (N.role == arcade::R_HOST) { S.hostW = NoclipHostWorld(N.HostGame()); S.me = NoclipSeatPlayer(N.HostGame(), seat); }
         else if (N.stateVersion != S.seenVersion && !N.Snapshot().empty()) { S.seenVersion = N.stateVersion; Reader r(N.Snapshot()); ReadWorld(r, S.Wm, &S.evSeen); S.me = seat; }
         if (W().crew.empty() || S.me < 0 || S.me >= (int)W().crew.size()) { ClearBackground(BLACK); DrawTextCenteredBold("Connecting to the Bureau...", SCREEN_W / 2.0f, SCREEN_H / 2.0f, 22, INK); return; }
-        if (!S.helloSent) { Writer o; o.U8(2); Command c; c.kind = C_NAME; c.s = S.netName; WriteCommand(c, o); N.Act(o); S.helloSent = true; }
+        if (!S.helloSent) { Writer o; o.U8(2); Command c; c.kind = C_NAME; c.s = S.netName; WriteCommand(c, o); N.Act(o); for (int s = 0; s < 5; s++) if (!gNcProf.eq[s].empty()) { Writer x; x.U8(2); Command cc; cc.kind = C_COSMETIC; cc.a = s; cc.b = CosIdx(gNcProf.eq[s]); WriteCommand(cc, x); N.Act(x); } S.helloSent = true; }
         Gather();
         Writer iw; iw.U8(0); WriteInput(Me().in, iw); N.Act(iw);
         for (auto& c : S.outbox) { Writer o; o.U8(2); WriteCommand(c, o); N.Act(o); } S.outbox.clear();
@@ -396,6 +428,30 @@ void SceneNoclip(Game& g) {
     v.fakes = S.fakes; v.teammatesAsFacelings = p.sanity < 30 && fmodf(S.t, 20) < 6;
     ncr::Render(w, v);
     DrawHud(g);
+}
+static std::string gNcCrate; static float gNcCrateT = 0;
+bool NoclipLockerPage(Game& g) {
+    (void)g; LoadTokens(); const Data& d = D(); ClearBackground(Color{14, 14, 12, 255});
+    DrawTextCenteredBold("The Bureau locker", SCREEN_W / 2.0f, 22, 30, Color{240, 210, 150, 255});
+    DrawTextCentered(TextFormat("%d arcade tokens   -   %s   -   10 a day survived, 50 a quota met, 25 a new entity photographed", S.tokens, RankName().c_str()), SCREEN_W / 2.0f, 60, 15, DIM);
+    static const Color TIER[4] = {{200, 200, 200, 255}, {110, 200, 255, 255}, {220, 140, 255, 255}, {255, 200, 80, 255}};
+    for (int i = 0; i < (int)d.cosmetics.size(); i++) {
+        const CosDef& it = d.cosmetics[i]; float x = 24 + (i / 14) * 412.0f, y = 92 + (i % 14) * 36.0f; int slot = SlotOf(it.kind);
+        bool own = std::find(gNcProf.owned.begin(), gNcProf.owned.end(), it.id) != gNcProf.owned.end(), on = gNcProf.eq[slot] == it.id;
+        DrawRectangle((int)x, (int)y, 400, 32, on ? Color{70, 60, 30, 230} : Color{34, 32, 28, 220}); DrawRectangle((int)x, (int)y, 5, 32, TIER[std::clamp(it.tier, 0, 3)]);
+        Txt(it.name, x + 12, y + 8, 15, own ? INK : DIM);
+        int price = d.cosPrice[std::clamp(it.tier, 0, 3)];
+        std::string right = on ? "worn" : own ? "wear it" : it.tier >= 3 ? "crate only" : TextFormat("%d tokens", price);
+        if (Button({x + 294, y + 3, 100, 26}, right.c_str(), !on && (own || (it.tier < 3 && S.tokens >= price)), 12)) { if (!own) { S.tokens -= price; gNcProf.owned.push_back(it.id); } gNcProf.eq[slot] = it.id; SaveTokens(); }
+    }
+    if (Button({SCREEN_W - 270.0f, SCREEN_H - 120.0f, 240, 44}, TextFormat("Open a crate (%d token%s)", d.cratePrice, d.cratePrice == 1 ? "" : "s"), S.tokens >= d.cratePrice, 15)) {
+        S.tokens -= d.cratePrice; int tot = 0; for (int k = 0; k < 4; k++) tot += d.crateW[k]; int roll = GetRandomValue(0, tot - 1), tier = 0; for (; tier < 3; tier++) { roll -= d.crateW[tier]; if (roll < 0) break; }
+        std::vector<int> pool; for (int i = 0; i < (int)d.cosmetics.size(); i++) if (d.cosmetics[i].tier == tier) pool.push_back(i);
+        if (!pool.empty()) { const CosDef& it = d.cosmetics[pool[GetRandomValue(0, (int)pool.size() - 1)]]; bool dup = std::find(gNcProf.owned.begin(), gNcProf.owned.end(), it.id) != gNcProf.owned.end(); if (!dup) gNcProf.owned.push_back(it.id); gNcCrate = it.name + (dup ? " (a duplicate)" : ""); gNcCrateT = 3; }
+        SaveTokens(); PlayCue("arc.deal");
+    }
+    if (gNcCrateT > 0) { gNcCrateT -= GetFrameTime(); DrawTextCenteredBold("From the crate: " + gNcCrate, SCREEN_W / 2.0f, SCREEN_H - 70.0f, 20, Color{255, 220, 120, 255}); }
+    return Button({24, SCREEN_H - 60.0f, 160, 40}, "Back", true, 16) || IsKeyPressed(KEY_ESCAPE);
 }
 void NoclipMenuTick(float dt) { if (S.active && S.net) { Writer w; w.U8(0); Input in; WriteInput(in, w); S.net->Act(w); S.net->Update(GetTime(), dt); } }
 int NoclipTokens() { LoadTokens(); return S.tokens; }

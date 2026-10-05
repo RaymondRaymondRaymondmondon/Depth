@@ -23,14 +23,16 @@ template <class IO> void VPlayer(IO& io, Player& p) {
     io.f(p.health); io.f(p.sanity); io.f(p.stamina); io.u8(p.injuries); io.f(p.downT); io.f(p.stunT);
     for (auto& t : p.tools) { io.i(t.item); io.i(t.charges); io.f(t.fuel); } io.i(p.toolSlots); io.i(p.sel); VLoot(io, p.pocket[0]); VLoot(io, p.pocket[1]); VLoot(io, p.hands); io.i(p.carryWith);
     io.b(p.lamp); io.f(p.battery); io.f(p.lampFlicker); io.f(p.lostT); io.f(p.blackoutT); io.f(p.jumpCool); io.f(p.swimT); io.f(p.tankAir); io.b(p.crouched);
+    io.f(p.stayT); io.f(p.stayPromptT); io.b(p.impostor); io.i(p.takenOnLevel);
     io.u32(p.suits); io.i(p.hat); io.i(p.vest); io.i(p.lamp_c); io.i(p.costume); io.i(p.suitCos); io.i(p.deaths); io.s(p.lastCause); io.i(p.broughtValue); io.i(p.photos);
 }
 template <class IO> void VLab(IO& io, LabState& l) {
     io.i(l.level); io.i(l.idx); io.b(l.online); io.b(l.doorOpen); io.b(l.locked); io.f(l.fuel); VVec(io, l.crate, [&](Loot& x) { VLoot(io, x); });
-    io.f(l.charge); io.b(l.charging); io.f(l.openT); io.f(l.cooldown); io.i(l.jumpFor); io.f(l.jumpT); io.i(l.jumpTo); io.u32(l.upgrades);
+    io.f(l.charge); io.b(l.charging); io.f(l.openT); io.f(l.cooldown); io.i(l.jumpFor); io.f(l.jumpT); io.i(l.jumpTo); io.u32(l.upgrades); io.f(l.sirenT); io.f(l.cargoCool);
 }
 template <class IO> void VCampaign(IO& io, World& w) {
-    io.i(w.mode); io.i(w.week); io.i(w.day); io.i(w.quota); io.i(w.credit); io.i(w.cash); io.b(w.failed); io.i(w.weeksSurvived); io.i(w.contract); io.b(w.contractDone);
+    io.i(w.mode); io.i(w.week); io.i(w.day); io.i(w.quota); io.i(w.credit); io.i(w.cash); io.b(w.failed); io.i(w.weeksSurvived); io.i(w.contract); io.b(w.contractDone); io.b(w.won); io.i(w.score); io.i(w.contractLevel); io.i(w.contractTarget);
+    VVec(io, w.marks, [&](World::Mark& m) { io.i(m.level); io.v3(m.at); io.f(m.yaw); });
     VVec(io, w.forecast, [&](int& x) { io.i(x); }); VVec(io, w.fenceRate, [&](int& x) { io.i(x); });
     VVec(io, w.sold, [&](Sale& s) { io.s(s.what); io.i(s.value); io.b(s.fence); io.i(s.level); });
     VVec(io, w.bay, [&](Loot& x) { VLoot(io, x); });

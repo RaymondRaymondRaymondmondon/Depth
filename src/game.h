@@ -911,6 +911,7 @@ int FowlTokens();
 extern int gFowlMode;
 bool FowlLockerPage(Game& g);
 void DebugArcadeFowlLocker(Game& g);
+void DebugArcadeNoclipLocker(Game& g);
 void DebugFowlShot(Game& g, int which);
 void SceneNoclip(Game& g);       // NOCLIP, arcade game 10 (noclip_game.cpp)
 void StartNoclip(Game& g, int bots = 3, int mode = 0);
@@ -918,6 +919,7 @@ void StartNoclipNet(Game& g, arcade::Session* net, const char* name);
 void LeaveNoclip(Game& g);
 void NoclipMenuTick(float dt);
 int NoclipTokens();
+bool NoclipLockerPage(Game& g);
 void DebugNoclipShot(Game& g, int which);
 void SceneNightOff(Game& g);  // A Night Off, arcade game 6: one night ashore at the Sodden Gull (nightoff_game.cpp)
 void StartNightOff(Game& g, int crew = 0, int mode = 0, int crowd = 1, int bar = 0, int season = 0);

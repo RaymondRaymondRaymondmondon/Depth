@@ -20,6 +20,8 @@ static int gWardrobe = -1;
 static bool gMfWardrobe = false; static int gMfMode = 0, gMfPath = 2;   // Mouthful's wardrobe page; the mode (and One Path's path) picked on its reel
 static bool gSfLocker = false;   // (Scuffle's locker page over the arcade)
 static bool gFpLocker = false;   // (Fowl Play's locker)
+static bool gNcLocker = false;   // (NOCLIP's)
+static int gNcMode = 0;
 static bool gFlWardrobe = false; static int gFlGallery = -1;   // the Flight's Roost wardrobe; a costume gallery page (--shots)   // the skins page over the arcade (skins::TRAWL), -1 none
 #include "sound.h"
 #include <algorithm>
@@ -288,7 +290,7 @@ void DrawReels(Game& g) {
             gError.clear();
             if (k == 0) {
                 std::string err;
-                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason) : selGame == G_SCUFFLE ? ScuffleOpts(5, 0, 2) : selGame == G_WARP ? wd::WarpOpts(gWarpArena, 1, gWarpFill) : selGame == G_FOWL ? fp::FowlOpts(gFowlMode, 1, 6) : selGame == G_NOCLIP ? nc::NoclipOpts(0, 0) : ""; }
+                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason) : selGame == G_SCUFFLE ? ScuffleOpts(5, 0, 2) : selGame == G_WARP ? wd::WarpOpts(gWarpArena, 1, gWarpFill) : selGame == G_FOWL ? fp::FowlOpts(gFowlMode, 1, 6) : selGame == G_NOCLIP ? nc::NoclipOpts(0, gNcMode) : ""; }
                 else gError = "Couldn't host: " + err;
             } else if (k == 1) { gMode = MODE_JOIN; gJoinFocus = true; }
             else gMode = MODE_BROWSE;
@@ -413,7 +415,11 @@ void DrawReels(Game& g) {
         DrawTextCenteredBold("<", l.x + 15, l.y, 22, Pal::Brass); DrawTextCenteredBold(">", r.x + 15, r.y, 22, Pal::Brass);
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { ncBots = (ncBots + 5) % 6; PlayCue("ui.click"); }
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { ncBots = (ncBots + 1) % 6; PlayCue("ui.click"); }
-        if (Button({c.x - 110, c.y + 236, 220, 36}, "Clock in (solo)", true, 15)) { StartNoclip(g, ncBots, 0); return; }
+        static const char* MODES[7] = {"The Bureau (campaign)", "Lost", "Noclip Roulette", "Lights Out", "Expedition", "Lonely", "Skin-Stealer (3+ players)"};
+        { Rectangle l2{c.x - 190, c.y + 16, 30, 26}, r2{c.x + 160, c.y + 16, 30, 26}; DrawTextCenteredBold(MODES[gNcMode], c.x, c.y + 18, 19, Color{230, 200, 150, 255}); DrawTextCenteredBold("<", l2.x + 15, l2.y, 22, Pal::Brass); DrawTextCenteredBold(">", r2.x + 15, r2.y, 22, Pal::Brass);
+          if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l2)) { gNcMode = (gNcMode + 6) % 7; PlayCue("ui.click"); } if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r2)) { gNcMode = (gNcMode + 1) % 7; PlayCue("ui.click"); } }
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Clock in (solo)", gNcMode != 6, 15)) { StartNoclip(g, gNcMode == 5 ? 0 : ncBots, gNcMode); return; }
+        if (Button({40, 574, 244, 30}, TextFormat("The locker (%d tokens)", NoclipTokens()), true, 13)) { gNcLocker = true; return; }
         DrawTextCentered(TextFormat("Week one's quota: 600. Arcade tokens from the Bureau: %d", NoclipTokens()), c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (selGame == G_FOWL) {   // solo: your stall and up to five bots; Host for friends
@@ -1252,6 +1258,7 @@ void SceneArcade(Game& g) {
     if (gFlWardrobe) { if (FlightWardrobePage(gFlSel)) gFlWardrobe = false; return; }
     if (gSfLocker) { if (ScuffleLockerPage(g)) gSfLocker = false; return; }
     if (gFpLocker) { if (FowlLockerPage(g)) gFpLocker = false; return; }
+    if (gNcLocker) { if (NoclipLockerPage(g)) gNcLocker = false; return; }
     if (gMfWardrobe) { if (MouthfulWardrobePage()) gMfWardrobe = false; return; }
     if (gNoCloakShot) { gNoCloak = true; gNoCloakShot = false; }
     if (gNoCloak) { if (NightCloakroomPage()) gNoCloak = false; return; }
@@ -1343,6 +1350,7 @@ void DebugArcadeShot(int which) {
     SetAudioSuppressed(false);
 }
 int ArcadeTableGame() { return gMode == MODE_ROOM ? (int)gSess.game : -1; }
+void DebugArcadeNoclipLocker(Game& g) { g.scene = Scene::Arcade; gNcLocker = true; }
 void DebugArcadeFowlLocker(Game& g) { g.scene = Scene::Arcade; gFpLocker = true; }
 void DebugArcadeScuffleLocker(Game& g, int tab) { g.scene = Scene::Arcade; gSfLocker = true; DebugScuffleLocker(tab); }
 void DebugArcadeFlightWardrobe(Game& g, int tab, const char* pick, int galleryPage) {

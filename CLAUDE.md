@@ -576,3 +576,4 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   - `sound_noclip.inl`.
 - **All play is an `nc::Input` or an `nc::Command`.** Any new field a screen draws goes in the Visit in noclip_net.cpp.
 - **Checks:** `--noclip-test`, `--noclip-gen <lvl> <seed>`, `--noclip-sim`, `--noclip-net-test`, `--net-loop noclip [lagMs] [mem]`. Shots: `noclip_*`, `arcade_noclip`.
+- **Second pass:** seven modes (`World::mode`: campaign, Lost, Roulette, Lights Out, Expedition, Lonely, Skin-Stealer), the Siren and cargo link, chalk/rope/grapple/scanner, rank and the Bureau locker (`NoclipLockerPage`, `noclip_profile.txt`), bots that restart Labs and scout deeper. Details and what is still simpler in docs/NOCLIP_PROGRESS.md.

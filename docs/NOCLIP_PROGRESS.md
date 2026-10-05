@@ -68,9 +68,51 @@ Arcade Game 10, on the Deep Arcade's **Action** reel. The user moved it there; t
 - `depth.exe --audio-test`: NOCLIP's six states and 12 cues.
 - Shots: `noclip_lobby`, `noclip_lab`, `noclip_surface`, `noclip_pipes`, `noclip_lightsout`, `noclip_map`, `noclip_desk`, `noclip_hound`, `noclip_insane`, `noclip_suburbs`, `arcade_noclip`.
 
-## Not done yet (the second pass)
-- **Most mood rules beyond the core.** The core covers the hum, heat, live floors, steam, water, the edge, comfort, windows, lockdown and the Orderly. Not yet built: Level 1's crates respawning, Level 2's valves, Level 3's breaker graph, Level 5's key cards and trapped rooms, Level 12 changing behind you, Level 13's mirrors, Level 15's terminals and hacking, Level 17's rolling and flooding, and Level 18's Stay prompt.
-- **Contracts.** Only Restart, Documentation and Night Shift are checked and paid.
-- **Modes.** Lost, Noclip Roulette, Lights Out, Expedition, Lonely and Skin-Stealer social deduction aren't selectable yet.
-- **Lab upgrades.** Only the coil, the fuel tank and the second camera bank have their effects; the rest are bought but do nothing yet.
-- **Gear and cosmetics.** Ropes and grappling, chalk marks, the scanner's display, the Bureau rank, and the cosmetics locker with its crate.
+## The second pass (2026-10-05)
+- **Modes** (`World::Init`, chosen on the arcade panel with `<` `>` and passed through `NoclipOpts(bots, mode)`):
+  - the Bureau (the campaign);
+  - **Lost**: you wake far from any Lab on Level 1-4, with one fuel canister, no tools and one life. Restart a Lab (its breaker, then the generator) and extract to win.
+  - **Noclip Roulette**: every exit noclips to a random level from 0 to 9, and the quota is x0.6.
+  - **Lights Out**: every level follows Level 6's rule.
+  - **Expedition**: one 60-minute day with no commissary, scored on credit plus the bay.
+  - **Lonely**: solo with no bots, and more hallucinations.
+  - **Skin-Stealer** (3+ players): one player is secretly the thing. It can't be hurt and takes one teammate per level (R). The crew wins by extracting without it.
+  - The Surface shows each mode's ending.
+- **Mood rules:**
+  - Level 1's crates respawn out of sight.
+  - Level 5's doors want a key card, except one in three.
+  - Level 13's mirror sends a Mirror Thing after 5 s.
+  - Level 14's gurney heals.
+  - Level 15's terminal hack stuns the Sentries for 120 s.
+  - Level 18's Stay prompt: Y stays.
+- **Contracts:**
+  - Retrieval (the named item in the bay), Survey (80% of the level seen) and Specimen (living loot) are checked and paid.
+  - The Bureau's memo is written from the day's log.
+- **Lab upgrades:**
+  - The Siren (from the desk) pulls entities to the Lab door.
+  - The cargo link sends the crate to another Lab, on a 50 s cooldown.
+  - Floodlights hold Smilers off.
+- **Gear:**
+  - Chalk arrows are drawn on the floor.
+  - Rope and a grapple carry you down or across pits.
+  - The scanner is a radar of heartbeats within 20 m. Skin-Stealers and Mirror Things have none.
+- **The profile:**
+  - Career credit from Bureau sales sets the rank (Intern and up).
+  - Starting gear comes with rank: a flashlight, then a radio, then a scanner.
+  - The Bureau locker (arcade panel): 40 cosmetics bought with tokens or from the crate.
+  - What you wear is sent to the host (`C_COSMETIC`) and drawn: sticker colours, the party hat, masks, the lava lamp, the exit sign, moth wings, the balloon, the Hound and Almond Water costumes.
+- **Bots:**
+  - They restart dormant Labs (breaker first) and stay with whoever carries the fuel in Lost.
+  - One bot in three scouts a deeper door early in the day and comes back the way it went (`botFrom`).
+- **New checks in `--noclip-test`:**
+  - Lost escape by bots;
+  - Expedition's score;
+  - Roulette;
+  - the impostor;
+  - the Siren.
+- **New shot:** `noclip_locker`.
+
+## Still simpler than the doc
+- **Level mechanics not built:** Level 2's valves, Level 3's breaker graph, Level 5's trapped rooms, Level 12 changing behind you, and Level 17's rolling and flooding.
+- **Contracts:** Party and Rescue are never offered.
+- **Bots:** they don't plan multi-level routes beyond one scouting hop.
