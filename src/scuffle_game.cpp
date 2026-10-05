@@ -23,6 +23,11 @@ struct ScuffleScene {
     int players = 4, skill = 2, toWin = 5, arsenal = sf::AR_CLASSIC; int lastRound = 0;
     std::vector<uint32_t> botRng;
     float acc = 0, t = 0, wallMsgT = 0, modeMsgT = 0; std::string modeMsg;
+    // game feel (the friends' playtest: "underdeveloped"): shake, a hit-pause, slow motion on the round's last blow,
+    // comic words where blows land, rings, a crown on the round's winner
+    float shake = 0, stopT = 0, slowT = 0, crownT = 0; Vector2 shakeOff{}; int lastPhase = -1;
+    struct Pop { Vector2 at; std::string text; float t, rot; Color c; int size; }; std::vector<Pop> pops;
+    struct Ring { Vector2 at; float t, r; Color c; }; std::vector<Ring> rings;
     uint64_t paidKey = 0; int paid = 0;
     // stage 9: replays: this round as it's played, the match's best three, and the viewer (the live match waits)
     sf::Replay rec; std::vector<sf::Replay> best; bool recEnded = false, savedBest = false; std::string savedMsg;
@@ -46,8 +51,12 @@ const char* StickName(int i) {
     static const char* N[sf::MAX_STICKS] = {"You", "Old Marlow", "Big Ruth", "Sly Pennick", "Cutter Jones", "Pip", "Nellie Bright", "Boxer Mags"}; return N[std::clamp(i, 0, sf::MAX_STICKS - 1)];
 }
 Color TeamColor(int t) { return t == 0 ? Color{200, 60, 50, 255} : t == 1 ? Color{50, 100, 210, 255} : t == 2 ? Color{60, 160, 70, 255} : Color{220, 170, 30, 255}; }
-Vector2 W2S(Vector2 w) { return {(w.x - S.cam.x) * S.zoom + SCREEN_W / 2.0f, SCREEN_H / 2.0f - (w.y - S.cam.y) * S.zoom}; }
-Vector2 S2W(Vector2 s) { return {(s.x - SCREEN_W / 2.0f) / S.zoom + S.cam.x, (SCREEN_H / 2.0f - s.y) / S.zoom + S.cam.y}; }
+Vector2 W2S(Vector2 w) { return {(w.x - S.cam.x) * S.zoom + SCREEN_W / 2.0f + S.shakeOff.x, SCREEN_H / 2.0f - (w.y - S.cam.y) * S.zoom + S.shakeOff.y}; }
+Vector2 S2W(Vector2 s) { return {(s.x - S.shakeOff.x - SCREEN_W / 2.0f) / S.zoom + S.cam.x, (SCREEN_H / 2.0f - s.y + S.shakeOff.y) / S.zoom + S.cam.y}; }
+void Shake(float a) { S.shake = std::min(1.5f, S.shake + a); }
+void HitStop(float s) { S.stopT = std::max(S.stopT, s); }
+void PopWord(Vector2 at, const char* text, Color c, int size) { uint32_t h = (uint32_t)(at.x * 131 + at.y * 977) + (uint32_t)S.pops.size() * 7919u; S.pops.push_back({at, text, 0, ((h >> 4) % 100 / 100.0f - 0.5f) * 0.5f, c, size}); if (S.pops.size() > 12) S.pops.erase(S.pops.begin()); }
+void RingAt(Vector2 at, float r, Color c) { S.rings.push_back({at, 0, r, c}); if (S.rings.size() > 24) S.rings.erase(S.rings.begin()); }
 
 
 void Splash(Vector2 at, Color c, int n, float sp, float r) {
@@ -188,6 +197,7 @@ void DrawStage() {
 void DrawStick(const sf::Stick& k) {
     if (!k.present) return;
     Color c = k.alive ? StickColor(k.id) : Color{120, 116, 110, 255};
+    if (k.alive && k.hitT > 0.17f) c = ColorLerp(c, WHITE, 0.75f);   // (a flash as a blow lands)
     if (k.alive && k.hp < 35) { float w = 0.5f + 0.5f * sinf(S.t * 14); c = ColorLerp(c, Color{230, 30, 30, 255}, 0.35f * w); }   // (low health: a red pulse)
     float th = std::max(3.0f, S.zoom * 0.075f);
     auto P = [&](int j) { Vector2 p = W2S(k.pt[j].p); if (k.alive && k.hp < 35) p.x += sinf(S.t * 30 + j) * 0.8f; return p; };
@@ -217,7 +227,23 @@ void DrawStick(const sf::Stick& k) {
     }
     cosart::HatOn(k, skA);
     // a name over the living, and the round's grab
-    if (k.alive) { Vector2 n = W2S(Vector2Add(k.pt[sf::J_HEAD].p, {0, 0.38f})); DrawTextCentered(StickName(k.id), n.x, n.y - 8, 12, ColorAlpha(NameInk(), 0.7f)); }
+    if (k.alive) {   // the name in the stick's colour, and a health bar once it's been hurt
+        Vector2 n = W2S(Vector2Add(k.pt[sf::J_HEAD].p, {0, 0.42f}));
+        DrawTextCenteredBold(StickName(k.id), n.x, n.y - 14, 14, ColorLerp(StickColor(k.id), NameInk(), 0.25f));
+        float hp = std::clamp(k.hp / 100.0f, 0.0f, 1.0f);
+        if (hp < 0.999f || k.hitT > 0) {
+            float w = 46, x = n.x - w / 2, y = n.y + 2;
+            DrawRectangleRec({x - 1, y - 1, w + 2, 7}, ColorAlpha(INK, 0.8f));
+            DrawRectangleRec({x, y, w * hp, 5}, hp > 0.5f ? Color{120, 200, 110, 255} : hp > 0.25f ? Color{230, 190, 60, 255} : Color{220, 60, 50, 255});
+        }
+        if (S.crownT > 0 && k.id == S.M.roundWinner) {   // the round's winner wears a crown for the moment
+            Vector2 h = W2S(Vector2Add(k.pt[sf::J_HEAD].p, {0, 0.95f + 0.08f * sinf(S.t * 6)})); float s = 14;
+            Color gold{240, 196, 60, 255};
+            DrawRectangleRec({h.x - s, h.y, 2 * s, s * 0.6f}, gold);
+            float sw = 2 * s / 3; for (int q = 0; q < 3; q++) DrawTri({h.x - s + q * sw, h.y}, {h.x - s + (q + 1) * sw, h.y}, {h.x - s + (q + 0.5f) * sw, h.y - s * 0.9f}, gold);
+            DrawRectangleLinesEx({h.x - s, h.y, 2 * s, s * 0.6f}, 2, INK);
+        }
+    }
 }
 void DrawBlots(float dt) {
     for (auto& b : S.blots) {
@@ -270,9 +296,24 @@ void ReadEvents() {
                 default: break;
             }
         }
-        if (e.kind == sf::EV_HIT) Splash(e.at, SplashInk(), 5, 2.5f, 0.05f);
-        if (e.kind == sf::EV_HAYMAKER) Splash(e.at, SplashInk(), 9, 4.0f, 0.07f);
-        if (e.kind == sf::EV_DIE) Splash(e.at, SplashInk(), 22, 5.0f, 0.1f);
+        // (a blow that lands carries its victim in who and the damage in a; the swing itself has no damage)
+        auto inkOf = [&](int who) { Color b = who >= 0 ? StickColor(who) : SplashInk(); return ColorLerp(b, INK, 0.35f); };
+        uint32_t wh = (uint32_t)(e.at.x * 97 + e.at.y * 31) + i * 2654435761u;
+        if (e.kind == sf::EV_HIT && e.a > 0) { Splash(e.at, inkOf(e.who), 4, 2.5f, 0.035f); Shake(0.1f + e.a * 0.004f); RingAt(e.at, 0.35f, WHITE); }
+        if (e.kind == sf::EV_HAYMAKER && e.a > 0) {
+            static const char* W[5] = {"WHAM!", "POW!", "BAM!", "SMACK!", "CRACK!"};
+            Splash(e.at, inkOf(e.who), 8, 4.0f, 0.05f); Shake(0.35f + e.a * 0.006f); HitStop(0.05f); RingAt(e.at, 0.7f, WHITE);
+            if (e.a >= 15) PopWord(e.at, W[wh % 5], e.by >= 0 ? StickColor(e.by) : INK, 34);
+        }
+        if (e.kind == sf::EV_DIE) {
+            Splash(e.at, inkOf(e.who), 18, 5.0f, 0.07f); Shake(0.55f); HitStop(0.09f); RingAt(e.at, 1.2f, inkOf(e.who));
+            PopWord(Vector2Add(e.at, {0, 0.6f}), e.by >= 0 && e.by != e.who ? "K.O.!" : "OUT!", e.by >= 0 && e.by != e.who ? StickColor(e.by) : INK, 46);
+        }
+        if (e.kind == sf::EV_KICK) Shake(0.08f);
+        if (e.kind == sf::EV_BLOCK) { PopWord(e.at, "CLANG!", Color{200, 190, 160, 255}, 22); RingAt(e.at, 0.4f, Color{250, 245, 225, 255}); }
+        if (e.kind == sf::EV_EXPLODE) { Shake(0.6f + e.a * 0.15f); RingAt(e.at, e.a, Color{255, 200, 120, 255}); if (e.a >= 1.5f) PopWord(e.at, "BOOM!", Color{200, 80, 40, 255}, 40); }
+        if (e.kind == sf::EV_LAND && e.a > 4) { for (int s = -1; s <= 1; s += 2) RingAt(Vector2Add(e.at, {s * 0.2f, 0}), 0.25f + e.a * 0.02f, Color{170, 160, 140, 255}); if (e.a > 6) Shake(0.1f); }
+        if (e.kind == sf::EV_JUMP) RingAt(e.at, 0.18f, Color{170, 160, 140, 255});
         if (e.kind == sf::EV_LAND && e.a > 4) Splash(e.at, Color{150, 138, 120, 255}, 6, 2, 0.05f);
         if (e.kind == sf::EV_SHOT) Splash(e.at, Color{60, 50, 44, 255}, 3, 1.5f, 0.035f);
         if (e.kind == sf::EV_EXPLODE) { Splash(e.at, INK, 30, 6.0f + e.a, 0.14f); Splash(e.at, Color{200, 80, 40, 255}, 10, 4.0f, 0.1f); }
@@ -308,6 +349,27 @@ void StepCamera(float dt) {
     want.x = sw > 2 * hw ? std::clamp(want.x, hw - 0.75f, sw - hw + 0.75f) : sw / 2;
     want.y = sh > 2 * hh ? std::clamp(want.y, hh - 0.5f, sh - hh + 0.5f) : sh / 2;
     S.cam = Vector2Lerp(S.cam, want, std::min(1.0f, dt * 4));
+    // the shake: a jolt that dies away fast (screen pixels, scaled by how hard)
+    S.shake = std::max(0.0f, S.shake - dt * 2.8f);
+    float sk = S.shake * S.shake * 14;
+    S.shakeOff = {sinf(S.t * 91.0f) * sk, cosf(S.t * 77.0f) * sk * 0.8f};
+}
+// the comic words and rings (screen effects over the world)
+void DrawJuice(float dt) {
+    for (auto& r : S.rings) { r.t += dt; float u = r.t / 0.35f; if (u >= 1) continue; Vector2 c = W2S(r.at); float rr = (0.3f + u) * r.r * S.zoom; DrawRing(c, rr, rr + 3 * (1 - u), 0, 360, 32, ColorAlpha(r.c, 0.8f * (1 - u))); }
+    S.rings.erase(std::remove_if(S.rings.begin(), S.rings.end(), [](const ScuffleScene::Ring& r) { return r.t >= 0.35f; }), S.rings.end());
+    for (auto& p : S.pops) {
+        p.t += dt; if (p.t > 0.9f) continue;
+        float pop = p.t < 0.08f ? p.t / 0.08f * 1.35f : p.t < 0.16f ? 1.35f - (p.t - 0.08f) / 0.08f * 0.35f : 1.0f;   // (it slams in, then settles)
+        float a = p.t < 0.6f ? 1 : 1 - (p.t - 0.6f) / 0.3f;
+        Vector2 c = W2S(Vector2Add(p.at, {0, 0.5f + p.t * 0.6f}));
+        int size = (int)(p.size * pop * std::clamp(S.zoom / 60, 0.7f, 1.4f));
+        float w = (float)MeasureTxt(p.text, size, true);
+        Vector2 o{c.x - w / 2, c.y - size / 2.0f};
+        for (int dx = -2; dx <= 2; dx += 2) for (int dy = -2; dy <= 2; dy += 2) TxtBold(p.text, o.x + dx, o.y + dy, size, ColorAlpha(INK, a));
+        TxtBold(p.text, o.x, o.y, size, ColorAlpha(p.c, a));
+    }
+    S.pops.erase(std::remove_if(S.pops.begin(), S.pops.end(), [](const ScuffleScene::Pop& p) { return p.t > 0.9f; }), S.pops.end());
 }
 // ---------------------------------------------------------------- the arms: crates on parachutes, weapons, bullets, the flood
 void DrawWeaponAt(int wi, Vector2 grip, Vector2 muzzle, float alpha, int count = 0) {
@@ -354,6 +416,14 @@ void DrawArms() {
         }
         if (it.holder >= 0) continue;   // (in a hand: drawn with the stick)
         DrawWeaponAt(it.weapon, it.a.p, it.b.p, 1, it.count);
+        {   // its name, when you're near enough to want it (a ring pulses under a fresh one)
+            const sf::Stick& me = S.M.w.sticks[std::clamp(S.me, 0, (int)S.M.w.sticks.size() - 1)];
+            float d = Vector2Distance(me.pos, it.a.p), a = std::clamp(1.4f - d / 3.5f, 0.0f, 1.0f);
+            if (a > 0.02f && it.weapon >= 0 && it.weapon < (int)sf::Weapons().size() && !(it.ammo <= 0 && sf::Weapons()[it.weapon].kind == "gun")) {
+                Vector2 p = W2S(Vector2Add(it.a.p, {0, 0.45f + 0.05f * sinf(S.t * 4)}));
+                DrawTextCenteredBold(sf::Weapons()[it.weapon].name, p.x, p.y - 8, 13, ColorAlpha(NameInk(), a));
+            }
+        }
     }
     for (const auto& b : w.bullets) {
         if (DrawHazardBullet(b)) continue;
@@ -433,6 +503,7 @@ void DrawWorld(float dt) {
     cosart::LooseHats();
     DrawArms();
     DrawBlots(dt);
+    DrawJuice(dt);
     DrawScreenFx(dt);
 }
 void DrawHud() {
@@ -441,8 +512,10 @@ void DrawHud() {
     float x = 16;
     for (int i = 0; i < S.players; i++) {
         const sf::Stick& k = M.w.sticks[i];
-        DrawRectangleRounded({x, 12, 150, 38}, 0.3f, 6, ColorAlpha(i == S.me && S.net ? Color{60, 44, 30, 255} : Color{20, 16, 14, 255}, 0.75f));
-        DrawCircleV({x + 13, 25}, 7, k.alive ? StickColor(i) : Color{110, 106, 100, 255});
+        DrawRectangleRounded({x, 12, 150, 38}, 0.3f, 6, ColorAlpha(ColorLerp(Color{20, 16, 14, 255}, StickColor(i), k.alive ? 0.35f : 0.1f), 0.82f));
+        DrawRectangleRounded({x, 12, 5, 38}, 0.5f, 4, StickColor(i));
+        if (i == S.me) DrawRectangleRoundedLinesEx({x, 12, 150, 38}, 0.3f, 6, 2, Color{240, 220, 160, 255});
+        if (k.alive) DrawCircleV({x + 15, 25}, 7, StickColor(i)); else DrawRing({x + 15, 25}, 5, 7, 0, 360, 16, StickColor(i));
         Txt(StickName(i), x + 26, 16, 13, Color{240, 230, 210, 255});
         bool timed = M.mode == sf::MD_KING || M.mode == sf::MD_EGG;
         Txt(timed && i < (int)M.w.pts.size() ? TextFormat("%.0f / %.0f", M.w.pts[i], M.target) : k.shark ? "SHARK" : M.mode == sf::MD_GAUNTLET && k.finished >= 0 ? TextFormat("out at %.1f s", k.finished) : TextFormat("%d", M.score[i]), x + 26, 33, 11, k.shark ? Color{150, 190, 230, 255} : Color{200, 190, 170, 255});
@@ -480,8 +553,25 @@ DrawTextCentered(sf::ModeName(M.mode), SCREEN_W / 2.0f, 74, 13, ColorAlpha(NameI
         }
     }
     if (S.wallMsgT > 0) DrawTextCenteredBold(WallLine(M.w.stage.world), SCREEN_W / 2.0f, 90, 26, DarkWorld(M.w.stage.world) ? Color{230, 210, 160, 255} : Color{40, 70, 110, 255});
-    if (M.phase == sf::Match::P_COUNT) DrawTextCenteredBold("FIGHT!", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 56, Color{40, 30, 26, (unsigned char)(255 * std::clamp(1.4f - M.phaseT, 0.0f, 1.0f))});
-    if (M.phase == sf::Match::P_WIN) DrawTextCenteredBold(M.roundWinner >= 0 ? TextFormat("%s %s the round", StickName(M.roundWinner), M.roundWinner == S.me && !S.net ? "take" : "takes") : M.roundWinner == -2 && !M.log.empty() ? M.log.back().c_str() : M.mode == sf::MD_BOSS && !M.log.empty() ? M.log.back().c_str() : "A draw: everyone at once", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 120, 34, M.roundWinner >= 0 ? StickColor(M.roundWinner) : INK);
+    if (M.phase == sf::Match::P_COUNT) {   // the round card: the round, the stage, then FIGHT!
+        float u = std::clamp(1 - M.phaseT, 0.0f, 1.0f);
+        Color ink = DarkWorld(M.w.stage.world) ? Color{236, 224, 196, 255} : Color{40, 30, 26, 255};
+        DrawRectangle(0, (int)(SCREEN_H / 2.0f - 170), SCREEN_W, 120, ColorAlpha(INK, 0.35f));
+        DrawTextCenteredBold(TextFormat("ROUND %d", M.round), SCREEN_W / 2.0f, SCREEN_H / 2.0f - 162, 30, ColorAlpha(ink, 0.9f));
+        DrawTextCentered(M.w.stage.name, SCREEN_W / 2.0f, SCREEN_H / 2.0f - 126, 18, ColorAlpha(ink, 0.8f));
+        if (M.phaseT < 0.45f) DrawTextCenteredBold("FIGHT!", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 98, (int)(56 + 30 * (0.45f - M.phaseT)), Color{200, 60, 40, 255});
+        else DrawTextCenteredBold("READY...", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 92, 30, ColorAlpha(ink, 0.6f + 0.4f * u));
+    }
+    if (M.phase == sf::Match::P_WIN) {   // the round's ribbon in the winner's colour, and their pips filling
+        Color rc = M.roundWinner >= 0 ? StickColor(M.roundWinner) : Color{120, 110, 96, 255};
+        DrawRectangle(0, (int)(SCREEN_H / 2.0f - 160), SCREEN_W, 80, ColorAlpha(rc, 0.85f));
+        DrawRectangle(0, (int)(SCREEN_H / 2.0f - 160), SCREEN_W, 4, INK); DrawRectangle(0, (int)(SCREEN_H / 2.0f - 84), SCREEN_W, 4, INK);
+        if (M.roundWinner >= 0 && M.roundWinner < (int)M.wins.size()) {
+            int w = M.wins[M.roundWinner];
+            for (int k = 0; k < S.toWin && k < 20; k++) { Vector2 p{SCREEN_W / 2.0f - (S.toWin - 1) * 14.0f + k * 28, SCREEN_H / 2.0f - 62}; DrawCircleV(p, 10, INK); DrawCircleV(p, 8, k < w ? rc : Color{60, 54, 48, 255}); if (k == w - 1) DrawRing(p, 11, 13 + 4 * sinf(S.t * 10), 0, 360, 24, WHITE); }
+        }
+    }
+    if (M.phase == sf::Match::P_WIN) DrawTextCenteredBold(M.roundWinner >= 0 ? TextFormat("%s %s the round", StickName(M.roundWinner), M.roundWinner == S.me && !S.net ? "take" : "takes") : M.roundWinner == -2 && !M.log.empty() ? M.log.back().c_str() : M.mode == sf::MD_BOSS && !M.log.empty() ? M.log.back().c_str() : "A draw: everyone at once", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 138, 34, WHITE);
     if (M.phase == sf::Match::P_WIN && !S.net && !S.shot && !S.rec.steps.empty()) DrawTextCentered("R: watch it again", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 80, 16, NameInk());
     if (M.phase == sf::Match::P_OVER && M.mode == sf::MD_BOSS) {   // the run's end: the bosses beaten, or the one that won
         DrawRectangle(0, 0, SCREEN_W, SCREEN_H, ColorAlpha(PAPER, 0.85f));
@@ -501,8 +591,22 @@ DrawTextCentered(sf::ModeName(M.mode), SCREEN_W / 2.0f, 74, 13, ColorAlpha(NameI
     if (M.phase == sf::Match::P_OVER) {
         int best = std::max(0, M.champion);
         DrawRectangle(0, 0, SCREEN_W, SCREEN_H, ColorAlpha(PAPER, 0.8f));
-        DrawTextCenteredBold(TextFormat("%s %s the match", StickName(best), best == S.me && !S.net ? "win" : "wins"), SCREEN_W / 2.0f, SCREEN_H / 2.0f - 90, 44, StickColor(best));
-        for (int i = 0; i < S.players; i++) DrawTextCentered(TextFormat("%s: %d rounds, %d points", StickName(i), M.wins[i], M.score[i]), SCREEN_W / 2.0f, SCREEN_H / 2.0f - 30 + i * 22.0f, 16, INK);
+        DrawTextCenteredBold(TextFormat("%s %s the match", StickName(best), best == S.me && !S.net ? "win" : "wins"), SCREEN_W / 2.0f, 70, 44, StickColor(best));
+        // the standings: by rounds, then points; a bar for each stick's rounds, its kills and points beside
+        std::vector<int> ord; for (int i = 0; i < S.players && i < (int)M.wins.size(); i++) ord.push_back(i);
+        std::sort(ord.begin(), ord.end(), [&](int a, int b) { return M.wins[a] != M.wins[b] ? M.wins[a] > M.wins[b] : M.score[a] > M.score[b]; });
+        int mostW = 1; for (int i : ord) mostW = std::max(mostW, M.wins[i]);
+        for (int r = 0; r < (int)ord.size(); r++) {
+            int i = ord[r]; float y = 140 + r * 46.0f, x = SCREEN_W / 2.0f - 330;
+            DrawRectangleRounded({x, y, 660, 38}, 0.3f, 6, ColorAlpha(r == 0 ? StickColor(i) : Color{30, 24, 20, 255}, r == 0 ? 0.35f : 0.12f));
+            TxtBold(TextFormat("%d.", r + 1), x + 12, y + 9, 20, INK);
+            DrawCircleV({x + 56, y + 19}, 10, StickColor(i));
+            TxtBold(StickName(i), x + 76, y + 9, 18, INK);
+            float bw = 220.0f * M.wins[i] / mostW;
+            DrawRectangleRec({x + 260, y + 12, 220, 14}, ColorAlpha(INK, 0.15f)); DrawRectangleRec({x + 260, y + 12, bw, 14}, StickColor(i));
+            Txt(TextFormat("%d round%s", M.wins[i], M.wins[i] == 1 ? "" : "s"), x + 490, y + 10, 15, INK);
+            Txt(TextFormat("%d pts", M.score[i]), x + 590, y + 10, 15, INK);
+        }
     }
     if (M.phase != sf::Match::P_OVER) DrawTextCentered("A/D run   W or Space jump   S duck (or dive in the air; duck on a gun to swap)   mouse aims, click fires or punches (hold against someone: grab)   T taunt", SCREEN_W / 2.0f, SCREEN_H - 14.0f, 11, ColorAlpha(NameInk(), 0.6f));
 }
@@ -658,6 +762,7 @@ static void NetFrame(Game& g, float dt) {
     }
     S.players = S.M.players; S.toWin = S.M.toWin;
     if (S.M.round != S.lastRound) { S.lastRound = S.M.round; S.blots.clear(); S.evSeen = S.M.w.eventBase + (uint32_t)S.M.w.events.size(); }
+    S.crownT = std::max(0.0f, S.crownT - dt); if (S.M.phase == sf::Match::P_WIN && S.lastPhase != sf::Match::P_WIN) S.crownT = 2.6f; S.lastPhase = S.M.phase;
     ReadEvents();
     StepCamera(dt);
     DrawWorld(dt);
@@ -705,8 +810,13 @@ void SceneScuffle(Game& g) {
     if (S.viewing) { ViewFrame(g, dt); return; }
     if (S.M.phase == sf::Match::P_WIN && !S.shot && !EditorPlaying() && IsKeyPressed(KEY_R) && !S.rec.steps.empty()) { ViewStart(S.rec, true); return; }
     // the inputs (you and the bots), then the fixed steps (the match runs the rounds)
+    // game feel: a hit-pause freezes the fight a moment; the round's last blow plays in slow motion
+    S.crownT = std::max(0.0f, S.crownT - dt);
     if (!S.shot && !S.M.Over()) {
-        S.acc += dt;
+        float simDt = dt;
+        if (S.stopT > 0) { S.stopT -= dt; simDt = 0; }
+        if (S.slowT > 0) { S.slowT -= dt; simDt *= 0.3f; }
+        S.acc += simDt;
         while (S.acc >= sf::STEP) {
             S.acc -= sf::STEP;
             Gather(S.M.w.sticks[0].in, S.M.w.sticks[0]);
@@ -714,6 +824,8 @@ void SceneScuffle(Game& g) {
             if (S.M.phase == sf::Match::P_COUNT || S.M.phase == sf::Match::P_FIGHT) sf::ReplayRecord(S.rec, S.M);
             S.M.Step();
             if (S.M.phase == sf::Match::P_WIN || S.M.phase == sf::Match::P_OVER) RecEnd();
+            if (S.M.phase == sf::Match::P_WIN && S.lastPhase != sf::Match::P_WIN) { S.slowT = 0.9f; S.crownT = 2.6f; S.acc = 0; }
+            S.lastPhase = S.M.phase;
             if (S.M.round != S.lastRound) { S.lastRound = S.M.round; S.blots.clear(); S.evSeen = S.M.w.eventBase; RecBegin(); }
         }
     }
