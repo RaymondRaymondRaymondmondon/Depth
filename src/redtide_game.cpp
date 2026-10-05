@@ -486,7 +486,14 @@ static void ShipDressing(); void BuildLevelModel() {
             mb.Box({z.plan.x + 10, z.y0 + 1.2f, z.plan.y + 2}, {1.5f, 1.2f, 1.0f}, Color{80, 84, 88, 255});
             mb.Tube({{z.plan.x + 11.6f, z.y0 + 1.4f, z.plan.y + 2}, {z.plan.x + 11.8f, z.y0 + 1.4f, z.plan.y + 2}}, 1.0f, 1.0f, 18, Color{60, 62, 66, 255}, Color{60, 62, 66, 255}, 0);
         }
-        if (z.name.find("Cabin") != std::string::npos) for (int k = 1; k < 6; k++) mb.Box({z.plan.x + k * z.plan.width / 6, z.y0 + 2.5f, z.plan.y + z.plan.height - 1.2f}, {0.08f, 2.5f, 1.2f}, Color{90, 66, 46, 255});
+        if (z.name.find("Cabin") != std::string::npos) for (int k = 1; k < 6; k++) {   // panelled partitions: a cap rail, an end post, a skirting board and two raised panels a side
+            float px = z.plan.x + k * z.plan.width / 6, pz = z.plan.y + z.plan.height - 1.2f;
+            mb.Box({px, z.y0 + 2.5f, pz}, {0.08f, 2.5f, 1.2f}, Color{90, 66, 46, 255});
+            mb.Box({px, z.y0 + 5.0f, pz}, {0.12f, 0.06f, 1.24f}, Color{70, 50, 34, 255});
+            mb.Box({px, z.y0 + 2.5f, pz - 1.2f}, {0.13f, 2.5f, 0.1f}, Color{74, 54, 38, 255});
+            mb.Box({px, z.y0 + 0.1f, pz}, {0.11f, 0.1f, 1.2f}, Color{60, 44, 30, 255});
+            for (int sd = -1; sd <= 1; sd += 2) for (int pn = 0; pn < 2; pn++) mb.Box({px + sd * 0.085f, z.y0 + 1.3f + pn * 2.3f, pz + 0.1f}, {0.01f, 0.95f, 0.85f}, Color{100, 74, 52, 255});
+        }
     }
     S.level = LoadModelFromMesh(mb.Build());
     S.levelReady = true;
