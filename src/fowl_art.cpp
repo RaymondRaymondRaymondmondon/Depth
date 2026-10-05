@@ -205,10 +205,15 @@ void DrawPorch(const World& w, int me, float t) {
     // each stall: a numbered post (pips for the number), a hook, the ammo tray and a scoreboard flap; the flag
     for (int s = 0; s < MAX_PLAYERS; s++) {
         float x = (s - 2.5f) * STALL_W;
-        rt::DrawWorldCube({x - 1.2f, 1.25f, 1.55f}, {0.24f, 0.3f, 0.04f}, {230, 220, 190, 255});
-        for (int k = 0; k <= s; k++) rt::DrawWorldCube({x - 1.28f + (k % 3) * 0.08f, 1.32f - (k / 3) * 0.1f, 1.53f}, {0.05f, 0.05f, 0.01f}, {40, 30, 24, 255});
-        rt::DrawWorldCube({x + 0.9f, 0.95f, 1.62f}, {0.5f, 0.06f, 0.22f}, Mx(rail, BLACK, 0.2f));   // the ammo tray
-        for (int k = 0; k < 5; k++) rt::DrawWorldCube({x + 0.72f + k * 0.08f, 1.0f, 1.62f}, {0.03f, 0.04f, 0.03f}, {200, 60, 50, 255});
+        // the stall's number: a painted enamel plaque with a rim, its number in round black pips
+        rt::DrawStatic(RoundCube(), MatrixMultiply(MatrixScale(0.28f, 0.34f, 0.04f), MatrixTranslate(x - 1.2f, 1.25f, 1.56f)), {120, 40, 34, 255});
+        rt::DrawStatic(RoundCube(), MatrixMultiply(MatrixScale(0.24f, 0.3f, 0.04f), MatrixTranslate(x - 1.2f, 1.25f, 1.545f)), {236, 226, 196, 255});
+        for (int k = 0; k <= s; k++) rt::DrawStatic(Cyl(), MatrixMultiply(MatrixMultiply(MatrixScale(0.024f, 0.01f, 0.024f), MatrixRotateX(-PI / 2)), MatrixTranslate(x - 1.28f + (k % 3) * 0.08f, 1.32f - (k / 3) * 0.1f, 1.526f)), {40, 30, 24, 255});
+        rt::DrawStatic(RoundCube(), MatrixMultiply(MatrixScale(0.5f, 0.06f, 0.22f), MatrixTranslate(x + 0.9f, 0.95f, 1.62f)), Mx(rail, BLACK, 0.2f));   // the ammo tray
+        for (int k = 0; k < 5; k++) {   // shotgun cartridges stood in a row: red paper tubes on brass heads
+            rt::DrawStatic(Cyl(), MatrixMultiply(MatrixScale(0.013f, 0.05f, 0.013f), MatrixTranslate(x + 0.72f + k * 0.08f, 0.98f, 1.62f)), {200, 50, 42, 255});
+            rt::DrawStatic(Cyl(), MatrixMultiply(MatrixScale(0.014f, 0.016f, 0.014f), MatrixTranslate(x + 0.72f + k * 0.08f, 0.98f, 1.62f)), {210, 170, 80, 255});
+        }
         if (s < (int)w.players.size()) {
             const Player& p = w.players[s];
             if (p.hook.Has()) DrawToyGun(p.hook.def, MatrixMultiply(MatrixRotateX(-PI / 2), MatrixTranslate(x + 1.35f, 1.6f, -1.5f)), p.paint, 0, 1);
