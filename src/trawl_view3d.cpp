@@ -1100,7 +1100,7 @@ static void BuildAtollBaked(int li, const Landing& L) {
             mb.Tri(W(L.pond, ATOLL_Y + 0.2f), W(q1, ATOLL_Y + 0.2f), W(q0, ATOLL_Y + 0.2f), pond);
             mb.Tri(W(L.pond, ATOLL_Y + 0.2f), W(q0, ATOLL_Y + 0.2f), W(q1, ATOLL_Y + 0.2f), pond);
         }
-        if (lightH) {   // the old lighthouse: a white tower, a red band, the lamp room's dark glass and its cap
+        if (lightH && !rt::LoadAsset("flight/isles/lighthouse.glb")) {   // the old lighthouse: a white tower, a red band, the lamp room's dark glass and its cap (without the baked one)
             Vector3 b = W(L.sloop, ATOLL_Y);
             mb.Tube({b, Vector3Add(b, {0, 7.5f, 0})}, 2.1f, 1.6f, 14, Color{220, 216, 206, 255}, Color{200, 196, 186, 255}, 0);
             mb.Tube({Vector3Add(b, {0, 7.5f, 0}), Vector3Add(b, {0, 9.0f, 0})}, 1.6f, 1.5f, 14, Color{170, 50, 40, 255}, Color{150, 44, 36, 255}, 0);
@@ -1117,7 +1117,8 @@ static void BuildAtollBaked(int li, const Landing& L) {
     float gy = ATOLL_Y + 0.12f;
     if (stair) { at("trawl/props/stair.glb", {0, 0}, ATOLL_Y); at("trawl/props/shrine.glb", L.sloop, ATOLL_Y); at("trawl/props/brazier.glb", L.fire, gy); return; }
     if (tower) { at("trawl/props/tower.glb", L.sloop, ATOLL_Y); at("trawl/props/firering.glb", L.fire, gy); return; }
-    if (lightH) { at("trawl/props/stove.glb", L.fire, gy); for (int i = 0; i < 6; i++) { float a = i * 1.1f + 0.5f; Vector2 b{cosf(a) * 6.0f, sinf(a) * 6.0f}; at("trawl/props/boulder.glb", b, gy - 0.05f, a, 0.8f + 0.2f * (i % 3)); } return; }   // (the keeper's hearth: a stove in the tower's lee)
+    if (lightH) { if (rt::LoadAsset("flight/isles/lighthouse.glb")) at("flight/isles/lighthouse.glb", L.sloop, ATOLL_Y - 0.4f, 0.6f, 0.4f);   // (the Flight's banded lighthouse, a third the size: the old one, dark now)
+        at("trawl/props/stove.glb", L.fire, gy); for (int i = 0; i < 6; i++) { float a = i * 1.1f + 0.5f; Vector2 b{cosf(a) * 6.0f, sinf(a) * 6.0f}; at("trawl/props/boulder.glb", b, gy - 0.05f, a, 0.8f + 0.2f * (i % 3)); } return; }   // (the keeper's hearth: a stove in the tower's lee)
     if (sandB) return;   // (bare sand)
     if (cultL) {
         at("trawl/props/tent.glb", L.sloop, ATOLL_Y); at("trawl/props/firering.glb", L.fire, gy);
