@@ -110,10 +110,31 @@ void DrawBar(const no::Night& n) {
     }
     // windows on the street side: the blue dock night through them
     for (float x : {4.0f, 13.0f, 26.0f, 34.0f}) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.6f, 1.3f, 0.36f), MatrixTranslate(x, 1.9f, 0)), {40, 70, 110, 255}, 0.6f);
-    // the furniture
+    // the furniture (as baked models where they're built: tools/artgen/nightoff_props.py; boxes otherwise)
+    auto NP = [](const char* name) -> const Model* { return getenv("DEPTH_OLDBAR") ? nullptr : rt::LoadAsset(std::string("nightoff/props/") + name + ".glb"); };
+    auto facingIn = [&](Vector3 c) { float cx = 20, cz = 15; return atan2f(cz - c.z, cx - c.x); };   // (toward the middle of the house)
+    auto put = [&](const Model* m, Vector3 at, float yaw, Vector3 sc) { rt::DrawPbr(*m, MatrixMultiply(MatrixMultiply(MatrixScale(sc.x, sc.y, sc.z), MatrixRotateY(-yaw)), MatrixTranslate(at.x, at.y, at.z))); };
     for (const auto& b : B.boxes) {
         Vector3 c{b.r.x + b.r.width / 2, b.h / 2, b.r.y + b.r.height / 2}, s{b.r.width, b.h, b.r.height};
         const std::string& k = b.kind;
+        if (k == "counter" && NP("counter")) {
+            // the bar counter: the model's length along the box's long side, its panelled front toward the room
+            // (the front faces away from the bartender's side; the model: length along its z, front toward its +x)
+            bool alongX = s.x >= s.z; float len = alongX ? s.x : s.z, dep = alongX ? s.z : s.x;
+            float a = alongX ? (n.bar.pos.y > c.z ? PI / 2 : -PI / 2) : (n.bar.pos.x > c.x ? PI : 0.0f);
+            rt::DrawPbr(*NP("counter"), MatrixMultiply(MatrixMultiply(MatrixScale(dep / 0.76f, b.h / 1.11f, len), MatrixRotateY(a)), MatrixTranslate(c.x, 0, c.z)));
+            continue;
+        }
+        if (k == "pool" && NP("pooltable")) { bool alongX = s.x > s.z; put(NP("pooltable"), {c.x, 0, c.z}, alongX ? PI / 2 : 0, {(alongX ? s.z : s.x) / 1.4f, 1, (alongX ? s.x : s.z) / 2.6f}); continue; }
+        if (k == "hearth" && NP("hearth")) {
+            put(NP("hearth"), {b.r.x + b.r.width, 0, c.z}, PI, {1, 1, std::max(0.6f, s.z / 2.4f)});
+            for (int j = 0; j < 9; j++) { float fl = 0.5f + 0.5f * sinf(S.t * (6 + j) + j * 2.1f); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.1f, 0.12f + 0.18f * fl, 0.1f), MatrixTranslate(b.r.x + b.r.width - 0.22f, 0.2f + 0.1f * fl, c.z - 0.5f + j * 0.12f)), j % 2 ? Color{255, 150, 50, 255} : Color{255, 210, 90, 255}, 1.6f); }
+            continue;
+        }
+        if (k == "piano" && NP("piano")) { put(NP("piano"), {c.x, 0, c.z}, facingIn(c), {1, 1, 1}); continue; }
+        if (k == "armchair" && NP("armchair")) { put(NP("armchair"), {c.x, 0, c.z}, facingIn(c), {s.x / 0.84f, 1, s.z / 0.84f}); continue; }
+        if (k == "chaise" && NP("chaise")) { put(NP("chaise"), {c.x, 0, c.z}, facingIn(c), {1, 1, std::max(s.x, s.z) / 1.9f}); continue; }
+        if (k == "wine" && NP("winerack")) { bool alongX = s.x > s.z; put(NP("winerack"), {c.x, 0, c.z}, alongX ? (15 < c.z ? -PI / 2 : PI / 2) : facingIn(c), {1, b.h / 1.9f, (alongX ? s.x : s.z) / 1.8f}); continue; }
         if (k == "counter") { rt::DrawWorldCube(c, s, {84, 48, 30, 255}); rt::DrawWorldCube({c.x, b.h + 0.02f, c.z}, {s.x + 0.08f, 0.05f, s.z + 0.1f}, {210, 170, 80, 255}); }
         else if (k == "pool") { rt::DrawWorldCube({c.x, 0.4f, c.z}, {s.x, 0.8f, s.z}, {84, 50, 30, 255}); rt::DrawWorldCube({c.x, 0.82f, c.z}, {s.x - 0.2f, 0.04f, s.z - 0.2f}, {30, 110, 64, 255}); }
         else if (k == "slot") { rt::DrawWorldCube(c, s, {120, 40, 40, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.1f, 0.5f, 0.6f), MatrixTranslate(b.r.x + b.r.width + 0.02f, 1.3f, c.z)), {255, 210, 120, 255}, 1.0f + 0.4f * sinf(S.t * 3 + c.z)); }
@@ -153,13 +174,32 @@ void DrawBar(const no::Night& n) {
 
     rt::DrawWorldCube({17, 1.9f, 11.8f}, {9, 0.06f, 0.35f}, {90, 60, 36, 255}); rt::DrawWorldCube({17, 1.4f, 11.8f}, {9, 0.06f, 0.35f}, {90, 60, 36, 255});
     static const Color BC[5] = {{80, 140, 70, 255}, {150, 90, 40, 255}, {200, 200, 210, 255}, {120, 40, 50, 255}, {220, 180, 90, 255}};
-    for (int i = 0; i < 34; i++) { float x = 12.9f + i * 0.25f; int row = i % 2; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.3f, 0.08f), MatrixTranslate(x, 1.58f + row * 0.5f, 11.75f)), BC[(i * 7) % 5], 0.35f); }
-    rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.06f, 0.5f, 0.5f), MatrixTranslate(B.dartboard.x + 0.08f, 1.7f, B.dartboard.y)), {200, 60, 50, 255}, 0.4f);
-    rt::DrawWorldCube({B.jukebox.x, 0.7f, B.jukebox.y}, {0.9f, 1.4f, 0.6f}, {150, 90, 40, 255});
-    rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.7f, 0.5f, 0.62f), MatrixTranslate(B.jukebox.x, 1.1f, B.jukebox.y)), {255, 150, 220, 255}, 0.9f + 0.3f * sinf(S.t * 2));
+    if (const Model* br = NP("bottles_row")) {   // (rows of real bottles on both shelves, each metre a different run)
+        for (int row = 0; row < 2; row++) for (int k = 0; k < 9; k++) {
+            float x = 13.0f + k * 0.98f;
+            rt::DrawPbr(*br, MatrixMultiply(MatrixMultiply(MatrixRotateY(PI / 2 + (k + row) % 2 * PI), MatrixTranslate(x, 1.43f + row * 0.5f, 11.75f)), MatrixIdentity()));
+        }
+    } else for (int i = 0; i < 34; i++) { float x = 12.9f + i * 0.25f; int row = i % 2; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.3f, 0.08f), MatrixTranslate(x, 1.58f + row * 0.5f, 11.75f)), BC[(i * 7) % 5], 0.35f); }
+    if (const Model* db = NP("dartboard")) put(db, {B.dartboard.x, 0, B.dartboard.y}, 0, {1, 1, 1});
+    else rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.06f, 0.5f, 0.5f), MatrixTranslate(B.dartboard.x + 0.08f, 1.7f, B.dartboard.y)), {200, 60, 50, 255}, 0.4f);
+    if (const Model* jb = NP("jukebox")) {
+        Vector3 jc{B.jukebox.x, 0, B.jukebox.y};
+        put(jb, jc, facingIn(jc), {1, 1, 1});
+        float yawJ = facingIn(jc);   // (its arch's glow, pulsing to the music)
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.04f, 0.3f, 0.5f), MatrixMultiply(MatrixRotateY(-yawJ), MatrixTranslate(jc.x + cosf(yawJ) * 0.3f, 1.3f, jc.z + sinf(yawJ) * 0.3f))), {255, 150, 220, 255}, 0.6f + 0.3f * sinf(S.t * 2));
+    } else {
+        rt::DrawWorldCube({B.jukebox.x, 0.7f, B.jukebox.y}, {0.9f, 1.4f, 0.6f}, {150, 90, 40, 255});
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.7f, 0.5f, 0.62f), MatrixTranslate(B.jukebox.x, 1.1f, B.jukebox.y)), {255, 150, 220, 255}, 0.9f + 0.3f * sinf(S.t * 2));
+    }
     // the lamps (their shades glow; the light itself is the scene's point lights)
+    const Model* lanternM = NP("lantern");
     for (const auto& l : B.lamps) {   // a gas lamp on its chain: a brass cap, a warm glass
         if (l.z < 30) rt::DrawWorldCube({l.x, (l.y + B.wallH) / 2 + 0.1f, l.z}, {0.03f, B.wallH - l.y, 0.03f}, {60, 50, 40, 255});
+        if (lanternM) {   // (the ship's lantern, swinging a little; its glass lit from within unless the power's out)
+            rt::DrawPbr(*lanternM, MatrixMultiply(MatrixMultiply(MatrixScale(1.3f, 1.3f, 1.3f), MatrixRotateZ(0.04f * sinf(S.t * 0.8f + l.x))), MatrixTranslate(l.x, l.y, l.z)));
+            if (!n.powerOut) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.12f, 0.16f, 0.12f), MatrixTranslate(l.x, l.y - 0.07f, l.z)), {255, 190, 110, 255}, 0.9f);
+            continue;
+        }
         rt::DrawWorldCube({l.x, l.y + 0.12f, l.z}, {0.22f, 0.06f, 0.22f}, {180, 140, 70, 255});
         if (n.powerOut) rt::DrawWorldCube({l.x, l.y - 0.02f, l.z}, {0.14f, 0.18f, 0.14f}, {60, 50, 40, 255});   // (the Storm: dark glass)
         else rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.14f, 0.18f, 0.14f), MatrixTranslate(l.x, l.y - 0.02f, l.z)), {255, 190, 110, 255}, 0.9f);
@@ -276,6 +316,8 @@ void FightPose(const no::Combat& C, fig::Pose& P, float& lean) {
 bool Floored(const no::Combat& C) { return C.downT > 0 || C.fallT > 0; }
 void DrawProps(const no::Night& n) {
     auto cubeR = [](Vector3 c, Vector3 s, float yaw, float tilt, Color col) { rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(s.x, s.y, s.z), MatrixRotateZ(tilt)), MatrixRotateY(-yaw)), MatrixTranslate(c.x, c.y, c.z)), col); };
+    auto NP = [](const char* name) -> const Model* { return getenv("DEPTH_OLDBAR") ? nullptr : rt::LoadAsset(std::string("nightoff/props/") + name + ".glb"); };
+    auto model = [](const Model* m, Vector3 at, float yaw, float tilt, float sc = 1) { rt::DrawPbr(*m, MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(sc, sc, sc), MatrixRotateZ(tilt)), MatrixRotateY(-yaw)), MatrixTranslate(at.x, at.y, at.z))); };
     for (size_t i = 0; i < n.props.size(); i++) {
         const no::Prop& p = n.props[i]; const std::string& k = p.kind;
         if (p.state == no::PS_GONE) continue;
@@ -286,12 +328,27 @@ void DrawProps(const no::Night& n) {
             Color top{96, 62, 38, 255}, leg{60, 40, 28, 255};
             float th = std::max(0.06f, 0.0f), H = 0.8f;
             if (broken) { for (int j = 0; j < 4; j++) cubeR({at.x + (j % 2 - 0.5f) * p.size.x * 0.5f, 0.05f, at.z + (j / 2 - 0.5f) * p.size.y * 0.5f}, {p.size.x * 0.45f, 0.05f, 0.18f}, h * 6 + j, 0.2f * j, top); continue; }
+            bool round = p.size.x < 1.1f && fabsf(p.size.x - p.size.y) < 0.15f;
+            const Model* tm = NP(round ? "table_round" : "table_sq");
+            if (tm) {
+                // (round tavern tables, or square ones stretched to the table's size; knocked over, lying on its side)
+                Vector3 sc = round ? Vector3{p.size.x / 0.92f, 1, p.size.y / 0.92f} : Vector3{p.size.x, 1, p.size.y};
+                if (over) rt::DrawPbr(*tm, MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(sc.x, sc.y, sc.z), MatrixRotateZ(PI * 0.5f)), MatrixRotateY(-p.yaw)), MatrixTranslate(at.x + cosf(p.yaw) * 0.4f, p.size.x * 0.5f, at.z + sinf(p.yaw) * 0.4f)));
+                else rt::DrawPbr(*tm, MatrixMultiply(MatrixScale(sc.x, sc.y, sc.z), MatrixTranslate(at.x, 0, at.z)));
+                continue;
+            }
             if (over) { cubeR({at.x + cosf(p.yaw) * 0.3f, p.size.x / 2, at.z + sinf(p.yaw) * 0.3f}, {0.06f, p.size.x, p.size.y}, p.yaw, 0, top); cubeR({at.x - cosf(p.yaw) * 0.1f, 0.45f, at.z - sinf(p.yaw) * 0.1f}, {0.8f, 0.1f, 0.1f}, p.yaw, 0, leg); continue; }
             rt::DrawWorldCube({at.x, H - th / 2, at.z}, {p.size.x, th, p.size.y}, top); rt::DrawWorldCube({at.x, H / 2, at.z}, {0.12f, H, 0.12f}, leg); continue;
         }
         if (k == "chair" || k == "stool") {
             Color seat = k == "stool" ? Color{130, 40, 40, 255} : Color{110, 72, 44, 255}, wood{70, 46, 30, 255};
             if (broken) { for (int j = 0; j < 3; j++) cubeR({at.x + (j - 1) * 0.2f, 0.04f, at.z + (h - 0.5f) * 0.3f}, {0.35f, 0.04f, 0.06f}, h * 9 + j * 1.3f, 0, j ? wood : seat); continue; }
+            if (const Model* cm = NP(k == "stool" ? "stool" : "chair")) {
+                if (p.state == no::PS_HELD || p.state == no::PS_FLYING) model(cm, {at.x, at.y - 0.3f, at.z}, p.yaw, PI * 0.5f);   // (swung, legs first)
+                else if (over) model(cm, {at.x, k == "stool" ? 0.2f : 0.22f, at.z}, p.yaw + h, PI * 0.5f);
+                else model(cm, {at.x, 0, at.z}, p.yaw, 0);
+                continue;
+            }
             if (p.state == no::PS_HELD || p.state == no::PS_FLYING) { cubeR({at.x, at.y + 0.2f, at.z}, {0.42f, 0.06f, 0.42f}, p.yaw, PI * 0.5f, seat); cubeR({at.x, at.y - 0.1f, at.z}, {0.06f, 0.6f, 0.06f}, p.yaw, PI * 0.5f, wood); continue; }
             if (over) { cubeR({at.x, 0.22f, at.z}, {0.42f, 0.42f, 0.07f}, p.yaw + h, 0, seat); cubeR({at.x + 0.25f, 0.06f, at.z}, {0.5f, 0.06f, 0.06f}, p.yaw + h, 0, wood); continue; }
             float hs = k == "stool" ? 0.76f : 0.46f;
@@ -312,7 +369,9 @@ void DrawProps(const no::Night& n) {
         if (broken) { if (k == "glass" || k == "bottle" || k == "broken") for (int j = 0; j < 4; j++) rt::DrawWorldCube({at.x + (j - 1.5f) * 0.09f, 0.015f, at.z + (h - 0.5f) * 0.2f + j * 0.03f}, {0.05f, 0.015f, 0.04f}, k == "glass" ? Color{210, 220, 220, 255} : Color{60, 120, 70, 255}); continue; }
         float tilt = over ? PI * 0.5f : 0;
         float y = over ? 0.05f : at.y;
-        if (k == "glass") rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.12f, 0.08f), MatrixTranslate(at.x, y + 0.06f, at.z)), {220, 190, 120, 255}, 0.25f);
+        if (k == "glass" && NP("mug")) model(NP("mug"), {at.x, y, at.z}, p.yaw, tilt, 1.2f);
+        else if (k == "bottle" && NP("bottle")) model(NP("bottle"), {at.x, y, at.z}, p.yaw, tilt);
+        else if (k == "glass") rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.12f, 0.08f), MatrixTranslate(at.x, y + 0.06f, at.z)), {220, 190, 120, 255}, 0.25f);
         else if (k == "bottle" || k == "broken") { cubeR({at.x, y + 0.13f, at.z}, {0.08f, k == "broken" ? 0.16f : 0.24f, 0.08f}, p.yaw, tilt, {50, 110, 60, 255}); if (k == "bottle") cubeR({at.x, y + 0.3f, at.z}, {0.035f, 0.1f, 0.035f}, p.yaw, tilt, {50, 110, 60, 255}); }
         else if (k == "cue" || k == "jagged") { float L = k == "cue" ? 1.45f : 0.75f; bool up = p.state == no::PS_OK; cubeR({at.x, up ? at.y : y + 0.03f, at.z}, {up ? 0.035f : L, up ? L : 0.035f, 0.035f}, p.yaw, p.state == no::PS_HELD ? -0.9f : 0, {170, 120, 70, 255}); }
         else if (k == "dart") cubeR({at.x, y, at.z}, {0.15f, 0.02f, 0.02f}, p.yaw, 0, {200, 200, 210, 255});
@@ -371,6 +430,9 @@ void DrawPeople(const no::Night& n) {
         if (Floored(c.fight)) P.sit = 0;
         float fy = 0; for (const auto& b : no::D().bar.boxes) if (b.kind == "stage" && CheckCollisionPointRec(c.pos, {b.r.x, b.r.y, b.r.width, b.r.height})) fy = b.h;
         if (fy > 0 && c.ev >= 0) { P.reach = 0.5f; P.elbow = 0.6f + 0.3f * sinf(S.t * 8 + c.id); P.grip = 0.9f; P.nod = 0.15f * sinf(S.t * 4 + c.id); }   // (playing)
+        // (sat down: the figure's seat lands on the seat, not through it - the user saw patrons phase halfway into their
+        // chairs. The sitting pose puts the seat 0.47 m up; a bar stool's is 0.78, a chair's 0.48; on a stool the feet hang.)
+        if (Seated(c) && !Floored(c.fight)) fy += (c.seatKind == "stool" ? 0.79f : 0.49f) - 0.47f;
         Vector3 feet{c.pos.x, fy, c.pos.y};
         DrawPerson(m, cl, feet, c.yaw, P, lean, 0, Floored(c.fight));
         if (n.SeasonIs("masquerade") && !c.unmasked && c.type != no::T_STAFF && !Floored(c.fight)) {   // (a domino mask, the masquerade)

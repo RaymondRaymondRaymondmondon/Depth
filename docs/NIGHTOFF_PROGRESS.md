@@ -266,3 +266,7 @@ Build order is the doc's p. 29 (nine stages).
 
 ## Next
 A Night Off's design document is built through p. 42. Next: Scuffle (arcade game 9).
+## The bar furnished (2026-10-05, the user: everything was blocky, patrons phased half through their chairs)
+- tools/artgen/nightoff_props.py -> assets/nightoff/props (18 models): bar stools (red leather, chrome, foot ring), spindle-back tavern chairs, round and square tables, the back shelf's rows of bottles (four shapes, labels), bottles and beer mugs, a ship's lantern, an arched jukebox, a dartboard, a stone fireplace with mantel, candlesticks and mirror, an upright piano with its stool, the pool table, the bar counter (a 1 m panelled section with a brass foot rail, stretched to each counter), barrels, an armchair, a chaise and a wine rack. Drawn in place of the boxes (`DrawBar`, `DrawProps`); knocked over, held and thrown chairs and tables use them too; `DEPTH_OLDBAR=1` shows the boxes.
+- Seated patrons sit on the seat: the sitting pose's seat is at 0.47 m, so a patron on a bar stool is raised to its 0.78 m (feet hanging) and one on a chair to 0.48 m.
+
