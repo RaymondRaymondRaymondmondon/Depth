@@ -1277,9 +1277,16 @@ static SailorLook LookOf(const Crew& c) {
     // the role's colours (spec: faded yellow, tar black, oxblood, bottle green oilskins; navy, khaki, waxed brown), varied
     static const Color OIL[4] = {{214, 168, 52, 255}, {48, 46, 44, 255}, {112, 40, 34, 255}, {44, 78, 54, 255}};
     switch (c.role) {
-        case Role::Angler: L.top = OIL[(int)(R() * 3.99f)]; L.trousers = L.top; L.hat = L.top; break;
+        case Role::Angler: {   // (the user's reference: a shirt, dark trousers, a bucket hat, the orange life vest over it)
+            static const Color SHIRT[4] = {{70, 88, 120, 255}, {140, 50, 44, 255}, {96, 100, 86, 255}, {170, 160, 140, 255}};
+            static const Color BUCKET[3] = {{120, 112, 76, 255}, {70, 84, 60, 255}, {160, 140, 100, 255}};
+            L.top = SHIRT[(int)(R() * 3.99f)]; L.trousers = shade({42, 52, 78, 255}, 0.85f + 0.3f * R()); L.hat = BUCKET[(int)(R() * 2.99f)]; (void)OIL; break;
+        }
         case Role::Bosun: L.top = shade({40, 52, 86, 255}, 0.85f + 0.3f * R()); L.trousers = shade({150, 134, 104, 255}, 0.85f + 0.3f * R()); L.hat = shade(L.top, 0.8f); break;
-        case Role::Diver: L.top = R() < 0.5f ? Color{86, 92, 80, 255} : Color{70, 64, 58, 255}; L.trousers = {176, 160, 122, 255}; L.hat = L.top; break;
+        case Role::Diver: {   // (the user's reference: an orange boiler suit)
+            static const Color SUIT[3] = {{220, 96, 32, 255}, {200, 70, 30, 255}, {230, 130, 40, 255}};
+            L.top = SUIT[(int)(R() * 2.99f)]; L.trousers = L.top; L.hat = L.top; break;
+        }
         default: L.top = shade({86, 74, 50, 255}, 0.85f + 0.3f * R()); L.trousers = {58, 54, 48, 255}; L.hat = L.top; break;
     }
     L.build = 0.92f + 0.2f * R(); L.height = 0.95f + 0.1f * R();

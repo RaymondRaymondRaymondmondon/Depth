@@ -297,17 +297,30 @@ def role_pieces(role, J, mats):
             cuff.location = p; C.select_only([cuff]); bpy.ops.object.transform_apply(location=True)
             rigid(cuff, f"forearm.{sd}")
     elif role == "angler":
-        # the wide sou'wester, long at the back; a bait tin at the hip
-        crown = rigid(lathe_z("souwester", [(0.105, 0.0), (0.104, 0.04), (0.09, 0.085), (0.0, 0.1)], (-0.01, 0, 1.715), "hat", mats, sx=1.05))
-        brim = lathe_z("brim", [(0.105, 0.02), (0.2, -0.005), (0.215, -0.03)], (-0.03, 0, 1.715), "hat", mats, sx=1.15, sy=1.05)
-        for v in brim.data.vertices:   # long at the back to shed the rain
-            if v.co.x < -0.05:
-                v.co.z -= 0.25 * (-0.05 - v.co.x)
-        rigid(brim)
+        # (the user's reference: a bucket hat and an orange life vest) a soft bucket hat with a short, down-turned brim,
+        # the life vest's two fat front floats, its back panel, collar, straps and buckles; a bait tin at the hip
+        rigid(lathe_z("bucket", [(0.112, 0.0), (0.108, 0.05), (0.098, 0.09), (0.0, 0.098)], (-0.006, 0, 1.712), "hat", mats, sx=1.04))
+        rigid(lathe_z("bucket_brim", [(0.11, 0.012), (0.155, -0.018), (0.165, -0.04)], (-0.006, 0, 1.712), "hat", mats, sx=1.04))
+        rigid(tube_ring("hatband", (-0.006, 0, 1.722), 0.111, 0.006, "accent", mats))
+        for s in (1, -1):   # the front floats: chunky rounded pads from the collar bone to the waist
+            pad = C.bevelled_box(f"float{s}", (0.09, 0.12, 0.34), loc=(0.14, s * 0.08, 1.2), bevel=0.035, segments=3)
+            pad.rotation_euler = (s * math.radians(-6), math.radians(4), 0)
+            C.assign(pad, mats["vest"]); C.apply_all(pad); C.smooth(pad, 40); rigid(pad, "chest")
+            for z in (1.08, 1.22):   # the stitched channels across them
+                ch = C.bevelled_box(f"seam{s}{z}", (0.012, 0.13, 0.008), loc=(0.175, s * 0.085, z), bevel=0.003); C.assign(ch, mats["vest"]); C.apply_all(ch); rigid(ch, "chest")
+        back = C.bevelled_box("vest_back", (0.08, 0.26, 0.36), loc=(-0.12, 0, 1.2), bevel=0.035, segments=3); C.assign(back, mats["vest"]); C.apply_all(back); C.smooth(back, 40); rigid(back, "chest")
+        rigid(tube_ring("vest_collar", (0.0, 0, 1.42), 0.11, 0.035, "vest", mats, squash=0.95), "chest")
+        for z in (1.05, 1.17):   # the straps round the chest, buckled in front
+            rigid(tube_ring(f"strap{z}", (0.0, 0, z), 0.2, 0.01, "accent", mats, squash=0.82), "chest")
+            bk = C.bevelled_box(f"buckle{z}", (0.012, 0.04, 0.03), loc=(0.215, 0, z), bevel=0.004); C.assign(bk, mats["metal"]); C.apply_all(bk); rigid(bk, "chest")
         tin = C.cylinder("bait_tin", 0.035, 0.05, loc=(0.0, 0.18, 0.88), verts=24, bevel=0.004); C.assign(tin, mats["metal"]); C.apply_all(tin); C.smooth(tin, 40); rigid(tin, "pelvis")
     elif role == "diver":
-        # the diving dress rolled down to the waist, a lamp on a headband, a knife strapped to the calf
-        soft(tube_ring("dress_roll", (0.0, 0, 0.98), 0.155, 0.045, "trousers", mats, squash=0.8))
+        # (the user's reference: an orange boiler suit) the coverall's collar, a zip down the front, a chest pocket,
+        # a belt; a lamp on a headband, a knife strapped to the calf
+        rigid(tube_ring("collar", (0.0, 0, 1.44), 0.085, 0.022, "top", mats, squash=0.95), "chest")
+        zp = C.bevelled_box("zip", (0.006, 0.012, 0.42), loc=(0.15, 0, 1.18), bevel=0.002); C.assign(zp, mats["metal"]); C.apply_all(zp); soft(zp)
+        pk = C.bevelled_box("pocket", (0.01, 0.06, 0.06), loc=(0.16, 0.07, 1.3), bevel=0.004); C.assign(pk, mats["top"]); C.apply_all(pk); rigid(pk, "chest")
+        soft(tube_ring("belt", (0.0, 0, 0.98), 0.16, 0.018, "leather", mats, squash=0.82))
         rigid(tube_ring("headband", (0.0, 0, 1.72), 0.1, 0.012, "leather", mats, squash=0.92))
         lamp = C.cylinder("lamp", 0.028, 0.045, loc=(0.115, 0, 1.73), rot=(0, math.pi / 2, 0), verts=24, bevel=0.004)
         C.assign(lamp, mats["metal"]); C.apply_all(lamp); C.smooth(lamp, 40); rigid(lamp)
@@ -369,12 +382,12 @@ def paint_body(body, J, role, mats):
 STYLE = {   # flat colours (linear-ish sRGB) and roughness; the game recolours skin, top, trousers and hat per sailor
     "skin": ((0.78, 0.55, 0.42), 0.6), "boots": ((0.06, 0.055, 0.05), 0.45), "leather": ((0.33, 0.2, 0.11), 0.6),
     "metal": ((0.62, 0.48, 0.25), 0.35), "eye_white": ((0.92, 0.91, 0.88), 0.2), "eye_dark": ((0.03, 0.03, 0.035), 0.15),
-    "hair": ((0.22, 0.14, 0.08), 0.85),
+    "hair": ((0.22, 0.14, 0.08), 0.85), "vest": ((0.88, 0.34, 0.06), 0.65),
 }
 ROLE_COLOURS = {
     "bosun": {"top": ((0.11, 0.15, 0.27), 0.9), "trousers": ((0.42, 0.37, 0.27), 0.85), "hat": ((0.09, 0.11, 0.18), 0.8), "accent": ((0.5, 0.12, 0.08), 0.7)},
-    "angler": {"top": ((0.85, 0.62, 0.12), 0.38), "trousers": ((0.85, 0.62, 0.12), 0.38), "hat": ((0.85, 0.62, 0.12), 0.38), "accent": ((0.2, 0.2, 0.2), 0.5)},
-    "diver": {"top": ((0.3, 0.33, 0.28), 0.95), "trousers": ((0.55, 0.5, 0.38), 0.85), "hat": ((0.3, 0.33, 0.28), 0.95), "accent": ((0.6, 0.5, 0.3), 0.6)},
+    "angler": {"top": ((0.28, 0.34, 0.45), 0.85), "trousers": ((0.16, 0.2, 0.3), 0.85), "hat": ((0.45, 0.42, 0.28), 0.9), "accent": ((0.12, 0.12, 0.12), 0.6)},
+    "diver": {"top": ((0.86, 0.36, 0.1), 0.75), "trousers": ((0.86, 0.36, 0.1), 0.75), "hat": ((0.86, 0.36, 0.1), 0.75), "accent": ((0.6, 0.5, 0.3), 0.6)},
     "medic": {"top": ((0.24, 0.22, 0.15), 0.55), "trousers": ((0.18, 0.17, 0.15), 0.8), "hat": ((0.24, 0.22, 0.15), 0.55), "accent": ((0.75, 0.08, 0.06), 0.6)},
 }
 
