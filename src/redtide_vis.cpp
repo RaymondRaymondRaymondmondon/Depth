@@ -218,7 +218,8 @@ static const char* ArchFor(const CreatureModel& cm) {
     if (has("swordfish") || has("marlin") || has("sailfish")) return "billfish";
     if (p == "shark" || has("shark") || has("dogfish")) return "shark";
     if (p == "depressiform") return has("flounder") || has("halibut") || has(" sole") || has("plaice") ? "flat" : "ray";
-    if (p == "anguilliform") return "eel";
+    if (p == "anguilliform" || p == "snake" || p == "burrower") return "eel";
+    if (p == "leviathan") return has("shark") ? "shark" : has("ray") || has("manta") ? "ray" : "deep";
     if (p == "compressiform") return "deep";
     if (p == "fusiform") {
         if (has("tuna") || has("mackerel") || has("jack") || has("bonito") || has("trevally") || has("amberjack")) return "tuna";
@@ -243,6 +244,14 @@ static const char* PlanFor(const CreatureModel& cm) {
     if (p == "jelly") return "jelly";
     if (p == "turtle") return "turtle";
     if (p == "cetacean" || p == "pinniped") return "cetacean";
+    std::string n = cm.species; for (auto& c : n) c = (char)tolower((unsigned char)c);
+    auto has = [&](const char* k) { return n.find(k) != std::string::npos; };
+    if (p == "echinoderm") return has("star") ? "starfish" : has("cucumber") ? "cucumber" : has("whelk") || has("snail") || has("conch") || has("cowrie") || has("periwinkle") || has("limpet") ? "whelk" : "urchin";
+    if (p == "crocodilian") return "croc";
+    if (p == "amphibian") return "frog";
+    if (p == "bird") return "bird";
+    if (p == "insect") return "skater";
+    if (p == "leviathan" && (has("whale") || has("orca"))) return "cetacean";
     return nullptr;
 }
 static bool DrawPlanPbr(const CreatureModel& cm, const char* plan, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint, Color gill = {150, 40, 30, 255});
@@ -343,6 +352,24 @@ static bool DrawPlanPbr(const CreatureModel& cm, const char* plan, Vector3 pos, 
         rot("lure", X, 0.2f * sinf(phase * 0.35f)); rot("lure", Y, 0.15f * sinf(phase * 0.27f));
     } else if (pl == "wyrm") {
         for (int k = 0; k < 12; k++) rot(TextFormat("w%d", k), Y, amp * 0.28f * sinf(phase * 0.8f - k * 0.7f));
+    } else if (pl == "bird") {   // wingbeats (a dive folds them back)
+        float f = 0.6f * sinf(phase * 1.6f) * amp;
+        rot("wing.L", Z, f); rot("wing.R", Z, -f);
+    } else if (pl == "frog") {   // a breast-stroke kick
+        float k = std::max(0.0f, sinf(phase * 0.8f)) * amp;
+        rot("hind.L", Y, -0.6f * k); rot("hind.R", Y, 0.6f * k);
+        rot("fore.L", Y, 0.3f * k); rot("fore.R", Y, -0.3f * k);
+    } else if (pl == "croc") {   // the tail sweeps it along, the legs tucked to the sides
+        for (int k = 0; k < 5; k++) rot(TextFormat("s%d", k), Y, amp * 0.35f * sinf(phase * 0.6f - k * 1.0f) * (0.05f + 0.1f * k));
+        for (int s = 0; s < 2; s++) { rot(s ? "legFR" : "legFL", Y, 0.3f * sinf(phase * 0.6f + s * PI)); rot(s ? "legRR" : "legRL", Y, 0.3f * sinf(phase * 0.6f + s * PI + 1)); }
+    } else if (pl == "cucumber") {
+        for (int k = 0; k < 3; k++) rot(TextFormat("s%d", k), Y, 0.12f * sinf(phase * 0.3f - k));
+    } else if (pl == "starfish") {
+        for (int i = 0; i < 5; i++) rot(TextFormat("arm%d", i), X, 0.08f * sinf(phase * 0.3f + i * 1.3f));
+    } else if (pl == "skater") {
+        for (int i = 0; i < 3; i++) for (int s = 0; s < 2; s++) rot(TextFormat("leg%d%s", i, s ? "R" : "L"), Y, 0.35f * amp * sinf(phase * 1.5f + i * 2.1f + s * PI));
+    } else if (pl == "whelk") {
+        rot("head", Y, 0.15f * sinf(phase * 0.25f));
     } else if (pl == "lobster") {
         for (int i = 0; i < 4; i++) for (int s = 0; s < 2; s++) rot(TextFormat("leg%d%sa", i, s ? "R" : "L"), Y, 0.25f * amp * cosf(phase * 1.2f + i * PI / 2 + s * PI));
         for (int k = 0; k < 4; k++) rot(TextFormat("t%d", k), X, 0.08f * amp * sinf(phase * 0.7f - k * 0.8f));

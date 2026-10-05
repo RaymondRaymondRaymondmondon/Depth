@@ -52,6 +52,7 @@ struct Station {
     int lockerSpot = -1;           // Locker spots: 0, 1, ...
     bool needsPower = false;       // tonic machines beyond the first two, the second Locker spot, the Forge, traps
     int step = 0;                  // quest steps: 1, 2, 3...
+    float faceYaw = 1e9f;          // racks: hung on the nearest wall, facing into the room (unset: face the room's middle)
 };
 // Scenery from a map's "dressing" (extra.json): placed once from a fixed seed; solid pieces (columns, coral walls, brain
 // coral, a coral head, ledges) block divers, darts and sight.

@@ -396,3 +396,6 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
 - Gas, needle, spear and gatling guns breathe out a burst of bubbles from the muzzle as they fire.
 - Landmarks from the map kits (`MapDressing`): Atlantis's forum and gate have a bronze statue and columns, its chapel
   braziers, its town columns; giant clams on the reef's sand flats and lagoon; glass sponges in the Void's galleries.
+- **The red at the mask's edge** no longer follows the scent in the water (the user: it made you always look injured); it shows only below 30% health. The SCENT dial still reads the blood.
+- **No more pits beside the doorways:** a passage's box reaches 1.3 m below its sill and used to cut a hole in the room's floor (and ceiling) with nothing under it, so you could see under the map. Floors and ceilings now open only for passages that run up or down (hatches), walls only for ones that run across; portholes only cut walls.
+

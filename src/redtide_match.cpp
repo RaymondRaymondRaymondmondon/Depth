@@ -152,6 +152,21 @@ const char* DropName(DropType d) {
 // ---------------------------------------------------------------- the level
 // Rooms are the blockout's zones at their deck heights; passages are boxes around each link's two mouths (2.4 m wide,
 // 2.6 m high), reaching a little into both rooms so a diver can swim from one into the other.
+// a gun rack on the wall nearest it (the user: "the wall guns are not set up against the wall"): moved to stand just
+// off that wall of the room's box it's in, turned to face into the room. Radial rooms keep their place.
+static void HangOnWall(const Zone& z, Station& s) {
+    if (z.radial) return;
+    Rectangle b = z.plan;
+    for (const auto& p : z.parts) if (!p.hidden && s.pos.x >= p.r.x && s.pos.x <= p.r.x + p.r.width && s.pos.z >= p.r.y && s.pos.z <= p.r.y + p.r.height) { b = p.r; break; }
+    float d[4] = {s.pos.x - b.x, b.x + b.width - s.pos.x, s.pos.z - b.y, b.y + b.height - s.pos.z};
+    int w = 0; for (int k = 1; k < 4; k++) if (d[k] < d[w]) w = k;
+    const float off = 0.12f;
+    if (w == 0) { s.pos.x = b.x + off; s.faceYaw = 0; }
+    else if (w == 1) { s.pos.x = b.x + b.width - off; s.faceYaw = PI; }
+    else if (w == 2) { s.pos.z = b.y + off; s.faceYaw = -PI / 2; }
+    else { s.pos.z = b.y + b.height - off; s.faceYaw = PI / 2; }
+    s.pos.x = std::clamp(s.pos.x, b.x + off, b.x + b.width - off); s.pos.z = std::clamp(s.pos.z, b.y + off, b.y + b.height - off);
+}
 void BuildLevel(const MapData& m, Level& L) {
     L = Level{};
     const WeaponsData& W = Weapons();
@@ -230,6 +245,7 @@ void BuildLevel(const MapData& m, Level& L) {
         else if (t == "boss") s.type = StationType::Boss;
         else if (t == "queststep") { s.type = StationType::QuestStep; s.step = p.step; }
         else s.type = HasW(p.name, "cleaning") ? StationType::Cleaning : StationType::Feature;
+        if (s.type == StationType::Rack) HangOnWall(z, s);
         L.stations.push_back(s);
     }
     // the Boarding Axe's rack ("melee rack": it replaces the knife) beside the start pocket's first rack
@@ -242,6 +258,15 @@ void BuildLevel(const MapData& m, Level& L) {
             const Zone& z = m.zones[near->zone];
             s.pos = z.Clamp(Vector3Add(near->pos, {1.6f, 0, 0.4f}), 0.6f);
             if (Vector3Distance(s.pos, near->pos) < 0.8f) s.pos = z.Clamp(Vector3Add(near->pos, {-1.6f, 0, -0.4f}), 0.6f);
+            HangOnWall(z, s);
+            if (Vector3Distance(s.pos, near->pos) < 1.6f && s.faceYaw == near->faceYaw) {   // (side by side on the same wall: slide it along)
+                bool xWall = fabsf(cosf(s.faceYaw)) > 0.5f;
+                Vector3 t2 = xWall ? Vector3{0, 0, 1} : Vector3{1, 0, 0};
+                Vector3 a2 = Vector3Add(near->pos, Vector3Scale(t2, 1.7f)), b2 = Vector3Subtract(near->pos, Vector3Scale(t2, 1.7f));
+                Vector3 ca = z.Clamp(a2, 0.12f), cb = z.Clamp(b2, 0.12f);
+                s.pos = Vector3Distance(ca, a2) < Vector3Distance(cb, b2) ? ca : cb;
+                s.pos.y = near->pos.y;
+            }
             L.stations.push_back(s);
         }
     }
@@ -3902,7 +3927,13 @@ bool Match::PlaceOnePart(SalvagePart& sp) {
         const Zone& z = map->zones[zi];
         Rectangle b = z.plan;
         if (!z.parts.empty()) { std::vector<Rectangle> vis; for (const auto& p : z.parts) if (!p.hidden) vis.push_back(p.r); if (!vis.empty()) b = vis[(int)(Rand() * vis.size()) % vis.size()]; }
-        Vector3 p{b.x + 1 + (b.width - 2) * Rand(), z.y0 + 0.6f, b.y + 1 + (b.height - 2) * Rand()};
+        // tucked into a corner of the room, or along a wall near one (the user: "the craftable pieces are just scattered
+        // on the floor instead of in corners"), lying on the floor
+        int corner = (int)(Rand() * 4) % 4; float along = Rand() * 0.3f, inset = 0.8f;
+        float cx = corner & 1 ? b.x + b.width - inset : b.x + inset, cz = corner & 2 ? b.y + b.height - inset : b.y + inset;
+        if (Rand() < 0.5f) cx += (corner & 1 ? -1.0f : 1.0f) * along * std::max(0.0f, b.width - 2 * inset);
+        else cz += (corner & 2 ? -1.0f : 1.0f) * along * std::max(0.0f, b.height - 2 * inset);
+        Vector3 p{cx, z.y0 + 0.35f, cz};
         if (!level.Inside(p, 0.4f, open)) continue;
         bool nearStation = false;
         for (const auto& st : level.stations) if (Vector3Distance(st.pos, p) < 2) nearStation = true;

@@ -206,9 +206,16 @@ static void ShipDressing(); void BuildLevelModel() {
                 if (p.link >= 0) {
                     const Link& l = map.links[p.link];
                     if (l.from != v.zone && l.to != v.zone) continue;
+                    // (a doorway's box reaches 1.3 m below its sill: it used to cut a pit in the floor beside the door with
+                    // nothing under it - the user could see under the map. Floors and ceilings open only for a hatch, a
+                    // passage that runs up or down; walls only for one that runs across.)
+                    Vector3 dl = Vector3Subtract(l.b, l.a);
+                    bool vertical = fabsf(dl.y) > std::max(fabsf(dl.x), fabsf(dl.z));
+                    if ((axis == 1) != vertical) continue;
                 } else if (p.window >= 0) {
                     const Window& w = map.windows[p.window];
                     if (w.zone != v.zone && w.outside != v.zone) continue;
+                    if (axis == 1) continue;   // (portholes are in the walls)
                 } else if (p.zone == v.zone && &p != &v && !p.hidden && axis != 1) {
                     // another box of the same zone carrying on past this face: no wall where it does
                     float o = (&p.lo.x)[axis], e = (&p.hi.x)[axis];
@@ -1115,7 +1122,7 @@ static bool DrawStationModel(const Match& m, const Station& s, bool dead) {
     float floorY = s.zone >= 0 && s.zone < (int)m.map->zones.size() ? m.map->zones[s.zone].y0 : s.pos.y - 1;
     Vector3 c = s.zone >= 0 && s.zone < (int)m.map->zones.size() ? m.map->zones[s.zone].Center() : Vector3Add(s.pos, {1, 0, 0});
     float dx = c.x - s.pos.x, dz = c.z - s.pos.z;
-    float yaw = fabsf(dx) + fabsf(dz) > 0.01f ? atan2f(-dz, dx) : 0;
+    float yaw = s.faceYaw < 1e8f ? s.faceYaw : fabsf(dx) + fabsf(dz) > 0.01f ? atan2f(-dz, dx) : 0;
     Matrix frame = MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(s.pos.x, floorY, s.pos.z));
     Color tint = dead ? Color{120, 120, 120, 255} : WHITE;
     std::string path = std::string("redtide/stations/") + ID[ti] + ".glb";
@@ -1159,9 +1166,9 @@ static bool DrawStationModel(const Match& m, const Station& s, bool dead) {
             // outline round it (the spec: "Racks (weapons chalked on walls)")
             const auto& WW = Weapons().weapons;
             if (s.weapon < 0 || s.weapon >= (int)WW.size()) return false;
-            if (Vector3Distance(s.pos, m.Eye(Me())) > 15) return false;   // (beyond 15 m the plain board: a gun is sixty parts)
             std::string wid = WW[s.weapon].id == "diversknife" ? "knife" : WW[s.weapon].id;
-            if (!RtWeaponModel(wid)) return false;
+            bool nearBy = Vector3Distance(s.pos, m.Eye(Me())) <= 15;   // (beyond 15 m the board and chalk alone: a gun is sixty parts)
+            if (nearBy && !RtWeaponModel(wid)) return false;
             Matrix wall = MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(s.pos.x, s.pos.y, s.pos.z));
             DrawCubeM(MatrixMultiply(MatrixScale(0.08f, 0.9f, 1.4f), wall), Color{86, 64, 42, 255});
             for (int k = 0; k < 2; k++) DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.12f, 0.04f, 0.04f), MatrixTranslate(0.06f, 0.0f, k ? 0.3f : -0.3f)), wall), Color{60, 44, 30, 255});
@@ -1170,6 +1177,7 @@ static bool DrawStationModel(const Match& m, const Station& s, bool dead) {
                 float w = k < 2 ? 1.2f : 0.03f, h = k < 2 ? 0.03f : 0.5f, y = k == 0 ? 0.26f : k == 1 ? -0.24f : 0.01f, z = k == 2 ? -0.6f : k == 3 ? 0.61f : 0.0f;
                 DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(0.01f, h, w), MatrixRotateX(0.02f * (k - 1.5f))), MatrixTranslate(0.045f, y, z)), wall), chalk);
             }
+            if (!nearBy) break;
             RtGunAnim an;
             float L = 1.0f;
             { float len = RtWeaponMarker(wid, "muzzle", {0.3f, 0, 0}).x - RtWeaponMarker(wid, "grip_r", {0, 0, 0}).x + 0.3f; L = std::clamp(1.0f / std::max(0.2f, len), 1.0f, 1.6f); }   // (its length from its own marks: a pistol drawn up, a long gun to the board)
@@ -1419,8 +1427,10 @@ static Camera3D MakeCamera(SceneLight& L) {
     L.time = S.time;
     L.silhouette = S.silhouette;
     int z = M().eco.ZoneAt(d.pos);
-    float scent = M().eco.Smell(d.pos, z, 6);
-    L.bloodTint = std::clamp(scent / 120.0f + (M().frenzyT > 0 ? 0.25f : 0.0f), 0.0f, 1.0f);
+    // (no red at the mask's edge for scent any more: the user found it made you always look injured; the SCENT dial
+    // reads the blood in the water, and the edge reddens only when you really are badly hurt)
+    float hurtK = d.hpMax > 0 ? std::clamp((0.3f - d.hp / d.hpMax) / 0.3f, 0.0f, 1.0f) : 0.0f;
+    L.bloodTint = d.dead ? 0.0f : hurtK * 0.6f;
     if (z >= 0 && M().map->zones[z].deck == "Outside") { L.fog = {16, 44, 54, 255}; L.fogDensity = 0.035f; }
     const Json& pal = M().map->extra["palette"];
     if (pal.IsObj() && S.mode == 1) {
@@ -1590,15 +1600,67 @@ static void DrawScene() {
         }
         // salvage parts: small crates with a brass band, bobbing, the build's colour on the lid
         static const Color buildCol[6] = {{0, 0, 0, 255}, {150, 120, 70, 255}, {90, 150, 170, 255}, {170, 160, 120, 255}, {220, 120, 60, 255}, {140, 200, 220, 255}};
+        // (each part as the thing it is, tools/artgen/rt_salvage.py, lying on the floor in its corner and turned by a hash;
+        // the old crate if the art is missing)
+        static const char* PART_MODEL[6][3] = {{"", "", ""}, {"shell", "strap", "rim"}, {"fan", "dynamo", "mount"}, {"net", "stakes", "bell"}, {"buoy", "lantern", "chumtin"}, {"compressor", "hose", "valve"}};
         for (const auto& sp : m.salvage) if (!sp.taken) {
+            int bb = std::clamp(sp.build, 0, 5), pp = std::clamp(sp.part, 0, 2);
+            if (const Model* pm = bb > 0 && !getenv("DEPTH_OLDSTATIONS") ? LoadAsset(std::string("redtide/salvage/") + PART_MODEL[bb][pp] + ".glb") : nullptr) {
+                float yaw = fmodf(sp.pos.x * 3.7f + sp.pos.z * 1.3f, 6.283f);
+                DrawPbr(*pm, MatrixMultiply(MatrixMultiply(MatrixScale(1.2f, 1.2f, 1.2f), MatrixRotateY(yaw)), MatrixTranslate(sp.pos.x, sp.pos.y - 0.35f, sp.pos.z)));
+                continue;
+            }
             Vector3 c = Vector3Add(sp.pos, {0, sinf(S.time * 2 + sp.part) * 0.08f, 0});
             DrawWorldCube(c, {0.5f, 0.35f, 0.4f}, {110, 86, 60, 255});
             DrawWorldCube(Vector3Add(c, {0, 0.19f, 0}), {0.52f, 0.05f, 0.42f}, buildCol[std::clamp(sp.build, 0, 5)]);
             DrawWorldCube(c, {0.53f, 0.08f, 0.43f}, {200, 160, 80, 255});
         }
         // what's been set down
+        // (each build drawn from its own parts' models where they're built; the old boxes otherwise)
+        auto partM = [&](const char* n) -> const Model* { return getenv("DEPTH_OLDSTATIONS") ? nullptr : LoadAsset(std::string("redtide/salvage/") + n + ".glb"); };
         for (const auto& dp : m.deployed) {
             Vector3 c = dp.pos;
+            float face = atan2f(-dp.dir.z, dp.dir.x);
+            if (dp.type == BuildType::Turbine && partM("fan") && partM("dynamo") && partM("mount")) {
+                // the mount on the floor, the dynamo in it, the fan on its shaft spinning in front (still when stopped)
+                Matrix base = MatrixMultiply(MatrixRotateY(face), MatrixTranslate(c.x, c.y - 0.45f, c.z));
+                DrawPbr(*partM("mount"), MatrixMultiply(MatrixScale(1.6f, 1.6f, 1.6f), base));
+                DrawPbr(*partM("dynamo"), MatrixMultiply(MatrixMultiply(MatrixScale(1.3f, 1.3f, 1.3f), MatrixTranslate(0, 0.3f, 0)), base));
+                float a = dp.stopped ? 0.3f : S.time * 9;
+                DrawPbr(*partM("fan"), MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(1.8f, 1.8f, 1.8f), MatrixRotateY(a)), MatrixMultiply(MatrixRotateZ(-PI / 2), MatrixTranslate(0.6f, 0.52f, 0))), base));
+                if (!dp.stopped) DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.08f, 0.08f, 0.08f), MatrixTranslate(0, 0.85f, 0)), base), {150, 230, 255, 255}, 1.5f);   // (its spark: power flowing)
+                continue;
+            }
+            if (dp.type == BuildType::NetTripwire && partM("stakes") && partM("bell")) {
+                Vector3 side{dp.dir.z, 0, -dp.dir.x};
+                for (int k = -1; k <= 1; k += 2) {   // a stake driven upright at each end
+                    Vector3 at = Vector3Add(c, Vector3Scale(side, k * 1.4f));
+                    DrawPbr(*partM("stakes"), MatrixMultiply(MatrixMultiply(MatrixScale(1.3f, 1.3f, 1.3f), MatrixRotateZ(PI / 2)), MatrixTranslate(at.x, c.y - 0.15f, at.z)));
+                }
+                for (int k = 0; k <= 14; k++) for (int row = 0; row < 3; row++) {   // the net's knots, sagging between them
+                    float u = -1.4f + k * 0.2f, sag = 0.08f * (1 - (u / 1.4f) * (u / 1.4f));
+                    Vector3 q = Vector3Add(c, Vector3Add(Vector3Scale(side, u), {0, 0.15f + row * 0.3f - sag, 0}));
+                    DrawWorldCube(q, {0.035f, 0.035f, 0.035f}, dp.held >= 0 ? Color{200, 80, 60, 255} : Color{190, 176, 130, 255});
+                }
+                Vector3 bt = Vector3Add(c, Vector3Scale(side, 1.4f));
+                float swing = dp.held >= 0 ? 0.4f * sinf(S.time * 14) : 0;
+                DrawPbr(*partM("bell"), MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(0.8f, 0.8f, 0.8f), MatrixTranslate(0, -0.3f, 0)), MatrixRotateX(swing)), MatrixTranslate(bt.x, c.y + 0.75f, bt.z)));
+                continue;
+            }
+            if (dp.type == BuildType::DecoyBuoy && partM("buoy") && partM("lantern") && partM("chumtin")) {
+                float bob = sinf(S.time * 1.5f) * 0.15f, pulse = 0.5f + 0.5f * sinf(S.time * 6);
+                Matrix bf = MatrixMultiply(MatrixMultiply(MatrixScale(2.2f, 2.2f, 2.2f), MatrixRotateZ(0.1f * sinf(S.time * 1.1f))), MatrixTranslate(c.x, c.y - 0.35f + bob, c.z));
+                DrawPbr(*partM("buoy"), bf);
+                DrawPbr(*partM("lantern"), MatrixMultiply(MatrixMultiply(MatrixScale(0.7f, 0.7f, 0.7f), MatrixTranslate(0, 0.34f, 0)), bf));
+                DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.05f, 0.06f, 0.05f), MatrixTranslate(0, 0.43f, 0)), bf), {255, (unsigned char)(200 + 55 * pulse), 120, 255}, 1.2f + pulse);
+                DrawPbr(*partM("chumtin"), MatrixMultiply(MatrixMultiply(MatrixScale(1.5f, 1.5f, 1.5f), MatrixRotateZ(1.4f)), MatrixTranslate(c.x + 0.6f, c.y - 0.3f, c.z + 0.3f)));
+                continue;
+            }
+            if (dp.type == BuildType::BubbleWall && partM("compressor") && partM("hose")) {
+                Matrix base = MatrixMultiply(MatrixRotateY(face), MatrixTranslate(c.x, c.y - 0.45f, c.z));
+                DrawPbr(*partM("compressor"), MatrixMultiply(MatrixScale(1.5f, 1.5f, 1.5f), base));
+                DrawPbr(*partM("hose"), MatrixMultiply(MatrixMultiply(MatrixScale(1.4f, 1.4f, 1.4f), MatrixTranslate(-0.9f, 0, 0)), base));
+            }
             switch (dp.type) {
                 case BuildType::Turbine: {
                     DrawWorldCube(Vector3Add(c, {0, -0.2f, 0}), {0.6f, 0.5f, 0.6f}, {90, 96, 100, 255});
@@ -1642,6 +1704,11 @@ static void DrawScene() {
         }
         for (const auto& k : m.floorKeys) {   // a key a fallen diver dropped: brass, turning slowly, easy to spot
             Vector3 c = Vector3Add(k.pos, {0, 0.3f + sinf(S.time * 2) * 0.1f, 0});
+            if (const Model* km = getenv("DEPTH_OLDSTATIONS") ? nullptr : LoadAsset("noclip/props/key.glb")) {   // (the brass key model, big enough to spot, turning)
+                DrawPbr(*km, MatrixMultiply(MatrixMultiply(MatrixScale(4, 4, 4), MatrixRotateY(S.time * 1.2f)), MatrixTranslate(c.x, c.y, c.z)), Color{255, 220, 140, 255});
+                DrawCubeGlow(MatrixMultiply(MatrixScale(0.05f, 0.05f, 0.05f), MatrixTranslate(c.x, c.y + 0.25f, c.z)), {255, 220, 140, 255}, 0.8f);
+                continue;
+            }
             DrawWorldCube(c, {0.12f, 0.5f, 0.12f}, {220, 180, 70, 255});
             DrawWorldCube(Vector3Add(c, {0, 0.3f, 0}), {0.3f, 0.2f, 0.12f}, {230, 190, 80, 255});
         }
@@ -2511,7 +2578,7 @@ void SceneRedTide(Game& g) {
     }
     if (S.lineup < 0 && S.silhouette < 0.5f && GameSettings().rtLens) { int zz = M().eco.ZoneAt(Me().pos); DrawHelmetPort(zz >= 0 && M().map->zones[zz].air ? 1.0f : 0.0f, S.time); }   // the helmet's port rim (the Visual Overhaul)
     if (S.lineup < 0 && S.silhouette < 0.5f) DrawHud();
-    else if (S.lineup >= 0) TxtBold(TextFormat("Red Tide - the Sunken Ship's species, page %d (CreatureBuilder)", S.lineup + 1), 24, 18, 20, Color{220, 90, 80, 255});
+    else if (S.lineup >= 0) TxtBold(TextFormat("Red Tide - the Sunken Ship's species, page %d", S.lineup + 1), 24, 18, 20, Color{220, 90, 80, 255});
 }
 
 // --shots: 0 the tank, 1 its silhouettes, 2-3 the species lineup, 10+ the Sunken Ship from set places
@@ -2745,7 +2812,7 @@ void DebugRedTideShot(Game& g, int which) {
             Vector3 home = d.pos;
             for (int k = 0; k < 4; k++) { d.pos = z.Clamp(Vector3Add(home, at[k]), 1.0f); d.build = kinds[k]; if (kinds[k] == BuildType::BubbleWall) d.pos = z.Clamp(Vector3Add(home, Vector3Scale(f, 4.5f)), 1.0f); m.UseBuild(0); }
             d.pos = home;
-            if (!m.salvage.empty()) { m.salvage[0].pos = z.Clamp(Vector3Add(home, Vector3Add(Vector3Scale(f, 2.0f), Vector3Scale(r, 1.2f))), 0.6f); m.salvage[0].pos.y = z.y0 + 0.6f; m.salvage[0].taken = false; }
+            if (!m.salvage.empty()) { m.salvage[0].pos = z.Clamp(Vector3Add(home, Vector3Add(Vector3Scale(f, 2.0f), Vector3Scale(r, 1.2f))), 0.6f); m.salvage[0].pos.y = z.y0 + 0.35f; m.salvage[0].taken = false; }
             Match::FlareLight fl; fl.pos = z.Clamp(Vector3Add(home, Vector3Add(Vector3Scale(f, 6.0f), Vector3Scale(r, -1.0f))), 0.5f); fl.pos.y = z.y0 + 0.3f; m.flareLights.push_back(fl);
             d.build = BuildType::ShellShield; d.shieldHP = 220; d.partsMask = (1 << ((int)BuildType::Turbine * 3)) | (1 << ((int)BuildType::Turbine * 3 + 2));
             d.inkBombs = 1; d.chumBags = 2; d.flares = 1; d.tactical = TAC_CHUM; d.brush = true;

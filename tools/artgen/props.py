@@ -708,4 +708,5 @@ def main():
         build(name, fn, out)
 
 
-main()
+if __name__ == "__main__" and not os.environ.get("ARTGEN_IMPORT_TRAWLPROPS"):
+    main()

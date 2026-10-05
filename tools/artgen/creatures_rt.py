@@ -437,6 +437,160 @@ def angler(K):
         K.limb(f"tail{s}", (0, 0.0, -0.45), (0, s * 0.14, -0.6), 0.05, 0.01, "fin", "s3", 10)
 
 
+# ---------------------------------------------------------------- the plans that were still CreatureBuilder boxes (the
+# user: "the fish and crustaceans are still very blocky"): echinoderms by kind, the crocodile, the frog, the bird, the
+# sea skater
+@plan("urchin")
+def urchin(K):
+    K.bone("body", (0, 0, -0.1), (0, 0, 0.1))
+    K.ell("test", (0, 0.12, 0), (0.3, 0.2, 0.3), "back", "body", 28)
+    import random
+    rnd = random.Random(5)
+    for k in range(70):   # long spines all over (golden-angle spread)
+        y = 1 - (k + 0.5) / 70 * 1.6
+        if y < -0.3:
+            continue
+        r = math.sqrt(max(0.0, 1 - y * y)); a = k * 2.39996
+        d = Vector((r * math.cos(a), y, r * math.sin(a)))
+        base = Vector((0, 0.12, 0)) + Vector((d.x * 0.29, d.y * 0.19, d.z * 0.29))
+        tip = base + d * (0.2 + 0.08 * rnd.random())
+        K.limb(f"spine{k}", tuple(base), tuple(tip), 0.016, 0.002, "fin", "body", 5)
+
+
+@plan("starfish")
+def starfish(K):
+    K.bone("body", (0, 0, -0.05), (0, 0, 0.05))
+    K.ell("disc", (0, 0.04, 0), (0.15, 0.06, 0.15), "back", "body", 24)
+    for i in range(5):
+        a = i * 2 * math.pi / 5 + math.pi / 2
+        bn = f"arm{i}"
+        tip = (0.48 * math.cos(a), 0.01, 0.48 * math.sin(a))
+        K.bone(bn, (0.1 * math.cos(a), 0.02, 0.1 * math.sin(a)), tip, "body")
+        K.limb(bn, (0.08 * math.cos(a), 0.03, 0.08 * math.sin(a)), tip, 0.085, 0.015, "back", bn, 14)
+        for j in range(4):   # bumps along the arm's top
+            u = 0.25 + j * 0.17
+            K.ell(f"bump{i}_{j}", (0.48 * u * math.cos(a), 0.07 - 0.05 * u, 0.48 * u * math.sin(a)), (0.022, 0.018, 0.022), "fin", bn, 8)
+
+
+@plan("whelk")
+def whelk(K):
+    # a whelk: a spiral shell of whorls narrowing to a point, the aperture and a soft foot and head poking out
+    K.bone("body", (0, 0, -0.2), (0, 0, 0.2))
+    for k in range(6):   # the whorls, each smaller and further back/up along the spire
+        u = k / 5
+        r = 0.26 * (1 - u * 0.78)
+        K.ell(f"whorl{k}", (0.03 * math.sin(k * 2.2), 0.14 + u * 0.22, 0.05 - u * 0.42), (r, r * 0.8, r * 0.9), "back", "body", 24)
+        K.ell(f"band{k}", (0.03 * math.sin(k * 2.2), 0.14 + u * 0.22 + r * 0.25, 0.05 - u * 0.42), (r * 0.98, r * 0.12, r * 0.88), "fin", "body", 20)
+    K.ell("lip", (0, 0.09, 0.22), (0.18, 0.12, 0.06), "belly", "body", 20)
+    K.ell("foot", (0, -0.02, 0.16), (0.22, 0.05, 0.3), "belly", "body", 20)
+    K.bone("head", (0, 0.02, 0.38), (0, 0.04, 0.5), "body")
+    K.ell("snout", (0, 0.04, 0.42), (0.06, 0.05, 0.08), "belly", "head", 14)
+    for s in (-1, 1):
+        K.limb(f"tent{s}", (s * 0.03, 0.06, 0.44), (s * 0.08, 0.12, 0.56), 0.012, 0.004, "belly", "head", 6)
+        K.ell(f"eye{s}", (s * 0.045, 0.08, 0.47), (0.01, 0.01, 0.01), "eye", "head", 8)
+
+
+@plan("cucumber")
+def cucumber(K):
+    zs = [0.5, 0.17, -0.17, -0.5]
+    spine(K, zs)
+    body = [(0.5, 0.06, 0.05, 0.0), (0.42, 0.13, 0.11, 0.02), (0.2, 0.16, 0.13, 0.03), (-0.1, 0.17, 0.13, 0.03), (-0.35, 0.13, 0.1, 0.02), (-0.48, 0.07, 0.05, 0.0)]
+    K.loft_body("body", body, "back", ["s0", "s1", "s2"], zs, 24)
+    for k in range(18):   # the warty papillae down its back
+        z = 0.38 - k * 0.045
+        K.limb(f"wart{k}", ((k % 3 - 1) * 0.08, 0.12, z), ((k % 3 - 1) * 0.1, 0.19, z - 0.02), 0.022, 0.004, "fin", "s0" if z > 0.17 else "s1" if z > -0.17 else "s2", 5)
+    for i in range(8):   # the feeding tentacles round the mouth
+        a = i * 2 * math.pi / 8
+        K.limb(f"feeder{i}", (0.04 * math.cos(a), 0.02 + 0.04 * math.sin(a), 0.5), (0.1 * math.cos(a), 0.02 + 0.1 * math.sin(a), 0.6), 0.012, 0.003, "belly", "s0", 5)
+
+
+@plan("croc")
+def croc(K):
+    # a saltwater crocodile: a long armoured body, the tail flattened, the snout long with teeth showing, splayed legs
+    zs = [0.5, 0.22, 0.02, -0.18, -0.34, -0.5]
+    spine(K, zs)
+    body = [(0.5, 0.03, 0.02, -0.01), (0.42, 0.045, 0.03, 0.0), (0.3, 0.06, 0.04, 0.0), (0.24, 0.08, 0.06, 0.01), (0.12, 0.11, 0.07, 0.01),
+            (0.0, 0.12, 0.075, 0.01), (-0.12, 0.1, 0.07, 0.01), (-0.24, 0.06, 0.06, 0.01), (-0.36, 0.035, 0.05, 0.01), (-0.5, 0.01, 0.025, 0.01)]
+    K.loft_body("body", body, "back", [f"s{k}" for k in range(5)], zs, 24)
+    K.loft_body("belly", [(z, hw * 0.85, hh * 0.45, yc - hh * 0.5) for (z, hw, hh, yc) in body[1:-1]], "belly", [f"s{k}" for k in range(5)], zs, 18)
+    for k in range(16):   # the scutes in two rows down the back, and a ridge up the tail
+        z = 0.2 - k * 0.042
+        bn = "s1" if z > 0.02 else "s2" if z > -0.18 else "s3" if z > -0.34 else "s4"
+        for s in ((-1, 1) if k < 9 else (0,)):
+            K.ell(f"scute{k}{s}", (s * 0.035, 0.075 - max(0, k - 8) * 0.004, z), (0.016, 0.015, 0.018), "fin", bn, 8)
+    for s, sd in ((1, "L"), (-1, "R")):
+        K.ell(f"eye{sd}", (s * 0.035, 0.045, 0.27), (0.016, 0.016, 0.018), "fin", "s0", 10)
+        K.ell(f"pupil{sd}", (s * 0.04, 0.052, 0.282), (0.008, 0.009, 0.006), "eye", "s0", 8)
+        for k in range(6):
+            K.limb(f"tooth{sd}{k}", (s * 0.04, 0.0, 0.46 - k * 0.03), (s * 0.044, -0.022, 0.46 - k * 0.03), 0.005, 0.0, "belly", "s0", 4)
+        for (nm, z, bn) in (("F", 0.13, "s1"), ("R", -0.1, "s2")):
+            leg = f"leg{nm}{sd}"
+            K.bone(leg, (s * 0.1, 0.0, z), (s * 0.2, -0.07, z + 0.03), bn)
+            K.limb(leg + "u", (s * 0.09, 0.0, z), (s * 0.18, -0.04, z + 0.02), 0.03, 0.022, "back", leg, 8)
+            K.limb(leg + "l", (s * 0.18, -0.04, z + 0.02), (s * 0.2, -0.075, z + 0.05), 0.02, 0.016, "back", leg, 8)
+            K.ell(leg + "foot", (s * 0.21, -0.08, z + 0.07), (0.03, 0.01, 0.04), "back", leg, 10)
+
+
+@plan("frog")
+def frog(K):
+    # a frog (the amphibians): a squat body, a wide head, big eyes on top, folded hind legs, splayed fore legs
+    K.bone("body", (0, 0.1, -0.2), (0, 0.15, 0.2))
+    K.ell("body", (0, 0.16, -0.05), (0.24, 0.16, 0.3), "back", "body", 28)
+    K.ell("belly", (0, 0.1, -0.03), (0.21, 0.11, 0.27), "belly", "body", 24)
+    K.ell("head", (0, 0.2, 0.25), (0.22, 0.12, 0.17), "back", "body", 24)
+    K.ell("chin", (0, 0.14, 0.27), (0.19, 0.06, 0.14), "belly", "body", 20)
+    for s, sd in ((1, "L"), (-1, "R")):
+        K.ell(f"eyeball{sd}", (s * 0.12, 0.31, 0.27), (0.06, 0.06, 0.06), "fin", "body", 16)
+        K.ell(f"eye{sd}", (s * 0.135, 0.325, 0.31), (0.035, 0.035, 0.03), "eye", "body", 12)
+        K.bone(f"hind.{sd}", (s * 0.18, 0.1, -0.25), (s * 0.3, 0.03, -0.1), "body")
+        K.ell(f"thigh{sd}", (s * 0.24, 0.1, -0.2), (0.08, 0.07, 0.15), "back", f"hind.{sd}", 16)
+        K.ell(f"shin{sd}", (s * 0.29, 0.05, -0.1), (0.05, 0.04, 0.14), "back", f"hind.{sd}", 14)
+        K.ell(f"hfoot{sd}", (s * 0.33, 0.01, -0.28), (0.07, 0.012, 0.11), "fin", f"hind.{sd}", 14)
+        K.bone(f"fore.{sd}", (s * 0.15, 0.1, 0.12), (s * 0.24, 0.0, 0.2), "body")
+        K.limb(f"arm{sd}", (s * 0.15, 0.1, 0.12), (s * 0.24, 0.0, 0.2), 0.03, 0.022, "back", f"fore.{sd}", 8)
+        K.ell(f"hand{sd}", (s * 0.25, 0.0, 0.23), (0.04, 0.01, 0.04), "fin", f"fore.{sd}", 10)
+
+
+@plan("bird")
+def bird(K):
+    # a diving seabird (a cormorant or gull): a streamlined body, a hooked bill, wings on bones (they beat), webbed feet
+    K.bone("body", (0, 0, -0.2), (0, 0, 0.2))
+    K.ell("body", (0, 0.0, 0.0), (0.12, 0.11, 0.3), "back", "body", 28)
+    K.ell("breast", (0, -0.03, 0.07), (0.1, 0.08, 0.2), "belly", "body", 20)
+    K.limb("neck", (0, 0.04, 0.22), (0, 0.1, 0.34), 0.055, 0.045, "back", "body", 12)
+    K.ell("head", (0, 0.12, 0.37), (0.055, 0.055, 0.07), "back", "body", 18)
+    K.limb("bill", (0, 0.11, 0.42), (0, 0.095, 0.55), 0.02, 0.006, "fin", "body", 8)
+    K.ell("hook", (0, 0.09, 0.55), (0.008, 0.012, 0.012), "fin", "body", 6)
+    for s, sd in ((1, "L"), (-1, "R")):
+        K.ell(f"eye{sd}", (s * 0.04, 0.135, 0.4), (0.012, 0.012, 0.012), "eye", "body", 8)
+        K.bone(f"wing.{sd}", (s * 0.1, 0.05, 0.08), (s * 0.55, 0.05, -0.02), "body")
+        K.ell(f"wing{sd}", (s * 0.3, 0.05, 0.02), (0.24, 0.018, 0.1), "back", f"wing.{sd}", 18)
+        K.ell(f"tip{sd}", (s * 0.52, 0.05, -0.04), (0.08, 0.012, 0.06), "fin", f"wing.{sd}", 12)
+        K.limb(f"leg{sd}", (s * 0.05, -0.08, -0.18), (s * 0.06, -0.1, -0.3), 0.014, 0.01, "fin", "body", 6)
+        K.ell(f"foot{sd}", (s * 0.06, -0.1, -0.33), (0.04, 0.008, 0.04), "fin", "body", 10)
+    K.ell("tail", (0, 0.01, -0.33), (0.08, 0.012, 0.08), "fin", "body", 14)
+
+
+@plan("skater")
+def skater(K):
+    # an insect that lives on or in the water (a sea skater, a diving beetle): an oval shell, six long jointed legs
+    K.bone("body", (0, 0.05, -0.15), (0, 0.05, 0.15))
+    K.ell("shell", (0, 0.07, -0.05), (0.13, 0.07, 0.24), "back", "body", 22)
+    K.ell("thorax", (0, 0.06, 0.18), (0.09, 0.05, 0.07), "back", "body", 16)
+    K.ell("head", (0, 0.06, 0.27), (0.06, 0.045, 0.05), "fin", "body", 14)
+    K.limb("seam", (0, 0.14, 0.12), (0, 0.13, -0.28), 0.004, 0.004, "fin", "body", 4)
+    for s, sd in ((1, "L"), (-1, "R")):
+        K.ell(f"eye{sd}", (s * 0.045, 0.075, 0.29), (0.018, 0.018, 0.018), "eye", "body", 8)
+        K.limb(f"ant{sd}", (s * 0.03, 0.08, 0.31), (s * 0.12, 0.12, 0.48), 0.005, 0.002, "fin", "body", 4)
+        for i, (z, reach) in enumerate(((0.18, 0.3), (0.08, 0.5), (0.0, 0.45))):
+            bn = f"leg{i}{sd}"
+            knee = (s * (0.1 + reach * 0.5), 0.12, z + (0.08 if i == 0 else -0.05 * i))
+            foot = (s * (0.1 + reach), -0.02, z + (0.14 if i == 0 else -0.16 * i))
+            K.bone(bn, (s * 0.08, 0.05, z), knee, "body")
+            K.limb(bn + "a", (s * 0.08, 0.05, z), knee, 0.012, 0.009, "fin", bn, 5)
+            K.limb(bn + "b", knee, foot, 0.009, 0.003, "fin", bn, 5)
+
+
 if __name__ == "__main__":
     a = C.args()
     only = a[a.index("--only") + 1].split(",") if "--only" in a else None

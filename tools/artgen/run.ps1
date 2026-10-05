@@ -33,6 +33,7 @@ $jobs = @(
     @{ script = "noclip_world.py"; out = "assets\noclip\world" },
     @{ script = "weapons_rt.py";   out = "assets\redtide\weapons" },
     @{ script = "creatures_rt.py"; out = "assets\redtide\creatures" },
+    @{ script = "rt_salvage.py";   out = "assets\redtide\salvage" },
     @{ script = "flora_rt.py";     out = "assets\redtide\flora" },
     @{ script = "stations_rt.py";  out = "assets\redtide\stations" },
     @{ script = "ship_rt.py";      out = "assets\redtide\ship" },
