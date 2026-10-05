@@ -124,7 +124,11 @@ void Gather(float dt) {
         if (IsKeyPressed(KEY_T)) { for (int k = 0; k < 8; k++) if (p.scratchPocket[k] > 0 && p.scratchOpen < 0) { Command c; c.kind = CMD_SCRATCH_OPEN; c.a = k; Send(c); break; } }
         if (IsKeyPressed(KEY_F1)) S.help = !S.help;
         // the room: E at a station opens it
-        if (w.phase == PH_INTER && IsKeyPressed(KEY_E)) { int st = w.NearStation(p); if (st >= 0) { S.panel = st; S.sabPick = -1; PlayCue("ui.click"); } else for (int k = 0; k < (int)w.floor.size(); k++) if (Vector2Distance({w.floor[k].p.x, w.floor[k].p.z}, {p.pos.x, p.pos.z}) < 1.6f) { Command c; c.kind = CMD_TAKE_FLOOR; c.a = k; Send(c); break; } }
+        if (w.phase == PH_INTER && IsKeyPressed(KEY_E)) { int st = w.NearStation(p); if (st >= 0) { S.panel = st; S.sabPick = -1; PlayCue("ui.click"); } }
+        if (w.phase == PH_INTER && IsKeyPressed(KEY_F)) {   // (the playtest: F picks up a gun on the floor, apart from E at the stations, so a gun dropped by the counter can still be taken)
+            int best = -1; float bd = 1.6f; for (int k = 0; k < (int)w.floor.size(); k++) { float d = Vector2Distance({w.floor[k].p.x, w.floor[k].p.z}, {p.pos.x, p.pos.z}); if (d < bd) { bd = d; best = k; } }
+            if (best >= 0) { Command c; c.kind = CMD_TAKE_FLOOR; c.a = best; Send(c); }
+        }
     } else if (IsKeyPressed(KEY_E) || IsKeyPressed(KEY_ESCAPE) || w.phase != PH_INTER) S.panel = -1;
     if (S.net) in.lagSteps = std::clamp((int)roundf((float)(GetTime() - S.snapAt) * 60) + 4, 0, HIST);
     p.in = in;
@@ -331,7 +335,7 @@ void DrawHud(Game& g) {
         int st = w.NearStation(p);
         if (S.panel < 0) {
             if (st >= 0) DrawTextCenteredBold(TextFormat("E: %s", STATION_NAME[st]), cx, cy + 40, 20, WHITE);
-            for (const auto& f : w.floor) if (Vector2Distance({f.p.x, f.p.z}, {p.pos.x, p.pos.z}) < 1.6f) { DrawTextCenteredBold(TextFormat("E: pick up the %s", D().guns[f.g.def].name.c_str()), cx, cy + 66, 18, WHITE); break; }
+            for (const auto& f : w.floor) if (Vector2Distance({f.p.x, f.p.z}, {p.pos.x, p.pos.z}) < 1.6f) { DrawTextCenteredBold(TextFormat("F: pick up the %s", D().guns[f.g.def].name.c_str()), cx, cy + 66, 18, WHITE); break; }
             DrawCircle((int)cx, (int)cy, 3, WHITE);
         } else switch (S.panel) { case 0: PanelGunCounter(); break; case 1: PanelMystery(); break; case 2: PanelSlots(); break; case 3: PanelScratch(); break; case 4: PanelSlop(); break; case 5: PanelTrophies(); break; default: PanelBar(); break; }
         if (S.panel < 0) {

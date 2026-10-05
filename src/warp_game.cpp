@@ -30,6 +30,7 @@ struct WarpScene {
     int me = 0, perTeam = 4, skill = 1, arena = AR_CLASSIC;
     std::vector<uint32_t> botRng;
     float camYaw = 0, camPitch = 0, t = 0, acc = 0, shake = 0, flash = 0;
+    int outView = 0, follow = -1; bool wasAlive = true;   // (out: 0 the broadcast view of the whole court, 1 over your bench, 2 following a teammate still in; Tab cycles)
     size_t evSeen = 0; std::deque<Feed> feed; std::vector<Pop> pops;
     int lastRound = 0; float banner = 0; std::string bannerText; Color bannerCol = WHITE;
     float curveHold = 0, flickX = 0;
@@ -243,10 +244,13 @@ void DrawHud(Game& g) {
         return;
     }
     if (!p.alive) {
-        DrawTextCenteredBold("OUT", cx, cy - 40, 40, {255, 120, 90, 255});
-        DrawTextCentered(p.outCause.empty() ? "" : ("(" + p.outCause + ")").c_str(), cx, cy + 6, 18, WHITE);
+        // (out: the court stays clear; the word and the line at the top, the view's name at the bottom)
+        DrawRectangle(0, 70, SCREEN_W, 74, Color{0, 0, 0, 110});
+        DrawTextCenteredBold(p.outCause.empty() ? "OUT" : ("OUT  (" + p.outCause + ")").c_str(), cx, 76, 30, {255, 120, 90, 255});
         int pos = 0; for (size_t i = 0; i < w.sideline[p.team].size(); i++) if (w.sideline[p.team][i] == S.me) pos = (int)i + 1;
-        DrawTextCentered(TextFormat("A catch by your team brings you back (you're %s in line)", pos == 1 ? "first" : pos == 2 ? "second" : pos == 3 ? "third" : "further back"), cx, cy + 32, 15, {200, 210, 230, 255});
+        DrawTextCentered(TextFormat("A catch by your team brings you back (you're %s in line)", pos == 1 ? "first" : pos == 2 ? "second" : pos == 3 ? "third" : "further back"), cx, 114, 15, {200, 210, 230, 255});
+        std::string vn = S.outView == 0 ? "The whole court" : S.outView == 1 ? "Over your bench" : (S.follow >= 0 ? "Following " + NameOf(S.follow) : "Following");
+        DrawTextCentered(vn + "   (Tab: change view, mouse: look)", cx, SCREEN_H - 40.0f, 15, {220, 226, 236, 255});
         return;
     }
     // the crosshair and the charge ring
@@ -287,14 +291,26 @@ void DrawHud(Game& g) {
 
 void StepCamera(float dt) {
     const Player& p = Me();
-    if (p.alive) { S.cam.position = p.Eye(); }
-    else {   // out: up in the gallery over your bench, looking across the court
-        float s = p.team == 0 ? -1.0f : 1.0f; Vector3 want{s * (W().arena.OuterX() - 0.8f), W().arena.wall * 0.8f, 0};
-        S.cam.position = Vector3Lerp(S.cam.position, want, std::min(1.0f, dt * 3));
+    const Arena& ar = W().arena;
+    auto aimAt = [&](Vector3 from, Vector3 to) { Vector3 d = Vector3Normalize(Vector3Subtract(to, from)); S.camYaw = atan2f(d.z, d.x); S.camPitch = asinf(std::clamp(d.y, -1.0f, 1.0f)); };
+    if (p.alive) { S.cam.position = p.Eye(); S.wasAlive = true; }
+    else {   // out (the playtest: "when out you should get a full view of the game"): a broadcast camera high on the long side that frames the whole court; Tab for the view over your bench or to follow a teammate
+        bool entering = S.wasAlive; S.wasAlive = false;
+        if (IsKeyPressed(KEY_TAB)) { S.outView = (S.outView + 1) % 3; entering = true; S.follow = -1; }
+        if (entering && S.outView == 0) S.cam.position = {0, ar.ceil - 0.7f, ar.OuterZ() - 0.4f};
+        Vector3 want{};
+        if (S.outView == 2) {   // over a living teammate's shoulder, looking where they look (any living player if your side is all out)
+            const auto& ps = W().players; if (S.follow < 0 || S.follow >= (int)ps.size() || !ps[S.follow].alive) { S.follow = -1; for (int pass = 0; pass < 2 && S.follow < 0; pass++) for (size_t i = 0; i < ps.size(); i++) if (ps[i].alive && ps[i].present && (pass == 1 || ps[i].team == p.team)) { S.follow = (int)i; break; } }
+            if (S.follow >= 0) { const Player& f = ps[S.follow]; Vector3 fw{cosf(f.yaw), 0, sinf(f.yaw)}; want = Vector3Add(f.Eye(), Vector3Add(Vector3Scale(fw, -2.4f), {0, 0.9f, 0})); S.camYaw = f.yaw; S.camPitch = std::clamp(f.pitch - 0.25f, -1.2f, 1.2f); }
+            else S.outView = 0;
+        }
+        if (S.outView == 0) { want = {0, ar.ceil - 0.7f, ar.OuterZ() - 0.4f}; if (entering) aimAt(want, {0, 0.6f, -0.6f}); }
+        if (S.outView == 1) { float s = p.team == 0 ? -1.0f : 1.0f; want = {s * (ar.OuterX() - 0.8f), ar.wall * 0.8f, 0}; if (entering) aimAt(want, {0, 0.8f, 0}); }
+        S.cam.position = Vector3Lerp(S.cam.position, want, std::min(1.0f, dt * (S.outView == 2 ? 8.0f : 3.0f)));
     }
     if (S.shake > 0) { S.cam.position.x += sinf(S.t * 70) * 0.03f * S.shake; S.cam.position.y += cosf(S.t * 61) * 0.03f * S.shake; }
     Vector3 look{cosf(S.camPitch) * cosf(S.camYaw), sinf(S.camPitch), cosf(S.camPitch) * sinf(S.camYaw)};
-    S.cam.target = Vector3Add(S.cam.position, look); S.cam.up = {0, 1, 0}; S.cam.fovy = 74; S.cam.projection = CAMERA_PERSPECTIVE;
+    S.cam.target = Vector3Add(S.cam.position, look); S.cam.up = {0, 1, 0}; S.cam.fovy = !p.alive && S.outView == 0 ? 80.0f : 74.0f; S.cam.projection = CAMERA_PERSPECTIVE;
 }
 void Render() {
     rt::SceneLight L;

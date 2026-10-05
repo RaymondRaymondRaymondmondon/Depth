@@ -83,3 +83,5 @@ The spec names Godot 4 and Blender. Warp Dodgeball is built inside Depth instead
 - **Gamepad:** controls are mouse and keyboard only.
 - **Art and sound:** no music of its own (it uses shared cues), and no crowd or arena dressing.
 - **Bots:** they don't climb the Extreme's ladders to the nests.
+## Playtest fix (2026-10-05)
+- **Out, you see the whole game.** A broadcast camera sits high on the court's long side and frames the whole court. Tab cycles three views: the whole court, over your bench (the old view), and following a teammate still in (any player if your side is all out). The OUT notice moved to the top, so the court stays clear.

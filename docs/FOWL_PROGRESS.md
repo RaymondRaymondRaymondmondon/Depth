@@ -96,3 +96,5 @@ The user said the gumball and slot machines didn't look like well-made machines.
   - Machine k shows player k's own reels: they roll in turn and stop on the result.
   - The crown's lamps chase, and flash on a win.
 - **New shots:** `fowl_gumball`, `fowl_slots`.
+## Playtest fix (2026-10-05)
+- **F picks up a gun from the floor**, apart from E (the stations). Before, E opened the nearest station first, so a dropped gun beside the counter couldn't be taken. The prompt and the How to play page say so.
