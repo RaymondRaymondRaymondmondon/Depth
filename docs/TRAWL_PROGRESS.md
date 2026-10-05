@@ -876,3 +876,5 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
 
 - **The user's two reference images, as roles:** the Angler now wears a bucket hat (with a band) and an orange life vest (two fat front floats with stitched channels, a back panel, a collar, two buckled straps) over a shirt and dark trousers; the Diver an orange boiler suit (collar, zip, chest pocket, belt) with the headlamp. `LookOf` varies the shirts, the hats and the suit's orange per sailor.
 
+
+- Fix (2026-10-05): the landings' terrain began its innermost ring at radius 0, a zero-width quad whose normal came out NaN, so the middle of every island (the sandbar, the lighthouse rock...) drew as a black disc in first person; the ring now starts just off the centre. The Old Lighthouse landing uses the Flight's banded lighthouse model.

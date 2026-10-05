@@ -1082,7 +1082,7 @@ static void BuildAtollBaked(int li, const Landing& L) {
         float a0 = k * 2 * PI / N, a1 = a0 + 2 * PI / N;
         Vector2 p0{cosf(a0), sinf(a0)}, p1{cosf(a1), sinf(a1)};
         for (int r = 0; r < RINGS; r++) {
-            float f0 = (float)r / RINGS, f1 = (float)(r + 1) / RINGS;
+            float f0 = std::max(0.015f, (float)r / RINGS), f1 = (float)(r + 1) / RINGS;   // (never a zero-width quad at the centre: its normal came out NaN and the middle of the island drew as a black disc)
             tb.QuadFlat(top, W(Vector2Scale(p0, L.r * f0), domeY(f0)), W(Vector2Scale(p1, L.r * f0), domeY(f0)), W(Vector2Scale(p1, L.r * f1), domeY(f1)), W(Vector2Scale(p0, L.r * f1), domeY(f1)), 1 - 0.15f * f1);
         }
         if (skirt >= 0) tb.QuadFlat(skirt, W(Vector2Scale(p0, L.r), ATOLL_Y), W(Vector2Scale(p1, L.r), ATOLL_Y), W(Vector2Scale(p1, L.r + 2.2f), -0.9f), W(Vector2Scale(p0, L.r + 2.2f), -0.9f), 0.8f);
