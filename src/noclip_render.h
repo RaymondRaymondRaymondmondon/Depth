@@ -11,6 +11,7 @@ struct View {
     bool surface = false; float noise = 0; float blackout = 0; int me = -1; bool ghost = false; bool scanner = false;
     std::vector<nc::Entity> fakes;   // this player's hallucinations
     bool teammatesAsFacelings = false;
+    bool hands = true;               // the first-person arms (off for spectating and cut-aways)
     float tape = 0.35f;              // the VHS look's strength (0 off, 0.35 light, 1 full: the player's choice, F8)
 };
 void Render(const nc::World& w, const View& v);                   // the 3D frame into Mode3DRT, then the VHS pass onto the screen

@@ -175,3 +175,8 @@ Arcade Game 10, on the Deep Arcade's **Action** reel. The user moved it there; t
   - The creatures: the Smiler's face (glowing eyes and teeth), the Clump (on the ceiling until it drops), the Deathmoth (a body and two flapping wings), the giant spider, the Sentry robot, the Seer's eye (it blinks), the Leviathan's shadow.
   - The old boxes remain only as a fallback.
 - **New shot:** `noclip_beasts`. `noclip_lab` now shows the pack with three items and loot on the floor.
+
+### The people, the fourth pass (2026-10-05)
+- The hazmat suit lost its last boxes: rounded rubber boots (toe cap, heel, shaft, sole), puffy mitts over the hands, and an air tank on the back with a hose to the mask's filter. The orange costume got the same boots.
+- First-person arms (p_hazmat.glb/p_orange.glb from noclip_crew.py, `DrawHands` in noclip_render.cpp): the suit's sleeve and a rubber fist in each bottom corner, recoloured with the player's suit cosmetics, swinging with the walk; a carried thing is held between the fists, the flashlight sits in the right fist with its lens lit while the beam is on. `View::hands` turns them off.
+

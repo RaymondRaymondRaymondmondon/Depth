@@ -498,11 +498,9 @@ void DrawEntity(const World& w, const Entity& e, float t, int me) {
     if (id == "partygoer") { BallM(Frame(Vector3Add(e.p, {0.5f, 2.6f + sinf(t * 1.5f) * 0.1f, 0}), 0), {0, 0, 0}, {0.35f, 0.42f, 0.35f}, {240, 60, 90, 255}); Box({e.p.x + 0.5f, 1.9f, e.p.z}, {0.01f, 1.2f, 0.01f}, WHITE); }
     (void)me;
 }
-void DrawCrewMember(const World& w, const Player& p, float t, bool asFaceling) {
-    if (p.st == PS_SURFACE || p.st == PS_TAKEN) return;
-    if (p.st == PS_DEAD) return;   // (Wanderers are invisible to the living)
-    auto cid = [&](int i) { return i >= 0 && i < (int)D().cosmetics.size() ? D().cosmetics[i].id : std::string(); };
-    std::string h = cid(p.hat), c = cid(p.costume), su = cid(p.suitCos), ve = cid(p.vest), la = cid(p.lamp_c);
+std::string CosId(int i) { return i >= 0 && i < (int)D().cosmetics.size() ? D().cosmetics[i].id : std::string(); }
+SuitLook PlayerSuit(const Player& p, float t, bool asFaceling) {
+    std::string h = CosId(p.hat), c = CosId(p.costume), su = CosId(p.suitCos), ve = CosId(p.vest), la = CosId(p.lamp_c);
     SuitLook s;
     if (asFaceling) s = SuitOf("faceling");
     else {
@@ -517,6 +515,13 @@ void DrawCrewMember(const World& w, const Player& p, float t, bool asFaceling) {
         Color lens = la == "lamp_warm" ? Color{120, 90, 40, 255} : la == "lamp_cold" ? Color{60, 90, 130, 255} : la == "lamp_green" ? Color{40, 120, 60, 255} : la == "lamp_red" ? Color{140, 30, 30, 255} : la == "lamp_purple" ? Color{90, 40, 130, 255} : la == "lamp_uv" ? Color{70, 30, 160, 255} : la == "lamp_rainbow" ? ColorFromHSV(fmodf(t * 60, 360), 0.8f, 0.7f) : Color{0, 0, 0, 0};
         if (lens.a) s.rc.push_back({"lens", lens});
     }
+    return s;
+}
+void DrawCrewMember(const World& w, const Player& p, float t, bool asFaceling) {
+    if (p.st == PS_SURFACE || p.st == PS_TAKEN) return;
+    if (p.st == PS_DEAD) return;   // (Wanderers are invisible to the living)
+    std::string h = CosId(p.hat), c = CosId(p.costume);
+    SuitLook s = PlayerSuit(p, t, asFaceling);
     Vector3 at = p.p; float spd = Vector2Length({p.vel.x, p.vel.z});
     Matrix pre = MatrixIdentity();
     if (p.st == PS_DOWNED) { pre = MatrixMultiply(MatrixRotateZ(PI / 2), MatrixTranslate(0, 0.18f, 0)); spd = 0; }   // (on their back)
@@ -546,6 +551,50 @@ void DrawCrewMember(const World& w, const Player& p, float t, bool asFaceling) {
     (void)hy;
     if (p.hands.def >= 0) DrawLoot(p.hands, Vector3Add(at, {cosf(p.yaw) * 0.5f, 0.9f, sinf(p.yaw) * 0.5f}), t, p.yaw);
     (void)w;
+}
+// the first-person arms (tools/artgen/noclip_crew.py fp_<suit>.glb): the suit's sleeves and rubber gloves in the
+// bottom corners, swinging with the walk; a carried thing is held between both fists, the flashlight in the right.
+void DrawHands(const World& w, const View& v) {
+    if (v.me < 0 || v.me >= (int)w.crew.size() || v.ghost) return;
+    const Player& p = w.crew[v.me]; if (p.st != PS_ALIVE) return;
+    SuitLook s = PlayerSuit(p, v.t, false);
+    const Model* m = rt::LoadAsset(s.model == 1 ? "noclip/fp_orange.glb" : "noclip/fp_hazmat.glb"); if (!m || !S3.ok) return;
+    static std::map<const Model*, std::map<std::string, int>> byName;
+    if (!byName.count(m)) { byName[m]; for (const char* n : {"suit", "trim", "glove", "patch"}) { Material mt; if (rt::AssetMaterial(m, n, &mt)) for (int i = 0; i < m->materialCount; i++) if (m->materials[i].maps == mt.maps) byName[m][n] = i; } }
+    Vector3 f = Vector3Normalize(Vector3Subtract(v.cam.target, v.cam.position)), r = Vector3Normalize(Vector3CrossProduct(f, {0, 1, 0})), u = Vector3CrossProduct(r, f);
+    Vector3 o = v.cam.position;
+    Matrix B = {-r.x, u.x, f.x, o.x, -r.y, u.y, f.y, o.y, -r.z, u.z, f.z, o.z, 0, 0, 0, 1};   // (x to the left, y up, z ahead: a proper rotation)
+    float spd = std::clamp(Vector2Length({p.vel.x, p.vel.z}) / 3.0f, 0.0f, 1.0f), ph = v.t * 8 + p.id;
+    bool carry = p.hands.def >= 0, torch = p.tools[std::clamp(p.sel, 0, 4)].item == ItemIndex("flashlight");
+    Matrix mirror = MatrixScale(-1, 1, 1);
+    for (int side = 0; side < 2; side++) {   // 0 the right arm, 1 the left (the right one mirrored)
+        float sw = sinf(ph + side * PI) * spd, breathe = sinf(v.t * 1.6f) * 0.004f;
+        float ex = carry ? 0.16f : 0.2f, yaw = carry ? 0.4f : 0.22f, pitch = carry ? 0.36f : 0.3f, ey = -0.25f;
+        if (!carry && side == 1 && !torch) { ex = 0.23f; pitch = 0.2f; ey = -0.28f; }   // (the free left hand rides lower)
+        Matrix arm = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(0.82f, 0.82f, 0.82f), MatrixRotateX(-pitch - sw * 0.06f)), MatrixRotateY(yaw)), MatrixTranslate(-ex, ey + breathe + fabsf(sw) * 0.012f, 0.1f + sw * 0.03f));
+        Matrix local = side == 0 ? arm : MatrixMultiply(MatrixMultiply(mirror, arm), mirror);
+        Matrix world = MatrixMultiply(local, B);
+        if (s.emis != gEmissive) Emis(s.emis);
+        for (int i = 0; i < m->meshCount; i++) {
+            Material mat = m->materials[m->meshMaterial[i]]; MaterialMap maps[12]; memcpy(maps, mat.maps, sizeof(maps)); mat.maps = maps; mat.shader = S3.sh;
+            for (const auto& rc : s.rc) { auto it = byName[m].find(rc.mat); if (it != byName[m].end() && it->second == m->meshMaterial[i]) maps[MATERIAL_MAP_DIFFUSE].color = rc.c; }
+            maps[MATERIAL_MAP_DIFFUSE].texture = White(); maps[MATERIAL_MAP_EMISSION].texture = gCurLight;
+            DrawMesh(m->meshes[i], mat, MatrixMultiply(m->transform, world));
+        }
+        if (side == 0 && torch && !carry) {   // the flashlight in the right fist, its lens lit while the beam is on
+            DrawM(gCyl, MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(0.026f, 0.2f, 0.026f), MatrixRotateX(PI / 2)), MatrixTranslate(0, 0.0f, 0.3f)), world), Color{30, 30, 34, 255});
+            DrawM(gCyl, MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(0.036f, 0.04f, 0.036f), MatrixRotateX(PI / 2)), MatrixTranslate(0, 0.0f, 0.49f)), world), Color{60, 60, 66, 255});
+            BallM(world, {0, 0, 0.53f}, {0.06f, 0.06f, 0.012f}, v.flashlight ? Color{255, 250, 225, 255} : Color{120, 120, 110, 255}, v.flashlight ? 3.0f : 0);
+        }
+    }
+    if (carry) {   // the carried thing, fitted to the space between the fists
+        if (const Model* pm = PropModel(p.hands.def)) {
+            BoundingBox bb = GetModelBoundingBox(*pm); Vector3 c = Vector3Scale(Vector3Add(bb.min, bb.max), 0.5f), e = Vector3Subtract(bb.max, bb.min);
+            float k = 0.26f / std::max(0.05f, std::max(e.x, std::max(e.y, e.z)));
+            DrawPropModel(*pm, MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixTranslate(-c.x, -c.y, -c.z), MatrixScale(k, k, k)), MatrixTranslate(0, -0.2f, 0.42f)), B), 0);
+        }
+    }
+    Emis(0);
 }
 // a loot item's picture for the pack: its model in a small target, lit from the upper left (a tiny shader of its own)
 Texture2D LootIconImpl(int def) {
@@ -633,6 +682,7 @@ void Render(const World& w, const View& v) {
     for (const auto& m : w.marks) if (m.level == v.level && Vector3Distance(m.at, v.cam.position) < 30) { Matrix f = Frame(Vector3Add(m.at, {0, 1.4f, 0}), m.yaw); BoxM(f, {0, 0, 0.05f}, {0.5f, 0.06f, 0.02f}, Color{240, 240, 235, 255}, 0.4f); BoxM(f, {0.2f, 0.08f, 0.05f}, {0.2f, 0.06f, 0.02f}, Color{240, 240, 235, 255}, 0.4f); }
     for (const auto& e : v.fakes) DrawEntity(w, e, v.t, v.me);
     for (const auto& p : w.crew) if (p.level == v.level && p.id != v.me) DrawCrewMember(w, p, v.t, v.teammatesAsFacelings);
+    if (v.hands) DrawHands(w, v);
     // the transparent last: glass, water
     for (Model* m : {&G.glass, &G.water}) if (m->meshCount) { BeginBlendMode(BLEND_ALPHA); m->materials[0].maps[MATERIAL_MAP_DIFFUSE].color = m == &G.water ? Color{120, 160, 200, 170} : Color{255, 255, 255, 120}; DrawModel(*m, {0, 0, 0}, 1, WHITE); EndBlendMode(); }
     rlEnableBackfaceCulling();

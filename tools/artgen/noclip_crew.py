@@ -98,9 +98,31 @@ def hazmat(k):
         # cuffs where the gloves meet the sleeves, boots over the legs, orange soles
         h = k.j(f"hand.{sd}"); fa = k.j(f"forearm.{sd}")
         k.add(K.tube_ring(f"cuff{sd}", tuple(h + (fa - h) * 0.18), 0.06, 0.018, "glove", k.mats, axis='ARM' if s > 0 else 'ARM_R'), "glove", f"forearm.{sd}")
-        k.box(f"boot{sd}", (0.27, 0.16, 0.16), (0.055, s * 0.115, 0.08), "boot", f"foot.{sd}", bevel=0.035)
-        k.lathe(f"bootleg{sd}", [(0.085, 0.0), (0.083, 0.14)], (0.0, s * 0.115, 0.12), "boot", f"shin.{sd}", 20)
-        k.box(f"sole{sd}", (0.29, 0.17, 0.03), (0.055, s * 0.115, 0.015), "sole", f"foot.{sd}", bevel=0.01)
+        rubber_boot(k, sd, s)
+        # a puffy rubber glove over each hand (the fingers read as one mitt at play distance)
+        h = k.j(f"hand.{sd}"); fa = k.j(f"forearm.{sd}")
+        d = (h - fa).normalized()
+        k.ell(f"mitt{sd}", tuple(h + d * 0.045), (0.05, 0.042, 0.06), "glove", f"hand.{sd}", 24)
+        k.ell(f"thumb{sd}", tuple(h + d * 0.02 + Vector((0.035, s * 0.02, 0))), (0.022, 0.02, 0.03), "glove", f"hand.{sd}", 16)
+    # the air pack on the back: a rounded tank in a harness, a hose over the shoulder to the mask's filter
+    k.cone("tank", Vector((-0.24, 0, 1.0)), Vector((-0.24, 0, 1.36)), 0.085, 0.085, "metal", "chest", 28)
+    k.ell("tank_top", (-0.24, 0, 1.36), (0.085, 0.085, 0.05), "metal", "chest", 24)
+    k.ell("tank_bot", (-0.24, 0, 1.0), (0.085, 0.085, 0.04), "metal", "chest", 24)
+    k.cone("tank_valve", Vector((-0.24, 0, 1.4)), Vector((-0.24, 0, 1.44)), 0.02, 0.016, "mask", "chest", 12)
+    for z in (1.08, 1.28):
+        k.add(K.tube_ring(f"tank_band{z}", (-0.24, 0, z), 0.088, 0.01, "patch", k.mats), "patch", "chest")
+    k.tube("hose", [(-0.24, 0, 1.44), (-0.2, -0.1, 1.5), (-0.02, -0.17, 1.5), (0.14, -0.1, 1.45), HC + Vector((0.16, -0.03, -0.11))], 0.016, "mask", "chest")
+
+
+def rubber_boot(k, sd, s):
+    """A rounded rubber boot: a domed toe cap, a heel, a shaft and a ribbed sole (no boxes)."""
+    y = s * 0.115
+    k.ell(f"toe{sd}", (0.1, y, 0.06), (0.09, 0.075, 0.06), "boot", f"foot.{sd}", 28)
+    k.ell(f"heel{sd}", (-0.03, y, 0.07), (0.07, 0.072, 0.07), "boot", f"foot.{sd}", 24)
+    k.lathe(f"bootleg{sd}", [(0.08, 0.0), (0.086, 0.12), (0.092, 0.17)], (0.0, y, 0.08), "boot", f"shin.{sd}", 24)
+    k.add(K.tube_ring(f"bootlip{sd}", (0.0, y, 0.25), 0.092, 0.012, "boot", k.mats), "boot", f"shin.{sd}")
+    sole = k.ell(f"sole{sd}", (0.04, y, 0.016), (0.16, 0.08, 0.018), "sole", f"foot.{sd}", 28)
+    return sole
 
 
 def orange(k):
@@ -129,9 +151,7 @@ def orange(k):
     for sd, s in (("L", 1), ("R", -1)):
         p = k.along_arm(sd, 0.3) + Vector((0.065, 0, 0))
         k.box(f"armbadge{sd}", (0.015, 0.05, 0.05), tuple(p), "badge", f"upperarm.{sd}", bevel=0.004)
-        k.box(f"boot{sd}", (0.27, 0.16, 0.15), (0.055, s * 0.115, 0.075), "boot", f"foot.{sd}", bevel=0.035)
-        k.lathe(f"bootleg{sd}", [(0.082, 0.0), (0.08, 0.12)], (0.0, s * 0.115, 0.12), "boot", f"shin.{sd}", 20)
-        k.box(f"sole{sd}", (0.29, 0.17, 0.028), (0.055, s * 0.115, 0.014), "sole", f"foot.{sd}", bevel=0.01)
+        rubber_boot(k, sd, s)
 
 
 SUITS = {"hazmat": hazmat, "orange": orange}
@@ -187,6 +207,53 @@ def build(who, out):
     print("artgen: wrote", path)
 
 
+def build_fp(who, out):
+    """The first-person arm (the right one; the game mirrors it for the left): the sleeve from the elbow, its cuff, and
+    a puffy rubber glove closed as a loose fist. Local axes as the game wants them: x right, z up (glTF y), -y forward
+    (glTF +z). The elbow is the origin; the knuckles sit about 0.42 m forward."""
+    C.reset()
+    cols = {n: (c, r, 0.9 if n in METALLIC else 0.0) for n, (c, r) in COLOURS[who].items()}
+    mats = {n: C.mat_flat(n, c, rough=r, metal=m) for n, (c, r, m) in cols.items()}
+    parts = []
+    def ell(name, c, r, mat, segs=28):
+        bm = bmesh.new()
+        bmesh.ops.create_uvsphere(bm, u_segments=segs, v_segments=max(8, segs * 2 // 3), radius=1.0)
+        bmesh.ops.scale(bm, vec=Vector(r), verts=bm.verts); bmesh.ops.translate(bm, vec=Vector(c), verts=bm.verts)
+        me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+        o = C.link(bpy.data.objects.new(name, me)); C.assign(o, mats[mat]); C.smooth(o, 180); parts.append(o); return o
+    def sleeve(name, prof, mat, segs=28):
+        """A surface of revolution along -y: prof [(radius, distance forward)], with a gentle fold wobble."""
+        bm = bmesh.new(); rings = []
+        for i, (r, d) in enumerate(prof):
+            ring = []
+            for k in range(segs):
+                a = 2 * math.pi * k / segs
+                rr = r * (1 + 0.04 * math.sin(3 * a + i * 1.7))   # (the baggy cloth's folds)
+                ring.append(bm.verts.new((rr * math.cos(a), -d, rr * math.sin(a) * 0.92)))
+            rings.append(ring)
+        for a_, b_ in zip(rings, rings[1:]):
+            for k in range(segs):
+                bm.faces.new((a_[k], a_[(k + 1) % segs], b_[(k + 1) % segs], b_[k]))
+        bmesh.ops.contextual_create(bm, geom=rings[0]); bmesh.ops.contextual_create(bm, geom=rings[-1])
+        me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+        o = C.link(bpy.data.objects.new(name, me)); C.assign(o, mats[mat]); C.smooth(o, 180); parts.append(o); return o
+    big = who == "hazmat"
+    sleeve("sleeve", [(0.085 if big else 0.07, -0.06), (0.09 if big else 0.072, 0.06), (0.084 if big else 0.066, 0.18), (0.075 if big else 0.06, 0.27)], "suit")
+    if big:
+        ell("patch", (0.0, -0.13, 0.085), (0.045, 0.035, 0.012), "patch", 16)
+    # the cuff: a thick rubber ring where the glove meets the sleeve
+    ell("cuff", (0.0, -0.285, 0.0), (0.07, 0.035, 0.064), "glove", 28)
+    # the fist: the back of the hand, the rolled fingers across the front, the thumb over them
+    ell("palm", (0.0, -0.35, 0.005), (0.058, 0.07, 0.048), "glove")
+    for i in range(4):
+        x = -0.036 + i * 0.024
+        ell(f"finger{i}", (x, -0.405 + abs(i - 1.5) * 0.004, -0.012), (0.014, 0.026, 0.03), "glove", 16)
+    ell("thumb", (0.04, -0.39, 0.02), (0.018, 0.034, 0.017), "glove", 16)
+    for o in parts:
+        C.select_only([o]); bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    C.export_glb(parts, os.path.join(out, f"fp_{who}.glb"))
+
+
 a = C.args()
 only = a[a.index("--suit") + 1] if "--suit" in a else None
 out = C.out_dir()
@@ -194,3 +261,4 @@ for w in SUITS:
     if only and w != only:
         continue
     build(w, out)
+    build_fp(w, out)
