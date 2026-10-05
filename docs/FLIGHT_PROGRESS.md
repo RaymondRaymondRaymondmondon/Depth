@@ -813,3 +813,5 @@ The long-match page (Tab, page 4) now has sub-pages: The year, Powers (the neutr
 - **Townsfolk** walk from their doors to the square or the harbour and back on the shared crew figure in everyday colours (`DrawTownsfolk`; the nearest dozen within 150 m).
 - The core stamps roofs into the heightmap (so a bird can land on them); the terrain is now drawn at the surrounding ground level under the buildings, so they no longer sit in blocks of turf.
 
+
+- Landmarks (2026-10-05): `tools/artgen/flight_isles_art.py` (assets/flight/isles) builds the banded lighthouse (gallery, lantern room, cap and vane; its lamp a glowing lens inside, its night beam two translucent cones), a galleon's wreck hull (planked, stove in on the port side with ribs showing, wales, a weed line, barnacles, beams, a bowsprit stump; the terrain is no longer stamped up under it) and her deckhouse; the Ghost Ship uses them tinted and bobbing, with ghostfire lantern orbs. Masts, yards, flagpoles and cannon are round spars; the Iron Island's walls have a plinth course and crenellations.

@@ -112,7 +112,7 @@ void BuildTerrain(rt::MeshBuilder& mb, const fl::Island& is, int step = 1) {
     std::vector<Foot> feet;
     bool modelled = rt::LoadAsset("flight/town/house_a.glb") != nullptr;
     if (modelled) for (const auto& pr : is.props) {
-        if (pr.kind != 0 && pr.kind != 2 && pr.kind != 5) continue;
+        if (pr.kind != 0 && pr.kind != 2 && pr.kind != 5 && !(pr.kind == 6 && pr.half.z > 12 && rt::LoadAsset("flight/isles/wreckhull.glb"))) continue;   // (houses, towers, woodpiles and a wreck's hull sit on the ground, not on a stamped plateau)
         float g = 0; int n = 0; float ca = cosf(pr.yaw), sa = sinf(pr.yaw);
         for (int k = 0; k < 8; k++) {
             float a = k * PI / 4, u = cosf(a) * (pr.half.x + is.cell * 2.5f), v = sinf(a) * (pr.half.z + is.cell * 2.5f);
@@ -1094,7 +1094,10 @@ void DrawDangers(const fl::World& w, const Camera3D& cam, float dt) {
                 break;
             case fl::IsleType::Lighthouse: if (nightNow) {   // the beam sweeping round
                 float a = S.t * 0.6f; Vector3 lamp = is.hill;
-                for (int k = 1; k < 14; k++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.2f + k * 0.5f, 0.6f + k * 0.3f, 1.2f + k * 0.5f), MatrixTranslate(lamp.x + cosf(a) * k * 9, lamp.y + 1, lamp.z + sinf(a) * k * 9)), Color{255, 240, 190, 255}, 0.5f / (1 + k * 0.25f)); }
+                static Model cone = LoadModelFromMesh(GenMeshCone(1, 1, 32));   // (a long cone of light from the lantern, on its side)
+                for (int b = 0; b < 2; b++) { float ab = a + b * PI;
+                    Matrix cm = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(8, 110, 8), MatrixTranslate(0, -120, 0)), MatrixRotateZ(PI / 2)), MatrixMultiply(MatrixRotateY(-ab + PI), MatrixTranslate(lamp.x, lamp.y + 1.5f, lamp.z)));
+                    rt::DrawSky(cone, cm, Color{255, 236, 180, 30}); } }
                 break;
             case fl::IsleType::Whale: if (w.isx.whaleUnderT <= 0) {   // the blowhole's spout now and then
                 float ph = fmodf(S.t * 0.12f, 1.0f); if (ph < 0.25f) for (int k = 0; k < 6; k++) { float u = ph * 4; rt::DrawCubeM(MatrixMultiply(MatrixScale(1 + u * 2, 1.2f, 1 + u * 2), MatrixTranslate(is.hill.x, is.hill.y + 1 + k * 1.5f * u, is.hill.z)), Color{230, 238, 244, 255}); } }
@@ -1108,7 +1111,7 @@ void DrawDangers(const fl::World& w, const Camera3D& cam, float dt) {
                 float a = S.t * (0.3f + 0.02f * (k % 7)) + k * 0.61f, rr = 20 + (k % 9) * 4.0f; Vector3 p{is.c.x + cosf(a) * rr, is.hill.y - 10 + (k % 5) * 5.0f + 2 * sinf(S.t + k), is.c.z + sinf(a) * rr};
                 rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.4f, 0.12f, 0.4f), MatrixRotateY(-a)), MatrixTranslate(p.x, p.y, p.z)), Color{246, 246, 240, 255}); }
                 break;
-            case fl::IsleType::GhostShip: if (nightNow) for (int k = 0; k < 4; k++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.7f, 1.0f, 0.7f), MatrixTranslate(is.hill.x - 9 + 6 * k, is.hill.y + 3 + 0.4f * sinf(S.t * 2 + k), is.hill.z)), Color{120, 255, 190, 255}, 1.6f);
+            case fl::IsleType::GhostShip: if (nightNow) for (int k = 0; k < 4; k++) { static Model orb = LoadModelFromMesh(GenMeshSphere(1, 10, 12)); float fl2 = 0.8f + 0.2f * sinf(S.t * 5 + k * 2.3f); rt::DrawStaticGlow(orb, MatrixMultiply(MatrixScale(0.45f, 0.6f, 0.45f), MatrixTranslate(is.hill.x - 9 + 6 * k, is.hill.y + 3 + 0.4f * sinf(S.t * 2 + k), is.hill.z)), Color{120, 255, 190, 255}, 1.6f * fl2); }   // (ghostfire lanterns)
                 break;
             default: break;
             }
@@ -1253,11 +1256,17 @@ void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
         // the town's houses, roofs, tower, docks, boats and woodpile (as models where they're built); the wreck's hull
         // and masts
         auto baked = [&](const fl::Prop& pr) -> bool {
-            if (fl::IsDrifting(is.type) && pr.kind != 4) return false;
-            const char* name = nullptr; Vector3 sc{1, 1, 1}; float y = pr.c.y - pr.half.y, extraYaw = 0;
+            if (fl::IsDrifting(is.type) && pr.kind != 4 && pr.kind != 6) return false;
+            const char* name = nullptr; Vector3 sc{1, 1, 1}; float y = pr.c.y - pr.half.y, extraYaw = 0; Color tint = WHITE;
             switch (pr.kind) {
+                case 6:   // a hull (the wreck, the ghost ship, the treasure ship) or her captain's cabin (tools/artgen/flight_isles_art.py)
+                    if (pr.half.z > 12) { name = "flight/isles/wreckhull.glb"; sc = {pr.half.x / 6, pr.half.y / 2.5f, pr.half.z / 22}; y = pr.c.y - pr.half.y + 1.4f * sc.y; }
+                    else { name = "flight/isles/deckhouse.glb"; sc = {pr.half.x / 4, pr.half.y / 1.4f, pr.half.z / 3.5f}; }
+                    if (is.type == fl::IsleType::GhostShip) { tint = Color{150, 186, 170, 255}; y += 0.25f * sinf(S.t * 0.4f); }
+                    break;
                 case 0: name = Hash(pr.c.x, pr.c.z) < 0.5f ? "flight/town/house_a.glb" : "flight/town/house_b.glb"; sc = {pr.half.x / 4, pr.half.y / 2.5f, pr.half.z / 5}; break;
-                case 2: name = "flight/town/church.glb"; sc = {pr.half.x / 4, pr.half.y / 12, pr.half.z / 4}; break;
+                case 2: if (is.type == fl::IsleType::Lighthouse) { name = "flight/isles/lighthouse.glb"; sc = {pr.half.x / 3, pr.half.y / 14, pr.half.z / 3}; break; }
+                    name = "flight/town/church.glb"; sc = {pr.half.x / 4, pr.half.y / 12, pr.half.z / 4}; break;
                 case 3: name = "flight/town/pier.glb"; sc = {pr.half.x / 2, 1, pr.half.z / 16}; y = pr.c.y + pr.half.y - 0.56f; break;
                 case 4: name = "trawl/props/skiff.glb"; sc = {2.0f, 2.0f, 2.0f}; y = pr.c.y + 0.12f * sinf(S.t * 1.3f + pr.c.x); extraYaw = PI / 2; break;
                 case 5: name = "flight/town/woodpile.glb"; sc = {pr.half.x / 3, pr.half.y, pr.half.z / 2}; break;
@@ -1265,7 +1274,7 @@ void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
             }
             const Model* bm = rt::LoadAsset(name);
             if (!bm) return false;
-            rt::DrawPbr(*bm, MatrixMultiply(MatrixMultiply(MatrixScale(sc.x, sc.y, sc.z), MatrixRotateY(-pr.yaw + extraYaw)), MatrixTranslate(pr.c.x, y, pr.c.z)));
+            rt::DrawPbr(*bm, MatrixMultiply(MatrixMultiply(MatrixScale(sc.x, sc.y, sc.z), MatrixRotateY(-pr.yaw + extraYaw)), MatrixTranslate(pr.c.x, y, pr.c.z)), tint);
             return true;
         };
         auto roofOfBaked = [&](const fl::Prop& pr) {   // (a roof over a house or the tower: the model has its own)
@@ -1282,7 +1291,29 @@ void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
             bool ghost = is.type == fl::IsleType::GhostShip;
             float bob = pr.kind == 4 ? 0.12f * sinf(S.t * 1.3f + pr.c.x) : pr.kind == 6 ? 0.25f * sinf(S.t * 0.4f) : pr.kind == 11 ? 0.05f * sinf(S.t * 0.7f) : 0;
             Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(pr.half.x * 2, pr.half.y * 2, pr.half.z * 2), MatrixRotateY(-pr.yaw)), MatrixTranslate(pr.c.x, pr.c.y + bob, pr.c.z));
-            if (pr.kind == 8) rt::DrawCubeGlow(m, PC[8], w.DayPhase() < 0.2f || w.DayPhase() > 0.85f ? 2.4f : 0.6f);   // (the lighthouse's lamp, bright at night)
+            if (pr.kind == 8 && is.type == fl::IsleType::Lighthouse && rt::LoadAsset("flight/isles/lighthouse.glb")) {   // (the lamp inside the lantern room: a glowing lens)
+                static Model lens = LoadModelFromMesh(GenMeshSphere(1, 10, 14));
+                rt::DrawStaticGlow(lens, MatrixMultiply(MatrixScale(1.0f, 1.0f, 1.0f), MatrixTranslate(pr.c.x, pr.c.y - pr.half.y + 1.7f, pr.c.z)), PC[8], w.DayPhase() < 0.2f || w.DayPhase() > 0.85f ? 2.4f : 0.5f);
+            }
+            else if (pr.kind == 8) rt::DrawCubeGlow(m, PC[8], w.DayPhase() < 0.2f || w.DayPhase() > 0.85f ? 2.4f : 0.6f);   // (the lighthouse's lamp, bright at night)
+            else if (pr.kind == 7 || pr.kind == 12) {   // masts, yards, the flagpole and cannon: round spars along their longest side
+                static Model cyl = LoadModelFromMesh(GenMeshCylinder(0.5f, 1, 10));
+                Vector3 hh = pr.half; Matrix base;
+                if (hh.y >= hh.x && hh.y >= hh.z) base = MatrixMultiply(MatrixTranslate(0, -0.5f, 0), MatrixScale(hh.x * 2, hh.y * 2, hh.z * 2));
+                else if (hh.x >= hh.z) base = MatrixMultiply(MatrixMultiply(MatrixTranslate(0, -0.5f, 0), MatrixRotateZ(PI / 2)), MatrixScale(hh.x * 2, hh.y * 2, hh.z * 2));
+                else base = MatrixMultiply(MatrixMultiply(MatrixTranslate(0, -0.5f, 0), MatrixRotateX(PI / 2)), MatrixScale(hh.x * 2, hh.y * 2, hh.z * 2));
+                Matrix mm = MatrixMultiply(MatrixMultiply(base, MatrixRotateY(-pr.yaw)), MatrixTranslate(pr.c.x, pr.c.y + bob, pr.c.z));
+                rt::DrawStatic(cyl, mm, ghost ? Mix(PC[pr.kind], Color{120, 140, 130, 255}, 0.5f) : PC[pr.kind]);
+            }
+            else if (pr.kind == 10) {   // stone walls and bastions: the block, a darker plinth course and crenellations along the top
+                rt::DrawCubeM(m, PC[10]);
+                bool alongX = pr.half.x >= pr.half.z; float len = alongX ? pr.half.x : pr.half.z;
+                int nm = std::max(2, (int)(len / 1.2f));
+                for (int k = 0; k < nm; k += 2) { float u = -len + (k + 0.5f) * (2 * len / nm);
+                    Vector3 p{pr.c.x + (alongX ? u : 0), pr.c.y + pr.half.y + 0.45f, pr.c.z + (alongX ? 0 : u)};
+                    rt::DrawCubeM(MatrixMultiply(MatrixScale(alongX ? 2 * len / nm : pr.half.x * 2, 0.9f, alongX ? pr.half.z * 2 : 2 * len / nm), MatrixTranslate(p.x, p.y, p.z)), Mix(PC[10], WHITE, 0.08f)); }
+                rt::DrawCubeM(MatrixMultiply(MatrixScale(pr.half.x * 2 + 0.3f, 0.8f, pr.half.z * 2 + 0.3f), MatrixTranslate(pr.c.x, pr.c.y - pr.half.y + 0.4f, pr.c.z)), Mix(PC[10], BLACK, 0.2f));
+            }
             else rt::DrawCubeM(m, ghost ? Mix(PC[std::clamp(pr.kind, 0, 14)], Color{120, 140, 130, 255}, 0.5f) : PC[std::clamp(pr.kind, 0, 14)]);
         }
     }
