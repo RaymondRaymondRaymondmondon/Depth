@@ -1100,6 +1100,24 @@ static void BuildAtollBaked(int li, const Landing& L) {
     at("trawl/props/beached_sloop.glb", L.sloop, ATOLL_Y, -L.sloopHead);
     at("trawl/props/firering.glb", L.fire, gy);
 }
+static bool DrawElder(int kind, Vector3 at, float yaw, float t);   // (below, with the sailors)
+// the working clutter of a boat (tools/artgen/props.py), against the bulwarks and in the corners, clear of every
+// station and the walkways: purely for the look (nothing collides with them). M: the boat's frame.
+static void DrawDeckClutter(Matrix M) {
+    if (getenv("DEPTH_OLDBOAT") || getenv("DEPTH_NOCLUTTER")) return;
+    struct Bit { const char* m; float x, y, z, yaw; };
+    static const Bit BITS[] = {
+        {"bucket", -2.95f, 0, 2.42f, 0.4f}, {"bucket", 6.25f, 0, -1.95f, 1.3f}, {"mop", 6.55f, 0, -1.6f, -PI / 2 + 0.2f},
+        {"lobsterpot", 7.55f, 0, 1.55f, 0.15f}, {"lobsterpot", 7.5f, 0.28f, 1.55f, -0.1f}, {"lobsterpot", 6.85f, 0, 1.7f, 0.5f},
+        {"fishbox", -3.25f, 0, -2.42f, 0.05f}, {"fishbox", -3.2f, 0.25f, -2.4f, -0.12f}, {"fishbox", -3.9f, 0, -2.45f, 0.1f},
+        {"crate", -8.9f, 0, -2.0f, 0.2f}, {"tacklebox", -1.35f, 0, 2.38f, -0.3f}, {"oilcan", -2.9f, 0, -1.95f, 0.8f},
+        {"ropecoil", 4.4f, 0, 2.4f, 0.0f}, {"oilskin", 0.84f, 1.78f, -1.55f, PI}, {"oilskin", 0.84f, 1.78f, -1.05f, PI},
+        {"netpile", -8.7f, 0, 1.55f, 0.4f}, {"bucket", -8.3f, 0, 2.35f, 2.0f},
+    };
+    for (const auto& bt : BITS) if (const Model* pm = rt::LoadAsset(std::string("trawl/props/") + bt.m + ".glb"))
+        rt::DrawPbr(*pm, MatrixMultiply(MatrixMultiply(MatrixRotateY(-bt.yaw), MatrixTranslate(bt.x, DECK_Y + bt.y, bt.z)), M));
+}
+static const Model& PuffModel() { static Model m{}; if (m.meshCount == 0) m = LoadModelFromMesh(GenMeshSphere(0.5f, 9, 12)); return m; }   // (smoke)
 static void DrawLanding3D(const Gannet& g, float t) {
     for (size_t li = 0; li < g.landings.size() && li < 4; li++) {
         const Landing& L = g.landings[li];
@@ -1120,37 +1138,82 @@ static void DrawLanding3D(const Gannet& g, float t) {
         for (size_t i = 0; i < L.onFire.size(); i++) {
             const CatchRec& r = L.onFire[i]; float T = 10 + r.kg; worst = std::max(worst, r.cookT / (T + 10));
             float len = std::clamp(0.3f + sqrtf(r.kg) * 0.22f, 0.3f, 1.2f);
-            DrawFishAt(gFish, W(Vector2Add(L.fire, {(float)i * 0.2f - 0.3f, 0}), ATOLL_Y + 0.5f), {1, 0, 0.1f}, len, r.cookT > T + 5 ? Color{50, 36, 26, 255} : r.cookT > T ? Color{200, 140, 70, 255} : Color{200, 200, 196, 255}, 1.5f);
+            Vector3 at = W(Vector2Add(L.fire, {(float)i * 0.2f - 0.3f, 0}), ATOLL_Y + 0.5f);
+            Color raw = r.cookT > T + 5 ? Color{50, 36, 26, 255} : r.cookT > T ? Color{200, 140, 70, 255} : Color{200, 200, 196, 255};
+            gFishDull = std::clamp(r.cookT / (T + 5), 0.0f, 1.0f);   // (it browns, then blackens, on the stick)
+            if (!DrawFishPbr(r.name, at, {1, 0, 0.1f}, len, 1.5f, 0, 0, raw, r.cookT > T + 5 ? 0.25f : r.cookT > T ? 0.6f : 0.9f)) DrawFishAt(gFish, at, {1, 0, 0.1f}, len, raw, 1.5f);
+        }
+        // the smoke: low-poly puffs rising, swelling and thinning away, grey to black as what's on the fire burns
+        // (in the world, so the palms and the huts stand in front of it; a thin wisp from any lit fire)
+        if (L.fireLit && L.kind != LK_STAIR) {
+            Color sm = worst > 0.75f ? Color{22, 21, 20, 255} : worst > 0.5f ? Color{48, 47, 46, 255} : Color{70, 70, 70, 255};
+            bool cooking = !L.onFire.empty();
+            int n = cooking ? 90 : 45;
+            float rise = cooking ? 5.0f : 3.2f;
+            for (int k = 0; k < n; k++) {
+                float u = fmodf(t * 0.16f + fmodf(k * 0.618034f, 1.0f), 1.0f);   // (scattered through the column, not in step)
+                float jx = sinf(k * 12.9898f), jz = cosf(k * 78.233f);   // (each wisp its own drift off the line, the breeze leaning it all)
+                Vector3 p = W(Vector2Add(L.fire, {u * 2.2f + (jx * 0.6f + 0.3f * sinf(u * 5 + t * 0.6f)) * u, (jz * 0.6f + 0.25f * cosf(u * 4 + t * 0.5f)) * u}), ATOLL_Y + 0.6f + u * rise);
+                // (a haze of small wisps curling out of the flames, swelling as they rise and thinning to nothing)
+                float s = (cooking ? 0.06f : 0.045f) + u * (cooking ? 0.22f : 0.13f);
+                s *= std::min(1.0f, (1 - u) * 2.2f) * std::min(1.0f, u * 6 + 0.35f);
+                rt::DrawStatic(PuffModel(), MatrixMultiply(MatrixMultiply(MatrixScale(s, s * 0.8f, s * 1.1f), MatrixRotateY(k * 1.3f)), MatrixTranslate(p.x, p.y, p.z)), sm);
+            }
+            // the flames themselves: licking, lit-from-within tongues over the embers
+            for (int k = 0; k < 7; k++) {
+                float ph = fmodf(t * 1.8f + k * 0.37f, 1.0f);
+                Vector3 p = W(Vector2Add(L.fire, {sinf(k * 2.1f + t * 3) * 0.12f, cosf(k * 1.3f + t * 2) * 0.1f}), ATOLL_Y + 0.12f + ph * 0.5f);
+                float s = 0.16f * (1 - ph) + 0.03f;
+                rt::DrawStaticGlow(DropModel(), MatrixMultiply(MatrixScale(s, s * 1.6f, s), MatrixTranslate(p.x, p.y, p.z)), k % 3 ? Color{255, 180, 70, 255} : Color{255, 110, 40, 255}, 2.0f * (1 - ph) + 0.4f);
+            }
         }
         // the elder before his hut
         if (L.kind != LK_TOWER && L.kind != LK_LIGHTHOUSE && L.kind != LK_SANDBAR) {   // (nobody keeps the Watchtower, the lighthouse or the bar)
-            // the elder; Old Hoskins in yellow oilskins; the foreman in a leather apron; the quartermaster; the hermit; the
-            // Keeper of the Stair, pale and drowned; the cult quartermaster in red
-            Color cl = L.kind == LK_SEALROCK ? Color{176, 154, 62, 255} : L.kind == LK_CANNERY ? Color{96, 70, 50, 255} : L.kind == LK_SHELF ? Color{44, 44, 54, 255}
-                     : L.kind == LK_BONEBEACH ? Color{110, 100, 84, 255} : L.kind == LK_STAIR ? Color{150, 176, 170, 255} : L.kind == LK_CULT ? Color{120, 26, 26, 255} : Color{170, 110, 80, 255};
-            Matrix fr = Frame(W(L.elder, ATOLL_Y), 0.5f + 0.2f * sinf(t * 0.3f));
-            rt::DrawStatic(gBody[(int)Role::Medic], fr, cl);
-            for (int s = -1; s <= 1; s += 2) rt::DrawStatic(gArm[(int)Role::Medic], MatrixMultiply(MatrixMultiply(MatrixRotateZ(0.3f * s + 0.1f * sinf(t)), MatrixTranslate(0, 1.38f, s * 0.27f)), fr), cl);
+            if (!DrawElder(L.kind, W(L.elder, ATOLL_Y), 0.5f + 0.2f * sinf(t * 0.3f), t)) {
+                // (no sailor art: the old figure) the elder; Old Hoskins in yellow oilskins; the foreman in a leather
+                // apron; the quartermaster; the hermit; the Keeper of the Stair, pale and drowned; the cult quartermaster
+                Color cl = L.kind == LK_SEALROCK ? Color{176, 154, 62, 255} : L.kind == LK_CANNERY ? Color{96, 70, 50, 255} : L.kind == LK_SHELF ? Color{44, 44, 54, 255}
+                         : L.kind == LK_BONEBEACH ? Color{110, 100, 84, 255} : L.kind == LK_STAIR ? Color{150, 176, 170, 255} : L.kind == LK_CULT ? Color{120, 26, 26, 255} : Color{170, 110, 80, 255};
+                Matrix fr = Frame(W(L.elder, ATOLL_Y), 0.5f + 0.2f * sinf(t * 0.3f));
+                rt::DrawStatic(gBody[(int)Role::Medic], fr, cl);
+                for (int s = -1; s <= 1; s += 2) rt::DrawStatic(gArm[(int)Role::Medic], MatrixMultiply(MatrixMultiply(MatrixRotateZ(0.3f * s + 0.1f * sinf(t)), MatrixTranslate(0, 1.38f, s * 0.27f)), fr), cl);
+            }
             if (L.kind == LK_ATOLL) Glow(W(L.elder, ATOLL_Y + 2.05f), 0.05f, Color{240, 70, 50, 255}, 0.4f);   // his feathers
         }
         if (L.kind == LK_STAIR) Glow(W(L.fire, ATOLL_Y + 1.2f + 0.1f * sinf(t * 5)), 0.35f, Color{170, 240, 210, 255}, 2.0f);   // the eternal brazier's pale flame
         else if ((L.kind == LK_TOWER || L.kind == LK_CULT) && L.fireLit) Glow(W(L.fire, ATOLL_Y + 0.4f + 0.1f * sinf(t * 9)), L.kind == LK_TOWER ? 0.8f : 0.5f, Color{255, 150, 60, 255}, 2.5f);   // the signal fire, the bonfire
         else if (L.kind != LK_ATOLL && L.fireLit) Glow(W(Vector2Add(L.fire, {0, L.kind == LK_CANNERY ? 0.78f : 0.32f}), ATOLL_Y + 0.35f), 0.18f, Color{255, 150, 60, 255}, 1.2f);   // the firebox door
-        if (L.kind == LK_SEALROCK) {   // the seals on their haul-out, the bull among them
-            for (int k = 0; k < 4; k++) { Vector2 sp = Vector2Add(L.pond, {cosf(k * 1.7f) * 1.6f, sinf(k * 1.7f) * 1.3f}); rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.3f, 0.35f, 0.5f), MatrixRotateY(k * 1.1f)), MatrixTranslate(L.at.x + sp.x, ATOLL_Y + 0.2f, L.at.y + sp.y)), Color{96, 90, 84, 255}); }
-            rt::DrawCubeM(MatrixMultiply(MatrixScale(2.0f, 0.6f, 0.8f), MatrixTranslate(L.at.x + L.moray.x, ATOLL_Y + 0.32f + 0.05f * sinf(t * 2), L.at.y + L.moray.y)), Color{70, 62, 56, 255});
+        // a modelled prop on the sand (tools/artgen/props.py), or the old box if the art is missing
+        auto prop = [&](const char* name, Vector2 l, float yaw, float scale, float y, Vector3 boxSize, Color boxCol) {
+            if (const Model* pm = getenv("DEPTH_OLDBOAT") ? nullptr : rt::LoadAsset(std::string("trawl/props/") + name + ".glb"))
+                rt::DrawPbr(*pm, MatrixMultiply(MatrixMultiply(MatrixScale(scale, scale, scale), MatrixRotateY(-yaw)), MatrixTranslate(L.at.x + l.x, ATOLL_Y + y, L.at.y + l.y)));
+            else rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(boxSize.x, boxSize.y, boxSize.z), MatrixRotateY(-yaw)), MatrixTranslate(L.at.x + l.x, ATOLL_Y + boxSize.y * 0.5f, L.at.y + l.y)), boxCol);
+        };
+        if (L.kind == LK_SEALROCK) {   // the seals on their haul-out, the bull among them (raising his head now and then)
+            for (int k = 0; k < 4; k++) { Vector2 sp = Vector2Add(L.pond, {cosf(k * 1.7f) * 1.6f, sinf(k * 1.7f) * 1.3f}); prop("seal", sp, k * 1.1f + 0.1f * sinf(t * 0.4f + k), 0.95f + 0.1f * (k % 2), 0, {1.3f, 0.35f, 0.5f}, Color{96, 90, 84, 255}); }
+            prop("seal", L.moray, 2.6f, 1.55f, 0.03f * sinf(t * 2), {2.0f, 0.6f, 0.8f}, Color{70, 62, 56, 255});
         }
         for (const auto& k : L.caches) {
             if (k.kind == 2 && !k.found) continue;
-            if (k.kind == 2 && !k.open) { rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.9f, 0.03f, 0.12f), MatrixRotateY(0.785f)), MatrixTranslate(L.at.x + k.p.x, ATOLL_Y + 0.03f, L.at.y + k.p.y)), Color{200, 40, 30, 255}); rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.9f, 0.03f, 0.12f), MatrixRotateY(-0.785f)), MatrixTranslate(L.at.x + k.p.x, ATOLL_Y + 0.03f, L.at.y + k.p.y)), Color{200, 40, 30, 255}); continue; }
+            if (k.kind == 2 && !k.open) { rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.9f, 0.03f, 0.12f), MatrixRotateY(0.785f)), MatrixTranslate(L.at.x + k.p.x, ATOLL_Y + 0.03f, L.at.y + k.p.y)), Color{200, 40, 30, 255}); rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.9f, 0.03f, 0.12f), MatrixRotateY(-0.785f)), MatrixTranslate(L.at.x + k.p.x, ATOLL_Y + 0.03f, L.at.y + k.p.y)), Color{200, 40, 30, 255}); continue; }   // (X marks the spot, painted on the sand)
             if (k.open) continue;
-            rt::DrawCubeM(MatrixMultiply(MatrixScale(0.8f, 0.5f, 0.5f), MatrixTranslate(L.at.x + k.p.x, ATOLL_Y + 0.25f, L.at.y + k.p.y)), Color{120, 80, 40, 255});
-            rt::DrawCubeM(MatrixMultiply(MatrixScale(0.82f, 0.06f, 0.52f), MatrixTranslate(L.at.x + k.p.x, ATOLL_Y + 0.4f, L.at.y + k.p.y)), Color{200, 160, 70, 255});
+            prop("seachest", k.p, k.p.x * 1.3f, 1.0f, -0.04f, {0.8f, 0.5f, 0.5f}, Color{120, 80, 40, 255});
         }
-        for (const auto& cr : L.crabs) rt::DrawCubeM(MatrixMultiply(MatrixScale(0.3f, 0.12f, 0.22f), MatrixTranslate(L.at.x + cr.x, ATOLL_Y + 0.07f, L.at.y + cr.y)), Color{200, 90, 60, 255});
+        for (size_t c = 0; c < L.crabs.size(); c++) prop("crab", L.crabs[c], t * 0.3f + c * 1.9f, 1.3f, 0, {0.3f, 0.12f, 0.22f}, Color{200, 90, 60, 255});
         for (const auto& b : L.onBeach) {
-            if (b.junk) rt::DrawCubeM(MatrixMultiply(MatrixScale(0.6f, 0.4f, 0.4f), MatrixTranslate(L.at.x + b.deckAt.x, ATOLL_Y + 0.2f, L.at.y + b.deckAt.y)), Color{120, 80, 40, 255});
-            else DrawFishAt(gFish, W(b.deckAt, ATOLL_Y + 0.08f), {1, 0, 0.3f}, std::clamp(0.3f + sqrtf(b.kg) * 0.22f, 0.3f, 1.4f), Color{170, 178, 184, 255}, 1.5f);
+            if (b.junk) prop("crate", b.deckAt, b.deckAt.x * 0.7f, 0.8f, 0, {0.6f, 0.4f, 0.4f}, Color{120, 80, 40, 255});
+            else { Vector3 at = W(b.deckAt, ATOLL_Y + 0.08f); float len = std::clamp(0.3f + sqrtf(b.kg) * 0.22f, 0.3f, 1.4f); gFishDull = 0.5f; if (!DrawFishPbr(b.name, at, {1, 0, 0.3f}, len, 1.5f, 0, 0, Color{170, 178, 184, 255})) DrawFishAt(gFish, at, {1, 0, 0.3f}, len, Color{170, 178, 184, 255}, 1.5f); }
+        }
+        // what a landing leaves lying about: driftwood on every beach, a lobster pot and a bucket by a lived-in hut
+        {
+            uint32_t h = (uint32_t)(L.at.x * 73856093.0f) ^ (uint32_t)(L.at.y * 19349663.0f);
+            auto R = [&]() { h = h * 1664525u + 1013904223u; return (h >> 8) / 16777216.0f; };
+            if (L.kind != LK_STAIR) for (int k = 0; k < 3; k++) { float a = R() * 6.283f, rr = 5 + R() * 4; prop("driftwood", {cosf(a) * rr, sinf(a) * rr}, R() * 6.283f, 0.8f + R() * 0.6f, 0, {1.6f, 0.1f, 0.15f}, Color{140, 128, 110, 255}); }
+            if (L.kind == LK_ATOLL || L.kind == LK_SEALROCK || L.kind == LK_CANNERY || L.kind == LK_BONEBEACH) {
+                prop("lobsterpot", Vector2Add(L.elder, {1.6f, 0.9f}), 0.4f, 1, 0, {0.6f, 0.4f, 0.4f}, Color{110, 80, 40, 255});
+                prop("bucket", Vector2Add(L.elder, {1.2f, -0.8f}), 1.0f, 1, 0, {0.3f, 0.3f, 0.3f}, Color{120, 124, 126, 255});
+                prop("netpile", Vector2Add(L.elder, {-1.8f, 1.2f}), 2.0f, 1, 0, {1.0f, 0.3f, 0.7f}, Color{90, 76, 52, 255});
+            }
         }
         if (L.kind == LK_ATOLL) rt::DrawCubeM(MatrixMultiply(MatrixScale(1.2f, 0.08f, 0.2f), MatrixTranslate(L.at.x + L.moray.x, ATOLL_Y - 0.05f, L.at.y + L.moray.y)), Color{24, 34, 26, 255});   // the moray, dark under the surface
     }
@@ -1422,6 +1485,27 @@ static Vector3 SailorGrip(const Model& m, const std::vector<Matrix>& skin, Matri
     if (b < 0) b = rig.Find("hand.R");
     Matrix w = rt::BoneWorld(rig, skin, b, frame);
     return {w.m12, w.m13, w.m14};
+}
+// a landing's keeper on the shared sailor rig: the elder in his feathers and wraps, Old Hoskins in yellow oilskins (the
+// Angler's sou'wester), the cannery's foreman in his leather apron (the Bosun's), the quartermaster, the hermit, the
+// Keeper of the Stair (pale and drowned), the cult's quartermaster in red; idling, turning his head, gesturing now and then
+static bool DrawElder(int kind, Vector3 at, float yaw, float t) {
+    Role r = kind == LK_SEALROCK ? Role::Angler : kind == LK_CANNERY ? Role::Bosun : Role::Medic;
+    if (!SailorModel(r) || getenv("DEPTH_OLDBOAT")) return false;
+    SailorLook L; L.role = r;
+    L.skin = kind == LK_STAIR ? Color{170, 186, 180, 255} : kind == LK_ATOLL ? Color{150, 100, 70, 255} : Color{214, 166, 128, 255};
+    Color cl = kind == LK_SEALROCK ? Color{186, 150, 50, 255} : kind == LK_CANNERY ? Color{86, 66, 50, 255} : kind == LK_SHELF ? Color{44, 44, 54, 255}
+             : kind == LK_BONEBEACH ? Color{110, 100, 84, 255} : kind == LK_STAIR ? Color{120, 150, 146, 255} : kind == LK_CULT ? Color{120, 26, 26, 255} : Color{170, 110, 80, 255};
+    L.top = cl; L.trousers = kind == LK_SEALROCK ? cl : Color{(unsigned char)(cl.r * 0.6f), (unsigned char)(cl.g * 0.6f), (unsigned char)(cl.b * 0.6f), 255}; L.hat = cl;
+    L.hair = kind == LK_STAIR ? Color{60, 80, 70, 255} : Color{196, 190, 180, 255};   // (grey with age)
+    L.beard = kind == LK_SHELF || kind == LK_BONEBEACH ? 1 : kind == LK_SEALROCK ? 3 : kind == LK_CANNERY ? 2 : 0;
+    L.build = kind == LK_CANNERY ? 1.15f : 0.95f; L.height = kind == LK_STAIR ? 1.05f : 0.97f; L.headW = 1.12f; L.headH = 1.12f;
+    SailorPose P; P.breathe = t * 1.4f;
+    float talk = fmodf(t * 0.21f + at.x * 0.1f, 1.0f);   // (every few seconds a gesture: an arm comes up and lowers)
+    if (talk < 0.2f) { P.reach = 0.5f * sinf(talk / 0.2f * PI); P.elbow = 0.6f; }
+    P.nod = 0.15f * sinf(t * 0.7f);
+    DrawSailor(L, P, Frame(at, yaw), t, Item::None, WHITE);
+    return true;
 }
 // your own hands in first person (the user's references, 2026-10-02): the bare-handed viewmodel (tools/artgen/
 // rt_fphands.py -> fp_sailor.glb: hands built closed on a grip, rolled sleeves) placed straight on what they hold, the
@@ -1799,6 +1883,7 @@ void DrawTrawlStudio(int which, float t) {
         L.filmic = 1; L.exposure = 1.1f; L.aoK = 0.75f; L.aoRadius = 0.4f; L.outline = 0; L.stipple = 0;
         rt::RenderBegin(cam, L);
         if (const Model* bm = rt::LoadAsset("trawl/boat.glb")) rt::DrawPbr(*bm, MatrixIdentity());
+        DrawDeckClutter(MatrixIdentity());
         gFishBudget = 8;
         static const char* SP[4] = {"snapper", "mahi-mahi", "bonito", "kelp bass"};
         static const Vector3 AT[4] = {{-2.6f, 0, 1.2f}, {-1.9f, 0, 0.9f}, {-3.0f, 0, 1.75f}, {-2.1f, 0, 1.6f}};
@@ -1837,6 +1922,7 @@ void DrawTrawlStudio(int which, float t) {
         rt::RenderBegin(cam, L);
         if (const Model* bm = getenv("DEPTH_OLDBOAT") ? nullptr : rt::LoadAsset("trawl/boat.glb")) rt::DrawPbr(*bm, MatrixIdentity());
         else rt::DrawStatic(gBoat, MatrixIdentity(), WHITE);
+        DrawDeckClutter(MatrixIdentity());
         rt::DrawWorldCube({0, -0.05f, 0}, {200, 0.1f, 200}, Color{8, 16, 22, 255});
         rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.24f, 0.24f, 0.24f), MatrixTranslate(0.2f, DECK_Y + 5.45f, 0)), Color{255, 226, 160, 255}, 2.5f);
         rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.12f, 0.12f, 0.12f), MatrixTranslate(3.0f, DECK_Y + 2.05f, 0)), Color{255, 214, 150, 255}, 1.8f);
@@ -2076,6 +2162,18 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
             static const float SHED[4][2] = {{-7.6f, 1.5f}, {-3.5f, 1.7f}, {8.0f, 1.5f}, {12.5f, 1.4f}};
             for (const auto& s : SHED)
                 rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.6f, 0.56f, 0.01f), MatrixTranslate(s[0] + 0.55f * s[1], QUAY_Y + 1.55f, -9.755f)), Q), Color{255, 196, 120, 255}, 1.1f);
+            // the quay's clutter between the doors and along the edge, clear of the stations' spots
+            if (!getenv("DEPTH_NOCLUTTER")) {
+                struct Bit { const char* m; float x, y, z, yaw; };
+                static const Bit QB[] = {
+                    {"lobsterpot", -5.6f, 0, -9.25f, 0.1f}, {"lobsterpot", -5.55f, 0.28f, -9.25f, -0.2f}, {"lobsterpot", -5.0f, 0, -9.3f, 0.6f},
+                    {"netpile", 2.95f, 0, -9.05f, 0.3f}, {"bucket", -1.3f, 0, -9.35f, 0.5f}, {"fishbox", 2.2f, 0, -9.4f, 0.1f}, {"fishbox", 2.25f, 0.25f, -9.4f, -0.1f},
+                    {"tarp", 10.3f, 0, -9.0f, 0.0f}, {"ropecoil", -6.0f, 0, -4.1f, 0.0f}, {"ropecoil", 5.6f, 0, -4.1f, 1.0f}, {"oilskin", -0.2f, 1.9f, -9.74f, PI / 2},
+                    {"crate", 6.4f, 0, -9.3f, 0.3f}, {"tacklebox", 6.4f, 0.5f, -9.3f, 0.6f}, {"oilcan", 10.9f, 0, -7.6f, 0.3f},
+                };
+                for (const auto& bt : QB) if (const Model* pm = rt::LoadAsset(std::string("trawl/props/") + bt.m + ".glb"))
+                    rt::DrawPbr(*pm, MatrixMultiply(MatrixMultiply(MatrixRotateY(-bt.yaw), MatrixTranslate(bt.x, QUAY_Y + bt.y, bt.z)), Q));
+            }
         } else rt::DrawStatic(gQuay, Q, WHITE);
         for (float x : {-9.0f, -1.0f, 7.0f, 13.0f}) Glow(Vector3Transform({x, QUAY_Y + 3.2f, -6.8f}, Q), 0.22f, Color{255, 220, 160, 255}, 2.2f);
     }
@@ -2098,6 +2196,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     // (the baked model from tools/artgen/boat.py, on the same layout; the old box model if the asset is missing)
     if (const Model* bm = getenv("DEPTH_OLDBOAT") ? nullptr : rt::LoadAsset("trawl/boat.glb")) { if (getenv("DEPTH_BOATSTATIC")) rt::DrawStatic(*bm, M, WHITE); else rt::DrawPbr(*bm, M); }
     else rt::DrawStatic(gBoat, M, WHITE);
+    DrawDeckClutter(M);
     auto localGlow = [&](Vector3 c, float s, Color col, float glow) { rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(s, s, s), MatrixTranslate(c.x, c.y, c.z)), M), col, glow); };
     localGlow({0.2f, DECK_Y + 5.45f, 0}, 0.24f, Color{255, 226, 160, 255}, b.lantern == 0 ? 0.3f : 2.5f);
     localGlow({3.0f, DECK_Y + 2.05f, 0}, 0.12f, Color{255, 214, 150, 255}, 1.8f);
@@ -2713,6 +2812,7 @@ void UnloadTrawl3D() {
 // fire, the smoke white to grey to black as the fish on it cook and burn
 void DrawLandingFx2D(const Gannet& g, const Camera3D& cam) {
     float t = g.time;
+    if (!getenv("DEPTH_OLDBOAT")) return;   // (the flames and the smoke are in the world now: DrawLanding3D)
     for (const auto& L : g.landings) {
         Vector3 f3{L.at.x + L.fire.x, ATOLL_Y_EYE + 0.15f, L.at.y + L.fire.y};
         Vector3 fw = Vector3Subtract(cam.target, cam.position);

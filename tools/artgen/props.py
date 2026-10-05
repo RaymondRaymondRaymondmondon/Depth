@@ -356,6 +356,186 @@ def mould():
         o.location = G((rng.random() - 0.5) * 0.9, 0, (rng.random() - 0.5) * 0.9)
 
 
+# ---------------------------------------------------------------- clutter (the user: "buckets on the ship and other purely
+# environmental things"): small things a working boat and a landing leave lying about, each about its base
+def clutter_mats():
+    for k, rgb, r, m in (("galv", (0.5, 0.52, 0.52), 0.45, 0.8), ("wicker", (0.45, 0.32, 0.15), 0.95, 0.0),
+                         ("sealhide", (0.24, 0.22, 0.2), 0.45, 0.0), ("sealbelly", (0.42, 0.38, 0.32), 0.55, 0.0),
+                         ("crabshell", (0.62, 0.16, 0.06), 0.4, 0.0), ("crabdark", (0.25, 0.06, 0.03), 0.5, 0.0),
+                         ("eye", (0.02, 0.02, 0.02), 0.1, 0.0), ("canvas", (0.48, 0.44, 0.34), 0.95, 0.0),
+                         ("tarp", (0.16, 0.24, 0.2), 0.7, 0.0), ("net", (0.36, 0.3, 0.2), 0.95, 0.0),
+                         ("cork", (0.6, 0.42, 0.22), 0.9, 0.0), ("drift", (0.55, 0.5, 0.42), 0.95, 0.0),
+                         ("oilskin", (0.72, 0.56, 0.16), 0.35, 0.0), ("mophead", (0.66, 0.62, 0.52), 0.98, 0.0)):
+        if k not in B.MATS:
+            B.MATS[k] = B.flat(k, rgb, r, m)
+
+
+def blob(c, r, mat, seed=0, wob=0.08, segs=20):
+    """A smooth ellipsoid (game frame c, half-sizes r) with a little lumpiness."""
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=segs, ring_count=max(8, segs * 2 // 3), radius=1.0)
+    o = bpy.context.active_object
+    rng = np.random.default_rng(seed)
+    ph = rng.random(3) * 6
+    for v in o.data.vertices:
+        d = v.co.normalized()
+        v.co *= 1 + wob * math.sin(d.x * 3 + ph[0]) * math.cos(d.y * 2.5 + ph[1]) * math.sin(d.z * 2 + ph[2])
+    o.scale = (r[0], r[2], r[1])   # (Blender's y is the game's z)
+    o.location = G(*c)
+    B.put(o, mat)
+    bpy.ops.object.shade_smooth()
+    return o
+
+
+def bucket():
+    # a galvanised pail: tapered, rolled rim, two ears and a wire bail
+    lathe((0, 0, 0), [(0.0001, 0.0), (0.12, 0.0), (0.125, 0.01), (0.155, 0.3), (0.165, 0.31), (0.16, 0.32), (0.145, 0.3), (0.112, 0.03), (0.0001, 0.03)], "galv", 22)
+    for h in (0.1, 0.22):
+        lathe((0, 0, 0), [(0.13 + h * 0.1, h), (0.135 + h * 0.1, h + 0.012), (0.13 + h * 0.1, h + 0.024)], "galv", 22)
+    pts = [(0.16 * math.cos(a), 0.3 + 0.16 * math.sin(a), 0) for a in np.linspace(0, math.pi, 13)]
+    rod(pts, 0.004, "iron", 4, caps=False)
+    lathe((0, 0, 0), [(0.0001, 0.2), (0.115, 0.2), (0.0001, 0.205)], "bulk", 16)   # (water in it)
+
+
+def fishbox():
+    # a slatted fish box with hand-holes, a few herring in ice
+    for s in (-1, 1):
+        box((0, 0.12, s * 0.21), (0.32, 0.11, 0.015), "house", 0.006)
+        box((s * 0.31, 0.12, 0), (0.015, 0.11, 0.2), "house", 0.006)
+        box((s * 0.31, 0.17, 0), (0.02, 0.022, 0.06), "bulk", 0.004)   # (the hand-hole's shadow)
+    box((0, 0.015, 0), (0.31, 0.012, 0.2), "house", 0.004)
+    box((0, 0.13, 0), (0.29, 0.03, 0.18), "zinc" if "zinc" in B.MATS else "galv", 0.02)
+    for k in range(5):
+        blob((-0.2 + k * 0.1, 0.17, -0.05 + 0.07 * (k % 2)), (0.09, 0.025, 0.03), "galv", k, 0.05, 12)
+
+
+def crate():
+    # a nailed packing crate with corner battens
+    box((0, 0.25, 0), (0.3, 0.25, 0.25), "house", 0.01)
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            box((sx * 0.29, 0.25, sz * 0.24), (0.025, 0.26, 0.025), "deck", 0.005)
+    for y in (0.08, 0.42):
+        box((0, y, 0.255), (0.28, 0.03, 0.01), "deck", 0.004)
+        box((0, y, -0.255), (0.28, 0.03, 0.01), "deck", 0.004)
+
+
+def lobsterpot():
+    # a creel: a flat base, three hooped arches of cane, netting over them, a funnel eye at the end
+    box((0, 0.02, 0), (0.33, 0.02, 0.22), "house", 0.005)
+    for x in (-0.28, 0.0, 0.28):
+        pts = [(x, 0.03 + 0.24 * math.sin(a), 0.21 * math.cos(a)) for a in np.linspace(0, math.pi, 13)]
+        rod(pts, 0.012, "wicker", 5, caps=False)
+    for k in range(7):
+        a = k / 6 * math.pi
+        rod([(-0.3, 0.03 + 0.24 * math.sin(a), 0.21 * math.cos(a)), (0.3, 0.03 + 0.24 * math.sin(a), 0.21 * math.cos(a))], 0.004, "net", 3, caps=False)
+    disc((0.3, 0.14, 0), 'x', 0.09, 0.01, "wicker", 14, hole=0.05)
+
+
+def ropecoil():
+    for k in range(5):
+        rr = 0.3 - k * 0.035
+        pts = [(math.cos(a) * rr, 0.025 + k * 0.042, math.sin(a) * rr) for a in np.linspace(0, 2 * math.pi, 22)]
+        rod(pts, 0.024, "rope", 6, caps=False)
+    rod([(0.27, 0.22, 0), (0.35, 0.1, 0.1), (0.42, 0.03, 0.25)], 0.024, "rope", 6)
+
+
+def tacklebox():
+    box((0, 0.1, 0), (0.22, 0.1, 0.12), "paint_green", 0.01)
+    box((0, 0.205, 0), (0.225, 0.012, 0.125), "paint_green", 0.006)
+    rod([(-0.08, 0.215, 0), (-0.06, 0.26, 0), (0.06, 0.26, 0), (0.08, 0.215, 0)], 0.008, "iron", 4, caps=False)
+    box((0, 0.17, 0.122), (0.025, 0.02, 0.006), "brass", 0.002)
+
+
+def oilcan():
+    lathe((0, 0, 0), [(0.0001, 0.0), (0.09, 0.0), (0.09, 0.08), (0.05, 0.12), (0.012, 0.14), (0.0001, 0.14)], "iron", 16)
+    rod([(0.01, 0.13, 0), (0.08, 0.2, 0), (0.15, 0.27, 0)], 0.006, "iron", 4)
+    rod([(-0.07, 0.03, 0), (-0.12, 0.08, 0), (-0.07, 0.12, 0)], 0.008, "iron", 4, caps=False)
+
+
+def mop():
+    # a deck mop leaning on its handle (the head on the deck at the origin, the handle up toward +x)
+    blob((0, 0.06, 0), (0.15, 0.07, 0.15), "mophead", 3, 0.25, 16)
+    for k in range(10):
+        a = k * 2 * math.pi / 10
+        rod([(0.0, 0.08, 0), (math.cos(a) * 0.2, 0.01, math.sin(a) * 0.2)], 0.012, "mophead", 4)
+    cyl((0, 0.08, 0), (0.6, 1.3, 0), 0.018, "drift", 8)
+
+
+def netpile():
+    # a heap of brown net with a run of cork floats through it
+    rng = np.random.default_rng(11)
+    for k in range(7):
+        blob(((rng.random() - 0.5) * 0.9, 0.08 + 0.06 * rng.random(), (rng.random() - 0.5) * 0.6), (0.32, 0.12, 0.26), "net", 20 + k, 0.2, 14)
+    for k in range(9):
+        a = k * 0.7
+        blob((math.cos(a) * 0.42, 0.18 + 0.05 * math.sin(k), math.sin(a) * 0.3), (0.05, 0.035, 0.035), "cork", k, 0.05, 10)
+
+
+def tarp():
+    # a lashed tarpaulin over something boxy, its edges sagging
+    blob((0, 0.24, 0), (0.6, 0.26, 0.38), "tarp", 4, 0.06, 22)
+    box((0, 0.02, 0), (0.62, 0.02, 0.4), "tarp", 0.02)
+    for x in (-0.3, 0.3):
+        pts = [(x, 0.02 + 0.5 * math.sin(a) * 0.98, 0.4 * math.cos(a)) for a in np.linspace(0, math.pi, 11)]
+        rod(pts, 0.01, "rope", 4, caps=False)
+
+
+def oilskin():
+    # an oilskin coat and sou'wester hung on a peg (its peg at the origin, hanging down -y, lying against +x of a wall)
+    cyl((0, 0, 0), (0.08, 0, 0), 0.012, "house", 6)
+    blob((0.06, -0.38, 0), (0.07, 0.36, 0.2), "oilskin", 5, 0.1, 18)
+    for s in (-1, 1):
+        blob((0.07, -0.3, s * 0.2), (0.05, 0.25, 0.05), "oilskin", 6 + s, 0.08, 12)
+    lathe((0.06, 0, 0), [(0.0001, 0.02), (0.1, 0.02), (0.13, -0.01), (0.15, -0.04)], "oilskin", 16)
+
+
+def seal():
+    # a harbour seal lying on the rocks, head up (facing +x): a plump spindle, a head, flippers, a tail fan
+    blob((0, 0.24, 0), (0.62, 0.24, 0.28), "sealhide", 1, 0.04, 26)
+    blob((0.05, 0.12, 0), (0.55, 0.12, 0.26), "sealbelly", 2, 0.03, 22)
+    blob((0.62, 0.42, 0), (0.18, 0.15, 0.15), "sealhide", 3, 0.03, 20)
+    blob((0.77, 0.4, 0), (0.08, 0.07, 0.08), "sealbelly", 4, 0.02, 14)
+    for s in (-1, 1):
+        blob((0.71, 0.48, s * 0.075), (0.025, 0.025, 0.025), "eye", 5, 0, 10)
+        blob((0.25, 0.07, s * 0.3), (0.15, 0.03, 0.07), "sealhide", 6 + s, 0.05, 12)
+        blob((-0.72, 0.08, s * 0.08), (0.14, 0.03, 0.08), "sealhide", 8 + s, 0.05, 12)
+
+
+def crab():
+    # a shore crab (facing +x): a carapace, eight jointed legs, two claws
+    blob((0, 0.07, 0), (0.1, 0.04, 0.13), "crabshell", 1, 0.04, 18)
+    for s in (-1, 1):
+        for k in range(4):
+            x = 0.05 - k * 0.035
+            rod([(x, 0.07, s * 0.1), (x - 0.01, 0.1, s * 0.18), (x - 0.03, 0.0, s * 0.23)], 0.011, "crabdark", 4)
+        rod([(0.07, 0.07, s * 0.08), (0.14, 0.08, s * 0.12)], 0.016, "crabshell", 5)
+        blob((0.18, 0.08, s * 0.12), (0.05, 0.03, 0.035), "crabshell", 3 + s, 0.05, 12)
+        blob((0.1, 0.11, s * 0.035), (0.012, 0.012, 0.012), "eye", 5, 0, 8)
+
+
+def seachest():
+    # a cache's sea chest: a domed lid, iron bands, a hasp
+    box((0, 0.2, 0), (0.4, 0.2, 0.25), "house", 0.01)
+    vs = []
+    for x in (-0.41, 0.41):
+        for k in range(9):
+            a = k / 8 * math.pi
+            vs.append((x, 0.4 + 0.12 * math.sin(a), 0.255 * math.cos(a)))
+    quads(vs, [(i, i + 1, 9 + i + 1, 9 + i) for i in range(8)], "house", "lid")
+    for x in (-0.41, 0.41):
+        quads([(x, 0.4, 0.255)] + [(x, 0.4 + 0.12 * math.sin(k / 8 * math.pi), 0.255 * math.cos(k / 8 * math.pi)) for k in range(1, 9)], [tuple(range(9))], "house", "end")
+    for x in (-0.28, 0.28):
+        pts = [(x, 0.0, 0.26)] + [(x, 0.4 + 0.125 * math.sin(k / 8 * math.pi), 0.262 * math.cos(k / 8 * math.pi)) for k in range(9)] + [(x, 0.0, -0.26)]
+        rod(pts, 0.012, "iron", 4, caps=False)
+    box((0, 0.36, 0.262), (0.04, 0.06, 0.008), "brass", 0.003)
+
+
+def driftwood():
+    rod([(-0.9, 0.08, 0.1), (-0.3, 0.1, 0.0), (0.4, 0.09, -0.08), (0.95, 0.07, -0.02)], 0.08, "drift", 8)
+    rod([(0.1, 0.1, 0.0), (0.35, 0.2, 0.3), (0.5, 0.22, 0.55)], 0.035, "drift", 6)
+    rod([(-0.5, 0.1, 0.05), (-0.65, 0.3, -0.25)], 0.03, "drift", 6)
+
+
 def terrain_mats():
     # the ground's tiling sets, each on a token quad, for the game to put on the land it builds
     if "deck" not in B.MATS:
@@ -367,6 +547,7 @@ def terrain_mats():
 def build(name, fn, out):
     reset()
     land_mats()
+    clutter_mats()
     fn()
     B.finish(out, name + ".glb", lambda x, y, z, k: k)
 
@@ -378,7 +559,10 @@ def main():
                      ("palm", palm), ("hut", hut), ("beached_sloop", beached_sloop), ("firering", firering), ("boulder", boulder),
                      ("stonehut", stonehut), ("stove", stove), ("cannery", cannery), ("boiler", boiler), ("tower", tower),
                      ("shrine", shrine), ("stair", stair), ("tent", tent), ("skullpost", skullpost), ("brazier", brazier),
-                     ("stalactite", stalactite), ("mould", mould), ("terrain_mats", terrain_mats)):
+                     ("stalactite", stalactite), ("mould", mould), ("terrain_mats", terrain_mats),
+                     ("bucket", bucket), ("fishbox", fishbox), ("crate", crate), ("lobsterpot", lobsterpot), ("ropecoil", ropecoil),
+                     ("tacklebox", tacklebox), ("oilcan", oilcan), ("mop", mop), ("netpile", netpile), ("tarp", tarp),
+                     ("oilskin", oilskin), ("seal", seal), ("crab", crab), ("seachest", seachest), ("driftwood", driftwood)):
         a = C.args()
         if "--only" in a and name not in a[a.index("--only") + 1].split(","):
             continue

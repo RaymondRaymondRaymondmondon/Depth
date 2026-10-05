@@ -858,3 +858,8 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
   - The size-5 threats (the White among them) swim with a slow, heavy beat, roll into their turns, rise and fall a little, and carry pale rake scars down both flanks when near.
   - The Kraken's arms are slower and ponderous: thick at the root, tapering to a tip that curls back, dark and wet at the base and paler toward the tip, with pale suckers along the inside and old scars across them.
 - **Still not done from the spec:** a separate viewmodel field of view, and mechanically true step reloads for every gun.
+### Clutter and the landings' look (2026-10-05)
+- 15 new props in tools/artgen/props.py (bucket, fish box, crate, lobster pot, rope coil, tackle box, oil can, mop, net pile, tarp, oilskin on a peg, seal, shore crab, sea chest, driftwood), assets/trawl/props.
+- The Gannet's deck carries them against the bulwarks and in the corners (`DrawDeckClutter`, also in the boat studio shots), the quay between the shop doors and along its edge; nothing collides with them. `DEPTH_NOCLUTTER=1` hides them.
+- Landings: the seals, the bull, the crabs, the caches (sea chests), the beach junk (crates) and the fish on the fire and the sand are models now (the fish are the baked species, browning on the stick); each beach has driftwood, and the lived-in ones a lobster pot, a bucket and a net pile by the hut. The keepers (elder, Old Hoskins, the foreman, ...) are the shared sailor rig in their colours with beards, idling and gesturing. The fire's flames and smoke are in the world (glowing tongues; a plume of dark low-poly puffs, greyer to black as the fish burns) instead of 2D circles drawn over everything.
+
