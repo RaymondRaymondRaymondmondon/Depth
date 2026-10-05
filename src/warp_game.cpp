@@ -101,6 +101,8 @@ void DrawArena() {
         rt::DrawWorldCube({c.x, c.y, c.z - sz * 0.05f}, {1.55f, 0.02f, 0.02f}, {40, 44, 50, 255});
     }
     for (int i = -2; i <= 2; i++) for (int j = -1; j <= 1; j++) { Vector3 c{i * X * 0.38f, a.ceil - 0.012f, j * Z * 0.55f}; if (!Behind(c) && !OnClip(c, {0, -1, 0})) rt::DrawStaticGlow(DiscModel(), MatrixMultiply(MatrixScale(0.32f, 0.01f, 0.32f), MatrixTranslate(c.x, c.y, c.z)), {255, 246, 226, 255}, 1.3f); }
+    if (const Model* pn = rt::LoadAsset("warp/pennant.glb")) if (a.ceil - a.wall > 1.2f)   // strings of team pennants along each end, under the ceiling
+        for (int s = 0; s < 2; s++) for (int k = -1; k <= 1; k++) { Vector3 p{(s ? 1 : -1) * (X - 0.3f), a.ceil - 0.12f, k * Z * 0.62f}; if (!Behind(p)) rt::DrawPbr(*pn, MatrixMultiply(MatrixRotateY(PI / 2), MatrixTranslate(p.x, p.y, p.z)), TEAM[s], 0.4f); }
     // banners over each end in the team's colour
     for (int s = 0; s < 2; s++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.1f, 0.5f, a.halfW * 1.4f), MatrixTranslate((s ? 1 : -1) * (X - 0.05f), a.wall + (a.ceil - a.wall) * 0.5f, 0)), TEAM[s], 0.25f);
 }
