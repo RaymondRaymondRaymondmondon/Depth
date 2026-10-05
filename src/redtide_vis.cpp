@@ -54,7 +54,7 @@ void DiverSkinColours(const std::string& suit, const std::string& helmet, std::v
     else if (h == "atlantean") { out.push_back({"hat", {150, 104, 50, 255}}); out.push_back({"accent", {236, 186, 64, 255}}); }
 }
 
-std::vector<Matrix> DrawDiverFigure(int voice, Matrix frame, fig::Pose P, float t, Color tint, const std::string& suit, const std::string& helmet, const std::vector<Recolor>* extra) {
+std::vector<Matrix> DrawDiverFigure(int voice, Matrix frame, fig::Pose P, float t, Color tint, const std::string& suit, const std::string& helmet, const std::vector<Recolor>* extra, bool draw) {
     const Model* m = DiverModel(voice);
     if (!m) return {};
     Temperament(voice, P, t);
@@ -63,7 +63,7 @@ std::vector<Matrix> DrawDiverFigure(int voice, Matrix frame, fig::Pose P, float 
     std::vector<Recolor> rc = {{"skin", DiverSkin(voice)}};
     DiverSkinColours(suit, helmet, rc);
     if (extra) rc.insert(rc.end(), extra->begin(), extra->end());
-    DrawPbrSkinned(*m, frame, skin, rc, 0.35f, tint);
+    if (draw) DrawPbrSkinned(*m, frame, skin, rc, 0.35f, tint);
     return skin;
 }
 
@@ -723,7 +723,8 @@ void DrawRedTideStudio(int which, float t) {
             fig::Pose P; P.breathe = t * 1.4f + k;
             Vector3 at{(k % 5 - 2) * 1.75f, k < 5 ? 1.15f : -1.55f, 0};
             Matrix fr = MatrixMultiply(MatrixScale(0.82f, 0.82f, 0.82f), fig::Frame(at, FRONT + 0.5f));
-            std::vector<Matrix> sk = DrawDiverFigure(0, fr, P, t, WHITE);
+            bool has = LoadAsset(std::string("shared/costumes/costume_") + c.model + ".glb") != nullptr;
+            std::vector<Matrix> sk = DrawDiverFigure(0, fr, P, t, WHITE, "", "", nullptr, !has);   // (the costume is the whole look)
             if (const Model* dm = DiverModel(0)) fig::DrawCostume(c.model, *dm, sk, fr);
             skins::gGallery.push_back({GetWorldToScreenEx({at.x, at.y - 0.12f, at.z}, cam, SCREEN_W, SCREEN_H), c.name, skins::CostumeTierName(c.tier), skins::RarityColor(c.tier), c.price});
         }
@@ -759,7 +760,8 @@ static void WardrobePreview(int game, const char* model, float t) {
     fig::Pose P; P.breathe = t * 1.4f;
     Matrix fr = fig::Frame({0, 0, 0}, -PI / 2 + 0.6f * sinf(t * 0.35f) + 0.3f);
     const Profile& prof = GetProfile();
-    std::vector<Matrix> sk = DrawDiverFigure(0, fr, P, t, WHITE, prof.suit, prof.helmet);
+    bool has = model && model[0] && LoadAsset(std::string("shared/costumes/costume_") + model + ".glb") != nullptr;
+    std::vector<Matrix> sk = DrawDiverFigure(0, fr, P, t, WHITE, prof.suit, prof.helmet, nullptr, !has);
     if (const Model* dm = DiverModel(0)) fig::DrawCostume(model, *dm, sk, fr);
     RenderEnd();
 }

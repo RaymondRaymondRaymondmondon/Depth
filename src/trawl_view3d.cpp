@@ -1508,9 +1508,11 @@ static void DrawSailor(const SailorLook& L, const SailorPose& P, Matrix frame, f
     std::vector<Matrix> skin = PoseSailor(*m, L, P, t);
     auto soak = [&](Color c) { float k = 1 - 0.38f * L.wet; c = {(unsigned char)(c.r * k), (unsigned char)(c.g * k), (unsigned char)(c.b * k), c.a}; return ColorLerp(c, Color{104, 18, 14, 255}, L.blood * 0.42f); };
     std::vector<rt::Recolor> rc = {{"skin", ColorLerp(L.skin, Color{150, 40, 30, 255}, L.blood * 0.12f)}, {"top", soak(L.top)}, {"trousers", soak(L.trousers)}, {"hat", soak(L.hat)}, {"hair", soak(L.hair.a ? L.hair : Color{60, 40, 28, 255})}};
-    rt::DrawPbrSkinned(*m, frame, skin, rc, 0.35f, tint);
-    if (L.costume && !P.fp) fig::DrawCostume(L.costume, *m, skin, frame, tint);   // (in first person only its sleeves' colour)
-    if (L.beard > 0 && !P.fp) {   // facial hair rides the head bone, in the sailor's hair colour
+    // a costume is the whole look (the user: you shouldn't see the wearer through it): drawn instead of the sailor, posed
+    // by the sailor's own skeleton; in first person only its sleeves' colour
+    bool costumed = L.costume && !P.fp && fig::DrawCostume(L.costume, *m, skin, frame, tint);
+    if (!costumed) rt::DrawPbrSkinned(*m, frame, skin, rc, 0.35f, tint);
+    if (L.beard > 0 && !P.fp && !costumed) {   // facial hair rides the head bone, in the sailor's hair colour
         static const char* BEARD[4] = {nullptr, "shared/crew/beard_full.glb", "shared/crew/beard_moustache.glb", "shared/crew/beard_chops.glb"};
         const Model* bm = rt::LoadAsset(BEARD[L.beard]);
         int hd = rt::RigOf(*m).Find("head");

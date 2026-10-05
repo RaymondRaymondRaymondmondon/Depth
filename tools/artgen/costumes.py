@@ -66,11 +66,33 @@ class Kit:
         return self.add(self._obj(name, bm), mat, bone)
 
     def hood(self, name, mat, r=(0.27, 0.255, 0.27), c=None, face=42, bone="head"):
-        """A hood over the head (and a diver's helmet) with the face left open."""
+        """A costume's head over the wearer's (the user, 2026-10-05: "the point is that you are not supposed to see the
+        original playable character": the mascot head is closed; its own eyes and mouth are on it)."""
         o = self.ell(name, tuple(c or HC + Vector((0.0, 0, 0.01))), r, mat, bone, 32)
-        cut(o, [((1, 0, -0.1), face)], Vector(c or HC))
-        sol = o.modifiers.new("t", 'SOLIDIFY'); sol.thickness = 0.012; C.select_only([o]); bpy.ops.object.modifier_apply(modifier="t")
+        self.has_head = True
         return o
+
+    # ---- completing a costume so nothing of the wearer shows (the game no longer draws the wearer under one)
+    def mitts(self, mat):
+        for sd in ("L", "R"):
+            h = self.j(f"palm.{sd}"); d = Vector((0, (1 if sd == "L" else -1) * 0.62, -0.78)).normalized()
+            self.ell(f"mitt{sd}", tuple(h + d * 0.035), (0.06, 0.06, 0.075), mat, f"hand.{sd}", 18)
+            self.ell(f"thumbm{sd}", tuple(self.j(f"thumb2.{sd}")), (0.025, 0.025, 0.03), mat, f"hand.{sd}", 12)
+
+    def boots(self, mat):
+        for sd in ("L", "R"):
+            s = 1 if sd == "L" else -1
+            self.ell(f"boot{sd}", (0.06, s * 0.115, 0.07), (0.15, 0.08, 0.08), mat, f"foot.{sd}", 18)
+            self.ell(f"ankle{sd}", (0.0, s * 0.115, 0.16), (0.08, 0.08, 0.09), mat, f"shin.{sd}", 16)
+
+    def face(self, name, mat, eyes=True, r=(0.12, 0.11, 0.135), mouth=None):
+        """A closed head of the costume's own (a mask, a sack head, a mascot face) with simple eyes and a mouth."""
+        self.ell(name, tuple(HC + Vector((0.01, 0, 0.0))), r, mat, "head", 28)
+        self.has_head = True
+        if eyes:
+            self.eyes(HC + Vector((r[0] * 0.85, 0, 0.03)), 0.045, 0.018, "head")
+        if mouth:
+            self.ell(f"{name}_mouth", tuple(HC + Vector((r[0] * 0.95, 0, -0.05))), (0.012, 0.035, 0.01), mouth, "head", 12)
 
     def suit(self, mat, puff=1.3, extra=0.02, legs=True, arms=True):
         """A padded suit round the skeleton (no hands or head): soft, weighted to the rig."""
@@ -352,8 +374,10 @@ def c_divingbell(k):
 
 
 def c_seamine(k):
-    k.ell("mine", (0.0, 0, 1.2), (0.38, 0.38, 0.38), "iron", "chest", 32)
-    spikes(k, "horn", (0.0, 0, 1.2), (0.38, 0.38, 0.38), 18, 0.12, "brass", "chest", 0.03)
+    k.ell("mine", (0.0, 0, 1.32), (0.46, 0.46, 0.48), "iron", "chest", 32)   # (big enough to swallow the wearer's head and body)
+    spikes(k, "horn", (0.0, 0, 1.32), (0.46, 0.46, 0.48), 18, 0.12, "brass", "chest", 0.03)
+    for s in (1, -1):   # a porthole of eyes, so it reads as someone in there
+        k.ell(f"peek{s}", (0.44, s * 0.08, 1.45), (0.02, 0.035, 0.035), "brass", "chest", 12)
     k.tube("mchain", [(0.0, 0, 0.82), (0.0, 0.03, 0.4), (0.02, 0, 0.05)], 0.014, "iron", "pelvis")
 
 
@@ -590,14 +614,91 @@ COSTUMES = {
 }
 
 
+EXTRA_COLS = {   # (the colours the completed costumes add: faces, boots, gloves, trousers)
+    "mask": COL(0.92, 0.82, 0.7, 0.6), "shadow": COL(0.03, 0.03, 0.04, 0.9), "glint": COL(1.0, 0.9, 0.5, 0.2), "dark": COL(0.08, 0.07, 0.08, 0.5),
+    "boot": COL(0.06, 0.055, 0.05, 0.45), "navy": COL(0.08, 0.12, 0.24, 0.8), "beard": COL(0.06, 0.05, 0.04, 0.9), "button": COL(0.1, 0.1, 0.1, 0.3),
+    "stitch": COL(0.15, 0.1, 0.06, 0.9), "orange": COL(0.95, 0.55, 0.1, 0.5), "canvas_g": COL(0.4, 0.42, 0.4, 0.85),
+}
+
+
+def complete(name, k):
+    """Everything the costume didn't already cover: a suit (arms and legs), mitts, boots, and a closed head with the
+    costume's own face - so the wearer, who is no longer drawn under it, never shows through."""
+    has = lambda: getattr(k, "has_head", False)
+    if name == "lobster": k.boots("shell")
+    elif name == "crab": k.hood("head", "shell", (0.25, 0.24, 0.26)); k.boots("shell")
+    elif name == "pufferfish": k.suit("skin", 1.25); k.hood("head", "skin", (0.24, 0.23, 0.25)); k.mitts("skin"); k.boots("spine_m")
+    elif name == "jelly": k.suit("tent", 1.15); k.mitts("tent"); k.boots("bell")
+    elif name == "hermit": k.hood("head", "claw", (0.25, 0.24, 0.26)); k.eyes(HC + Vector((0.2, 0, 0.04)), 0.07, 0.03, "head"); k.mitts("claw"); k.boots("claw")
+    elif name == "starfish": k.suit("star", 1.2); k.hood("head", "star", (0.24, 0.23, 0.25)); k.eyes(HC + Vector((0.2, 0, 0.05)), 0.07, 0.035, "head"); k.mitts("star"); k.boots("star")
+    elif name == "kelp": k.hood("head", "kelp", (0.25, 0.24, 0.26)); k.eyes(HC + Vector((0.21, 0, 0.04)), 0.07, 0.03, "head"); k.mitts("kelp"); k.boots("kelp2")
+    elif name == "barnacle": k.hood("head", "skin", (0.24, 0.23, 0.25)); k.eyes(HC + Vector((0.2, 0, 0.04)), 0.07, 0.03, "head"); k.mitts("skin"); k.boots("skin")
+    elif name in ("shark", "swordfish", "goliath", "fish"):
+        main = {"shark": "grey", "swordfish": "blue", "goliath": "olive", "fish": "silver"}[name]
+        k.mitts(main); k.boots(main)
+    elif name == "octopus": k.mitts("skin")
+    elif name == "angler": k.eyes(HC + Vector((0.24, 0, 0.1)), 0.11, 0.03, "head", white="glow"); k.mitts("dark"); k.boots("dark")
+    elif name == "turtle": k.eyes(HC + Vector((0.23, 0, 0.06)), 0.09, 0.03, "head"); k.mitts("skin"); k.boots("skin")
+    elif name == "coral": k.hood("head", "rock", (0.25, 0.24, 0.26)); k.eyes(HC + Vector((0.21, 0, 0.04)), 0.07, 0.03, "head"); k.mitts("rock"); k.boots("rock")
+    elif name == "divingbell": k.suit("canvas_g", 1.2, arms=False); k.boots("boot")
+    elif name == "seamine": k.suit("iron", 1.2); k.mitts("iron"); k.boots("iron")
+    elif name == "kraken": k.mitts("red"); k.boots("red")
+    elif name == "nautilus":
+        k.suit("steel", 1.25); k.hood("head", "steel", (0.25, 0.24, 0.26))
+        for s in (1, -1): k.ell(f"port{s}", tuple(HC + Vector((0.23, s * 0.07, 0.05))), (0.02, 0.045, 0.045), "glow", "head", 16)
+        k.mitts("steel_d"); k.boots("steel_d")
+    elif name == "gull": k.hood("head", "white", (0.25, 0.24, 0.26)); k.mitts("white"); k.boots("yellow")
+    elif name == "sack": k.suit("sack", 1.2); k.mitts("sack"); k.boots("boot")
+    elif name == "sandwich":
+        k.suit("navy", 1.2); k.face("mask", "mask", True, mouth="stitch")
+        k.ell("moustache", tuple(HC + Vector((0.12, 0, -0.03))), (0.02, 0.07, 0.018), "beard", "head", 12)
+        k.mitts("mask"); k.boots("boot")
+    elif name == "lifebuoy":
+        k.suit("navy", 1.2); k.face("mask", "mask", True)
+        k.ell("beard", tuple(HC + Vector((0.07, 0, -0.08))), (0.08, 0.12, 0.08), "white", "head", 18)
+        k.mitts("navy"); k.boots("boot")
+    elif name == "scarecrow":
+        k.face("sackhead", "sack", False, (0.13, 0.12, 0.14))
+        for s in (1, -1): k.ell(f"btn{s}", tuple(HC + Vector((0.125, s * 0.045, 0.03))), (0.008, 0.022, 0.022), "button", "head", 12)
+        for i in range(5): k.box(f"st{i}", (0.01, 0.006, 0.03), tuple(HC + Vector((0.13, -0.05 + i * 0.025, -0.06))), "stitch", "head", bevel=0.001)
+        k.mitts("sack"); k.boots("boot")
+    elif name == "souwester":
+        k.suit("oil", 1.25)
+        k.ell("shadowface", tuple(HC + Vector((0.01, 0, 0.0))), (0.12, 0.11, 0.135), "shadow", "head", 24)   # (the face lost in the hat's shadow)
+        for s in (1, -1): k.ell(f"glint{s}", tuple(HC + Vector((0.12, s * 0.045, 0.02))), (0.008, 0.012, 0.01), "glint", "head", 10)
+        k.mitts("oil"); k.boots("boot")
+    elif name == "mermaid":
+        k.face("mask", "fin", True, (0.12, 0.11, 0.135), mouth="shell")
+        for i in range(9):   # long sea-green hair down the back
+            a = math.pi * (0.5 + i / 8.0)
+            p0 = HC + Vector((0.11 * math.cos(a) - 0.02, 0.12 * math.sin(a), 0.08))
+            k.tube(f"lock{i}", [p0, p0 + Vector((-0.05, 0, -0.25)), p0 + Vector((-0.08, 0.02 * math.sin(i), -0.5))], 0.025, "scale", "chest")
+        k.ell("hairtop", tuple(HC + Vector((-0.02, 0, 0.06))), (0.13, 0.125, 0.11), "scale", "head", 20)
+        k.mitts("top")
+    elif name == "pirate":
+        k.suit("black", 1.15, arms=False)
+        k.face("mask", "mask", True)
+        k.ell("beardp", tuple(HC + Vector((0.07, 0, -0.08))), (0.09, 0.12, 0.09), "beard", "head", 18)
+        k.mitts("leather"); k.boots("boot")
+    elif name == "barrel": k.suit("leather", 1.15); k.hood("head", "wood", (0.24, 0.23, 0.25)); k.eyes(HC + Vector((0.2, 0, 0.04)), 0.07, 0.03, "head"); k.mitts("leather"); k.boots("boot")
+    elif name == "gannet":
+        k.suit("hull", 1.2); k.hood("head", "hull", (0.25, 0.24, 0.26))
+        for s in (1, -1): k.ell(f"port{s}", tuple(HC + Vector((0.23, s * 0.07, 0.05))), (0.02, 0.045, 0.045), "glow", "head", 16)
+        k.mitts("trim"); k.boots("trim")
+    elif name == "orca": k.eyes(HC + Vector((0.24, 0, 0.12)), 0.13, 0.03, "head"); k.mitts("black"); k.boots("black")
+    if not has() and name not in ("ghost", "jelly", "divingbell", "seamine", "pufferfish", "sack", "souwester", "octopus"):
+        print("artgen: costume", name, "has no head of its own")
+
+
 def build(name, out):
     C.reset()
     J = K.joints()
     fn, cols = COSTUMES[name]
-    allc = dict(BASE); allc.update(cols)
+    allc = dict(BASE); allc.update(EXTRA_COLS); allc.update(cols)
     k = Kit(J, allc)
     rig = K.make_armature(J)
     fn(k)
+    complete(name, k)
     meshes = []
     for o, bone in k.parts:
         C.select_only([o]); bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)

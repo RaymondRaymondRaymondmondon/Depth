@@ -1658,9 +1658,11 @@ static bool DrawTeammate(const Match& m, const Agent& a) {
     std::vector<Recolor> look;
     for (const auto& w : skins::ColoursOf(skins::REDTIDE, d->skin)) look.push_back({w.material, w.c});
     Color tint = d->dead ? Color{170, 200, 220, 160} : WHITE;
-    std::vector<Matrix> tsk = DrawDiverFigure(m.VoiceOf(di), frame, P, S.time, tint, d->suit, d->helmet, &look);
-    if (const skins::Costume* cos = d->costume.empty() ? nullptr : skins::FindCostume(skins::REDTIDE, d->costume))
-        if (const Model* dm = DiverModel(m.VoiceOf(di)); dm && !tsk.empty()) fig::DrawCostume(cos->model, *dm, tsk, frame, tint);
+    // (a costume is the whole look: the diver under it isn't drawn, only posed for it)
+    const skins::Costume* cos = d->costume.empty() ? nullptr : skins::FindCostume(skins::REDTIDE, d->costume);
+    bool hasCos = cos && LoadAsset(std::string("shared/costumes/costume_") + cos->model + ".glb");
+    std::vector<Matrix> tsk = DrawDiverFigure(m.VoiceOf(di), frame, P, S.time, tint, d->suit, d->helmet, &look, !hasCos);
+    if (hasCos) if (const Model* dm = DiverModel(m.VoiceOf(di)); dm && !tsk.empty()) fig::DrawCostume(cos->model, *dm, tsk, frame, tint);
     // their gun in the right fist, the same baked model as in first person (spec: "the third-person model of every gun")
     if (!d->dead && !tsk.empty() && !d->weapons.empty()) {
         const WeaponDef& w = m.W(m.Cur(*d));
