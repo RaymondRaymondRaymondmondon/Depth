@@ -78,6 +78,7 @@ void MainPage(Game& g, Rectangle p) {
     if (g.scene == Scene::Mouthful && item("Leave the reef")) { gOpen = false; LeaveMouthful(g); }
     if (g.scene == Scene::NightOff && item("Leave the bar")) { gOpen = false; LeaveNightOff(g); }
     if (g.scene == Scene::Scuffle && item("Leave the fight")) { gOpen = false; LeaveScuffle(g); }
+    if (g.scene == Scene::Warp && item("Leave the match")) { gOpen = false; LeaveWarp(g); }
     if (g.scene == Scene::Platformer || g.scene == Scene::Abyss) {
         if (item("Abandon the dive")) {
             gOpen = false;

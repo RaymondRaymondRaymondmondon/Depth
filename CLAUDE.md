@@ -533,3 +533,18 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 - Never call `GameMenuOpen()` mid-frame (it grabs the finished frame). Buttons call `GameMenuRequest()`; the main loop opens it between frames.
 - The game menu has "How to play" and a per-place Controls page (`howto.cpp`: `HowToFor`, `ActUsedIn`). A new game needs its entry there.
 - A Night Off guests predict their own walk and smooth everyone else (`GuestSmooth`). Squat: A Night Off (Ctrl, `Input::squat`, `Player::squatK`) and the Trawl's deck (C or Ctrl, `HI_CROUCH`, `Crew::crouchK`); the shared figure has `fig::Pose::crouch`.- Cosmetic prices were halved across every game (the user, 2026-10-05). The Trawl and Red Tide skins and costumes are halved where the catalogue is built (`HalfSkins`/`HalfCostumes` in skins_data.cpp; `CRATE_PRICE` 75); Red Tide's Locker in `Cosmetics()`; the Flight, Mouthful, A Night Off and Scuffle in their JSON. Crates that cost one token stay at one.
+
+## Warp Dodgeball (arcade game 12, Slop; build log in docs/WARP_PROGRESS.md)
+- **Design:** `Reference_For_Future_MP_Games/Warp Dodgeball — Game Design Spec.pdf` (OCR in `docs/warp_pdf_pages/`). It is first-person team dodgeball in which everyone carries a portal pair. It is built in Depth, not Godot.
+- **Code (namespace `wd`):**
+  - `warp.h/.cpp`: the headless core at 120 Hz. All numbers are in `data/warp/warp_config.json`.
+  - `warp_bots.cpp`: the bots and the tests.
+  - `warp_net.*`: `WarpHost`.
+  - `warp_game.cpp`: `Scene::Warp`.
+- **Input:** all play goes through `wd::Input`.
+- **Networking:** the snapshot is one templated Visit in warp_net.cpp. Any new field a screen draws goes there.
+- **Checks:** `--warp-test`, `--warp-sim <n> <perTeam>`, `--warp-net-test`, `--net-loop warp [lagMs] [mem]`. Shots: `warp_*`, `arcade_warp`.
+- **Arcade groups:** the drum's groups now hold three reels each where needed:
+  - Action: the Trawl, Red Tide, NOCLIP.
+  - Slop: A Night Off, Warp Dodgeball, Fowl Play.
+  - `CAT_LIST[5][3]`. `G_FOWL` and `G_NOCLIP` are reserved GameIds.

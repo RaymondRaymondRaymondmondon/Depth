@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <map>
 #include <string>
 
@@ -23,6 +24,22 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
     float side = p.team == 0 ? -1.0f : 1.0f;
     auto clampSide = [&](Vector3 v) { float lo = 0.6f, hi = w.arena.halfL - 0.4f; float ax = std::clamp(fabsf(v.x) * (v.x * side >= 0 ? 1 : 0), lo, hi); v.x = side * ax; v.z = std::clamp(v.z, -w.arena.halfW + 0.4f, w.arena.halfW + 0.4f - 0.8f); return v; };
     auto walkTo = [&](Vector3 tgt, bool sprint) {
+        // round the pieces: if a low box stands across the straight line, head for its best corner first
+        auto blocked = [&](Vector3 a, Vector3 b, int* which) {
+            for (int i = 0; i < (int)w.arena.boxes.size(); i++) {
+                const Box& bx = w.arena.boxes[i]; if (bx.lo.y > 1.5f || bx.hi.y < 0.3f) continue;
+                float m = C.radius + 0.05f, lx = bx.lo.x - m, hx = bx.hi.x + m, lz = bx.lo.z - m, hz = bx.hi.z + m;
+                for (int k = 1; k < 16; k++) { float u = k / 16.0f; float x = a.x + (b.x - a.x) * u, z = a.z + (b.z - a.z) * u; if (x > lx && x < hx && z > lz && z < hz) { if (which) *which = i; return true; } }
+            }
+            return false;
+        };
+        int bi2;
+        if (blocked(p.pos, tgt, &bi2)) {
+            const Box& bx = w.arena.boxes[bi2]; float m = C.radius + 0.35f; float best = 1e9f; Vector3 via = tgt;
+            Vector3 cs[4] = {{bx.lo.x - m, 0, bx.lo.z - m}, {bx.hi.x + m, 0, bx.lo.z - m}, {bx.lo.x - m, 0, bx.hi.z + m}, {bx.hi.x + m, 0, bx.hi.z + m}};
+            for (auto& cc : cs) { if (blocked(p.pos, cc, nullptr)) continue; float d = Vector2Distance({p.pos.x, p.pos.z}, {cc.x, cc.z}) + Vector2Distance({cc.x, cc.z}, {tgt.x, tgt.z}); if (d < best) { best = d; via = cc; } }
+            tgt = via;
+        }
         Vector3 d{tgt.x - p.pos.x, 0, tgt.z - p.pos.z}; float L = sqrtf(d.x * d.x + d.z * d.z); if (L < 0.15f) return;
         float yawTo = atan2f(d.z, d.x), rel = AngTo(p.yaw, yawTo);   // (move in our own frame: forward / right)
         o.moveX = cosf(rel) * std::min(1.0f, L); o.moveZ = sinf(rel) * std::min(1.0f, L); o.sprint = sprint && L > 2;
@@ -59,6 +76,24 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
         uint32_t key = Hash((uint32_t)(me * 977 + p.outs * 31 + p.catches * 7 + (int)(w.t / 3)));
         float want = skill == 0 ? 0.45f + 0.4f * H01(key) : 0.6f + 0.4f * H01(key);
         float curve = H01(key + 1) < (skill == 2 ? 0.35f : 0.15f) ? (H01(key + 2) < 0.5f ? -1.0f : 1.0f) : 0;
+        // the portal play (sharp bots, now and then): A on our own end wall behind us, B on the ceiling over the target,
+        // then a full throw straight back into A: it drops out of the ceiling onto them
+        if (skill >= 2 && !w.suddenDeath && H01(key + 9) < 0.3f) {
+            Vector3 aPt{side * w.arena.OuterX(), 1.6f, std::clamp(p.pos.z, -w.arena.OuterZ() + 0.6f, w.arena.OuterZ() - 0.6f)};
+            float lead = 0.15f + Vector3Distance(p.Eye(), aPt) / 26 + 0.35f;
+            Vector3 bPt{std::clamp(f.pos.x + f.vel.x * lead, -w.arena.halfL + 0.6f, w.arena.halfL - 0.6f), w.arena.ceil, std::clamp(f.pos.z + f.vel.z * lead, -w.arena.halfW + 0.6f, w.arena.halfW - 0.6f)};
+            auto aimAt = [&](Vector3 q) { Vector3 d = Vector3Subtract(q, p.Eye()); o.yaw = atan2f(d.z, d.x); o.pitch = atan2f(d.y, sqrtf(d.x * d.x + d.z * d.z)); };
+            bool aOk = p.portal[0].on && fabsf(p.portal[0].c.x - aPt.x) < 0.1f && fabsf(p.portal[0].c.z - aPt.z) < 2.5f;
+            bool bOk = p.portal[1].on && p.portal[1].n.y < -0.9f && Vector2Distance({p.portal[1].c.x, p.portal[1].c.z}, {bPt.x, bPt.z}) < 1.6f;
+            if (!aOk && p.portal[0].cool <= 0) { aimAt(aPt); o.portalA = true; in = o; return; }
+            if (!bOk && p.portal[1].cool <= 0) { aimAt(bPt); o.portalB = true; in = o; return; }
+            if (aOk && bOk) {
+                Vector3 c0 = p.portal[0].c; c0.y += 0.0f; aimAt(c0); o.pitch -= 0.0f;
+                float loftF = C.loftFull * DEG2RAD; o.pitch -= loftF;   // (a full throw: flat into the portal)
+                o.throwHeld = p.charge < 0.999f && p.releaseT <= 0; o.curve = 0;
+                in = o; return;
+            }
+        }
         float speed = C.speedMin + C.speedAdd * want * want, loft = (C.loftZero + (C.loftFull - C.loftZero) * want) * DEG2RAD;
         Vector3 eye = p.Eye(), aim{f.pos.x, f.pos.y + f.Height() * 0.55f, f.pos.z};
         float tFly = Vector3Distance(eye, aim) / speed;
@@ -89,7 +124,7 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
         if (mate && w.phase != PH_RUSH) d += 6;
         if (d < bd) { bd = d; best = i; }
     }
-    if (best >= 0) { Vector3 t = w.balls[best].p; t.x = std::clamp(t.x * side, 0.05f, w.arena.halfL) * side; walkTo(t, true); in = o; return; }
+    if (best >= 0) { Vector3 t = w.balls[best].p; t.x = std::clamp(t.x * side, 0.35f, w.arena.halfL) * side; walkTo(t, true); in = o; return; }
     // 4. nothing to do: hang back, drifting side to side
     Vector3 home{side * (w.arena.halfL * 0.55f), 0, sinf(w.t * 0.4f + me * 1.7f) * w.arena.halfW * 0.6f};
     walkTo(clampSide(home), false);
@@ -292,6 +327,13 @@ int RunWarpSim(int matches, int perTeam) {
         while (w.phase != PH_MATCH_END && steps < 120 * 60 * 30) {
             for (auto& p : w.players) BotInput(w, p.id, p.in, rng, (p.id + m) % 3);
             size_t e0 = w.events.size(); w.Step(); steps++;
+            if (getenv("DEPTH_WARPTRACE") && steps % (120 * 15) == 0) {
+                std::printf("t=%.0f ph=%d r=%d alive %d-%d |", steps * STEP, (int)w.phase, w.round, w.Alive(0), w.Alive(1));
+                for (const auto& b : w.balls) std::printf(" [%d %.1f,%.1f,%.1f h%d%s]", (int)b.st, b.p.x, b.p.y, b.p.z, b.holder, b.mustCarry ? "c" : "");
+                std::printf("\n   ");
+                for (const auto& p : w.players) std::printf(" p%d%s(%.1f,%.1f,%.1f b%d c%.2f po%d)", p.id, p.alive ? "" : "x", p.pos.x, p.pos.y, p.pos.z, p.ball, p.charge, (int)p.po);
+                std::printf("\n");
+            }
             for (size_t i = std::min(e0, w.events.size()); i < w.events.size(); i++) { const Event& ev = w.events[i]; if (ev.kind == EV_CATCH) catches++; else if (ev.kind == EV_TRANSIT) transits++; else if (ev.kind == EV_THROW) throws++; else if (ev.kind == EV_BLOCK) blocks++; else if (ev.kind == EV_OUT) causes[w.players[ev.who].outCause]++; }
         }
         if (w.champion < 0) stalls++; else wins[w.champion]++;

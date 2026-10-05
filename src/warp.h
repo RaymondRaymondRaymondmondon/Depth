@@ -114,7 +114,8 @@ struct World {
     float GroundAt(Vector3 p, float r) const;   // the highest walkable top under a circle at p (0: the floor)
     void Out(Player& p, int by, const char* cause);
     void Return(int team);
-    void Emit(int kind, Vector3 at, int who = -1, int by = -1, float a = 0) { events.push_back({kind, at, who, by, a}); if (events.size() > 400) events.erase(events.begin(), events.begin() + 200); }
+    uint32_t evCount = 0;               // every event ever emitted (the network counts by it)
+    void Emit(int kind, Vector3 at, int who = -1, int by = -1, float a = 0) { evCount++; events.push_back({kind, at, who, by, a}); if (events.size() > 400) events.erase(events.begin(), events.begin() + 200); }
     bool Threat(const Player& p, int* ballOut, float* tContact) const;   // the most urgent incoming enemy ball (for the catch prompt)
     float CatchWindow(float speed) const;
 };

@@ -35,7 +35,7 @@ const Color Bad     = {225, 70, 70, 255};
 const Color Stress  = {170, 120, 230, 255};
 }  // namespace Pal
 
-enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade, RedTide, Trawl, Flight, Mouthful, NightOff, Scuffle };
+enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade, RedTide, Trawl, Flight, Mouthful, NightOff, Scuffle, Warp };
 
 // Workshop upgrades. Each has levels 0..UPGRADE_MAX.
 enum Upgrade { UP_REFLECTOR, UP_BUNKS, UP_SONAR, UP_INFIRMARY, UP_CARGO, UP_COUNT };
@@ -896,6 +896,12 @@ void DebugArcadeScuffleLocker(Game& g, int tab);
 void StartScuffleEditor(Game& g);   // the level editor (doc p. 17): paint, check, share by code, play now
 void DebugScuffleEditorShot(Game& g, int which);
 void DebugScuffleShot(Game& g, int which);
+void SceneWarp(Game& g);         // Warp Dodgeball, arcade game 12 (warp_game.cpp)
+void StartWarp(Game& g, int perTeam = 4, int skill = 1, int arena = 0);   // (arena: 0 Classic, 1 Extreme)
+void LeaveWarp(Game& g);
+void StartWarpNet(Game& g, arcade::Session* net, const char* name);
+extern int gWarpArena, gWarpFill;   // (the arcade's picks for a hosted table)
+void DebugWarpShot(Game& g, int which);
 void SceneNightOff(Game& g);  // A Night Off, arcade game 6: one night ashore at the Sodden Gull (nightoff_game.cpp)
 void StartNightOff(Game& g, int crew = 0, int mode = 0, int crowd = 1, int bar = 0, int season = 0);
 namespace arcade { class Session; }
