@@ -249,12 +249,23 @@ void BuildProps() {
     }
     { // the wreck: a broken hull on its side
         Vector3 c{-110, mf::FloorY(-110, -70) + 1.5f, -70};
-        mb.Lathe(16, 8, 10, [](float u) { return 2.6f * sinf(std::max(0.1f, u) * PI) + 0.4f; }, [](float u) { return 2.0f * sinf(std::max(0.1f, u) * PI) + 0.3f; }, hull, Shade(hull, 0.7f), c);
-        mb.Tube({Vector3Add(c, {0, 2, 2}), Vector3Add(c, {3, 9, 1})}, 0.3f, 0.2f, 5, wood, wood, 0);
+        if (!rt::LoadAsset("trawl/boat.glb")) {   // (with the Trawl's art the wreck is her Gannet, drawn in DrawWorld)
+            mb.Lathe(16, 8, 10, [](float u) { return 2.6f * sinf(std::max(0.1f, u) * PI) + 0.4f; }, [](float u) { return 2.0f * sinf(std::max(0.1f, u) * PI) + 0.3f; }, hull, Shade(hull, 0.7f), c);
+            mb.Tube({Vector3Add(c, {0, 2, 2}), Vector3Add(c, {3, 9, 1})}, 0.3f, 0.2f, 5, wood, wood, 0);
+        }
+        for (int k = 0; k < 12; k++) { float a = k * 0.52f; Lump(mb, {c.x + cosf(a) * 7, c.y - 1.4f, c.z + sinf(a) * 5}, {0.8f, 0.4f, 0.7f}, a, Color{180, 150, 130, 255}, Color{100, 84, 74, 255}, 4, 7); }   // (silted debris round her)
     }
     { // the cleaning station: a flat-topped rock
         Vector3 c = mf::CLEANING; c.y = mf::FloorY(c.x, c.z);
-        mb.Lathe(3, 3, 9, [](float u) { return 4.5f - u * 1.5f; }, [](float u) { return 4.5f - u * 1.5f; }, {150, 140, 130, 255}, {110, 100, 96, 255}, Vector3Add(c, {0, 1.2f, 0}));
+        // (a broad boulder with a flattened crown, anemones and a sponge on top where the cleaner shrimp work)
+        Lump(mb, Vector3Add(c, {0, 1.0f, 0}), {4.4f, 1.9f, 4.0f}, 7.0f, Color{160, 150, 138, 255}, Color{90, 84, 80, 255}, 7, 12);
+        Lump(mb, Vector3Add(c, {0.4f, 2.6f, -0.3f}), {3.3f, 0.6f, 3.0f}, 3.0f, Color{176, 166, 150, 255}, Color{130, 122, 112, 255}, 5, 12);
+        for (int k = 0; k < 9; k++) {
+            float a = k * 0.7f, rr = 1.0f + (k % 3) * 0.8f; Vector3 o = Vector3Add(c, {cosf(a) * rr, 3.0f, sinf(a) * rr});
+            Color ac = k % 3 == 0 ? Color{230, 120, 160, 255} : k % 3 == 1 ? Color{240, 200, 120, 255} : Color{140, 220, 200, 255};
+            mb.Octa(o, 0.22f, Shade(ac, 0.7f));
+            for (int t = 0; t < 7; t++) { float b = t * 0.9f; mb.Tube({o, Vector3Add(o, {cosf(b) * 0.3f, 0.35f, sinf(b) * 0.3f})}, 0.04f, 0.02f, 3, ac, Mix(ac, WHITE, 0.4f), 0); }
+        }
     }
     for (int i = 0; i < 6; i++) {   // vents in the trench: a crusted chimney with knobbly ledges
         float x = 150 + Hash((float)i, 21) * 130, z = -50 + Hash((float)i, 23) * 100, y0 = mf::FloorY(x, z), h = 5 + Hash((float)i, 25) * 4;
@@ -446,6 +457,10 @@ void DrawWorld(const mf::World& w, const Camera3D& cam) {
         rt::DrawStatic(S.kelpG[k], m);
     }
     rt::DrawStatic(S.props, MatrixIdentity());
+    if (const Model* wb = rt::LoadAsset("trawl/boat.glb")) {   // the wreck on the reef: a trawler on her beam ends, half buried, weed-dark
+        Vector3 c{-110, mf::FloorY(-110, -70) + 0.6f, -70};
+        rt::DrawPbr(*wb, MatrixMultiply(MatrixMultiply(MatrixRotateX(1.15f), MatrixRotateY(0.6f)), MatrixTranslate(c.x, c.y, c.z)), Color{120, 150, 130, 255});
+    }
     // the surface seen from below: a bright skin of light
     rt::DrawCubeGlow(MatrixMultiply(MatrixScale(900, 0.2f, 600), MatrixTranslate(0, 0.15f, 0)), {150, 214, 222, 255}, 0.5f);
     // the brine pool's sheen and the vents' glow in the trench
