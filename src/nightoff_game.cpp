@@ -295,6 +295,47 @@ void DrawBar(const no::Night& n) {
         rt::DrawWorldCube({r.r.x + r.r.width / 2, B.wallH + 0.05f, r.r.y + r.r.height / 2}, {r.r.width, 0.1f, r.r.height}, B.ceiling);
         for (float x = r.r.x + 1.5f; x < r.r.x + r.r.width; x += 3) rt::DrawWorldCube({x, B.wallH - 0.12f, r.r.y + r.r.height / 2}, {0.25f, 0.24f, r.r.height}, B.beam);
     }
+    // the open air's clutter (the alley, the yard, the street): barrels, crates, fish boxes, lobster pots, rope, a bench,
+    // lamp posts and puddles, set along the walls (never in a doorway's gap, never on a fitting), spaced by a hash
+    if (!getenv("DEPTH_OLDBAR")) {
+        auto segDist = [](Vector2 p, Vector2 a, Vector2 b) { Vector2 ab = Vector2Subtract(b, a); float L2 = Vector2DotProduct(ab, ab); float u = L2 > 1e-6f ? std::clamp(Vector2DotProduct(Vector2Subtract(p, a), ab) / L2, 0.0f, 1.0f) : 0; return Vector2Distance(p, Vector2Add(a, Vector2Scale(ab, u))); };
+        static Model puddle = LoadModelFromMesh(GenMeshSphere(1, 8, 14));
+        for (const auto& r : B.rooms) {
+            int kind = r.key == "alley" ? 0 : r.key == "yard" ? 1 : r.key == "street" ? 2 : -1; if (kind < 0) continue;
+            static const char* ALLEY[] = {"nightoff/props/barrel.glb", "trawl/props/crate.glb", "trawl/props/fishbox.glb", "trawl/props/lobsterpot.glb", "trawl/props/ropecoil.glb", "trawl/props/bucket.glb"};
+            static const char* YARD[] = {"nightoff/props/barrel.glb", "flight/town/bench.glb", "flight/town/flowers.glb", "flight/town/bush.glb", "trawl/props/crate.glb", "flight/town/lamppost.glb"};
+            static const char* STREET[] = {"flight/town/lamppost.glb", "flight/town/bench.glb", "trawl/props/lobsterpot.glb", "trawl/props/netpile.glb", "trawl/props/crate.glb", "trawl/props/ropecoil.glb"};
+            const char** set = kind == 0 ? ALLEY : kind == 1 ? YARD : STREET;
+            Rectangle rr = r.r; Vector2 corner[4] = {{rr.x, rr.y}, {rr.x + rr.width, rr.y}, {rr.x + rr.width, rr.y + rr.height}, {rr.x, rr.y + rr.height}};
+            for (int e = 0; e < 4; e++) {
+                Vector2 a = corner[e], b2 = corner[(e + 1) % 4], d = Vector2Subtract(b2, a); float L = Vector2Length(d); if (L < 1) continue;
+                Vector2 u = Vector2Scale(d, 1 / L), in{-u.y, u.x};
+                Vector2 mid = Vector2Scale(Vector2Add(a, b2), 0.5f); if (!CheckCollisionPointRec(Vector2Add(mid, Vector2Scale(in, 0.5f)), rr)) in = Vector2Scale(in, -1);
+                for (float t = 0.9f; t < L - 0.9f; t += 1.7f) {
+                    Vector2 p = Vector2Add(Vector2Add(a, Vector2Scale(u, t)), Vector2Scale(in, 0.5f));
+                    uint32_t h = (uint32_t)(p.x * 97 + p.y * 193 + kind * 11) * 2654435761u;
+                    if ((h >> 9) % 5 >= 2) continue;   // (two spots in five)
+                    bool wall = false, wl = false, wr = false;   // (a wall here, running on both sides: so not a doorway's gap)
+                    Vector2 pl = Vector2Subtract(p, Vector2Scale(u, 0.7f)), pr2 = Vector2Add(p, Vector2Scale(u, 0.7f));
+                    for (const auto& w : B.walls) { if (segDist(p, w.a, w.b) < 0.75f) wall = true; if (segDist(pl, w.a, w.b) < 0.75f) wl = true; if (segDist(pr2, w.a, w.b) < 0.75f) wr = true; }
+                    if (wall && !(wl && wr)) continue;
+                    bool shared = false; Vector2 q = Vector2Subtract(p, Vector2Scale(in, 1.3f)); for (const auto& r2 : B.rooms) if (&r2 != &r && CheckCollisionPointRec(q, r2.r)) shared = true;
+                    if (!wall && shared) continue;   // (against a wall or the open edge of the lot: never across a doorway into another room)
+                    bool busy = false; for (const auto& bx : B.boxes) { float dx = std::max({bx.r.x - p.x, 0.0f, p.x - (bx.r.x + bx.r.width)}), dz = std::max({bx.r.y - p.y, 0.0f, p.y - (bx.r.y + bx.r.height)}); if (dx * dx + dz * dz < 0.9f) { busy = true; break; } }
+                    if (busy || Vector2Distance(p, B.dartboard) < 1.5f || Vector2Distance(p, B.jukebox) < 1.5f) continue;
+                    const char* path = set[(h >> 13) % 6]; const Model* m = rt::LoadAsset(path); if (!m) continue;
+                    float yaw = atan2f(in.y, in.x) + ((h >> 17) % 7 - 3) * 0.15f;
+                    float sc = std::string(path).find("lamppost") != std::string::npos ? 0.8f : std::string(path).find("bench") != std::string::npos ? 0.9f : 1.0f;
+                    rt::DrawPbr(*m, MatrixMultiply(MatrixMultiply(MatrixScale(sc, sc, sc), MatrixRotateY(-yaw)), MatrixTranslate(p.x, 0, p.y)));
+                }
+            }
+            if (kind != 1) for (int k = 0; k < 3; k++) {   // puddles in the alley and the street, catching the light
+                uint32_t h = (uint32_t)(rr.x * 31 + rr.y * 17 + k * 7) * 2654435761u;
+                Vector2 p{rr.x + rr.width * (0.25f + 0.5f * ((h >> 8) % 100) / 100.0f), rr.y + rr.height * (0.25f + 0.5f * ((h >> 16) % 100) / 100.0f)};
+                rt::DrawStatic(puddle, MatrixMultiply(MatrixScale(0.7f + k * 0.2f, 0.005f, 0.45f + k * 0.15f), MatrixTranslate(p.x, 0.012f, p.y)), Color{30, 36, 46, 255});
+            }
+        }
+    }
     if (B.key == "monkey") {
         // the long bar's mirror behind the bottles; chandeliers' crystals round each lamp
         rt::DrawCubeGlow(MatrixMultiply(MatrixScale(9.0f, 1.5f, 0.05f), MatrixTranslate(17, 2.1f, 11.93f)), {150, 170, 190, 255}, 0.25f);
