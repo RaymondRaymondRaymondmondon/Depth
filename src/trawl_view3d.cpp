@@ -2275,12 +2275,22 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         Glow(W3(g.ghost.p, h + 6), 0.4f, Color{150, 230, 190, 255}, 3.0f);   // a cold green lantern
     }
     if (g.kraken.state == 2) for (int arm = 0; arm < 3; arm++) {
-        float x = -6 + arm * 6.0f + sinf(t * 0.4f + arm) * 1.5f, side = arm % 2 ? 1.0f : -1.0f;
+        // (the Visual Overhaul's heavy threat: slow, ponderous arms, thick at the root and tapering to a curling tip,
+        // dark and wet at the base and paler toward the tip, pale suckers along the inside, old scars across them)
+        float x = -6 + arm * 6.0f + sinf(t * 0.25f + arm) * 1.5f, side = arm % 2 ? 1.0f : -1.0f;
         Vector3 prev = BoatPoint(b, {x, -1.5f, side * 6.0f});
-        for (int k = 1; k <= 10; k++) {
-            float u = k / 10.0f;
-            Vector3 q = BoatPoint(b, {x + sinf(t * 1.3f + arm + u * 4) * 0.8f, -1.5f + u * 5.5f - u * u * 2.5f, side * (6.0f - u * 4.0f)});
-            Seg(prev, q, (1 - u) * 0.7f + 0.15f, Color{130, 40, 40, 255}); prev = q;
+        const int N = 18;
+        for (int k = 1; k <= N; k++) {
+            float u = k / (float)N, sway = sinf(t * 0.55f + arm + u * 3.2f) * (0.4f + 1.1f * u);
+            float curl = u > 0.7f ? (u - 0.7f) / 0.3f : 0;   // (the last stretch curls back over itself)
+            Vector3 lp{x + sway + curl * curl * 1.2f * side, -1.5f + u * 5.5f - u * u * 2.5f - curl * curl * 1.1f, side * (6.0f - u * 4.0f + curl * 0.9f)};
+            Vector3 q = BoatPoint(b, lp);
+            float th = (1 - u) * 0.85f + 0.08f;
+            Color col = ColorLerp(Color{96, 22, 28, 255}, Color{176, 78, 70, 255}, u);
+            Seg(prev, q, th, col);
+            if (k % 2 == 0 && u < 0.92f) Glow(BoatPoint(b, {lp.x, lp.y - th * 0.35f, lp.z - side * th * 0.45f}), th * 0.32f, Color{232, 196, 180, 255}, 0.08f);   // a sucker on the inside
+            if ((k * 7 + arm * 3) % 11 == 0) Seg(BoatPoint(b, {lp.x - 0.05f, lp.y + th * 0.4f, lp.z + side * th * 0.3f}), BoatPoint(b, {lp.x + 0.12f, lp.y + th * 0.1f, lp.z + side * th * 0.5f}), th * 0.12f, Color{214, 170, 160, 255});   // an old scar
+            prev = q;
         }
     }
     if (g.isopods.state == 2) for (int k = 0; k < std::min(g.isopods.n, 30); k++) {
@@ -2405,8 +2415,18 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
                 for (int k = 0; k < a.count; k++) {
                     Vector3 q{p2.x + H01((int)i, k, 5) * 1.2f - 0.6f, -depth, p2.y + H01(k, (int)i, 6) * 1.2f - 0.6f};
                     bool nearEye = !jelly && Vector3Distance(q, cam.position) < 25;
-                    if (!nearEye || !DrawFishPbr(r.name, q, hd, len, 0, t * (r.size >= 4 ? 3.0f : 7.0f) + k * 1.3f + i, 0.28f, SpeciesTint(r), 0.4f + 0.6f * dim))
+                    bool heavy = r.threat && r.size >= 5;   // (the big threats, the White among them: a slow, heavy beat with a roll into the turn, and old scars down the flank)
+                    float beat = heavy ? 1.7f : r.size >= 4 ? 3.0f : 7.0f, roll = heavy ? sinf(t * 0.45f + i) * 0.18f : 0;
+                    if (heavy) q.y += sinf(t * 0.6f + i) * 0.15f;
+                    if (!nearEye || !DrawFishPbr(r.name, q, hd, len, roll, t * beat + k * 1.3f + i, heavy ? 0.22f : 0.28f, SpeciesTint(r), 0.4f + 0.6f * dim))
                         DrawFishAt(jelly ? gJelly : gFish, q, hd, len, c);
+                    if (heavy && nearEye) {
+                        Vector3 f = Vector3Normalize(hd), rgt = Vector3Normalize(Vector3CrossProduct(f, {0, 1, 0}));
+                        for (int sc = 0; sc < 3; sc++) {   // pale rake marks across both flanks
+                            float along = (-0.15f + sc * 0.12f) * len, side = len * 0.12f;
+                            for (float sd : {-1.0f, 1.0f}) { Vector3 a0 = Vector3Add(q, Vector3Add(Vector3Scale(f, along), Vector3Add(Vector3Scale(rgt, sd * side), {0, len * 0.06f, 0}))); Seg(a0, Vector3Add(a0, Vector3Add(Vector3Scale(f, len * 0.05f), {0, -len * 0.09f, 0})), len * 0.012f, Mul(Color{226, 220, 210, 255}, 0.4f + 0.6f * dim)); }
+                        }
+                    }
                 }
             }
         }

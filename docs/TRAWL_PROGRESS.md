@@ -854,3 +854,7 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
 - **Glimmer variants shimmer** like oil on water (the colours run along the body) and glow faintly, on deck, in the hold and in your hands.
 - **Gutted fish in the hold:** up to eighteen opened fish lie in rows on the ice pounds below.
 - **Harness:** `tvis_13_expressions` (at rest, afraid and soaked, straining, grinning and bloodied).
+- **The heavy threats:**
+  - The size-5 threats (the White among them) swim with a slow, heavy beat, roll into their turns, rise and fall a little, and carry pale rake scars down both flanks when near.
+  - The Kraken's arms are slower and ponderous: thick at the root, tapering to a tip that curls back, dark and wet at the base and paler toward the tip, with pale suckers along the inside and old scars across them.
+- **Still not done from the spec:** a separate viewmodel field of view, and mechanically true step reloads for every gun.
