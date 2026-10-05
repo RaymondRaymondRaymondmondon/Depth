@@ -16,6 +16,7 @@
 
 namespace {
 
+static const int KELP_GROUPS = 8;
 struct MouthfulScene {
     bool active = false, shot = false;
     mf::World W;
@@ -28,6 +29,7 @@ struct MouthfulScene {
     bool ready = false;
     std::vector<Model> floor;           // the seabed in chunks
     Model coral{}, kelp{}, props{};
+    Model kelpG[8]{};                   // the kelp stalks in groups that sway apart
     int me = 0;                         // the mouth this screen swims
     int forkClick = -1;                 // (a card clicked on the fork; applied with the next input)
     mf::Opts opts;
@@ -44,6 +46,11 @@ float Noise(float x, float z) {   // smooth value noise (patches without the gri
     float xi = floorf(x), zi = floorf(z), fx = Smooth01(x - xi), fz = Smooth01(z - zi);
     float a = Hash(xi, zi), b = Hash(xi + 1, zi), c = Hash(xi, zi + 1), d = Hash(xi + 1, zi + 1);
     return (a + (b - a) * fx) * (1 - fz) + (c + (d - c) * fx) * fz;
+}
+Model& Ball() { static Model m = LoadModelFromMesh(GenMeshSphere(1, 10, 14)); return m; }
+Model& Rib() {   // one rib of a whale's cage: an arch over the carcass in the y-z plane
+    static Model m = [] { rt::MeshBuilder mb; mb.Tube({{0, 0.2f, -1.6f}, {0, 2.2f, -2.0f}, {0, 3.6f, -0.9f}, {0, 3.9f, 0}, {0, 3.6f, 0.9f}, {0, 2.2f, 2.0f}, {0, 0.2f, 1.6f}}, 0.16f, 0.1f, 6, Color{255, 255, 255, 255}, Color{230, 226, 214, 255}, 0); return LoadModelFromMesh(mb.Build()); }();
+    return m;
 }
 void TwoSided(rt::MeshBuilder& mb, Vector3 a, Vector3 b, Vector3 c, Color col) { mb.Tri(a, b, c, col); mb.Tri(a, c, b, col); }
 
@@ -82,26 +89,84 @@ void BuildFloor() {
         S.floor.push_back(LoadModelFromMesh(mb.Build()));
     }
 }
+// a lumpy boulder: a lat-long ball with its radius pushed about by a few waves (seeded), lit lighter on top and
+// darker underneath through the vertex colours
+void Lump(rt::MeshBuilder& mb, Vector3 c, Vector3 r, float seed, Color top, Color bot, int rings = 6, int segs = 9) {
+    auto P = [&](int i, int j) {
+        float th = PI * i / rings, ph = 2 * PI * (j % segs) / segs;
+        Vector3 d{sinf(th) * cosf(ph), cosf(th), sinf(th) * sinf(ph)};
+        float k = 1 + 0.16f * sinf(d.x * 3.1f + seed) * cosf(d.z * 2.7f + seed * 1.3f) + 0.1f * sinf(d.y * 4.3f + seed * 2.1f) + 0.06f * cosf((d.x + d.z) * 6 + seed);
+        return Vector3{c.x + d.x * r.x * k, c.y + d.y * r.y * k, c.z + d.z * r.z * k};
+    };
+    auto C = [&](int i) { return Mix(bot, top, 1 - (float)i / rings); };
+    for (int i = 0; i < rings; i++) for (int j = 0; j < segs; j++) {
+        Vector3 a = P(i, j), b = P(i, j + 1), cc = P(i + 1, j + 1), d = P(i + 1, j);
+        Color ca = C(i), cb = C(i + 1);
+        mb.Tri(a, b, cc, ca, ca, cb, {0, 0}, {0, 0}, {0, 0}); mb.Tri(a, cc, d, ca, cb, cb, {0, 0}, {0, 0}, {0, 0});
+    }
+}
+// a sea fan: a flat lattice of branches in one plane (facing `n`), forking as it climbs
+void Fan(rt::MeshBuilder& mb, Vector3 base, float h, float yaw, Color col, float seed) {
+    Vector3 side{cosf(yaw), 0, sinf(yaw)};
+    std::function<void(Vector3, Vector3, float, int)> grow = [&](Vector3 p, Vector3 dir, float len, int depth) {
+        Vector3 q = Vector3Add(p, Vector3Scale(dir, len));
+        mb.Tube({p, q}, 0.05f * (depth + 1) * h / 3, 0.04f * depth * h / 3 + 0.02f, 4, Shade(col, 0.8f), col, 0);
+        if (depth == 0) return;
+        for (int s = -1; s <= 1; s += 2) {
+            float a = 0.45f + 0.15f * sinf(seed + depth * 3 + s);
+            Vector3 nd = Vector3Normalize(Vector3Add(Vector3Scale(dir, cosf(a)), Vector3Scale(side, s * sinf(a))));
+            grow(q, nd, len * 0.78f, depth - 1);
+        }
+    };
+    grow(base, {0, 1, 0}, h * 0.3f, 3);
+}
+// a reef coral by kind: branching staghorn, a brain-coral dome, a table on a stem, or pillar coral
+void CoralHead(rt::MeshBuilder& mb, Vector3 p, float r, float h, int kind, Color col) {
+    Color dark = Shade(col, 0.6f), lite = Mix(col, WHITE, 0.35f);
+    if (kind == 0) {   // staghorn: a low mound with antler branches
+        Lump(mb, Vector3Add(p, {0, r * 0.25f, 0}), {r * 0.9f, r * 0.45f, r * 0.9f}, p.x, col, dark);
+        for (int b = 0; b < 7; b++) {
+            float a = b * 0.9f + p.z, tilt = 0.35f + 0.1f * (b % 3);
+            Vector3 p0{p.x + cosf(a) * r * 0.4f, p.y + r * 0.4f, p.z + sinf(a) * r * 0.4f};
+            Vector3 p1 = Vector3Add(p0, {cosf(a) * h * tilt * 0.4f, h * 0.45f, sinf(a) * h * tilt * 0.4f});
+            Vector3 p2 = Vector3Add(p1, {cosf(a) * h * tilt * 0.3f, h * 0.35f, sinf(a) * h * tilt * 0.3f});
+            mb.Tube({p0, p1, p2}, r * 0.18f, r * 0.06f, 5, col, lite, 0);
+            mb.Tube({p1, Vector3Add(p1, {-sinf(a) * h * 0.18f, h * 0.22f, cosf(a) * h * 0.18f})}, r * 0.1f, r * 0.04f, 4, col, lite, 0);
+        }
+    } else if (kind == 1) {   // brain coral: a broad dome with a darker groove belt
+        Lump(mb, Vector3Add(p, {0, h * 0.18f, 0}), {r * 1.25f, h * 0.32f + r * 0.3f, r * 1.25f}, p.z, lite, dark, 7, 12);
+        Lump(mb, Vector3Add(p, {r * 0.3f, h * 0.38f + r * 0.2f, 0}), {r * 0.6f, r * 0.35f, r * 0.6f}, p.x + 3, col, dark);
+    } else if (kind == 2) {   // table coral: a stout stem and a wide flat plate
+        mb.Tube({p, Vector3Add(p, {0, h * 0.55f, 0})}, r * 0.35f, r * 0.25f, 6, dark, col, 0);
+        Lump(mb, Vector3Add(p, {0, h * 0.6f, 0}), {r * 1.7f, r * 0.16f, r * 1.5f}, p.x + p.z, lite, dark, 4, 12);
+        Lump(mb, Vector3Add(p, {0, r * 0.2f, 0}), {r * 0.8f, r * 0.35f, r * 0.8f}, p.z + 1, col, dark);
+    } else {   // pillar coral: a cluster of upright fingers on a mound
+        Lump(mb, Vector3Add(p, {0, r * 0.2f, 0}), {r, r * 0.4f, r}, p.x * 2, col, dark);
+        for (int b = 0; b < 6; b++) {
+            float a = b * 1.05f + p.x, rr = r * (0.2f + 0.45f * (b % 2)), hh = h * (0.55f + 0.45f * ((b * 37) % 5) / 4.0f);
+            Vector3 p0{p.x + cosf(a) * rr, p.y, p.z + sinf(a) * rr};
+            mb.Tube({p0, Vector3Add(p0, {0, hh * 0.6f, 0}), Vector3Add(p0, {0.05f, hh, 0})}, r * 0.2f, r * 0.15f, 6, col, lite, 0);
+        }
+    }
+}
 void BuildCoral() {
     rt::MeshBuilder mb;
     static const Color CC[] = {{232, 112, 104, 255}, {240, 176, 80, 255}, {176, 112, 196, 255}, {96, 196, 176, 255}, {236, 214, 196, 255}, {226, 90, 140, 255}};
     int k = 0;
-    for (const auto& c : mf::Corals()) {
-        Color col = CC[k++ % 6];
-        // a head: a trunk of stacked lumps, branches, a brain-coral cap
-        float h = c.h, r = c.r;
-        mb.Lathe(h, 5, 8, [r](float u) { return r * (0.75f + 0.35f * sinf(u * 9)) * (1.05f - 0.3f * u); }, [r](float u) { return r * (0.75f + 0.35f * sinf(u * 9 + 1)) * (1.05f - 0.3f * u); },
-                 col, Shade(col, 0.7f), {c.pos.x, c.pos.y + h * 0.5f - 0.3f, c.pos.z});
-        for (int b = 0; b < 4; b++) {
-            float a = b * 1.57f + k, bh = h * (0.5f + 0.15f * b);
-            Vector3 p0{c.pos.x + cosf(a) * r * 0.6f, c.pos.y + bh, c.pos.z + sinf(a) * r * 0.6f};
-            mb.Tube({p0, Vector3Add(p0, {cosf(a) * r * 0.7f, r * 0.9f, sinf(a) * r * 0.7f}), Vector3Add(p0, {cosf(a) * r * 0.9f, r * 1.6f, sinf(a) * r * 0.9f})}, r * 0.22f, r * 0.08f, 5, col, Mix(col, WHITE, 0.4f), 0);
-        }
+    for (const auto& c : mf::Corals()) {   // (the heads keep their footprint: c.r is what the big can't squeeze past)
+        Color col = CC[k % 6];
+        CoralHead(mb, c.pos, c.r, c.h, (k * 7 + (int)(Hash(c.pos.x, c.pos.z) * 4)) % 4, col);
+        k++;
     }
-    // the eel holes: dark mouths with a ring of rubble; the wall caves: deep recesses
+    // the eel holes: dark mouths with a ring of rubble; the wall caves: deep recesses with a broken rocky lip
     for (const auto& h : mf::Holes()) {
         Color d{18, 16, 20, 255};
-        if (h.maxTier >= 5) { mb.Box(h.pos, {h.r * 0.6f, h.r, h.r * 1.1f}, d); continue; }
+        if (h.maxTier >= 5) {
+            Lump(mb, h.pos, {h.r * 0.7f, h.r, h.r * 1.15f}, h.pos.z, Color{26, 24, 30, 255}, Color{8, 8, 10, 255});
+            for (int k2 = 0; k2 < 9; k2++) { float a = k2 * 0.698f; Vector3 q{h.pos.x - h.r * 0.45f, h.pos.y + cosf(a) * h.r * 1.05f, h.pos.z + sinf(a) * h.r * 1.2f};
+                Lump(mb, q, {h.r * 0.45f, h.r * (0.3f + 0.12f * (k2 % 3)), h.r * 0.38f}, a + h.pos.z, Color{104, 106, 112, 255}, Color{56, 58, 64, 255}, 5, 7); }
+            continue;
+        }
         mb.Lathe(h.r * 0.5f, 2, 8, [&](float u) { (void)u; return h.r * 0.75f; }, [&](float u) { (void)u; return h.r * 0.75f; }, d, d, {h.pos.x, h.pos.y - 0.2f, h.pos.z});
         for (int k2 = 0; k2 < 6; k2++) { float a = k2 * 1.05f; mb.Octa({h.pos.x + cosf(a) * h.r, h.pos.y - 0.1f, h.pos.z + sinf(a) * h.r}, 0.25f, {150, 130, 110, 255}); }
     }
@@ -109,32 +174,72 @@ void BuildCoral() {
 }
 void BuildKelp() {
     // the kelp curtain at the top of the wall, seagrass in the shallows
-    rt::MeshBuilder mb;
+    // giant kelp: a holdfast, a thin stipe rising in a lazy curve, a gas bladder at the foot of every blade, and long
+    // wavy blades on alternating sides; the stalks are split into KELP_GROUPS models that sway as the scene draws them
+    std::vector<rt::MeshBuilder> gb(KELP_GROUPS);
     for (int i = 0; i < 160; i++) {
+        rt::MeshBuilder& kb = gb[i % KELP_GROUPS];
         float z = mf::Z0 + 4 + i * ((mf::Z1 - mf::Z0 - 8) / 160.0f) + Hash((float)i, 3) * 1.5f, x = -46 + Hash((float)i, 5) * 8;
         float y0 = mf::FloorY(x, z), h = 18 + Hash((float)i, 7) * 18;
-        Color g = Mix(Color{70, 110, 50, 255}, Color{120, 140, 60, 255}, Hash((float)i, 9));
-        Vector3 prev{x, y0, z};
-        for (int s = 1; s <= 8; s++) {
-            float u = s / 8.0f;
-            Vector3 p{x + sinf(u * 3 + i) * 0.8f, y0 + h * u, z + cosf(u * 2 + i) * 0.4f};
-            if (p.y > -1) break;
-            float w = 0.6f;
-            TwoSided(mb, Vector3Add(prev, {0, 0, -w}), Vector3Add(p, {0, 0, -w}), Vector3Add(p, {0, 0, w}), g);
-            TwoSided(mb, Vector3Add(prev, {0, 0, -w}), Vector3Add(p, {0, 0, w}), Vector3Add(prev, {0, 0, w}), g);
-            prev = p;
+        Color g = Mix(Color{86, 104, 40, 255}, Color{140, 128, 52, 255}, Hash((float)i, 9)), gd = Shade(g, 0.6f), gl = Mix(g, Color{200, 190, 90, 255}, 0.3f);
+        Lump(kb, {x, y0 + 0.2f, z}, {0.5f, 0.3f, 0.5f}, (float)i, Shade(g, 0.7f), gd, 4, 7);   // the holdfast
+        std::vector<Vector3> stipe;
+        int n = 14;
+        for (int s = 0; s <= n; s++) {
+            float u = s / (float)n;
+            Vector3 p{x + sinf(u * 3 + i) * 0.9f, y0 + h * u, z + cosf(u * 2.3f + i) * 0.5f};
+            if (p.y > -1.2f) break;
+            stipe.push_back(p);
+        }
+        if (stipe.size() < 2) continue;
+        kb.Tube(stipe, 0.07f, 0.04f, 4, gd, g, 0);
+        for (size_t s = 1; s < stipe.size(); s++) {
+            Vector3 p = stipe[s];
+            float side = (s % 2) ? 1.0f : -1.0f, a = i * 1.3f + s * 2.1f;
+            Vector3 out{cosf(a) * side, 0.0f, sinf(a) * side};
+            kb.Octa(p, 0.11f, gl);   // the bladder
+            // the blade: a long tapering leaf drooping out and up, its edge rippled
+            float L = 1.6f + Hash((float)i, (float)s) * 1.2f, W = 0.22f;
+            Vector3 prev = p; float pw = 0.04f;
+            for (int q = 1; q <= 5; q++) {
+                float u = q / 5.0f;
+                Vector3 c{p.x + out.x * L * u, p.y + L * 0.55f * u - L * 0.25f * u * u, p.z + out.z * L * u};
+                float w = W * sinf(u * PI) + 0.03f, wob = 0.05f * sinf(q * 2.3f + a);
+                Vector3 perp{-out.z, wob, out.x};
+                TwoSided(kb, Vector3Add(prev, Vector3Scale(perp, -pw)), Vector3Add(c, Vector3Scale(perp, -w)), Vector3Add(c, Vector3Scale(perp, w)), q % 2 ? g : gl);
+                TwoSided(kb, Vector3Add(prev, Vector3Scale(perp, -pw)), Vector3Add(c, Vector3Scale(perp, w)), Vector3Add(prev, Vector3Scale(perp, pw)), q % 2 ? g : gl);
+                prev = c; pw = w;
+            }
+        }
+        // the canopy: blades streaming along the surface where the stipe reaches it
+        if (stipe.back().y > -4) for (int q = 0; q < 4; q++) {
+            Vector3 p = stipe.back(); float a = q * 1.57f + i;
+            Vector3 e{p.x + cosf(a) * 2.2f, p.y + 0.3f, p.z + sinf(a) * 2.2f};
+            TwoSided(kb, Vector3Add(p, {0, 0, -0.08f}), e, Vector3Add(p, {0.12f, 0.05f, 0.1f}), g);
         }
     }
+    for (int k = 0; k < KELP_GROUPS; k++) S.kelpG[k] = LoadModelFromMesh(gb[k].Build());
+    rt::MeshBuilder mb;
     for (int i = 0; i < 900; i++) {
         float x = -298 + Hash((float)i, 11) * 125, z = mf::Z0 + Hash((float)i, 13) * (mf::Z1 - mf::Z0);
         if (Noise(x / 9, z / 9) * 0.7f + Noise(x / 3.5f + 7, z / 3.5f) * 0.3f >= 0.3f) continue;   // (only on the patches the floor paints green)
         float y0 = mf::FloorY(x, z), h = 0.6f + Hash((float)i, 15) * 1.2f;
         Color g{84, 150, 76, 255};
-        TwoSided(mb, {x - 0.06f, y0, z}, {x + 0.06f, y0, z}, {x + 0.1f, y0 + h, z + 0.15f}, g);
+        for (int b = 0; b < 4; b++) {   // a tuft of curving blades
+            float a = b * 1.6f + i, hh = h * (0.7f + 0.1f * b);
+            Vector3 o{x + cosf(a) * 0.08f, y0, z + sinf(a) * 0.08f}, m{o.x + cosf(a) * 0.12f, y0 + hh * 0.55f, o.z + sinf(a) * 0.12f}, tip{o.x + cosf(a) * 0.35f, y0 + hh, o.z + sinf(a) * 0.35f};
+            Vector3 sd{-sinf(a) * 0.05f, 0, cosf(a) * 0.05f};
+            TwoSided(mb, Vector3Subtract(o, sd), Vector3Add(o, sd), Vector3Add(m, sd), Shade(g, 0.8f));
+            TwoSided(mb, Vector3Subtract(o, sd), Vector3Add(m, sd), Vector3Subtract(m, sd), Shade(g, 0.8f));
+            TwoSided(mb, Vector3Subtract(m, sd), Vector3Add(m, sd), tip, b % 2 ? g : Mix(g, Color{170, 190, 90, 255}, 0.3f));
+        }
     }
     S.kelp = LoadModelFromMesh(mb.Build());
 }
+struct GlowDot { Vector3 p; Color c; };
+std::vector<GlowDot> gTrenchGlow;   // bioluminescent spots on the trench's pillars (filled by BuildProps)
 void BuildProps() {
+    gTrenchGlow.clear();
     // the pier's pilings in the shallows, a wreck on the reef, the cleaning station's rock, vents and the brine pool's rim
     rt::MeshBuilder mb;
     Color wood{96, 80, 60, 255}, hull{70, 60, 52, 255};
@@ -151,9 +256,58 @@ void BuildProps() {
         Vector3 c = mf::CLEANING; c.y = mf::FloorY(c.x, c.z);
         mb.Lathe(3, 3, 9, [](float u) { return 4.5f - u * 1.5f; }, [](float u) { return 4.5f - u * 1.5f; }, {150, 140, 130, 255}, {110, 100, 96, 255}, Vector3Add(c, {0, 1.2f, 0}));
     }
-    for (int i = 0; i < 6; i++) {   // vents in the trench
-        float x = 150 + Hash((float)i, 21) * 130, z = -50 + Hash((float)i, 23) * 100, y0 = mf::FloorY(x, z);
-        mb.Cone({x, y0 - 1, z}, {x, y0 + 5 + Hash((float)i, 25) * 4, z}, 1.6f, 7, {60, 52, 50, 255});
+    for (int i = 0; i < 6; i++) {   // vents in the trench: a crusted chimney with knobbly ledges
+        float x = 150 + Hash((float)i, 21) * 130, z = -50 + Hash((float)i, 23) * 100, y0 = mf::FloorY(x, z), h = 5 + Hash((float)i, 25) * 4;
+        mb.Cone({x, y0 - 1, z}, {x, y0 + h, z}, 1.6f, 9, {60, 52, 50, 255});
+        for (int k = 0; k < 5; k++) { float a = k * 2.3f + i; Lump(mb, {x + cosf(a) * (1.3f - k * 0.2f), y0 + k * h / 5, z + sinf(a) * (1.3f - k * 0.2f)}, {0.7f, 0.4f, 0.7f}, a, Color{92, 70, 56, 255}, Color{40, 34, 32, 255}, 4, 7); }
+        Lump(mb, {x, y0 + 0.2f, z}, {2.6f, 0.8f, 2.6f}, (float)i, Color{70, 60, 56, 255}, Color{30, 28, 30, 255});
+        for (int k = 0; k < 14; k++) {   // giant tube worms round the chimney: white tubes, red plumes
+            float a = k * 0.449f + i, rr = 2.0f + (k % 3) * 0.5f, hh = 0.8f + (k % 4) * 0.4f; Vector3 o{x + cosf(a) * rr, y0 + 0.3f, z + sinf(a) * rr};
+            mb.Tube({o, Vector3Add(o, {0.05f, hh, 0.03f})}, 0.07f, 0.06f, 5, Color{200, 196, 186, 255}, Color{236, 232, 220, 255}, 0);
+            mb.Octa(Vector3Add(o, {0.05f, hh + 0.08f, 0.03f}), 0.13f, Color{220, 40, 40, 255});
+        }
+    }
+    // ---- rocks, so no band is a bare plain: the shallows' few weathered stones, the reef's rubble, scree at the
+    // foot of the wall and ledges jutting from its face, sponges on the blue's silt, basalt pillars in the trench
+    auto R = [](int i, int k) { return Hash((float)i * 1.37f + k * 0.71f, (float)k * 2.13f + 0.5f); };
+    for (int i = 0; i < 70; i++) {
+        float x = -296 + R(i, 1) * 124, z = mf::Z0 + 6 + R(i, 2) * (mf::Z1 - mf::Z0 - 12), r = 0.4f + R(i, 3) * R(i, 3) * 1.8f;
+        Lump(mb, {x, mf::FloorY(x, z) + r * 0.25f, z}, {r * 1.2f, r * 0.7f, r}, (float)i, Color{196, 186, 160, 255}, Color{120, 112, 98, 255});
+    }
+    static const Color RR[] = {{200, 170, 140, 255}, {214, 150, 140, 255}, {170, 150, 170, 255}, {150, 170, 150, 255}};
+    for (int i = 0; i < 160; i++) {
+        float x = -168 + R(i, 4) * 124, z = mf::Z0 + 6 + R(i, 5) * (mf::Z1 - mf::Z0 - 12), r = 0.25f + R(i, 6) * 0.7f;
+        Lump(mb, {x, mf::FloorY(x, z) + r * 0.2f, z}, {r * 1.1f, r * 0.6f, r}, (float)i + 50, RR[i % 4], Shade(RR[i % 4], 0.55f), 4, 7);
+    }
+    for (int i = 0; i < 150; i++) {   // scree: piled along the wall's foot, bigger stones further out
+        float u = R(i, 7), x = -8 + u * 12, z = mf::Z0 + 6 + R(i, 8) * (mf::Z1 - mf::Z0 - 12), r = 0.8f + (1 - u) * R(i, 9) * 3.2f;
+        Lump(mb, {x, mf::FloorY(x, z) + r * 0.3f, z}, {r * 1.1f, r * 0.75f, r}, (float)i + 90, Color{96, 100, 108, 255}, Color{44, 46, 52, 255});
+    }
+    for (int i = 0; i < 70; i++) {   // ledges jutting from the wall's face
+        float y = -45 - R(i, 10) * 70, z = mf::Z0 + 6 + R(i, 11) * (mf::Z1 - mf::Z0 - 12);
+        float x = -42; for (int k = 0; k < 80; k++) { if (mf::FloorY(x, z) < y) break; x += 0.5f; }
+        float r = 1.5f + R(i, 12) * 2.5f;
+        Lump(mb, {x - r * 0.3f, y, z}, {r * 0.8f, r * 0.45f, r * 1.4f}, (float)i + 130, Color{110, 112, 118, 255}, Color{50, 52, 58, 255});
+        if (i % 3 == 0) Fan(mb, {x - r * 0.3f, y + r * 0.3f, z}, 1.4f + R(i, 13) * 1.6f, R(i, 14) * 3, i % 2 ? Color{200, 70, 90, 255} : Color{230, 150, 60, 255}, (float)i);
+    }
+    for (int i = 0; i < 70; i++) {   // sea fans and tube sponges among the reef's heads
+        float x = -166 + R(i, 15) * 120, z = mf::Z0 + 6 + R(i, 16) * (mf::Z1 - mf::Z0 - 12), y0 = mf::FloorY(x, z);
+        if (i % 2 == 0) Fan(mb, {x, y0, z}, 1.2f + R(i, 17) * 1.4f, R(i, 18) * 3, i % 4 == 0 ? Color{176, 80, 190, 255} : Color{226, 96, 80, 255}, (float)i);
+        else for (int t = 0; t < 3; t++) { float a = t * 2.1f + i, hh = 0.6f + R(i, 19 + t) * 0.9f; Vector3 o{x + cosf(a) * 0.25f, y0, z + sinf(a) * 0.25f};
+            mb.Tube({o, Vector3Add(o, {0.03f, hh, 0})}, 0.13f, 0.16f, 7, Color{150, 90, 40, 255}, Color{230, 170, 70, 255}, 0); mb.Octa(Vector3Add(o, {0.03f, hh, 0}), 0.12f, Color{60, 30, 20, 255}); }
+    }
+    for (int i = 0; i < 46; i++) {   // the blue's silt: glass sponges, pale vases on the dunes
+        float x = 10 + R(i, 22) * 110, z = mf::Z0 + 6 + R(i, 23) * (mf::Z1 - mf::Z0 - 12), y0 = mf::FloorY(x, z), hh = 1.0f + R(i, 24) * 1.8f;
+        mb.Tube({{x, y0, z}, {x, y0 + hh * 0.5f, z}, {x + 0.1f, y0 + hh, z}}, 0.25f, 0.5f + R(i, 25) * 0.3f, 8, Color{150, 160, 150, 255}, Color{226, 228, 214, 255}, 0);
+        if (i % 3 == 0) Lump(mb, {x + 1.2f, y0 + 0.2f, z + 0.6f}, {0.6f, 0.35f, 0.5f}, (float)i, Color{170, 168, 150, 255}, Color{110, 108, 98, 255}, 4, 7);
+    }
+    for (int i = 0; i < 40; i++) {   // the trench: basalt pillars and fallen blocks in the dark
+        float x = 140 + R(i, 26) * 150, z = -85 + R(i, 27) * 170, y0 = mf::FloorY(x, z);
+        if (mf::BandAt({x, y0 + 1, z}) != mf::B_TRENCH) continue;
+        float hh = 4 + R(i, 28) * 12, r = 1.2f + R(i, 29) * 1.6f;
+        if (i % 3) { Lump(mb, {x, y0 + hh * 0.45f, z}, {r, hh * 0.55f, r * 0.9f}, (float)i, Color{70, 66, 78, 255}, Color{24, 22, 28, 255}, 7, 7);
+            for (int g = 0; g < 4; g++) { float a = g * 1.9f + i, yy = y0 + hh * (0.2f + 0.2f * g); gTrenchGlow.push_back({{x + cosf(a) * r * 1.02f, yy, z + sinf(a) * r * 0.95f}, g % 2 ? Color{90, 220, 240, 255} : Color{160, 255, 150, 255}}); } }
+        else Lump(mb, {x, y0 + r * 0.4f, z}, {r * 1.6f, r * 0.8f, r * 1.3f}, (float)i, Color{64, 60, 70, 255}, Color{22, 20, 26, 255});
     }
     S.props = LoadModelFromMesh(mb.Build());
 }
@@ -161,7 +315,7 @@ void FreeModels() {
     if (!S.ready) return;
     for (Model& m : S.floor) UnloadModel(m);
     S.floor.clear();
-    UnloadModel(S.coral); UnloadModel(S.kelp); UnloadModel(S.props);
+    UnloadModel(S.coral); UnloadModel(S.kelp); UnloadModel(S.props); for (Model& m : S.kelpG) UnloadModel(m);
     S.ready = false;
 }
 void EnsureModels() {
@@ -286,6 +440,11 @@ void DrawWorld(const mf::World& w, const Camera3D& cam) {
     for (size_t i = 0; i < S.floor.size(); i++) rt::DrawStatic(S.floor[i], MatrixIdentity());
     rt::DrawStatic(S.coral, MatrixIdentity());
     rt::DrawStatic(S.kelp, MatrixIdentity());
+    for (int k = 0; k < KELP_GROUPS; k++) {   // the kelp sways from its holdfasts (a shear about the wall's top, y -40)
+        float sx = 0.035f * sinf(S.t * 0.45f + k * 0.8f), sz = 0.025f * sinf(S.t * 0.33f + k * 1.7f);
+        Matrix m = MatrixIdentity(); m.m4 = sx; m.m6 = sz; m.m12 = 40 * sx; m.m14 = 40 * sz;
+        rt::DrawStatic(S.kelpG[k], m);
+    }
     rt::DrawStatic(S.props, MatrixIdentity());
     // the surface seen from below: a bright skin of light
     rt::DrawCubeGlow(MatrixMultiply(MatrixScale(900, 0.2f, 600), MatrixTranslate(0, 0.15f, 0)), {150, 214, 222, 255}, 0.5f);
@@ -293,12 +452,17 @@ void DrawWorld(const mf::World& w, const Camera3D& cam) {
     rt::DrawCubeGlow(MatrixMultiply(MatrixScale(mf::BRINE_R * 1.7f, 0.1f, mf::BRINE_R * 1.7f), MatrixTranslate(mf::BRINE.x, mf::FloorY(mf::BRINE.x, mf::BRINE.z) + 0.6f, mf::BRINE.z)), {40, 70, 90, 255}, 0.4f);
     for (int i = 0; i < 6; i++) {   // the vents' glow
         float x = 150 + Hash((float)i, 21) * 130, z = -50 + Hash((float)i, 23) * 100, y0 = mf::FloorY(x, z) + 5.5f + Hash((float)i, 25) * 4;
-        if (Vector3Distance({x, y0, z}, cam.position) < 120) for (int j = 0; j < 16; j++) { float u = fmodf(S.t * 0.4f + j / 16.0f, 1.0f); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.2f, 0.2f, 0.2f), MatrixTranslate(x + sinf(j * 2.1f + S.t) * u * 1.5f, y0 + u * 9, z + cosf(j * 1.7f) * u * 1.5f)), {255, 150, 80, 255}, 1.6f * (1 - u)); }
+        if (Vector3Distance({x, y0, z}, cam.position) < 120) for (int j = 0; j < 16; j++) { float u = fmodf(S.t * 0.4f + j / 16.0f, 1.0f); rt::DrawStaticGlow(Ball(), MatrixMultiply(MatrixScale(0.12f + u * 0.25f, 0.12f + u * 0.25f, 0.12f + u * 0.25f), MatrixTranslate(x + sinf(j * 2.1f + S.t) * u * 1.5f, y0 + u * 9, z + cosf(j * 1.7f) * u * 1.5f)), {255, 150, 80, 255}, 1.6f * (1 - u)); }
+    }
+    if (cam.position.y < -100) for (size_t k = 0; k < gTrenchGlow.size(); k++) {   // the pillars' glowing colonies, pulsing slowly
+        const GlowDot& g = gTrenchGlow[k]; if (Vector3Distance(g.p, cam.position) > 90) continue;
+        float pz = 0.6f + 0.4f * sinf(S.t * 0.8f + k * 1.7f);
+        rt::DrawStaticGlow(Ball(), MatrixMultiply(MatrixScale(0.18f, 0.12f, 0.18f), MatrixTranslate(g.p.x, g.p.y, g.p.z)), g.c, 1.6f * pz);
     }
     if (cam.position.y < -110) for (int k = 0; k < 90; k++) {   // bioluminescent motes drifting round the eye
         float a = k * 2.399f, r = 4 + (k % 9) * 2.2f, y = ((k * 37) % 23 - 11) * 1.1f;
         Vector3 q{cam.position.x + cosf(a + S.t * 0.05f) * r, cam.position.y + y + sinf(S.t * 0.3f + k) * 0.5f, cam.position.z + sinf(a + S.t * 0.05f) * r};
-        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.05f, 0.05f, 0.05f), MatrixTranslate(q.x, q.y, q.z)), k % 3 ? Color{90, 220, 230, 255} : Color{140, 255, 170, 255}, 1.2f);
+        rt::DrawStaticGlow(Ball(), MatrixMultiply(MatrixScale(0.04f, 0.04f, 0.04f), MatrixTranslate(q.x, q.y, q.z)), k % 3 ? Color{90, 220, 230, 255} : Color{140, 255, 170, 255}, 1.2f);
     }
     // plankton: a fry's food, a shimmer of green motes
     for (const auto& p : w.plankton) {
@@ -306,7 +470,7 @@ void DrawWorld(const mf::World& w, const Camera3D& cam) {
         for (int k = 0; k < 26; k++) {
             float a = k * 2.399f, r = p.r * sqrtf((k + 0.5f) / 26), y = (Hash((float)k, p.r) - 0.5f) * p.r;
             Vector3 q{p.pos.x + cosf(a + S.t * 0.2f) * r, p.pos.y + y, p.pos.z + sinf(a + S.t * 0.2f) * r};
-            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.08f, 0.08f), MatrixTranslate(q.x, q.y, q.z)), {170, 236, 170, 255}, 0.9f);
+            rt::DrawStaticGlow(Ball(), MatrixMultiply(MatrixScale(0.05f, 0.05f, 0.05f), MatrixTranslate(q.x, q.y, q.z)), {170, 236, 170, 255}, 0.9f);
         }
     }
     // ink and toxin clouds
@@ -319,7 +483,7 @@ void DrawWorld(const mf::World& w, const Camera3D& cam) {
             float a = j * 2.399f, rr = c.r * sqrtf((j + 0.5f) / 70) * (0.7f + 0.3f * (1 - k)), y = sinf(j * 1.3f) * c.r * 0.45f;
             Vector3 q{c.pos.x + cosf(a) * rr, c.pos.y + y, c.pos.z + sinf(a) * rr};
             float s = c.r * 0.22f * (1.2f - (float)j / 70) * std::max(0.3f, k);
-            rt::DrawWorldCube(q, {s, s, s}, col);
+            rt::DrawStatic(Ball(), MatrixMultiply(MatrixScale(s * 0.6f, s * 0.5f, s * 0.6f), MatrixTranslate(q.x, q.y, q.z)), col);
         }
     }
     // the web's fish (near enough to see) and the leviathan
@@ -342,11 +506,14 @@ void DrawWorld(const mf::World& w, const Camera3D& cam) {
     const mf::Boat& B = w.boat;
     if (B.on) {
         // the boat: a dark hull on the bright skin of the surface, its shadow sliding over the floor below
+        if (const Model* bm = rt::LoadAsset("trawl/boat.glb")) rt::DrawPbr(*bm, MatrixMultiply(MatrixRotateY(-PI / 2 * (B.dirZ >= 0 ? 1 : -1)), MatrixTranslate(B.pos.x, -0.2f, B.pos.z)));   // (the Trawl's Gannet, seen from below)
+        else {
         Matrix hull = MatrixMultiply(MatrixMultiply(MatrixScale(3.2f, 1.4f, 9), MatrixRotateY(0)), MatrixTranslate(B.pos.x, 0.2f, B.pos.z));
         rt::DrawCubeM(hull, {40, 36, 34, 255});
         rt::DrawWorldCube({B.pos.x, 0.4f, B.pos.z - B.dirZ * 4.8f}, {0.6f, 1.2f, 0.6f}, {30, 28, 28, 255});   // (the screw's housing)
+        }
         float fy = mf::FloorY(B.pos.x, B.pos.z);
-        rt::DrawWorldCube({B.pos.x, fy + 0.05f, B.pos.z}, {4.5f, 0.05f, 11}, {20, 30, 34, 255});
+        rt::DrawStatic(Ball(), MatrixMultiply(MatrixScale(2.4f, 0.03f, 6.0f), MatrixTranslate(B.pos.x, fy + 0.05f, B.pos.z)), {20, 30, 34, 255});   // (its shadow)
         if (B.net) {   // the net: a curtain of mesh trailing behind and below
             Vector3 c = B.NetCentre();
             for (int i = -5; i <= 5; i++) rt::DrawWorldCube({c.x + i * 2.0f, -6.5f, c.z}, {0.05f, 13, 0.05f}, {210, 210, 190, 255});
@@ -362,22 +529,22 @@ void DrawWorld(const mf::World& w, const Camera3D& cam) {
         if (B.chum) for (int k = 0; k < 24; k++) {   // the chum line: red clouds in the wake
             float zz = B.pos.z - B.dirZ * (4 + k * 1.2f);
             Vector3 q{B.pos.x + sinf(k * 1.7f + S.t) * 1.5f, -1.0f - (k % 5) * 0.6f, zz};
-            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.5f, 0.3f, 0.5f), MatrixTranslate(q.x, q.y, q.z)), {170, 40, 30, 255}, 0.3f);
+            rt::DrawStaticGlow(Ball(), MatrixMultiply(MatrixScale(0.4f, 0.25f, 0.4f), MatrixTranslate(q.x, q.y, q.z)), {170, 40, 30, 255}, 0.3f);
         }
     }
     if (w.bloom.on) for (int k = 0; k < 420; k++) {   // the red tide: a rust-red bloom of motes hanging in the water
         float a = k * 2.399f, r = w.bloom.r * sqrtf((k + 0.5f) / 420);
         Vector3 q{w.bloom.pos.x + cosf(a + S.t * 0.02f) * r, -1 - (k % 13) * 1.7f + sinf(S.t * 0.4f + k) * 0.4f, w.bloom.pos.z + sinf(a + S.t * 0.02f) * r};
-        if (Vector3Distance(q, cam.position) < 50) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.12f, 0.12f, 0.12f), MatrixTranslate(q.x, q.y, q.z)), {190, 60, 40, 255}, 0.4f);
+        if (Vector3Distance(q, cam.position) < 50) rt::DrawStaticGlow(Ball(), MatrixMultiply(MatrixScale(0.07f, 0.07f, 0.07f), MatrixTranslate(q.x, q.y, q.z)), {190, 60, 40, 255}, 0.4f);
     }
     if (w.fall.on || w.fall.done) {   // the whale fall: a carcass on the trench floor (its ribs bare as it's eaten)
         Vector3 c = w.fall.pos;
         if (Vector3Distance(c, cam.position) < 160) {
             float k = std::clamp(w.fall.left / 300, 0.0f, 1.0f);
             rt::DrawCreature(rt::Creature("mouthful_reef", "Orca"), c, 0.4f, 0, 2.4f, 0, 0, Color{(unsigned char)(150 + 60 * k), (unsigned char)(140 + 50 * k), (unsigned char)(140 + 40 * k), 255});
-            for (int r = 0; r < 9; r++) rt::DrawWorldCube({c.x - 6 + r * 1.5f, c.y + 1.5f, c.z}, {0.25f, 3.5f, 0.25f}, {226, 220, 204, 255});
+            for (int r = 0; r < 9; r++) rt::DrawStatic(Rib(), MatrixMultiply(MatrixScale(1, 1.0f - fabsf(r - 4) * 0.08f, 1.0f - fabsf(r - 4) * 0.06f), MatrixTranslate(c.x - 6 + r * 1.5f, c.y, c.z)), {226, 220, 204, 255});
             // the scavengers' light: a swarm of glowing motes over the carcass, so it can be found in the dark
-            for (int j = 0; j < 60; j++) { float a = j * 2.399f + S.t * 0.3f, r = 2 + (j % 7) * 1.1f; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.06f, 0.06f, 0.06f), MatrixTranslate(c.x + cosf(a) * r, c.y + 1 + (j % 5) * 0.8f, c.z + sinf(a) * r)), j % 3 ? Color{120, 230, 220, 255} : Color{200, 255, 180, 255}, 1.4f); }
+            for (int j = 0; j < 60; j++) { float a = j * 2.399f + S.t * 0.3f, r = 2 + (j % 7) * 1.1f; rt::DrawStaticGlow(Ball(), MatrixMultiply(MatrixScale(0.05f, 0.05f, 0.05f), MatrixTranslate(c.x + cosf(a) * r, c.y + 1 + (j % 5) * 0.8f, c.z + sinf(a) * r)), j % 3 ? Color{120, 230, 220, 255} : Color{200, 255, 180, 255}, 1.4f); }
         }
     }
     {   // the eel garden: little heads poking up out of the sand
@@ -386,12 +553,14 @@ void DrawWorld(const mf::World& w, const Camera3D& cam) {
             float a = k * 2.399f, r = mf::EEL_GARDEN_R * sqrtf((k + 0.5f) / 28);
             float x = mf::EEL_GARDEN.x + cosf(a) * r, z = mf::EEL_GARDEN.z + sinf(a) * r, y = mf::FloorY(x, z);
             float h = 0.35f + 0.2f * sinf(S.t * 1.3f + k);
-            rt::DrawWorldCube({x, y + h * 0.5f, z}, {0.06f, h, 0.06f}, {214, 196, 120, 255});
-            rt::DrawWorldCube({x + 0.03f, y + h, z}, {0.09f, 0.07f, 0.07f}, {200, 180, 100, 255});
+            float lean = 0.15f * sinf(S.t * 0.9f + k * 0.7f);   // a garden eel: a slim body out of its burrow, head bent to the current
+            rt::DrawStatic(Ball(), MatrixMultiply(MatrixMultiply(MatrixScale(0.035f, h * 0.5f, 0.035f), MatrixRotateZ(lean)), MatrixTranslate(x - sinf(lean) * h * 0.5f, y + h * 0.5f, z)), {214, 196, 120, 255});
+            rt::DrawStatic(Ball(), MatrixMultiply(MatrixScale(0.05f, 0.04f, 0.04f), MatrixTranslate(x - sinf(lean) * h + 0.03f, y + h, z)), {200, 180, 100, 255});
+            rt::DrawStatic(Ball(), MatrixMultiply(MatrixScale(0.07f, 0.015f, 0.07f), MatrixTranslate(x, y + 0.01f, z)), {120, 104, 70, 255});
         }
     }
     // the corpses: a pale drifting body
-    for (const auto& c : w.eco.corpses) if (c.active && Vector3Distance(c.pos, cam.position) < 50) rt::DrawWorldCube(c.pos, {0.25f, 0.12f, 0.4f}, {200, 190, 180, 255});
+    for (const auto& c : w.eco.corpses) if (c.active && Vector3Distance(c.pos, cam.position) < 50) rt::DrawStatic(Ball(), MatrixMultiply(MatrixScale(0.13f, 0.06f, 0.22f), MatrixTranslate(c.pos.x, c.pos.y, c.pos.z)), {200, 190, 180, 255});
     for (const auto& m : w.mouths) DrawMouth(w, m, m.id == S.me);
 }
 

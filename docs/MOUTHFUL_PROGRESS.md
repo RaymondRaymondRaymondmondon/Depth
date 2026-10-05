@@ -61,3 +61,5 @@ Built 2026-10-03, all six stages of the doc's build order. A first version of ea
   - Moray beats puffer only 37% (the doc says the eel should win).
   - The crab wins every floor fight (100%), and the shark beats the crab 100%: both too strong.
   - **Not yet within 55-65% across the table.**
+
+- Visual polish (2026-10-05): the reef's coral heads are four kinds (staghorn, brain, table, pillar) instead of lathed logs; giant kelp has a holdfast, a stipe, bladders and wavy blades, in eight groups that sway (a shear in `DrawWorld`); seagrass grows in tufts; lumpy boulders (`Lump`) dress every band (shallows stones, reef rubble, scree at the wall's foot, ledges on its face, basalt pillars in the trench with glowing colonies), plus sea fans (`Fan`), tube sponges, glass sponges on the blue's silt, tube worms round the vents; the wall caves have a rocky lip; motes, plankton, ink puffs and corpses are round; the whale fall has arched ribs; garden eels lean in the current; the boat overhead is the Trawl's Gannet.
