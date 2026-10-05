@@ -154,8 +154,8 @@ def hearth():
     for z in (-0.8, 0.8):
         lathe((0.35, 0, z), [(0.0001, 1.53), (0.04, 1.53), (0.02, 1.6), (0.015, 1.75), (0.03, 1.77), (0.0001, 1.78)], "brass2", 10)
         cyl((0.35, 1.78, z), (0.35, 1.9, z), 0.013, "ivory", 6)
-    box((0.3, 2.0, 0), (0.03, 0.3, 0.45), "brass2", 0.01)   # (a mirror's frame over it)
-    box((0.33, 2.0, 0), (0.01, 0.25, 0.4), "glassc", 0.0)
+    box((0.3, 2.0, 0), (0.03, 0.3, 0.45), "gilt", 0.01)   # (a mirror's frame over it)
+    box((0.33, 2.0, 0), (0.01, 0.25, 0.4), "mirrorg", 0.0)
 
 
 def piano():
@@ -238,10 +238,237 @@ def winerack():
             cyl((0.3, 0.3 + r * 0.36, z), (0.42, 0.3 + r * 0.36, z), 0.04, "glassr" if (i + r) % 3 else "glassg", 10)
 
 
+# ---------------------------------------------------------------- the rest of the boxes (2026-10-05 polish pass)
+# Unit pieces the game scales to a box (x and z from -0.5 to 0.5, y from 0 to 1) are marked "unit".
+def more_mats():
+    for k, rgb, r, m in (("porcelain", (0.92, 0.92, 0.9), 0.15, 0.0), ("steel3", (0.6, 0.61, 0.64), 0.3, 1.0), ("binGreen", (0.12, 0.28, 0.16), 0.6, 0.0),
+                         ("plank", (0.42, 0.27, 0.15), 0.6, 0.0), ("curtain", (0.45, 0.06, 0.08), 0.9, 0.0), ("stoneB", (0.5, 0.47, 0.44), 0.9, 0.0),
+                         ("paint_sky", (0.55, 0.62, 0.7), 0.9, 0.0), ("paint_sea", (0.12, 0.25, 0.35), 0.9, 0.0), ("paint_sand", (0.75, 0.66, 0.45), 0.9, 0.0),
+                         ("paint_dusk", (0.75, 0.45, 0.3), 0.9, 0.0), ("paint_white", (0.9, 0.88, 0.82), 0.9, 0.0), ("paint_red", (0.6, 0.12, 0.1), 0.9, 0.0),
+                         ("paint_dark", (0.1, 0.09, 0.08), 0.9, 0.0), ("paint_skin", (0.75, 0.55, 0.42), 0.9, 0.0), ("gilt", (0.75, 0.56, 0.2), 0.3, 1.0),
+                         ("mirrorg", (0.7, 0.75, 0.78), 0.02, 1.0), ("ringred", (0.75, 0.1, 0.08), 0.5, 0.0), ("ropec", (0.62, 0.52, 0.34), 0.95, 0.0),
+                         ("marlinb", (0.1, 0.18, 0.35), 0.35, 0.0), ("marlinl", (0.75, 0.78, 0.8), 0.35, 0.0), ("tin", (0.7, 0.6, 0.15), 0.4, 0.6),
+                         ("oil", (0.85, 0.6, 0.15), 0.1, 0.0), ("book1", (0.45, 0.12, 0.1), 0.7, 0.0), ("book2", (0.1, 0.25, 0.15), 0.7, 0.0),
+                         ("book3", (0.55, 0.42, 0.22), 0.7, 0.0), ("book4", (0.12, 0.14, 0.3), 0.7, 0.0), ("glassfloat", (0.25, 0.55, 0.45), 0.05, 0.0)):
+        B.MATS[k] = B.flat(k, rgb, r, m)
+
+
+def sink():   # a pedestal basin with a tap and a little mirror over it; front +x
+    lathe((0, 0, 0), [(0.0001, 0.0), (0.12, 0.0), (0.08, 0.1), (0.07, 0.6), (0.0001, 0.6)], "porcelain", 16)
+    lathe((0.05, 0, 0), [(0.0001, 0.62), (0.2, 0.6), (0.27, 0.78), (0.26, 0.84), (0.2, 0.8), (0.0001, 0.7)], "porcelain", 22)
+    rod([(-0.2, 0.84, 0), (-0.2, 0.98, 0), (-0.06, 1.0, 0), (-0.02, 0.95, 0)], 0.014, "chrome2", 6)
+    for s in (-1, 1):
+        cyl((-0.2, 0.86, s * 0.1), (-0.2, 0.92, s * 0.1), 0.018, "chrome2", 8)
+    box((-0.27, 1.45, 0), (0.015, 0.25, 0.2), "darkwood", 0.01)
+    box((-0.255, 1.45, 0), (0.005, 0.22, 0.17), "mirrorg", 0.0)
+
+
+def bins():   # unit: a wheelie bin, lid, handle and wheels; front +x
+    box((0, 0.46, 0), (0.42, 0.44, 0.44), "binGreen", 0.03)
+    box((0, 0.92, 0), (0.46, 0.03, 0.47), "binGreen", 0.02)
+    cyl((-0.47, 0.85, -0.35), (-0.47, 0.85, 0.35), 0.025, "binGreen", 8)
+    for s in (-1, 1):
+        disc((-0.35, 0.09, s * 0.46), 'z', 0.09, 0.05, "dartblack", 14)
+    box((0.43, 0.6, 0), (0.005, 0.12, 0.2), "label2", 0.0)
+
+
+def stall():   # unit: a toilet stall's partition with its door, hinges and latch (the panel along z, thin in x)
+    box((0, 0.55, 0), (0.03, 0.45, 0.5), "darkwood", 0.0)
+    box((0.032, 0.55, 0.0), (0.004, 0.42, 0.34), "oak", 0.0)
+    for y in (0.3, 0.8):
+        box((0.04, y, -0.33), (0.008, 0.03, 0.012), "brass2", 0.0)
+    box((0.04, 0.58, 0.31), (0.012, 0.02, 0.03), "brass2", 0.0)
+    for z in (-0.47, 0.47):
+        cyl((0, 0.0, z), (0, 0.12, z), 0.02, "chrome2", 6)
+
+
+def stage():   # unit: a raised plank stage with a skirted front (+x), footlights and a step
+    box((0, 0.5, 0), (0.5, 0.5, 0.5), "darkwood", 0.0)
+    for k in range(10):
+        box((0, 1.0, -0.45 + k * 0.1), (0.5, 0.004, 0.048), "plank", 0.0)
+    for k in range(12):
+        z = -0.46 + k * 0.083
+        box((0.505, 0.48, z), (0.008, 0.45, 0.04), "curtain", 0.02)
+    for k in range(6):
+        disc((0.47, 1.01, -0.4 + k * 0.16), 'y', 0.025, 0.02, "lampg", 10)
+
+
+def fryer():   # unit: a steel deep fryer, two oil wells with baskets hooked on the back rail
+    box((0, 0.45, 0), (0.48, 0.45, 0.48), "steel3", 0.01)
+    for s in (-1, 1):
+        box((0, 0.905, s * 0.22), (0.38, 0.004, 0.19), "oil", 0.0)
+        box((-0.1, 1.0, s * 0.22), (0.2, 0.08, 0.15), "steel3", 0.005)
+        rod([(0.1, 1.05, s * 0.22), (0.45, 1.05, s * 0.22)], 0.012, "darkwood", 6)
+    box((-0.47, 1.1, 0), (0.02, 0.2, 0.48), "steel3", 0.005)
+    for k in range(3):
+        disc((0.485, 0.75, -0.2 + k * 0.2), 'x', 0.025, 0.02, "dartblack", 10)
+
+
+def stairs():   # unit: six treads rising toward -z, two stringers and a handrail on posts
+    for i in range(6):
+        h = (i + 1) / 6.0
+        box((0, h - 0.02, 0.5 - (i + 0.5) / 6), (0.5, 0.02, 1 / 12 + 0.01), "oak", 0.005)
+        box((0, h / 2 - 0.01, 0.5 - (i + 0.5) / 6 + 1 / 12 - 0.01), (0.48, h / 2, 0.008), "darkwood", 0.0)
+    for s in (-1, 1):
+        quads([(s * 0.5, 0, 0.5), (s * 0.5, 0.18, 0.5), (s * 0.5, 1.02, -0.5), (s * 0.5, 0.84, -0.5)], [(0, 1, 2, 3)], "darkwood", f"str{s}")
+    for k in range(4):
+        z = 0.45 - k * 0.3; y = (k * 0.3 + 0.05) + 0.15
+        cyl((0.48, y, z), (0.48, y + 0.9, z), 0.02, "oak", 6)
+    rod([(0.48, 1.05, 0.5), (0.48, 1.95, -0.5)], 0.028, "oak", 8)
+
+
+def parapet():   # unit: a stone parapet with a coping and block joints
+    box((0, 0.45, 0), (0.5, 0.45, 0.5), "stoneB", 0.0)
+    box((0, 0.95, 0), (0.52, 0.05, 0.54), "stone3", 0.01)
+    for k in range(5):
+        box((0.505, 0.3 + (k % 2) * 0.3, -0.4 + k * 0.2), (0.003, 0.14, 0.003), "soot", 0.0)
+
+
+def bookcase():   # unit: a tall bookcase, its shelves full of books (front +x)
+    box((-0.1, 0.5, 0), (0.08, 0.5, 0.5), "darkwood", 0.0)
+    for s in (-1, 1):
+        box((0.0, 0.5, s * 0.49), (0.18, 0.5, 0.01), "darkwood", 0.0)
+    for r in range(5):
+        y = 0.02 + r * 0.2
+        box((0, y, 0), (0.18, 0.008, 0.49), "darkwood", 0.0)
+        z = -0.46; k = 0
+        while z < 0.44 and r < 4:
+            w = 0.025 + ((k * 7 + r * 3) % 5) * 0.006; h = 0.12 + ((k * 5 + r) % 4) * 0.015
+            tilt = 0.25 if (k + r) % 11 == 10 else 0.0
+            box((0.04, y + 0.01 + h / 2, z + w / 2), (0.1, h / 2, w / 2 - 0.002), ("book1", "book2", "book3", "book4", "redleather")[(k * 3 + r) % 5], 0.002)
+            z += w; k += 1
+
+
+def chess():   # a small chess table: a turned pillar, the board, a handful of pieces mid-game
+    lathe((0, 0, 0), [(0.0001, 0.0), (0.2, 0.0), (0.06, 0.06), (0.05, 0.4), (0.08, 0.72), (0.0001, 0.72)], "darkwood", 14)
+    box((0, 0.735, 0), (0.48, 0.015, 0.48), "darkwood", 0.01)
+    for i in range(8):
+        for j in range(8):
+            box((-0.42 + i * 0.12 + 0.06, 0.751, -0.42 + j * 0.12 + 0.06), (0.06, 0.002, 0.06), "ivory" if (i + j) % 2 else "ebony", 0.0)
+    for k, (i, j, m, h) in enumerate([(1, 2, "ivory", 0.07), (2, 5, "ebony", 0.09), (4, 4, "ivory", 0.12), (5, 1, "ebony", 0.07), (6, 6, "ebony", 0.11), (3, 3, "ivory", 0.08)]):
+        lathe((-0.42 + i * 0.12 + 0.06, 0.752, -0.42 + j * 0.12 + 0.06), [(0.0001, 0), (0.03, 0), (0.018, h * 0.4), (0.012, h * 0.8), (0.02, h * 0.85), (0.0001, h)], m, 10)
+
+
+def marlin():   # the stuffed marlin on its plaque (the plaque in the y-z plane at the origin, the fish out toward +x)
+    box((0, 0, 0), (0.035, 0.36, 0.9), "darkwood", 0.02)
+    blob((0.14, 0.02, 0.05), (0.08, 0.15, 0.55), "marlinb", 5, 0.0, 22)
+    blob((0.16, -0.06, 0.05), (0.06, 0.08, 0.45), "marlinl", 6, 0.0, 18)
+    rod([(0.15, 0.04, -0.5), (0.15, 0.05, -0.95)], 0.015, "marlinb", 6)                       # the bill
+    quads([(0.15, 0.15, -0.3), (0.15, 0.4, -0.05), (0.15, 0.3, 0.25), (0.15, 0.15, 0.3)], [(0, 1, 2, 3), (3, 2, 1, 0)], "marlinb", "sail")
+    quads([(0.15, 0.0, 0.58), (0.15, 0.28, 0.85), (0.15, 0.02, 0.68), (0.15, -0.25, 0.85)], [(0, 1, 2, 3), (3, 2, 1, 0)], "marlinb", "tail")
+    blob((0.2, 0.06, -0.38), (0.025, 0.025, 0.025), "dartblack", 7, 0.0, 8)
+    box((0.04, -0.3, 0), (0.01, 0.03, 0.15), "brass2", 0.002)
+
+
+def telescope():   # a brass telescope on a wooden tripod (pointing up toward +x)
+    for k in range(3):
+        a = k * 2 * math.pi / 3
+        rod([(0, 1.1, 0), (0.35 * math.cos(a), 0.0, 0.35 * math.sin(a))], 0.02, "oak", 6)
+    blob((0, 1.12, 0), (0.05, 0.05, 0.05), "brass2", 8, 0.0, 10)
+    for k, (r, l0, l1) in enumerate([(0.07, -0.35, 0.05), (0.055, 0.05, 0.4), (0.045, 0.4, 0.62)]):
+        cyl((l0 * math.cos(0.35), 1.2 + l0 * math.sin(0.35), 0), (l1 * math.cos(0.35), 1.2 + l1 * math.sin(0.35), 0), r, "brass2", 14)
+
+
+def stanchion():   # a brass rope post with a velvet rope sagging 1.6 m toward +x
+    lathe((0, 0, 0), [(0.0001, 0.0), (0.16, 0.0), (0.14, 0.04), (0.03, 0.06), (0.025, 0.86), (0.05, 0.9), (0.0001, 0.96)], "brass2", 16)
+    rod([(0.04, 0.84, 0), (0.4, 0.68, 0), (0.8, 0.63, 0), (1.2, 0.68, 0), (1.56, 0.84, 0)], 0.022, "curtain", 8)
+
+
+# wall decor: each built against the wall at the origin (its back on the plane x = 0), its face toward +x
+def frame(w, h, mat="gilt"):
+    for s in (-1, 1):
+        box((0.025, s * h / 2, 0), (0.025, 0.03, w / 2 + 0.03), mat, 0.008)
+        box((0.025, 0, s * w / 2), (0.025, h / 2, 0.03), mat, 0.008)
+
+
+def pic_ship():
+    frame(0.8, 0.56)
+    box((0.01, 0.08, 0), (0.005, 0.2, 0.4), "paint_sky", 0.0)
+    box((0.012, -0.15, 0), (0.005, 0.12, 0.4), "paint_sea", 0.0)
+    box((0.016, -0.07, 0.02), (0.004, 0.035, 0.16), "paint_dark", 0.0)
+    for k, (z, h) in enumerate([(-0.07, 0.14), (0.03, 0.18), (0.11, 0.12)]):
+        quads([(0.019, -0.03, z - 0.05), (0.019, -0.03 + h, z), (0.019, -0.03, z + 0.05)], [(0, 1, 2), (2, 1, 0)], "paint_white", f"sail{k}")
+
+
+def pic_light():
+    frame(0.5, 0.7)
+    box((0.01, 0.1, 0), (0.005, 0.25, 0.25), "paint_dusk", 0.0)
+    box((0.012, -0.22, 0), (0.005, 0.1, 0.25), "paint_sea", 0.0)
+    box((0.015, 0.0, 0.05), (0.004, 0.2, 0.035), "paint_white", 0.0)
+    for k in range(3):
+        box((0.017, -0.12 + k * 0.12, 0.05), (0.003, 0.02, 0.037), "paint_red", 0.0)
+    box((0.017, 0.22, 0.05), (0.004, 0.025, 0.05), "lampg", 0.0)
+
+
+def pic_captain():
+    frame(0.48, 0.62, "darkwood")
+    box((0.01, 0, 0), (0.005, 0.29, 0.22), "paint_dark", 0.0)
+    blob((0.02, 0.05, 0), (0.008, 0.09, 0.07), "paint_skin", 3, 0.0, 12)
+    blob((0.024, -0.03, 0), (0.008, 0.06, 0.07), "paint_white", 4, 0.0, 12)    # the beard
+    box((0.024, 0.15, 0), (0.006, 0.03, 0.09), "paint_dark", 0.0)              # the cap
+    box((0.022, -0.2, 0), (0.006, 0.08, 0.15), "marlinb", 0.0)                 # the coat
+
+
+def mirror():
+    blob((0, 0, 0), (0.02, 0.45, 0.32), "gilt", 2, 0.0, 24)
+    blob((0.012, 0, 0), (0.012, 0.41, 0.28), "mirrorg", 3, 0.0, 24)
+
+
+def lifering():
+    disc((0.05, 0, 0), 'x', 0.32, 0.09, "ringred", 28, hole=0.19)
+    for k in range(4):
+        a = k * math.pi / 2 + math.pi / 4
+        box((0.1, 0.255 * math.sin(a), 0.255 * math.cos(a)), (0.005, 0.05, 0.05), "paint_white", 0.0)
+    rod([(0.1, 0.33 * math.sin(a), 0.33 * math.cos(a)) for a in [k * math.pi / 8 for k in range(17)]], 0.012, "ropec", 4)
+
+
+def oars():
+    for s in (-1, 1):
+        rod([(0.05, -0.75, s * 0.55), (0.05, 0.75, -s * 0.55)], 0.022, "oak", 6)
+        quads([(0.06, 0.45, -s * 0.33), (0.06, 0.85, -s * 0.6), (0.06, 0.8, -s * 0.7), (0.06, 0.4, -s * 0.43)], [(0, 1, 2, 3), (3, 2, 1, 0)], "oak", f"blade{s}")
+
+
+def wheel():
+    disc((0.06, 0, 0), 'x', 0.34, 0.04, "oak", 32, hole=0.29)
+    disc((0.06, 0, 0), 'x', 0.07, 0.07, "brass2", 16)
+    for k in range(8):
+        a = k * math.pi / 4
+        rod([(0.06, 0, 0), (0.06, 0.48 * math.sin(a), 0.48 * math.cos(a))], 0.016, "oak", 6)
+
+
+def barometer():
+    disc((0.02, 0, 0), 'x', 0.16, 0.03, "darkwood", 24)
+    disc((0.04, 0, 0), 'x', 0.14, 0.01, "brass2", 24)
+    disc((0.046, 0, 0), 'x', 0.12, 0.005, "paint_white", 24)
+    rod([(0.05, 0, 0), (0.05, 0.07, 0.07)], 0.004, "dartblack", 3)
+
+
+def netfloats():
+    for k in range(7):
+        z = -0.6 + k * 0.2
+        rod([(0.03, 0.4, z), (0.06, -0.2 - 0.15 * math.sin(k), z + 0.05)], 0.005, "ropec", 3)
+    for j in range(4):
+        y = 0.3 - j * 0.16
+        rod([(0.04, y, -0.62), (0.05, y - 0.04, 0), (0.04, y, 0.62)], 0.005, "ropec", 3)
+    for k, (y, z) in enumerate([(0.1, -0.35), (-0.1, 0.2), (0.22, 0.45), (-0.25, -0.1)]):
+        blob((0.09, y, z), (0.07, 0.07, 0.07), "glassfloat" if k % 2 else "glassg", 9 + k, 0.0, 14)
+
+
+def tinsign():
+    box((0.008, 0, 0), (0.008, 0.22, 0.34), "tin", 0.01)
+    box((0.018, 0.08, 0), (0.003, 0.05, 0.28), "paint_red", 0.0)
+    box((0.019, -0.06, 0), (0.003, 0.09, 0.07), "beer", 0.0)
+    box((0.02, 0.02, 0), (0.003, 0.025, 0.075), "foam", 0.0)
+
+
 PIECES = {"stool": stool, "chair": chair, "table_round": table_round, "table_sq": table_sq, "bottle": bottle,
           "bottles_row": bottles_row, "mug": mug, "lantern": lantern, "jukebox": jukebox, "dartboard": dartboard,
           "hearth": hearth, "piano": piano, "pooltable": pooltable, "counter": counter, "barrel": barrel,
-          "armchair": armchair, "chaise": chaise, "winerack": winerack}
+          "armchair": armchair, "chaise": chaise, "winerack": winerack,
+          "sink": sink, "bins": bins, "stall": stall, "stage": stage, "fryer": fryer, "stairs": stairs, "parapet": parapet,
+          "bookcase": bookcase, "chess": chess, "marlin": marlin, "telescope": telescope, "stanchion": stanchion,
+          "pic_ship": pic_ship, "pic_light": pic_light, "pic_captain": pic_captain, "mirror": mirror, "lifering": lifering,
+          "oars": oars, "wheel": wheel, "barometer": barometer, "netfloats": netfloats, "tinsign": tinsign}
 
 if __name__ == "__main__":
     out = C.out_dir()
@@ -250,6 +477,6 @@ if __name__ == "__main__":
     for name, fn in PIECES.items():
         if only and name not in only:
             continue
-        P.reset(); P.land_mats(); P.clutter_mats(); mats()
+        P.reset(); P.land_mats(); P.clutter_mats(); mats(); more_mats()
         fn()
         B.finish(out, name + ".glb", lambda x, y, z, k: k)

@@ -130,6 +130,36 @@ void DrawBar(const no::Night& n) {
         slab(1.1f, B.wallH, outer ? B.outer : B.plaster, 0.3f);
         slab(1.08f, 1.16f, B.rail, 0.36f);
     }
+    // the walls' dressing (tools/artgen/nightoff_props.py): pictures, a mirror, a barometer; in the Gull the sea's
+    // things too (a life ring, crossed oars, a ship's wheel, a net with glass floats, a tin ale sign). Spaced along every
+    // wall that has a room behind it, clear of tall furniture, the back bar, the dartboard, the jukebox and the windows.
+    if (!getenv("DEPTH_OLDBAR")) {
+        static const char* GULL[] = {"pic_ship", "lifering", "pic_light", "oars", "mirror", "wheel", "pic_captain", "netfloats", "barometer", "tinsign"};
+        static const char* POSH[] = {"pic_ship", "mirror", "pic_captain", "barometer", "pic_light"};
+        bool posh = B.key == "monkey"; int nd = posh ? 5 : 10;
+        auto inRoom = [&](Vector2 p) { for (const auto& r : B.rooms) { if (r.key == "yard" || r.key == "alley" || r.key == "street" || r.key == "front") continue; if (CheckCollisionPointRec(p, r.r)) return true; } return false; };
+        auto clear = [&](Vector2 p) {
+            if (Vector2Distance(p, B.dartboard) < 1.6f || Vector2Distance(p, B.jukebox) < 1.4f) return false;
+            if (p.x > 12.2f && p.x < 21.8f && p.y > 11.2f && p.y < 12.6f) return false;   // (the back bar)
+            if (p.y < 0.6f) for (float wx : {4.0f, 13.0f, 26.0f, 34.0f}) if (fabsf(p.x - wx) < 1.4f) return false;
+            for (const auto& bx : B.boxes) if (bx.h > 1.25f) { float dx = std::max({bx.r.x - p.x, 0.0f, p.x - (bx.r.x + bx.r.width)}), dz = std::max({bx.r.y - p.y, 0.0f, p.y - (bx.r.y + bx.r.height)}); if (dx * dx + dz * dz < 0.8f) return false; }
+            return true;
+        };
+        int idx = 0;
+        for (const auto& w : B.walls) {
+            Vector2 d = Vector2Subtract(w.b, w.a); float L = Vector2Length(d); if (L < 1.6f) continue;
+            Vector2 u = Vector2Scale(d, 1 / L), nrm{-u.y, u.x};
+            for (float t = 1.3f; t < L - 0.7f; t += 2.7f) for (int side = -1; side <= 1; side += 2) {
+                Vector2 p = Vector2Add(Vector2Add(w.a, Vector2Scale(u, t)), Vector2Scale(nrm, side * 0.16f));
+                if (!inRoom(Vector2Add(p, Vector2Scale(nrm, side * 0.6f))) || !clear(p)) continue;
+                uint32_t h = (uint32_t)(p.x * 73 + p.y * 151 + side * 7) * 2654435761u;
+                if ((h >> 7) % 3 == 0) continue;   // (some wall left bare)
+                const Model* dm = rt::LoadAsset(std::string("nightoff/props/") + (posh ? POSH : GULL)[(idx++ + (h >> 11)) % nd] + ".glb"); if (!dm) continue;
+                float yaw = atan2f(nrm.y * side, nrm.x * side), y = 1.8f + ((h >> 15) % 4) * 0.08f;
+                rt::DrawPbr(*dm, MatrixMultiply(MatrixRotateY(-yaw), MatrixTranslate(p.x, y, p.y)));
+            }
+        }
+    }
     // windows on the street side: the blue dock night through them
     for (float x : {4.0f, 13.0f, 26.0f, 34.0f}) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.6f, 1.3f, 0.36f), MatrixTranslate(x, 1.9f, 0)), {40, 70, 110, 255}, 0.6f);
     // the furniture (as baked models where they're built: tools/artgen/nightoff_props.py; boxes otherwise)
@@ -150,13 +180,46 @@ void DrawBar(const no::Night& n) {
         if (k == "pool" && NP("pooltable")) { bool alongX = s.x > s.z; put(NP("pooltable"), {c.x, 0, c.z}, alongX ? PI / 2 : 0, {(alongX ? s.z : s.x) / 1.4f, 1, (alongX ? s.x : s.z) / 2.6f}); continue; }
         if (k == "hearth" && NP("hearth")) {
             put(NP("hearth"), {b.r.x + b.r.width, 0, c.z}, PI, {1, 1, std::max(0.6f, s.z / 2.4f)});
-            for (int j = 0; j < 9; j++) { float fl = 0.5f + 0.5f * sinf(S.t * (6 + j) + j * 2.1f); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.1f, 0.12f + 0.18f * fl, 0.1f), MatrixTranslate(b.r.x + b.r.width - 0.22f, 0.2f + 0.1f * fl, c.z - 0.5f + j * 0.12f)), j % 2 ? Color{255, 150, 50, 255} : Color{255, 210, 90, 255}, 1.6f); }
+            static Model flame = LoadModelFromMesh(GenMeshSphere(1, 8, 10));
+            float fx = b.r.x + b.r.width - 0.24f;
+            for (int j = 0; j < 3; j++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.12f, 0.12f, 0.75f), MatrixRotateY(0.3f * (j - 1))), MatrixTranslate(fx, 0.1f + (j == 1) * 0.1f, c.z - 0.1f + j * 0.1f)), Color{70, 44, 28, 255});   // (the logs)
+            for (int j = 0; j < 9; j++) {   // tongues of flame: tall soft blobs, flickering, a white-hot core low down
+                float fl = 0.5f + 0.5f * sinf(S.t * (6 + j) + j * 2.1f), h = 0.12f + 0.16f * fl;
+                Vector3 p{fx + 0.02f * sinf(S.t * 9 + j), 0.22f + h, c.z - 0.42f + j * 0.105f};
+                rt::DrawStaticGlow(flame, MatrixMultiply(MatrixScale(0.05f + 0.02f * (j % 2), h, 0.05f), MatrixTranslate(p.x, p.y, p.z)), j % 2 ? Color{255, 130, 40, 255} : Color{255, 190, 80, 255}, 1.5f);
+                if (j % 3 == 1) rt::DrawStaticGlow(flame, MatrixMultiply(MatrixScale(0.04f, 0.06f, 0.04f), MatrixTranslate(p.x, 0.26f, p.z)), {255, 240, 190, 255}, 2.0f);
+            }
             continue;
         }
         if (k == "piano" && NP("piano")) { put(NP("piano"), {c.x, 0, c.z}, facingIn(c), {1, 1, 1}); continue; }
         if (k == "armchair" && NP("armchair")) { put(NP("armchair"), {c.x, 0, c.z}, facingIn(c), {s.x / 0.84f, 1, s.z / 0.84f}); continue; }
         if (k == "chaise" && NP("chaise")) { put(NP("chaise"), {c.x, 0, c.z}, facingIn(c), {1, 1, std::max(s.x, s.z) / 1.9f}); continue; }
         if (k == "wine" && NP("winerack")) { bool alongX = s.x > s.z; put(NP("winerack"), {c.x, 0, c.z}, alongX ? (15 < c.z ? -PI / 2 : PI / 2) : facingIn(c), {1, b.h / 1.9f, (alongX ? s.x : s.z) / 1.8f}); continue; }
+        // unit pieces scaled to the box, turned (by quarter turns) to face into the room
+        auto unitFace = [&](const Model* m, bool turn) { float q = turn ? roundf(facingIn(c) / (PI / 2)) : 0; bool odd = ((int)fabsf(q)) % 2 == 1;
+            rt::DrawPbr(*m, MatrixMultiply(MatrixMultiply(MatrixScale(odd ? s.z : s.x, b.h, odd ? s.x : s.z), MatrixRotateY(-q * PI / 2)), MatrixTranslate(c.x, 0, c.z))); };
+        if (k == "slot") if (const Model* sm = rt::LoadAsset("fowl/slot.glb")) {   // (the fruit machine: Fowl Play's one-armed bandit, its front to +x)
+            rt::DrawPbr(*sm, MatrixMultiply(MatrixMultiply(MatrixScale(0.95f, b.h / 1.95f, 0.95f), MatrixRotateY(PI / 2)), MatrixTranslate(c.x, 0, c.z)));
+            if (const Model* sh = rt::LoadAsset("fowl/slot_handle.glb")) rt::DrawPbr(*sh, MatrixMultiply(MatrixMultiply(MatrixScale(0.95f, b.h / 1.95f, 0.95f), MatrixRotateY(PI / 2)), MatrixTranslate(c.x, 1.15f * b.h / 1.95f, c.z - 0.34f)));
+            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.02f, 0.18f, 0.48f), MatrixTranslate(c.x + 0.27f, 1.62f * b.h / 1.95f, c.z)), {255, 210, 120, 255}, 0.6f + 0.3f * sinf(S.t * 3 + c.z));
+            continue;
+        }
+        if ((k == "sink" || k == "bins" || k == "fryer" || k == "stage") && NP(k.c_str())) { if (k == "sink") put(NP("sink"), {c.x, 0, c.z}, roundf(facingIn(c) / (PI / 2)) * PI / 2, {1, 1, 1}); else unitFace(NP(k.c_str()), true);
+            if (k == "fryer") rt::DrawCubeGlow(MatrixMultiply(MatrixScale(s.x * 0.7f, 0.02f, s.z * 0.7f), MatrixTranslate(c.x, b.h * 0.91f, c.z)), {255, 170, 60, 255}, 0.25f);
+            continue; }
+        if (k == "stairs" && NP("stairs")) { unitFace(NP("stairs"), false); continue; }
+        if (k == "parapet" && NP("parapet")) { unitFace(NP("parapet"), false); continue; }
+        if (k == "stall" && NP("stall")) { rt::DrawPbr(*NP("stall"), MatrixMultiply(MatrixMultiply(MatrixScale(1, b.h, s.x), MatrixRotateY(-PI / 2)), MatrixTranslate(c.x, 0, c.z))); continue; }
+        if (k == "shelves" && NP("bookcase")) { rt::DrawPbr(*NP("bookcase"), MatrixMultiply(MatrixScale(s.x / 0.36f, b.h, s.z), MatrixTranslate(c.x, 0, c.z))); continue; }
+        if (k == "chess" && NP("chess")) { put(NP("chess"), {c.x, 0, c.z}, 0, {s.x / 0.96f, 1, s.z / 0.96f}); continue; }
+        if (k == "telescope" && NP("telescope")) { put(NP("telescope"), {c.x, 0, c.z}, facingIn(c) + PI, {1, 1, 1}); continue; }
+        if (k == "rope" && NP("stanchion")) { put(NP("stanchion"), {c.x, 0, c.z}, c.x < 19.5f ? 0 : PI, {1, 1, 1}); continue; }
+        if (k == "marlin" && NP("marlin")) {   // the stuffed marlin on its plaque over the fire (it speaks at the seance)
+            float kk = s.z / 1.8f;
+            put(NP("marlin"), {c.x, 2.2f, c.z}, PI, {kk, kk, kk});
+            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.05f, 0.05f, 0.05f), MatrixTranslate(c.x - 0.22f * kk, 2.26f, c.z + 0.38f * kk)), {255, 220, 150, 255}, 0.8f + (NW().Hour() >= 24 && NW().Hour() < 24.4f ? 1.5f : 0));
+            continue;
+        }
         if (k == "counter") { rt::DrawWorldCube(c, s, {84, 48, 30, 255}); rt::DrawWorldCube({c.x, b.h + 0.02f, c.z}, {s.x + 0.08f, 0.05f, s.z + 0.1f}, {210, 170, 80, 255}); }
         else if (k == "pool") { rt::DrawWorldCube({c.x, 0.4f, c.z}, {s.x, 0.8f, s.z}, {84, 50, 30, 255}); rt::DrawWorldCube({c.x, 0.82f, c.z}, {s.x - 0.2f, 0.04f, s.z - 0.2f}, {30, 110, 64, 255}); }
         else if (k == "slot") { rt::DrawWorldCube(c, s, {120, 40, 40, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.1f, 0.5f, 0.6f), MatrixTranslate(b.r.x + b.r.width + 0.02f, 1.3f, c.z)), {255, 210, 120, 255}, 1.0f + 0.4f * sinf(S.t * 3 + c.z)); }
