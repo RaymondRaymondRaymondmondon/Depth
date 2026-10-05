@@ -84,7 +84,8 @@ const HowTo& Get(int key) {
         sf.title = "Scuffle";
         sf.lines = {"A stick fight: the last stick standing wins the round; first to the target wins the match. Crates fall from the sky with weapons and gear, and the stage's hazards kill anyone.",
                     "After about 45 seconds the wall closes in. Modes add teams, a plank to hold, an egg to carry, sharks, duels, a Gauntlet race and boss fights.",
-                    "After a round, R replays the last 10 seconds. The locker (on the arcade's Scuffle panel) holds skins, hats and the crate."};
+                    "After a round, R replays the last 10 seconds. The locker (on the arcade's Scuffle panel) holds skins, hats and the crate.",
+                "New to it? The arcade's Scuffle panel has Training: twelve short lessons against a dummy (run, climb, dive, punch, the haymaker, the dive kick, grab and throw, deflecting shots, weapons, the knockout)."};
         sf.keys = {{"A / D", "run"}, {"W or Space", "jump (and climb walls)"}, {"S", "duck; dive in the air; duck on a gun to swap"}, {"Mouse", "aim"}, {"Left click", "fire, punch (hold against someone: grab)"}, {"E or right mouse", "gear"}, {"T", "taunt"}, {"1-3", "Duel: pick a weapon"}};
         auto& st = H[13];
         st.title = "The Study";

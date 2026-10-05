@@ -226,7 +226,7 @@ struct World {
     float gravity = 30;
     // arms (scuffle_arms.cpp): crates, loose weapons, bullets; the round's clock and the wall
     std::vector<Item> items; std::vector<Bullet> bullets; float nextCrate = 3, wallY = -10; int arsenal = AR_CLASSIC; bool finale = false, wallOn = true;
-    int crates = 0;
+    int crates = 0; bool training = false;   // (the Training room: everyone comes back, no wall, no round end)
     float ceilY = 1e9f, sideX = -10; int wallSide = 1;     // (the other worlds' walls: the Cave's ceiling coming down; the Void's abyss and the Salon's bouncer from a side)
     // stage 6 (scuffle_special.cpp): the strange weapons' things, burning tiles, the screen's ink and flash
     std::vector<Thing> things; std::vector<float> fireT; float inkT = 0, flashT = 0;

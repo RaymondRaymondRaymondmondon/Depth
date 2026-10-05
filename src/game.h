@@ -893,7 +893,9 @@ bool ScuffleLockerPage(Game& g);                  // (stage 9) the shop, the cra
 void StartScuffleReplay(Game& g, const std::string& path);   // (stage 9) watch a saved round
 void DebugScuffleLocker(int tab);
 void DebugArcadeScuffleLocker(Game& g, int tab);
-void StartScuffleEditor(Game& g);   // the level editor (doc p. 17): paint, check, share by code, play now
+void StartScuffleEditor(Game& g);
+void StartScuffleTraining(Game& g);
+void DebugScuffleTraining(Game& g);   // the Training room: a dojo, a dummy and twelve lessons   // the level editor (doc p. 17): paint, check, share by code, play now
 void DebugScuffleEditorShot(Game& g, int which);
 void DebugScuffleShot(Game& g, int which);
 void SceneWarp(Game& g);         // Warp Dodgeball, arcade game 12 (warp_game.cpp)

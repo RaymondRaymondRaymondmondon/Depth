@@ -19,6 +19,8 @@ namespace {
 struct Blot { Vector2 p, v; float r, life, max; Color c; };
 struct ScuffleScene {
     bool active = false, shot = false;
+    Vector2 smear[8][4]{}; bool smearOk[8]{};   // (last frame's fists and feet on screen: the motion smears)
+    bool train = false; int lesson = 0; float lessonDone = -1, trainAcc = 0, dumT = 0;   // (the Training room: the lesson, the moment it was passed, a held-move clock, the dummy's trigger)
     sf::Match M;
     int players = 4, skill = 2, toWin = 5, arsenal = sf::AR_CLASSIC; int lastRound = 0;
     std::vector<uint32_t> botRng;
@@ -188,10 +190,28 @@ void DrawPieces(const sf::Stage& s) {
         }
     }
 }
+void DrawStageShadows(const sf::Stage& s) {   // the platforms cast a soft shadow down and right onto the backdrop (depth)
+    float px = S.zoom * sf::TILE, o = px * 0.22f;
+    auto blocks = [&](int x, int y) { uint8_t q = s.At(x, y); return q != sf::T_EMPTY && q != sf::T_WATER && q != sf::T_BRINE && q != sf::T_ROPE; };
+    for (int y = 0; y < s.h; y++) for (int x = 0; x < s.w; x++) if (blocks(x, y)) { Vector2 a = W2S({x * sf::TILE, (y + 1) * sf::TILE}); DrawRectangleV({a.x + o, a.y + o}, {px + 1, px + 1}, Color{0, 0, 0, (unsigned char)(DarkWorld(s.world) ? 60 : 34)}); }
+}
+void DrawStageLips(const sf::Stage& s) {   // a lit edge along every top face, a shade along every underside
+    float px = S.zoom * sf::TILE, lt = std::max(2.0f, px * 0.07f);
+    for (int y = 0; y < s.h; y++) for (int x = 0; x < s.w; x++) {
+        uint8_t k = s.At(x, y); if (k != sf::T_STONE && k != sf::T_WOOD && k != sf::T_CRYSTAL && k != sf::T_CRUMBLE) continue;
+        Vector2 a = W2S({x * sf::TILE, (y + 1) * sf::TILE});
+        if (!s.Solid(x, y + 1)) DrawRectangleV({a.x + 1, a.y + lt * 0.6f}, {px - 1, lt}, Color{255, 255, 255, 46});
+        if (!s.Solid(x, y - 1)) DrawRectangleV({a.x + 1, a.y + px - lt * 1.6f}, {px - 1, lt}, Color{0, 0, 0, 40});
+    }
+}
+#include "scuffle_dressing.inl"
 void DrawStage() {
     const sf::Stage& s = S.M.w.stage;
     DrawBackdrop(s);
+    DrawStageShadows(s);
     for (int y = 0; y < s.h; y++) for (int x = 0; x < s.w; x++) { uint8_t k = s.At(x, y); if (k != sf::T_EMPTY) DrawTile(s, x, y, k); }
+    DrawStageLips(s);
+    DrawDressing(s);
     DrawPieces(s);
 }
 void DrawStick(const sf::Stick& k) {
@@ -199,7 +219,11 @@ void DrawStick(const sf::Stick& k) {
     Color c = k.alive ? StickColor(k.id) : Color{120, 116, 110, 255};
     if (k.alive && k.hitT > 0.17f) c = ColorLerp(c, WHITE, 0.75f);   // (a flash as a blow lands)
     if (k.alive && k.hp < 35) { float w = 0.5f + 0.5f * sinf(S.t * 14); c = ColorLerp(c, Color{230, 30, 30, 255}, 0.35f * w); }   // (low health: a red pulse)
-    float th = std::max(3.0f, S.zoom * 0.075f);
+    float th = std::max(4.0f, S.zoom * 0.105f);
+    {   // a soft shadow on the floor under the stick (how high it is reads at a glance)
+        const sf::Stage& st = S.M.w.stage; int tx = (int)floorf(k.pt[sf::J_PELVIS].p.x / sf::TILE);
+        for (int ty = (int)floorf(k.pos.y / sf::TILE); ty >= std::max(0, (int)floorf(k.pos.y / sf::TILE) - 6); ty--) if (st.Solid(tx, ty)) { float gy = (ty + 1) * sf::TILE, hgt = std::max(0.0f, k.pos.y - gy); Vector2 g = W2S({k.pt[sf::J_PELVIS].p.x, gy}); float a = std::clamp(0.35f - hgt * 0.05f, 0.05f, 0.35f), rw = S.zoom * (0.32f + hgt * 0.04f); DrawEllipse((int)g.x, (int)g.y, rw, rw * 0.22f, ColorAlpha(BLACK, a)); break; }
+    }
     auto P = [&](int j) { Vector2 p = W2S(k.pt[j].p); if (k.alive && k.hp < 35) p.x += sinf(S.t * 30 + j) * 0.8f; return p; };
     auto L = [&](int a, int b) { Vector2 A = P(a), B = P(b); DrawLineEx(A, B, th + 2.5f, INK); };
     auto C = [&](int a, int b) { Vector2 A = P(a), B = P(b); DrawLineEx(A, B, th, c); DrawCircleV(B, th * 0.5f, c); DrawCircleV(A, th * 0.5f, c); };
@@ -209,6 +233,19 @@ void DrawStick(const sf::Stick& k) {
     if (!cosart::Limbs(k, c, th, P, SEG, 10, &skA)) {
         for (const auto& s : SEG) L(s[0], s[1]);   // (an ink outline under the colour)
         for (const auto& s : SEG) C(s[0], s[1]);
+    }
+    {   // fists and feet (chunky ends on the limbs), and a smear behind a fast one
+        static const int ENDS[4] = {sf::J_HAND_L, sf::J_HAND_R, sf::J_FOOT_L, sf::J_FOOT_R};
+        int sid = std::clamp(k.id, 0, 7);
+        for (int q = 0; q < 4; q++) {
+            Vector2 now = P(ENDS[q]);
+            if (S.smearOk[sid] && k.alive) { Vector2 was = S.smear[sid][q]; float d = Vector2Distance(was, now); if (d > th * 1.6f && d < S.zoom * 2.5f) { DrawLineEx(was, now, th * 1.5f, ColorAlpha(c, 0.28f * skA)); DrawCircleV(was, th * 0.6f, ColorAlpha(c, 0.15f * skA)); } }
+            S.smear[sid][q] = now;
+            bool hand = q < 2; float rr = hand ? th * 0.95f : th * 0.8f;
+            if (!hand) { Vector2 knee = P(q == 2 ? sf::J_KNEE_L : sf::J_KNEE_R); Vector2 toe{now.x + (float)k.face * th * 1.3f, now.y}; (void)knee; DrawLineEx(now, toe, th * 1.25f + 2.5f, ColorAlpha(INK, skA)); DrawLineEx(now, toe, th * 1.25f, ColorAlpha(c, skA)); }
+            DrawCircleV(now, rr + 1.6f, ColorAlpha(INK, skA)); DrawCircleV(now, rr, ColorAlpha(c, skA));
+        }
+        S.smearOk[sid] = true;
     }
     // the head: a ring, and the face (two dots and a line); dead eyes are crosses
     Vector2 h = P(sf::J_HEAD); float r = k.pt[sf::J_HEAD].r * S.zoom;
@@ -256,11 +293,15 @@ void DrawBlots(float dt) {
     }
     S.blots.erase(std::remove_if(S.blots.begin(), S.blots.end(), [](const Blot& b) { return b.life <= 0; }), S.blots.end());
 }
+}   // (the Training room's lesson checks are defined further down, outside this namespace)
+void TrainEvent(const sf::Event& e);
+namespace {
 void ReadEvents() {
     const auto& E = S.M.w.events; uint32_t base = S.M.w.eventBase;
     if (S.evSeen < base) S.evSeen = base;
     for (uint32_t i = S.evSeen; i < base + E.size(); i++) {
         const sf::Event& e = E[i - base];
+        TrainEvent(e);
         {   // stage 9: the sound of it (panned by where it is on screen; each stick's yelp in its own voice)
             float pan = std::clamp((W2S(e.at).x / SCREEN_W) * 2 - 1, -1.0f, 1.0f), voice = 0.8f + 0.09f * std::max(0, e.who);
             auto cue = [&](int k, float v, float p = 1) { ScuffleCue(k, v, pan, p); };
@@ -682,6 +723,119 @@ void StartScuffle(Game& g, int bots, int skill, int toWin, int world) {
     RecBegin();
     g.scene = Scene::Scuffle;
 }
+// ---------------------------------------------------------------- the Training room (the friends: "underdeveloped": an
+// onboarding): a dojo on the Nautilus, a sparring dummy, and twelve lessons that each pass the moment you do the thing
+struct TrainLesson { const char* title; const char* how; };
+static const TrainLesson LESSONS[] = {
+    {"Run", "A and D run. Get a feel for the floor."},
+    {"Jump", "W or Space jumps. Hold it for a higher jump."},
+    {"Climb", "Jump into the wall on the left and keep holding toward it: you cling and climb. Jump again to kick off."},
+    {"Dive", "In the air, press S to dive head first."},
+    {"Punch", "Walk up to the dummy and click to punch it."},
+    {"The haymaker", "Every third punch in a row is a haymaker: it sends them flying. Click three times quickly."},
+    {"The dive kick", "Dive (S in the air) and click while diving: a flying kick."},
+    {"Grab and throw", "Hold the button against the dummy to grab it; aim with the mouse and let go to throw."},
+    {"Deflect", "The dummy has a pistol now. Punch just as a shot reaches you: a punch in time knocks bullets away."},
+    {"Weapons", "A crate is falling. Walk over the gun inside to pick it up (S on a gun swaps what you hold)."},
+    {"Shoot", "Aim with the mouse and click to shoot. Every gun kicks: mind the edge."},
+    {"The knockout", "Rounds are won by being the last one standing. Knock the dummy off the edge on the right, or beat it down."},
+};
+constexpr int LESSON_N = (int)(sizeof(LESSONS) / sizeof(LESSONS[0]));
+static sf::Stage DojoStage() {
+    std::vector<std::string> rows = {
+        "world=nautilus",
+        "##                                        ",
+        "##                                        ",
+        "##                                        ",
+        "##                                        ",
+        "##              #########                 ",
+        "##                                        ",
+        "##                                        ",
+        "######                                    ",
+        "######                                    ",
+        "######                                    ",
+        "######                                    ",
+        "######   S          S                     ",
+        "#################################        #",
+        "#################################        #",
+    };
+    sf::Stage s = sf::StageFromText(rows, "The Dojo"); s.world = sf::WD_NAUTILUS; return s;
+}
+void StartScuffleTraining(Game& g) {
+    int keepMode = gScuffleMode; gScuffleMode = sf::MD_CLASSIC;
+    S = ScuffleScene{}; gEventBanner = 0; gEventKind = -1;
+    S.active = true; S.train = true; S.players = 2; S.skill = 0; S.toWin = 20;
+    S.M.mode = sf::MD_CLASSIC; S.M.world = sf::WD_NAUTILUS; S.M.custom = {DojoStage()};
+    S.M.trinkets.assign(2, sf::TK_NONE); S.M.skins.assign(2, -2); S.M.hats.assign(2, -2); S.M.skins[0] = sf::SkinIndex(sf::MyLocker().skin); S.M.hats[0] = sf::HatIndex(sf::MyLocker().hat);
+    S.M.Start(2, 20, (uint32_t)GetRandomValue(1, 1 << 30), sf::AR_CLASSIC); S.toWin = S.M.toWin;
+    S.M.w.training = true; S.M.w.wallOn = false; S.M.wallOn = false; S.M.w.nextCrate = 1e9f; S.M.w.event = -1;
+    S.botRng.assign(2, 777u);
+    uint32_t h = 99; for (int i = 0; i < 700; i++) { h = h * 1664525u + 1013904223u; float x = (float)((h >> 8) % SCREEN_W); h = h * 1664525u + 1013904223u; S.grain.push_back({x, (float)((h >> 8) % SCREEN_H)}); }
+    S.cam = {S.M.w.stage.Width() / 2, S.M.w.stage.Height() / 2}; S.zoom = 60; S.lastRound = S.M.round;
+    gScuffleMode = keepMode;
+    g.scene = Scene::Scuffle;
+}
+static void TrainPass() { if (S.lessonDone < 0) { S.lessonDone = S.t; ScuffleCue(SFC_CONFETTI, 0.7f, 0, 1.2f); PopWord({SCREEN_W / 2.0f, 200}, "NICE!", Color{140, 230, 140, 255}, 40); } }
+static void TrainLessonBegin() {   // (what the room does as a lesson starts)
+    sf::World& w = S.M.w; sf::Stick& d = w.sticks[1];
+    S.trainAcc = 0; S.dumT = 1.5f;
+    if (S.lesson == 8 && d.weapon < 0) { int it = w.SpawnWeapon(sf::WeaponIndex("pistol"), d.pt[sf::J_HAND_R].p, {0, 0}); if (it >= 0) w.Pickup(d, it); }
+    if (S.lesson == 9) { if (d.weapon >= 0) w.DropWeapon(d, {0, 2}, false); w.DropCrate(w.sticks[0].pos.x + 1.5f); }
+}
+// before each step: the dummy (stands its ground; in the Deflect lesson it shoots at you every couple of seconds)
+static void TrainStep() {
+    sf::World& w = S.M.w; w.nextCrate = 1e9f; w.event = -1;
+    sf::Stick& me = w.sticks[0]; sf::Stick& d = w.sticks[1];
+    d.in = sf::Input{}; Vector2 to = Vector2Subtract(me.pt[sf::J_NECK].p, d.pt[sf::J_HAND_R].p); d.in.aim = Vector2Length(to) > 0.01f ? Vector2Normalize(to) : Vector2{-1, 0};
+    if (S.lesson == 8 && d.alive && me.alive && d.weapon >= 0) { S.dumT -= sf::STEP; if (S.dumT <= 0) { d.in.fire = true; S.dumT = 2.4f; } }
+    if (S.lessonDone >= 0) return;
+    switch (S.lesson) {
+        case 0: if (me.grounded && fabsf(me.vel.x) > 3) S.trainAcc += sf::STEP; if (S.trainAcc > 0.8f) TrainPass(); break;
+        case 2: if (me.st == sf::S_WALL) S.trainAcc += sf::STEP; if (S.trainAcc > 0.3f) TrainPass(); break;
+        case 3: if (me.st == sf::S_DIVE) TrainPass(); break;
+        default: break;
+    }
+}
+// the events that pass a lesson
+void TrainEvent(const sf::Event& e) {
+    if (!S.train || S.lessonDone >= 0) return;
+    switch (S.lesson) {
+        case 1: if (e.kind == sf::EV_JUMP && e.who == 0) TrainPass(); break;
+        case 4: if ((e.kind == sf::EV_HIT || e.kind == sf::EV_HAYMAKER) && e.who == 1 && e.by == 0) TrainPass(); break;
+        case 5: if (e.kind == sf::EV_HAYMAKER && e.who == 0 && e.by < 0) TrainPass(); break;
+        case 6: if (e.kind == sf::EV_KICK && e.who == 0) TrainPass(); break;
+        case 7: if (e.kind == sf::EV_THROW && e.who == 1 && e.by == 0) TrainPass(); break;
+        case 8: if (e.kind == sf::EV_BLOCK && e.who == 0) TrainPass(); break;
+        case 9: if (e.kind == sf::EV_PICKUP && e.who == 0) TrainPass(); break;
+        case 10: if (e.kind == sf::EV_SHOT && e.who == 0) TrainPass(); break;
+        case 11: if (e.kind == sf::EV_DIE && e.who == 1) TrainPass(); break;
+        default: break;
+    }
+}
+// the lesson card and the checklist (and moving on)
+static bool TrainHud(Game& g) {
+    if (S.lessonDone >= 0 && S.t - S.lessonDone > 1.1f && S.lesson < LESSON_N) { S.lesson++; S.lessonDone = -1; if (S.lesson < LESSON_N) TrainLessonBegin(); }
+    float cx = SCREEN_W / 2.0f;
+    if (S.lesson >= LESSON_N) {
+        DrawRectangleRec({cx - 300, 150, 600, 200}, Color{20, 18, 16, 225}); DrawRectangleLinesEx({cx - 300, 150, 600, 200}, 2, Color{230, 190, 90, 255});
+        DrawTextCenteredBold("Training complete", cx, 176, 30, Color{240, 210, 140, 255});
+        DrawTextCentered("You know everything a stick knows. The rest is the other sticks.", cx, 220, 16, Color{230, 222, 200, 255});
+        if (Button({cx - 230, 280, 210, 44}, "Fight bots now", true, 16)) { StartScuffle(g, 3, 1, 5, -1); return true; }
+        if (Button({cx + 20, 280, 210, 44}, "Back to the arcade", true, 16)) { S.active = false; g.scene = Scene::Arcade; return true; }
+        return false;
+    }
+    const TrainLesson& L = LESSONS[S.lesson]; bool done = S.lessonDone >= 0;
+    Rectangle card{cx - 330, 96, 660, 78};
+    DrawRectangleRec(card, done ? Color{40, 90, 50, 230} : Color{24, 22, 20, 225}); DrawRectangleLinesEx(card, 2, done ? Color{140, 230, 140, 255} : Color{230, 190, 90, 255});
+    DrawTextCenteredBold(TextFormat("Training %d of %d: %s%s", S.lesson + 1, LESSON_N, L.title, done ? "  - done!" : ""), cx, card.y + 10, 20, done ? Color{200, 255, 200, 255} : Color{240, 210, 140, 255});
+    DrawTextCentered(L.how, cx, card.y + 44, 15, Color{230, 222, 200, 255});
+    DrawRectangleRec({8, 190, 170, LESSON_N * 20.0f + 18}, Color{24, 22, 20, 210});
+    for (int i = 0; i < LESSON_N; i++) { float y = 198 + i * 20.0f; bool ok = i < S.lesson || (i == S.lesson && done); DrawRectangleRec({16, y + 4, 10, 10}, ok ? Color{120, 210, 120, 255} : i == S.lesson ? Color{230, 190, 90, 255} : Color{90, 86, 80, 255}); if (i == S.lesson) TxtBold(LESSONS[i].title, 32, y, 15, Color{240, 214, 150, 255}); else Txt(LESSONS[i].title, 32, y, 15, ok ? Color{170, 220, 170, 255} : Color{200, 192, 176, 255}); }
+    if (Button({16, 200 + LESSON_N * 20.0f + 16, 150, 28}, "Skip this lesson (N)", true, 12) || IsKeyPressed(KEY_N)) TrainPass();
+    if (Button({16, 200 + LESSON_N * 20.0f + 50, 150, 28}, "Leave training", true, 12)) { S.active = false; g.scene = Scene::Arcade; return true; }
+    return false;
+}
+
 // ---------------------------------------------------------------- a networked match (stage 4)
 void StartScuffleNet(Game& g, arcade::Session* net, const char* name) {
     S = ScuffleScene{};
@@ -820,7 +974,8 @@ void SceneScuffle(Game& g) {
         while (S.acc >= sf::STEP) {
             S.acc -= sf::STEP;
             Gather(S.M.w.sticks[0].in, S.M.w.sticks[0]);
-            for (int i = 1; i < S.players; i++) sf::BotInput(S.M.w, i, S.M.w.sticks[i].in, S.botRng[i], S.skill);
+            if (S.train) TrainStep();
+            else for (int i = 1; i < S.players; i++) sf::BotInput(S.M.w, i, S.M.w.sticks[i].in, S.botRng[i], S.skill);
             if (S.M.phase == sf::Match::P_COUNT || S.M.phase == sf::Match::P_FIGHT) sf::ReplayRecord(S.rec, S.M);
             S.M.Step();
             if (S.M.phase == sf::Match::P_WIN || S.M.phase == sf::Match::P_OVER) RecEnd();
@@ -834,6 +989,7 @@ void SceneScuffle(Game& g) {
     StepCamera(dt);
     DrawWorld(dt);
     DrawHud();
+    if (S.train) { TrainHud(g); return; }
     if (S.M.Over() && EditorPlaying()) {
         if (Button({SCREEN_W / 2.0f - 100, SCREEN_H / 2.0f + 160, 200, 40}, "Back to the editor", true, 16)) EditorBackFromPlay();
     } else if (S.M.Over()) {
@@ -843,6 +999,20 @@ void SceneScuffle(Game& g) {
         if (Button({SCREEN_W / 2.0f - 230, SCREEN_H / 2.0f + 160, 200, 40}, "Again", true, 16)) { int b = S.players - 1, sk = S.skill, tw = S.toWin, wd = S.M.world; StartScuffle(g, b, sk, tw, wd); }
         if (Button({SCREEN_W / 2.0f + 30, SCREEN_H / 2.0f + 160, 200, 40}, "Back to the arcade", true, 16)) { S.active = false; g.scene = Scene::Arcade; }
     }
+}
+void DebugScuffleTraining(Game& g) {   // (a scripted pass through the first lessons, logged, then the card mid-lesson)
+    StartScuffleTraining(g); S.shot = true;
+    auto steps = [&](int n, sf::Input in) { for (int f = 0; f < n; f++) { S.M.w.sticks[0].in = in; TrainStep(); S.M.Step(); ReadEvents(); S.t += sf::STEP; if (S.lessonDone >= 0 && S.t - S.lessonDone > 1.2f) { S.lesson++; S.lessonDone = -1; TrainLessonBegin(); } } };
+    sf::Input none; steps(120 * 2, none);
+    sf::Input run; run.moveX = 1; steps(120, run); run.moveX = -1; steps(120, run);
+    TraceLog(LOG_INFO, "TRAINING: after running, lesson %d", S.lesson);
+    sf::Input jump; jump.jump = true; steps(30, jump); steps(160, none);
+    TraceLog(LOG_INFO, "TRAINING: after a jump, lesson %d", S.lesson);
+    S.lesson = 4; S.lessonDone = -1; TrainLessonBegin();
+    sf::Stick& me = S.M.w.sticks[0]; sf::Stick& d = S.M.w.sticks[1];
+    for (int k = 0; k < 600 && S.lesson == 4; k++) { sf::Input a; a.moveX = d.pos.x > me.pos.x + 0.5f ? 1.0f : d.pos.x < me.pos.x - 0.5f ? -1.0f : 0; a.aim = {d.pos.x > me.pos.x ? 1.0f : -1.0f, 0}; a.fire = (k / 8) % 2 == 0 && fabsf(d.pos.x - me.pos.x) < 0.9f; steps(1, a); }
+    TraceLog(LOG_INFO, "TRAINING: after punching, lesson %d", S.lesson);
+    S.lesson = 8; S.lessonDone = -1; TrainLessonBegin(); steps(120 * 2, none);
 }
 void LeaveScuffle(Game& g) {
     if (S.net) { if (S.net->role == arcade::R_HOST) S.net->BackToLobby(); else S.net->Leave(); S.net = nullptr; }

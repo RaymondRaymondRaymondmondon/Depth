@@ -69,13 +69,13 @@ void World::MovePlank() {
 void World::StepMode() {
     const float dt = STEP;
     if ((int)pts.size() != (int)sticks.size()) pts.assign(sticks.size(), 0);
-    bool respawns = mode == MD_KING || mode == MD_EGG || mode == MD_GAUNTLET || mode == MD_HUNT || (mode == MD_BOSS && !(wallOn && t >= 150) && !boss.dead);   // (Boss Arena: back on a timer until the wall)
+    bool respawns = training || mode == MD_KING || mode == MD_EGG || mode == MD_GAUNTLET || mode == MD_HUNT || (mode == MD_BOSS && !(wallOn && t >= 150) && !boss.dead);   // (Boss Arena: back on a timer until the wall)
     for (auto& k : sticks) {
         if (k.alive || !respawns) continue;
         if (mode == MD_HUNT && !k.shark) {   // (eaten by a shark: you come back as one; killed otherwise, you're out)
             if (k.respawnT == 0 && k.lastHitBy >= 0 && k.lastHitBy < (int)sticks.size() && sticks[k.lastHitBy].shark) { k.respawnT = 1.5f; k.shark = true; }
         } else if (mode == MD_HUNT && k.respawnT <= 0) continue;   // (a dead shark stays dead; a new one is on its way back)
-        else if (k.respawnT == 0) k.respawnT = mode == MD_GAUNTLET ? 1.5f : mode == MD_BOSS ? 4.0f : 3.0f;
+        else if (k.respawnT == 0) k.respawnT = training || mode == MD_GAUNTLET ? 1.5f : mode == MD_BOSS ? 4.0f : 3.0f;
         if (k.respawnT > 0) { k.respawnT -= dt; if (k.respawnT <= 0) { k.respawnT = 0; Respawn(k); } }
     }
     if (mode == MD_KING) {
@@ -120,6 +120,7 @@ void World::StepMode() {
 int Match::TeamOf(int i) const { return mode == MD_TEAMS ? i / std::max(1, teamSize) : mode == MD_GAUNTLET || mode == MD_BOSS ? 0 : -1; }
 bool Match::RoundOver(int* winner) {
     *winner = -1;
+    if (w.training) return false;   // (the Training room never ends a round)
     auto credit = [&](int i) { if (i >= 0 && i < players) { wins[i]++; score[i] += 100 + (i < (int)trinkets.size() && trinkets[i] == TK_NONE ? 10 : 0); } };
     switch (mode) {
     case MD_TEAMS: {

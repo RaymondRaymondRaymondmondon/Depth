@@ -349,3 +349,22 @@ The user is away (order of 2026-10-04: build it after A Night Off, don't stop). 
 
 ## Next
 Playtest. Open: join-in-progress and spectating; replays for networked matches; balance from real matches.
+
+## Deepening (2026-10-05, after the friends' "underdeveloped")
+- **Training** (`StartScuffleTraining`, the arcade's Scuffle panel): a dojo on the Nautilus with a sparring dummy (`World::training`: everyone respawns, no wall, a round never ends, crates only when a lesson calls for one).
+  - Twelve lessons, each passed the moment you do the thing, read from the stick's state and the game's events: run, jump, climb, dive, punch, the haymaker, the dive kick, grab and throw, deflect (the dummy shoots a pistol slowly), weapons (a crate drops), shoot, the knockout.
+  - There's a checklist, a skip (N), and at the end "Fight bots now".
+  - Shot: `scuffle_training` (it also scripts the first lessons and logs `TRAINING:` lines).
+- **Chunkier sticks:**
+  - limbs about 40% thicker;
+  - fists and feet with toes;
+  - a motion smear behind a fast fist or foot;
+  - a soft shadow on the floor under each stick, fading with height.
+- **Stages with depth:** every platform casts a soft drop shadow onto the backdrop, with a lit edge along its top and a shade along its underside.
+- **Dressing** (`scuffle_dressing.inl`): props on top faces and things hanging under platforms, per world and placed by hash, purely for the look.
+  - The Nautilus: valves, rope coils, crates, caged lamps.
+  - The Cave: glowing mushrooms, stalagmites, pebbles, roots.
+  - The Reef: swaying kelp, coral fans, starfish, weed.
+  - Atlantis: broken columns, amphorae, vines.
+  - The Void: glowing crystal shards, bones, tendrils.
+  - The Salon: bottles, candles, books, tassels.

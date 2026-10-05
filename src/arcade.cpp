@@ -388,6 +388,7 @@ void DrawReels(Game& g) {
         }
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Fight (solo)", true, 15)) { StartScuffle(g, sfBots, sfSkill, TOWIN[sfToWin], sfWorld); return; }
         if (Button({c.x - 110, c.y + 278, 220, 30}, "The editor", true, 13)) { StartScuffleEditor(g); return; }
+        if (Button({40, 538, 244, 30}, "Training (learn the moves)", true, 13)) { StartScuffleTraining(g); return; }
         if (Button({40, 574, 244, 30}, TextFormat("The locker (%d tokens)", sf::MyLocker().tokens), true, 13)) { gSfLocker = true; DebugScuffleLocker(0); return; }
         DrawTextCentered("Host or Join to fight friends (2-8; the host picks the rounds and the arsenal in the lobby)", c.x, c.y + 316, 13, SCREEN_DIM);
     }
