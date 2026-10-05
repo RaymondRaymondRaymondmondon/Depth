@@ -442,7 +442,7 @@ void Ecosystem::Kill(int ai, int killer, bool melee) {
         AddBlood(a.pos, burst);
         Corpse c;
         c.sp = a.sp; c.pos = a.pos; c.zone = a.zone; c.bloodLeft = burst; c.life = eng->CBy("blood_corpse_life_s", s.size - 1, 60);
-        c.byPlayer = byPlayer;
+        c.byPlayer = byPlayer; c.unit = a.unit;
         corpses.push_back(c);
     }
     // parasites fall off

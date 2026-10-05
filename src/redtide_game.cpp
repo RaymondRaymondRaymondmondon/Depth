@@ -1533,9 +1533,10 @@ static bool DrawTeammate(const Match& m, const Agent& a) {
 // patched gear (the Cutter with a knife, the Speargunner's long speargun, the Netman's net gun, the Foreman in a hard
 // suit with the Harpoon Cannon); the Drowned pale as ghosts in their hoods; the Remnant's pressure suits, brass
 // sentinels and hooded cultists. Others keep their CreatureBuilder models.
-static bool DrawFactionFigure(const Match& m, const Agent& a, float yaw) {
-    if (!DiversReady() || a.unit < 0 || a.unit >= (int)m.map->faction.units.size()) return false;
-    const FactionUnit& u = m.map->faction.units[a.unit];
+static bool DrawFactionFigure(const Match& m, const Agent& a, float yaw, const Corpse* dead = nullptr) {
+    int unitI = dead ? dead->unit : a.unit;
+    if (!DiversReady() || unitI < 0 || unitI >= (int)m.map->faction.units.size()) return false;
+    const FactionUnit& u = m.map->faction.units[unitI];
     std::string fn = m.map->faction.name, un = u.unit;
     auto has = [](const std::string& s, const char* k) { return s.find(k) != std::string::npos; };
     int voice = -1; std::string weapon, suit, helmet; Color tint = WHITE;
@@ -1553,7 +1554,40 @@ static bool DrawFactionFigure(const Match& m, const Agent& a, float yaw) {
         voice = has(un, "Sentinel") ? 3 : has(un, "Cultist") ? 1 : 3;
         weapon = has(un, "Sentinel") ? "gatling" : has(un, "Cultist") ? "tidestaff" : "needler1";
         if (has(un, "Sentinel")) helmet = "h_atlantean"; else if (has(un, "Cultist")) { suit = "atlantean"; helmet = "h_verdigris"; } else { suit = "pearl"; helmet = "h_pearl"; }
+    } else if (has(fn, "Raider")) {
+        // the Reef Raiders on the figure too (they were CreatureBuilder boxes): kelp-green patched suits, verdigris helmets,
+        // spears and clubs
+        voice = has(un, "Turtle") ? 3 : has(un, "Sling") ? 2 : 1;
+        weapon = has(un, "Sling") ? "needler1" : has(un, "Turtle") ? "boardingaxe" : "trident";
+        suit = "verdigris"; helmet = "h_verdigris";
+        extra.push_back({"top", {74, 96, 60, 255}});
+    } else if (has(fn, "Lost")) {
+        // the Lost Ones of Atlantis: drowned citizens in its bronze-and-blue, pale as the deep, tridents and the priests'
+        // staffs
+        voice = has(un, "wall") || has(un, "Wall") || has(un, "phalanx") || has(un, "Phalanx") ? 3 : 1;
+        weapon = has(un, "riest") || has(un, "hant") ? "tidestaff" : "trident";
+        suit = "atlantean"; helmet = "h_atlantean"; tint = {176, 196, 198, 255};
     } else return false;
+    if (dead) {
+        // the dead lie slack on their backs where they sank, arms out, the head lolled to one side, paling with age; the
+        // weapon has fallen from the hand and lies beside them
+        int zc = dead->zone >= 0 && dead->zone < (int)m.map->zones.size() ? dead->zone : m.eco.ZoneAt(dead->pos);
+        float floorY = zc >= 0 ? m.map->zones[zc].y0 : dead->pos.y - 2;
+        float sink = std::max(floorY + 0.22f, dead->pos.y - dead->age * 0.35f);
+        float pale = std::clamp(dead->age / 40.0f, 0.0f, 0.5f);
+        Color tn{(unsigned char)(tint.r * (1 - pale)), (unsigned char)(tint.g * (1 - pale * 0.8f)), (unsigned char)(tint.b * (1 - pale * 0.6f)), 255};
+        fig::Pose P; P.reach = 0.15f; P.elbow = 0.9f; P.grip = 0.15f; P.nod = 0.5f; P.tread = 0;
+        uint32_t h = (uint32_t)(dead->pos.x * 131 + dead->pos.z * 71);
+        float yawD = (h % 628) * 0.01f, jerk = dead->feeders > 0 ? sinf(S.time * 17 + dead->pos.x) * 0.06f : 0;
+        Matrix lie = MatrixMultiply(MatrixMultiply(MatrixRotateZ(PI / 2 + 0.06f), MatrixRotateX(0.2f + jerk)), MatrixTranslate(0, 0.2f, 0));
+        Matrix frame = MatrixMultiply(lie, fig::Frame({dead->pos.x, sink, dead->pos.z}, yawD));
+        DrawDiverFigure(voice, frame, P, 0, tn, suit, helmet, &extra);
+        if (!weapon.empty()) {
+            Matrix w = MatrixMultiply(MatrixMultiply(MatrixRotateX(PI / 2), MatrixRotateY(yawD + 0.7f)), MatrixTranslate(dead->pos.x + cosf(yawD) * 0.9f, sink + 0.05f, dead->pos.z - sinf(yawD) * 0.9f));
+            RtGunAnim an; DrawRtWeapon(weapon, w, an, tn);
+        }
+        return true;
+    }
     float spd = Vector3Length(a.vel);
     fig::Pose P;
     P.breathe = S.time * 1.8f + a.rng % 7;
@@ -1563,7 +1597,7 @@ static bool DrawFactionFigure(const Match& m, const Agent& a, float yaw) {
     P.reach = 0.75f; P.elbow = 0.45f; P.grip = 0.9f;
     Matrix tip = MatrixMultiply(MatrixMultiply(MatrixTranslate(0, -1.0f, 0), MatrixRotateZ(-P.swim * 1.1f)), MatrixTranslate(0, 1.0f, 0));
     Matrix frame = MatrixMultiply(tip, fig::Frame(Vector3Subtract(a.pos, {0, 1.0f, 0}), yaw - PI / 2));
-    std::vector<Matrix> skin = DrawDiverFigure(voice, frame, P, S.time, tint, suit, helmet);
+    std::vector<Matrix> skin = DrawDiverFigure(voice, frame, P, S.time, tint, suit, helmet, &extra);
     if (skin.empty() || weapon.empty()) return true;
     // the weapon in the right fist, along the figure's forward
     const Model* dm = DiverModel(voice);
@@ -1784,6 +1818,7 @@ static void DrawScene() {
     CreatureBudget(16);
     for (const auto& c : m.eco.corpses) {
         if (!c.active || c.sp < 0 || c.sp >= (int)m.map->species.size() || Vector3Distance(c.pos, eye) > 30) continue;
+        if (c.unit >= 0 && m.map->species[c.sp].isEnemy) { Agent none; if (DrawFactionFigure(m, none, 0, &c)) continue; }   // (a faction's dead: their own figure, lying slack)
         const CreatureModel& cm = Creature(m.artKey, m.ArtName(c.sp));
         int zc = c.zone >= 0 && c.zone < (int)m.map->zones.size() ? c.zone : m.eco.ZoneAt(c.pos);
         float floorY = zc >= 0 ? m.map->zones[zc].y0 + 0.15f : c.pos.y - 2;
@@ -2715,9 +2750,11 @@ void DebugRedTideShot(Game& g, int which) {
             }
             break;
         }
-        case 18: case 26: case 58: {                                                          // a faction squad lined up before you (spec shot set 4)
+        case 18: case 26: case 58: case 38: case 48: {                                        // a faction squad lined up before you (spec shot set 4)
             if (which == 18) place("Stern & Swim Platform", {2, 2, 2}, 0.0f, 0);
             else if (which == 26) place("The Flooded Gallery", {2, 2, 2}, 0.0f, 0);
+            else if (which == 38) place("The Lagoon", {3, 2.5f, 3}, 0.2f, 0.0f);
+            else if (which == 48) view("The Lower Town", 2.0f, 0.0f);
             else view("The Station: Specimen Labs", 2.0f, 0.0f);
             m.BeginTidePublic(5);
             for (int i = 0; i < 600 && [&] { for (const auto& a : m.eco.agents) if (a.alive && a.unit >= 0) return false; return true; }(); i++) m.Step(1 / 20.0f);
@@ -2728,6 +2765,10 @@ void DebugRedTideShot(Game& g, int which) {
                 a.vel = Vector3Scale(f, -0.05f); k++;
             }
             d.pitch = -0.05f; d.hp = d.hpMax = 250;
+            if (getenv("DEPTH_SQUADDEAD")) {   // (every other one dead on the floor: the fallen lie as their own figures)
+                int j = 0;
+                for (int i = 0; i < (int)m.eco.agents.size(); i++) if (m.eco.agents[i].alive && m.eco.agents[i].unit >= 0 && (j++ % 2 == 1)) m.eco.Kill(i, -3, false);
+            }
             TraceLog(LOG_INFO, "squad shot: %d faction divers placed", k);
             S.freeze = true;
             break;

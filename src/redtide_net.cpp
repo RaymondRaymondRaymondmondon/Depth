@@ -225,7 +225,7 @@ template <class A> void VisitEco(A& a, Ecosystem& e, const Box& box, bool full, 
     a.f(e.time); a.i(e.tide); a.i(e.squadsSpawned); a.f(e.flowSign); a.f(e.cleanerRage);
     { size_t k = 0; a.vec(e.agents, [&](Agent& g) { bool far = !full && k < near.size() && !near[k]; VisitAgent(a, g, box, far, !full && !far && g.diver < 0); k++; }); }
     if constexpr (A::reading) for (size_t k = 0; k < e.agents.size(); k++) e.agents[k].rng = (uint32_t)(k + 1) * 2654435761u;   // (a steady per-beast phase for the drawing)
-    a.vec(e.corpses, [&](Corpse& c) { a.b(c.active); if (!c.active) return; a.i(c.sp); P16(a, c.pos, box); a.i(c.zone); a.f(c.bloodLeft); a.f(c.life); a.f(c.age); a.b(c.byPlayer); });
+    a.vec(e.corpses, [&](Corpse& c) { a.b(c.active); if (!c.active) return; a.i(c.sp); P16(a, c.pos, box); a.i(c.zone); a.f(c.bloodLeft); a.f(c.life); a.f(c.age); a.b(c.byPlayer); a.i(c.unit); });
     if (full) a.vec(e.flora, [&](FloraPatch& p) { a.f(p.units); });   // (the patches themselves are the map's: the mirror placed the same ones; slow: full snapshots only)
     a.vec(e.squads, [&](Squad& s) { a.b(s.alive); a.b(s.hunt); Ints(a, s.members); });
     if (full) a.vec(e.alarm, [&](float& x) { a.f(x); });

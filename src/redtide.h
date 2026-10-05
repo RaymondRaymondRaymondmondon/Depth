@@ -197,6 +197,7 @@ struct Agent {
 struct Corpse {
     int sp = 0; Vector3 pos{}; int zone = 0;
     float bloodLeft = 0, life = 0, age = 0; bool active = true; int feeders = 0; bool byPlayer = false;
+    int unit = -1;   // a faction's dead: its unit (drawn as that figure lying slack, not as a creature)
 };
 struct FloraPatch { int flora = 0, zone = 0; Vector3 pos{}; float units = 100, regrowT = 0; };
 struct Squad { int region = 0; std::vector<int> members; Vector3 goal{}; float lostT = 0; bool alive = true; bool hunt = false; };

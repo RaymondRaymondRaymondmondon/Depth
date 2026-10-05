@@ -399,3 +399,6 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
 - **The red at the mask's edge** no longer follows the scent in the water (the user: it made you always look injured); it shows only below 30% health. The SCENT dial still reads the blood.
 - **No more pits beside the doorways:** a passage's box reaches 1.3 m below its sill and used to cut a hole in the room's floor (and ceiling) with nothing under it, so you could see under the map. Floors and ceilings now open only for passages that run up or down (hatches), walls only for ones that run across; portholes only cut walls.
 
+- **The dead of the factions** (the user: enemies that came in with the tide's horn died as geometric shapes): a faction's corpse remembers its unit (`Corpse::unit`, in the snapshot) and is drawn as that figure lying slack on its back where it sank, its weapon fallen beside it, paling with age, jerked while something feeds (`DrawFactionFigure(..., dead)`).
+- **The Reef Raiders and the Lost Ones are on the diver figure too** (they were CreatureBuilder boxes): the Raiders in kelp-green patched suits and verdigris helmets with tridents, axes and needlers; the Lost Ones in Atlantis's blue and bronze, pale, with tridents and the priests' staffs. Shots `rvis_8_raiders`, `rvis_9_lostones` (`DEPTH_SQUADDEAD=1` kills every other one).
+
