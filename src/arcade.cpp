@@ -10,6 +10,7 @@
 #include "scuttle.h"
 #include "flight_net.h"
 #include "warp_net.h"
+#include "fowl_net.h"
 #include "net.h"
 #include "skins.h"
 #include "voice.h"
@@ -204,7 +205,7 @@ void DrawReels(Game& g) {
         {G_NIGHT_OFF, "1-6 players", "25-40 min", "One night ashore at the Sodden Gull: drink, play, flirt, fight, and make it to the morning with both kidneys."},
         {G_SCUFFLE, "2-8 players (solo with bots)", "10-20 min", "Stick figures, ragdolls, and whatever falls from the sky: the last stick standing wins the round."},
         {G_WARP, "2-12 players (solo with bots)", "10-15 min", "Team dodgeball where everyone carries a portal gun: throw through a wall and out of the ceiling."},
-        {G_FOWL, "2-8 players", "10-20 min", "Fowl Play: coming aboard soon."},
+        {G_FOWL, "1-6 players (bots fill the stalls)", "25 min", "A light-gun duck shoot with money: thirty toy guns, slots and scratchers, and sabotage for your friends."},
         {G_NOCLIP, "1-4 co-op", "20-40 min", "NOCLIP: coming aboard soon."},
     };
     // the games in five groups (the playtesters' call): a tab row, and the drum shows one group's reels
@@ -257,7 +258,7 @@ void DrawReels(Game& g) {
             DrawRectangleRoundedLinesEx(r, 0.25f, 8, 2, ColorLerp(Color{6, 20, 24, 255}, on ? Pal::Brass : Pal::BrassDk, ca));
             if (ca > 0.45f) {
                 DrawTextCenteredBold(Info(reels[i].game).name, c.x, r.y + 8 * ca, (int)(26 * ca), ColorLerp(Color{40, 70, 72, 255}, on ? Color{220, 255, 244, 255} : SCREEN_DIM, ca));
-                if (on && ca > 0.8f) DrawTextCentered(TextFormat("%s   -   %s%s", reels[i].players, reels[i].length, Info(reels[i].game).built || reels[i].game == G_TRAWL || reels[i].game == G_RED_TIDE || reels[i].game == G_FLIGHT || reels[i].game == G_MOUTHFUL || reels[i].game == G_NIGHT_OFF || reels[i].game == G_SCUFFLE || reels[i].game == G_WARP ? "": "   -   coming aboard later"), c.x, r.y + 40 * ca, 15, Color{180, 230, 220, 255});
+                if (on && ca > 0.8f) DrawTextCentered(TextFormat("%s   -   %s%s", reels[i].players, reels[i].length, Info(reels[i].game).built || reels[i].game == G_TRAWL || reels[i].game == G_RED_TIDE || reels[i].game == G_FLIGHT || reels[i].game == G_MOUTHFUL || reels[i].game == G_NIGHT_OFF || reels[i].game == G_SCUFFLE || reels[i].game == G_WARP || reels[i].game == G_FOWL ? "": "   -   coming aboard later"), c.x, r.y + 40 * ca, 15, Color{180, 230, 220, 255});
             }
             if (CheckCollisionPointRec(GetMousePosition(), r) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gSel = i;
         }
@@ -285,7 +286,7 @@ void DrawReels(Game& g) {
             gError.clear();
             if (k == 0) {
                 std::string err;
-                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason) : selGame == G_SCUFFLE ? ScuffleOpts(5, 0, 2) : selGame == G_WARP ? wd::WarpOpts(gWarpArena, 1, gWarpFill) : ""; }
+                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason) : selGame == G_SCUFFLE ? ScuffleOpts(5, 0, 2) : selGame == G_WARP ? wd::WarpOpts(gWarpArena, 1, gWarpFill) : selGame == G_FOWL ? fp::FowlOpts(gFowlMode, 1, 6) : ""; }
                 else gError = "Couldn't host: " + err;
             } else if (k == 1) { gMode = MODE_JOIN; gJoinFocus = true; }
             else gMode = MODE_BROWSE;
@@ -402,6 +403,23 @@ void DrawReels(Game& g) {
         row(c.y + 42, ARENA[gWarpArena], gWarpArena, 2, 0); gWarpFill = wdSize + 1;
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Play (solo)", true, 15)) { StartWarp(g, wdSize + 1, wdSkill, gWarpArena); return; }
         DrawTextCentered("Host or Join for friends (the sides above fill up with bots)", c.x, c.y + 280, 13, SCREEN_DIM);
+    }
+    if (selGame == G_FOWL) {   // solo: your stall and up to five bots; Host for friends
+        static int fpBots = 5, fpSkill = 1;
+        static const char* SKILL[3] = {"Weekend shooters", "Club regulars", "Crack shots"};
+        auto row = [&](float y, const char* text, int& v, int n, int lo) {
+            Rectangle l{c.x - 190, y, 30, 26}, r{c.x + 160, y, 30, 26};
+            DrawTextCenteredBold(text, c.x, y + 2, 19, Color{230, 200, 150, 255});
+            DrawTextCenteredBold("<", l.x + 15, l.y, 22, Pal::Brass); DrawTextCenteredBold(">", r.x + 15, r.y, 22, Pal::Brass);
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = lo + (v - lo + n - 1) % n; PlayCue("ui.click"); }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = lo + (v - lo + 1) % n; PlayCue("ui.click"); }
+        };
+        row(c.y - 10, fp::D().modes[std::clamp(gFowlMode, 0, (int)fp::D().modes.size() - 1)].name.c_str(), gFowlMode, (int)fp::D().modes.size(), 0);
+        row(c.y + 16, TextFormat("%d bot%s", fpBots, fpBots == 1 ? "" : "s"), fpBots, 6, 0);
+        row(c.y + 42, SKILL[fpSkill], fpSkill, 3, 0);
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Take a stall (solo)", true, 15)) { StartFowl(g, gFowlMode, fpBots, fpSkill); return; }
+        DrawTextCentered(fp::D().modes[std::clamp(gFowlMode, 0, (int)fp::D().modes.size() - 1)].rule.c_str(), c.x, c.y + 280, 13, SCREEN_DIM);
+        DrawTextCentered(TextFormat("Arcade tokens from the gun club: %d", FowlTokens()), c.x, c.y + 300, 13, SCREEN_DIM);
     }
     if (selGame == G_NIGHT_OFF) {   // solo: one sailor, the bar, the night (the modes that make sense alone; Host above for friends)
         static const char* CREW[6] = {"the Diver", "the Whaler", "the Stowaway", "the Mechanic", "the Captain", "the Nurse"};
@@ -768,7 +786,7 @@ void DrawLobby() {
     if (host) {
         std::string why;
         bool can = gSess.CanLaunch(&why);
-        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : gSess.game == G_MOUTHFUL ? "Into the water" : gSess.game == G_NIGHT_OFF ? "Go ashore" : gSess.game == G_SCUFFLE ? "Fight!" : gSess.game == G_WARP ? "Play ball" : "Start the race";
+        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : gSess.game == G_MOUTHFUL ? "Into the water" : gSess.game == G_NIGHT_OFF ? "Go ashore" : gSess.game == G_SCUFFLE ? "Fight!" : gSess.game == G_WARP ? "Play ball" : gSess.game == G_FOWL ? "Open the gates" : "Start the race";
         if (Button({p.x + p.width - 250, p.y + p.height - 66, 220, 50}, go, can, 20)) { std::string w2; gSess.Launch(&w2); }
         if (!can) Txt(why, p.x + 30, p.y + p.height - 50, 15, SCREEN_DIM);
     } else if (gSess.mySeat >= 0) {
@@ -1192,7 +1210,8 @@ void DrawRoom(Game& g) {
             if (gSess.game == G_MOUTHFUL) { StartMouthfulNet(g, &gSess, gProfile.name.c_str()); return; }                            // into the water (host or guest)
             if (gSess.game == G_NIGHT_OFF) { StartNightOffNet(g, &gSess, gProfile.name.c_str(), gNoCrew); return; }                  // ashore (host or guest)
             if (gSess.game == G_SCUFFLE) { StartScuffleNet(g, &gSess, gProfile.name.c_str()); return; }
-            if (gSess.game == G_WARP) { StartWarpNet(g, &gSess, gProfile.name.c_str()); return; }                              // into the ring (host or guest)
+            if (gSess.game == G_WARP) { StartWarpNet(g, &gSess, gProfile.name.c_str()); return; }
+            if (gSess.game == G_FOWL) { StartFowlNet(g, &gSess, gProfile.name.c_str()); return; }                              // into the ring (host or guest)
             DrawTable(g);
             break;
         case S_ENDED: {

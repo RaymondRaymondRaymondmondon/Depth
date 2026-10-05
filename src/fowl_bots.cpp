@@ -18,7 +18,7 @@ static float AngTo(float from, float to) { float d = to - from; while (d > PI) d
 // the shopping list: what a bot would rather hold, best first (fun guns now and then, for the show)
 static const char* WANT[] = {"sniper", "battle", "tommy", "lever", "autoshot", "carbine", "pump", "lightning", "long", "twin", "double", "pocket"};
 static void PlanIntermission(World& w, Player& p, uint32_t& rng, int skill) {
-    p.botPlan.clear(); p.botPlanAt.clear(); p.botPlanned = true;
+    p.botPlan.clear(); p.botPlanAt.clear(); p.botPlanned = true; p.botPlanRound = w.round;
     auto R = [&]() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return (rng & 0xFFFFFF) / 16777216.0f; };
     int money = p.money; const ModeDef& md = w.M();
     auto add = [&](int station, uint8_t kind, int a, int b = 0) { fp::Command c; c.kind = kind; c.a = a; c.b = b; p.botPlan.push_back(c); p.botPlanAt.push_back(station); };
@@ -53,7 +53,7 @@ void BotInput(World& w, int me, Input& in, std::vector<Command>& cmds, uint32_t&
     Player& p = w.players[me]; Input o; o.yaw = p.yaw; o.pitch = p.pitch;
     auto R = [&]() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return (rng & 0xFFFFFF) / 16777216.0f; };
     if (w.phase == PH_INTER) {
-        if (!p.botPlanned) PlanIntermission(w, p, rng, skill);
+        if (!p.botPlanned || p.botPlanRound != w.round) PlanIntermission(w, p, rng, skill);
         if (!p.botPlan.empty()) {
             Vector3 s = World::Station(p.botPlanAt[0]); Vector3 at = s; at.z += p.botPlanAt[0] == 2 ? 1.2f : (p.botPlanAt[0] == 0 || p.botPlanAt[0] == 4 ? 0 : 1.5f); if (p.botPlanAt[0] == 0) at.x += 1.6f; if (p.botPlanAt[0] == 4) at.x -= 1.6f;
             if (p.botPlanAt[0] == 2) at.x += (p.id - 2.5f) * 1.2f;   // (a slot each)

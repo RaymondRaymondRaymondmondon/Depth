@@ -103,7 +103,7 @@ struct Player {
     int deal = -1; bool dealIsAtt = false; bool boughtThisInter = false, mysteryFree = false; int pendingCapsule = -1;
     int perfect = 0, ufoKills = 0; int mostExpensive = -1, mostExpensiveBirds = 0; int gambleWon = 0, gambleLost = 0, sabGiven = 0, sabTaken = 0;
     Gun saved[2]; int savedHand = 0; bool inBonus = false, lastFire = false;
-    int botTarget = -1; float botReact = 0, botErrT = 0; Vector2 botErr{}; std::vector<fp::Command> botPlan; std::vector<int> botPlanAt; bool botPlanned = false;   // (a bot's mind; host only)   // (the bonus wave lends everyone the grey pistol)
+    int botTarget = -1; float botReact = 0, botErrT = 0; Vector2 botErr{}; std::vector<fp::Command> botPlan; std::vector<int> botPlanAt; bool botPlanned = false; int botPlanRound = -1;   // (a bot's mind; host only)   // (the bonus wave lends everyone the grey pistol)
     Input in; std::vector<Command> cmds;
     Gun& G() { return guns[hand]; }
     const Gun& G() const { return guns[hand]; }

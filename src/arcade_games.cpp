@@ -26,6 +26,10 @@ namespace sf {   // Scuffle's host (scuffle_net.cpp)
 std::unique_ptr<arcade::GameHost> MakeScuffleHost();
 uint32_t ScuffleDataHash();
 }
+namespace fp {   // Fowl Play's host (fowl_net.cpp)
+std::unique_ptr<arcade::GameHost> MakeFowlHost();
+uint32_t FowlDataHash();
+}
 namespace wd {   // Warp Dodgeball's host (warp_net.cpp)
 std::unique_ptr<arcade::GameHost> MakeWarpHost();
 uint32_t WarpDataHash();
@@ -49,7 +53,7 @@ const GameInfo& Info(int g) {
         {"A Night Off", 1, 6, true, 20, true, false},
         {"Scuffle", 2, 8, true, 30, true, false},
         {"Warp Dodgeball", 2, 12, true, 30, true, false},
-        {"Fowl Play", 2, 8, true, 30, false, false},
+        {"Fowl Play", 1, 6, true, 20, true, false},
         {"NOCLIP", 1, 4, true, 30, false, false},
     };
     static const GameInfo DRIFT = {"Drift (test)", 2, 6, true, 20, true};
@@ -155,6 +159,7 @@ uint32_t DataHash() {
     w.U32(no::NightDataHash());
     w.U32(sf::ScuffleDataHash());
     w.U32(wd::WarpDataHash());
+    w.U32(fp::FowlDataHash());
     return Fnv1a(w.b.data(), w.b.size());
 }
 
@@ -168,6 +173,7 @@ std::unique_ptr<GameHost> MakeGameHost(int g) {
         case G_NIGHT_OFF: return no::MakeNightHost();
         case G_SCUFFLE: return sf::MakeScuffleHost();
         case G_WARP: return wd::MakeWarpHost();
+        case G_FOWL: return fp::MakeFowlHost();
         case G_TEST_DRIFT: return std::make_unique<DriftHost>();
         default: return nullptr;   // Flats Duel, the Trawl, Fathoms and the fifth game come aboard in stages 12-14 and later
     }
