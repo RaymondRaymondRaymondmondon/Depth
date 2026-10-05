@@ -161,6 +161,43 @@ static void FaceWithHoles(MeshBuilder& mb, int axis, float at, Vector2 lo, Vecto
     }
 }
 
+// A rounded, lumpy rock in place of a box (the user: the reef's and the cave's walls and ledges were blocks): the
+// box's half sizes h with its edges rounded off and its faces pushed in and out by a little noise, shaded darker toward
+// its foot. It covers the same footprint as the box it stands in for, so nothing about collision changes.
+static void LumpyRock(MeshBuilder& mb, Vector3 c, Vector3 h, Color col, uint32_t seed, float rough = 0.3f) {
+    float rad = std::max(0.08f, std::min(std::min(h.x, h.y), h.z) * 0.7f);
+    Vector3 in{std::max(0.01f, h.x - rad), std::max(0.01f, h.y - rad), std::max(0.01f, h.z - rad)};
+    float big = std::max(std::max(h.x, h.y), h.z);
+    int n = std::clamp((int)(big / 0.45f), 3, 16);
+    float sd = (seed % 1000) * 0.37f;
+    auto noise = [&](Vector3 p) { return 0.5f * sinf(p.x * 1.7f + sd) * sinf(p.y * 2.3f - sd) + 0.3f * sinf(p.z * 2.9f + p.x * 1.1f + sd * 2) + 0.2f * sinf((p.x + p.y + p.z) * 4.1f); };
+    auto surf = [&](Vector3 cube) {   // a point on the unit cube's surface -> the rock's surface, and its shade
+        Vector3 P{cube.x * h.x, cube.y * h.y, cube.z * h.z};
+        Vector3 q{std::clamp(P.x, -in.x, in.x), std::clamp(P.y, -in.y, in.y), std::clamp(P.z, -in.z, in.z)};
+        Vector3 d = Vector3Subtract(P, q); float L = Vector3Length(d);
+        Vector3 nrm = L > 1e-5f ? Vector3Scale(d, 1 / L) : Vector3{0, 1, 0};
+        Vector3 w = Vector3Add(q, Vector3Scale(nrm, rad));
+        float nz = noise(Vector3Add(w, c));
+        w = Vector3Add(w, Vector3Scale(nrm, nz * rad * rough));
+        return Vector3Add(c, w);
+    };
+    auto shade = [&](Vector3 p) {
+        float k = 0.72f + 0.28f * std::clamp((p.y - (c.y - h.y)) / std::max(0.1f, 2 * h.y), 0.0f, 1.0f) + 0.08f * noise(Vector3Scale(p, 2.0f));
+        return Color{(unsigned char)std::clamp(col.r * k, 0.0f, 255.0f), (unsigned char)std::clamp(col.g * k, 0.0f, 255.0f), (unsigned char)std::clamp(col.b * k, 0.0f, 255.0f), 255};
+    };
+    for (int axis = 0; axis < 3; axis++) for (int s = -1; s <= 1; s += 2) {
+        int ua = (axis + 1) % 3, va = (axis + 2) % 3;
+        auto P = [&](int i, int j) { float c3[3]; c3[axis] = (float)s; c3[ua] = -1 + 2.0f * i / n; c3[va] = -1 + 2.0f * j / n; return surf({c3[0], c3[1], c3[2]}); };
+        for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) {
+            Vector3 a = P(i, j), b = P(i + 1, j), cc = P(i + 1, j + 1), d = P(i, j + 1);
+            // (outward winding: the face's normal along +axis*s)
+            Vector3 nn = Vector3CrossProduct(Vector3Subtract(b, a), Vector3Subtract(cc, a));
+            float out = (&nn.x)[axis] * s;
+            if (out >= 0) { mb.Tri(a, b, cc, shade(a), shade(b), shade(cc), {0, 0}, {0, 0}, {0, 0}); mb.Tri(a, cc, d, shade(a), shade(cc), shade(d), {0, 0}, {0, 0}, {0, 0}); }
+            else { mb.Tri(a, cc, b, shade(a), shade(cc), shade(b), {0, 0}, {0, 0}, {0, 0}); mb.Tri(a, d, cc, shade(a), shade(d), shade(cc), {0, 0}, {0, 0}, {0, 0}); }
+        }
+    }
+}
 static void ShipDressing(); void BuildLevelModel() {
     if (S.levelReady) { UnloadModel(S.level); S.levelReady = false; }
     if (!IsWindowReady() || S.mode != 1) return;
@@ -306,6 +343,7 @@ static void ShipDressing(); void BuildLevelModel() {
         else if (n.find("Workbench") != std::string::npos) mb.Box({at.x, z.y0 + 0.5f, at.z}, {1.2f, 0.5f, 0.6f}, Color{120, 84, 52, 255});
     }
     // the map's dressing (Level::props, placed by BuildLevel from extra.json "dressing")
+    const bool natural = m.mapKey == "cave" || m.mapKey == "reef";   // (rock, not masonry or plate: rounded and lumpy)
     for (const Prop& pr : m.level.props) {
         const Zone& z = map.zones[pr.zone];
         uint32_t r = pr.seed;
@@ -314,14 +352,15 @@ static void ShipDressing(); void BuildLevelModel() {
         Color lighter{(unsigned char)std::min(255, rock.r + 20), (unsigned char)std::min(255, rock.g + 18), (unsigned char)std::min(255, rock.b + 12), 255};
         Vector3 c = pr.pos, h = pr.half;
         switch (pr.kind) {
-            case PropKind::Column: mb.Box(c, h, Color{(unsigned char)(rock.r + 8), (unsigned char)(rock.g + 8), (unsigned char)(rock.b + 6), 255}); break;
+            case PropKind::Column: if (natural) { LumpyRock(mb, c, h, Color{(unsigned char)(rock.r + 8), (unsigned char)(rock.g + 8), (unsigned char)(rock.b + 6), 255}, pr.seed, 0.35f); break; }
+                mb.Box(c, h, Color{(unsigned char)(rock.r + 8), (unsigned char)(rock.g + 8), (unsigned char)(rock.b + 6), 255}); break;
             case PropKind::Stalagmite: if (kit("stalagmites", c, std::max(0.4f, h.y), rnd() * 6.28f)) break; mb.Cone(c, {c.x, c.y + h.y, c.z}, h.x, 5, rock); break;
             case PropKind::Stalactite: mb.Cone(c, {c.x, c.y - h.y, c.z}, h.x, 5, lighter); break;
             case PropKind::Crystal: if (kit("crystal", c, 2.6f, rnd() * 6.28f)) break; for (int j = 0; j < 5; j++) mb.Cone({c.x + (rnd() - 0.5f), c.y, c.z + (rnd() - 0.5f)}, {c.x + (rnd() - 0.5f) * 1.5f, c.y + 1 + rnd() * 2.5f, c.z + (rnd() - 0.5f) * 1.5f}, 0.18f + rnd() * 0.2f, 4, Color{150, 220, 230, 255}); break;
             case PropKind::Root: for (int j = 0; j < 4; j++) mb.Box({c.x + (rnd() - 0.5f) * 1.2f, c.y - 1.2f, c.z + (rnd() - 0.5f) * 1.2f}, {0.05f, 1.2f + rnd(), 0.05f}, Color{92, 76, 52, 255}); break;
-            case PropKind::Ledge: mb.Box(c, h, rock); break;
+            case PropKind::Ledge: if (natural) { LumpyRock(mb, c, h, rock, pr.seed, 0.3f); break; } mb.Box(c, h, rock); break;
             case PropKind::Pool: mb.Box(c, h, Color{40, 86, 96, 255}); break;
-            case PropKind::Silt: mb.Box(c, h, Color{84, 76, 60, 255}); break;
+            case PropKind::Silt: if (natural) { LumpyRock(mb, c, h, Color{84, 76, 60, 255}, pr.seed, 0.15f); break; } mb.Box(c, h, Color{84, 76, 60, 255}); break;
             case PropKind::Machine:
                 mb.Box(c, h, Color{96, 70, 50, 255});
                 mb.Lathe(2.4f, 3, 10, [](float) { return 0.7f; }, [](float) { return 0.7f; }, Color{110, 96, 80, 255}, Color{80, 70, 60, 255}, {c.x + 2.4f, c.y - 0.5f, c.z});
@@ -329,7 +368,7 @@ static void ShipDressing(); void BuildLevelModel() {
             case PropKind::CoralWall: {
                 // a wall of coral: a solid core with lumpy heads along its top and sides in the reef's colours
                 static const Color cols[] = {{214, 120, 104, 255}, {226, 176, 92, 255}, {160, 104, 170, 255}, {110, 170, 140, 255}, {232, 150, 150, 255}};
-                mb.Box(c, h, Color{156, 120, 96, 255});
+                LumpyRock(mb, c, h, Color{156, 120, 96, 255}, pr.seed, 0.3f);   // (an encrusted, rounded core, not a block)
                 int n = (int)((h.x + h.z) * 2);
                 for (int j = 0; j < n; j++) {
                     float t = rnd() * 2 - 1;
