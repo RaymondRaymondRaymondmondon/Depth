@@ -470,7 +470,99 @@ static void MapDressing() {
     }
 }
 
+// Decorations (the user: "couches, chairs, beds, purely environmental flora ... things specific to each level"; the
+// models are tools/artgen/rt_decor.py): each room gets a few things against its walls and a few on its floor, chosen by
+// the map and the room's name, kept clear of doorways, stations and salvage; a fixed seed per room, so every client
+// dresses the same way. Nothing here collides or feeds anything.
+static void Decorate() {
+    const Match& m = M(); const MapData& map = *m.map; const std::string& key = m.mapKey;
+    std::vector<Vector3> keep;
+    for (const auto& l : map.links) { keep.push_back(l.a); keep.push_back(l.b); }
+    for (const auto& st : m.level.stations) keep.push_back(st.pos);
+    for (const auto& sp : m.salvage) keep.push_back(sp.pos);
+    auto clear = [&](Vector3 p, float r) { for (const auto& k : keep) if (fabsf(k.x - p.x) < r && fabsf(k.z - p.z) < r && fabsf(k.y - p.y) < 3.5f) return false; return true; };
+    auto put = [&](const char* id, Vector3 at, float yaw, float sc, Color c) {
+        std::string path = std::string("redtide/decor/") + id + ".glb";
+        if (!LoadAsset(path)) return;
+        S.dress.push_back({path, MatrixMultiply(MatrixMultiply(MatrixScale(sc, sc, sc), MatrixRotateY(yaw)), MatrixTranslate(at.x, at.y, at.z)), c});
+        keep.push_back(at);
+    };
+    for (int zi = 0; zi < (int)map.zones.size(); zi++) {
+        const Zone& z = map.zones[zi];
+        if (!z.diverOk || z.radial || z.air) continue;
+        bool isVoid = false; for (const Json& vz : map.extra["void_zones"].a) if (vz.Str0() == z.name) isVoid = true;
+        if (isVoid) continue;
+        auto has = [&](const char* k) { return z.name.find(k) != std::string::npos; };
+        bool outside = z.deck == "Outside";
+        // what this room gets: wall pieces (back to the wall, facing in; depth: how far they stand out) and floor pieces
+        struct W { const char* id; float depth; float sc; };
+        std::vector<W> wall; std::vector<const char*> floor;
+        if (key == "ship") {
+            if (outside) { floor = {"anchor", "fishbones", "weedtuft", "shells", "barnacles", "weedtuft"}; }
+            else if (has("Salon")) { wall = {{"sofa", 0.5f, 1}, {"sofa", 0.5f, 1}, {"portrait", 0.0f, 1}, {"portrait", 0.0f, 1}, {"lamp", 0.3f, 1}, {"bookshelf", 0.0f, 1}}; floor = {"rug", "chair", "chair", "chair", "bottles", "weedtuft"}; }
+            else if (has("Cabin")) { wall = {{"bed", 0.5f, 1}, {"bed", 0.5f, 1}, {"portrait", 0.0f, 1}, {"lamp", 0.3f, 1}}; floor = {"rug", "chair", "bottles", "barnacles"}; }
+            else if (has("Galley") || has("Mess")) { wall = {{"bookshelf", 0.0f, 1}}; floor = {"chair", "chair", "bottles", "bottles", "barnacles"}; }
+            else if (has("Bridge")) { wall = {{"bookshelf", 0.0f, 1}, {"portrait", 0.0f, 1}}; floor = {"chair", "rug", "bottles"}; }
+            else if (has("Engine") || has("Hold") || has("Boiler")) { floor = {"cables", "cables", "barnacles", "tubeworms", "bottles"}; }
+            else { wall = {{"portrait", 0.0f, 1}}; floor = {"weedtuft", "barnacles", "bottles", "chair"}; }
+        } else if (key == "cave") {
+            if (has("Dry") || has("Camp") || has("Lantern")) floor = {"bottles", "fishbones", "rug", "shells"};
+            else floor = {"tubeworms", "weedtuft", "fishbones", "barnacles", "shells", "tubeworms"};
+        } else if (key == "reef") {
+            floor = {"shells", "spongecluster", "weedtuft", "fishbones", "tubeworms", "weedtuft", "spongecluster"};
+            if (has("Wreck") || has("Lagoon") || has("Sand")) floor.push_back("anchor");
+        } else if (key == "atlantis") {
+            floor = {"amphora", "amphora_fallen", "weedtuft", "shells", "barnacles", "amphora"};
+            if (has("Forum") || has("Chapel") || has("Town") || has("Plaza") || has("Gate")) floor.push_back("mosaic");
+            if (has("House") || has("Town")) wall = {{"bookshelf", 0.0f, 1}};
+        } else if (key == "void") {
+            if (has("Labs") || has("Control") || has("Reactor") || has("Airlock")) { wall = {{"console", 0.4f, 1}, {"lockers", 0.3f, 1}}; floor = {"cables", "chair", "barnacles"}; }
+            else if (has("Mess") || has("Quarters")) { wall = {{"lockers", 0.3f, 1}}; floor = {"chair", "chair", "bottles", "cables"}; }
+            else floor = {"tubeworms", "barnacles", "spongecluster", "fishbones"};
+        }
+        uint32_t r = 2246822519u ^ (uint32_t)zi * 3266489917u;
+        auto rnd = [&]() { r ^= r << 13; r ^= r >> 17; r ^= r << 5; return (r & 0xFFFF) / 65535.0f; };
+        std::vector<Rectangle> boxes;
+        for (const auto& p : z.parts) if (!p.hidden) boxes.push_back(p.r);
+        if (boxes.empty()) boxes.push_back(z.plan);
+        {   // (more in a bigger room: the lists again for every 140 m2 of floor beyond the first, up to three times)
+            float area = 0; for (const auto& b : boxes) area += b.width * b.height;
+            int reps = std::clamp((int)(area / 140.0f) + 1, 1, 3);
+            auto w0 = wall; auto f0 = floor;
+            for (int k = 1; k < reps; k++) { wall.insert(wall.end(), w0.begin(), w0.end()); floor.insert(floor.end(), f0.begin(), f0.end()); }
+        }
+        for (const auto& wp : wall) {
+            for (int tries = 0; tries < 14; tries++) {
+                const Rectangle& b = boxes[(int)(rnd() * boxes.size()) % boxes.size()];
+                int w = (int)(rnd() * 4) % 4; float u = 0.15f + 0.7f * rnd();
+                float off = 0.03f + wp.depth;
+                Vector3 p; float yaw;
+                if (w == 0) { p = {b.x + off, z.y0, b.y + b.height * u}; yaw = 0; }
+                else if (w == 1) { p = {b.x + b.width - off, z.y0, b.y + b.height * u}; yaw = PI; }
+                else if (w == 2) { p = {b.x + b.width * u, z.y0, b.y + off}; yaw = -PI / 2; }
+                else { p = {b.x + b.width * u, z.y0, b.y + b.height - off}; yaw = PI / 2; }
+                if (!clear(p, 1.6f) || !m.level.Inside({p.x, z.y0 + 0.6f, p.z}, 0.05f, m.linkOpen)) continue;
+                put(wp.id, p, yaw, wp.sc, WHITE);
+                break;
+            }
+        }
+        for (const char* id : floor) {
+            for (int tries = 0; tries < 14; tries++) {
+                const Rectangle& b = boxes[(int)(rnd() * boxes.size()) % boxes.size()];
+                Vector3 p{b.x + 0.9f + (b.width - 1.8f) * rnd(), z.y0, b.y + 0.9f + (b.height - 1.8f) * rnd()};
+                if (b.width < 2 || b.height < 2) break;
+                std::string sid = id; bool flat = sid == "rug" || sid == "mosaic" || sid == "shells" || sid == "barnacles" || sid == "fishbones" || sid == "cables";
+                if (!clear(p, flat ? 1.0f : 1.4f) || !m.level.Inside({p.x, z.y0 + 0.6f, p.z}, 0.4f, m.linkOpen)) continue;
+                float sc = sid == "weedtuft" || sid == "tubeworms" || sid == "spongecluster" ? 0.8f + 0.6f * rnd() : 1.0f;
+                put(id, p, rnd() * 6.283f, sc, WHITE);
+                break;
+            }
+        }
+    }
+}
+
 static void ShipDressing() {
+    Decorate();
     if (M().mapKey != "ship") { MapDressing(); return; }
     const MapData& map = *M().map;
     auto put = [&](const char* id, Vector3 at, float yaw, Matrix tilt = MatrixIdentity()) {
