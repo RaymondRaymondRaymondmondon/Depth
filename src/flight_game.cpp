@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include "flight_costumes.h"
+#include "figure3d.h"
 
 namespace {
 
@@ -31,6 +32,13 @@ struct FlightScene {
     bool ready = false; int readyFor = -1;
     Model palm{}, nest{}, sea{};
     std::vector<Model> terr;                  // one terrain per island (the whole map), or the one island
+    // the islands' dressing (tools/artgen/flight_town.py): baked models placed per island (houses, the church, cars,
+    // lamps, trees, bushes, flowers ...), each town's roads and parking lot as one mesh, and the townsfolk's walks
+    struct Deco { std::string asset; Matrix m; Vector3 at; float far; };
+    struct Walker { std::vector<Vector3> path; float len = 0, speed = 1.3f, off = 0; int look = 0; };
+    std::vector<std::vector<Deco>> deco;
+    std::vector<Model> roads; std::vector<char> roadsOn;
+    std::vector<std::vector<Walker>> walkers;
     bool chart = false; float chartZoom = 1; Vector2 chartAt{0, 0}; int chartMode = 0; fl::Alt chartAlt = fl::Alt::Mid;   // the chart (M): zoom, centre, order mode (0 scout, 1 fishers), a scout's height
     fl::MapOpts opts;
     Model body{}, head{}, beak{}, tail{}, wingIn{}, wingOut{};
@@ -97,9 +105,35 @@ void BuildTerrain(rt::MeshBuilder& mb, const fl::Island& is, int step = 1) {
         if (h > 0.5f && n < 0.8f) c = Mix(c, rock, (0.8f - n) / 0.2f);
         return Shade(c, 1 + j);
     };
+    // (the core stamps a house's, the tower's and the woodpile's tops into the heightmap so a bird can land on a roof;
+    // drawn, that made a block of turf round every building. Under them the ground is drawn at the level round about,
+    // and the baked models stand on it.)
+    struct Foot { const fl::Prop* p; float ground; };
+    std::vector<Foot> feet;
+    bool modelled = rt::LoadAsset("flight/town/house_a.glb") != nullptr;
+    if (modelled) for (const auto& pr : is.props) {
+        if (pr.kind != 0 && pr.kind != 2 && pr.kind != 5) continue;
+        float g = 0; int n = 0; float ca = cosf(pr.yaw), sa = sinf(pr.yaw);
+        for (int k = 0; k < 8; k++) {
+            float a = k * PI / 4, u = cosf(a) * (pr.half.x + is.cell * 2.5f), v = sinf(a) * (pr.half.z + is.cell * 2.5f);
+            float x = pr.c.x + u * ca - v * sa, z = pr.c.z + u * sa + v * ca;
+            g += is.Height(x, z); n++;
+        }
+        feet.push_back({&pr, g / n});
+    }
+    auto Hd = [&](float x, float z) {
+        float h = is.Height(x, z);
+        for (const auto& f : feet) {
+            float dx = x - f.p->c.x, dz = z - f.p->c.z, ca = cosf(f.p->yaw), sa = sinf(f.p->yaw);
+            float u = dx * ca + dz * sa, v = -dx * sa + dz * ca;
+            float m = is.cell * 1.6f;
+            if (fabsf(u) <= f.p->half.x + m && fabsf(v) <= f.p->half.z + m) h = std::min(h, f.ground);
+        }
+        return h;
+    };
     for (int zi = 0; zi + step < is.n; zi += step) for (int xi = 0; xi + step < is.n; xi += step) {
         float x0 = is.x0 + xi * is.cell, z0 = is.z0 + zi * is.cell, x1 = x0 + is.cell * step, z1 = z0 + is.cell * step;
-        Vector3 a{x0, is.Height(x0, z0), z0}, b{x1, is.Height(x1, z0), z0}, c{x1, is.Height(x1, z1), z1}, d{x0, is.Height(x0, z1), z1};
+        Vector3 a{x0, Hd(x0, z0), z0}, b{x1, Hd(x1, z0), z0}, c{x1, Hd(x1, z1), z1}, d{x0, Hd(x0, z1), z1};
         if (a.y < -20 && b.y < -20 && c.y < -20 && d.y < -20) continue;   // (the deep floor: the seabed plane covers it)
         Color cc = col(x0 + is.cell * step * 0.5f, z0 + is.cell * step * 0.5f);
         mb.Tri(a, c, b, cc); mb.Tri(a, d, c, cc);
@@ -186,10 +220,183 @@ void BuildBird(const fl::FounderDef& d) {
       (void)tip;
       S.wingOut = LoadModelFromMesh(mb.Build()); }
 }
+// ---------------------------------------------------------------- the islands' dressing
+// A town (the user: "a small city/town with roads, parking lots, houses, sometimes people walking around"): a main
+// street from the harbour up to the church square, a lane from every house's door to it, lamps along it, a parking lot
+// by the harbour with cars in it, a market stall and benches on the square, gardens with trees, flowers and fences, and
+// townsfolk walking between their doors and the square. Every island with land gets plants and rocks (the user:
+// "environmental flora, developing the trees more"). All from a hash of the island, so every client dresses the same.
+void DressIsland(const fl::Island& is, int idx) {
+    S.deco.resize(std::max((int)S.deco.size(), idx + 1)); S.walkers.resize(S.deco.size());
+    S.roads.resize(S.deco.size()); S.roadsOn.resize(S.deco.size(), 0);
+    auto& D = S.deco[idx]; auto& WK = S.walkers[idx];
+    if (fl::IsDrifting(is.type)) return;
+    uint32_t r = (uint32_t)is.seed * 2654435761u + (uint32_t)idx * 40503u + 17u;
+    auto R = [&]() { r ^= r << 13; r ^= r >> 17; r ^= r << 5; return (r & 0xFFFF) / 65535.0f; };
+    auto H = [&](float x, float z) { return is.Height(x, z); };
+    auto place = [&](const char* name, Vector3 at, float yaw, float sc, float far) {
+        std::string path = std::string("flight/town/") + name + ".glb";
+        if (!rt::LoadAsset(path)) return;
+        D.push_back({path, MatrixMultiply(MatrixMultiply(MatrixScale(sc, sc, sc), MatrixRotateY(yaw)), MatrixTranslate(at.x, at.y, at.z)), at, far});
+    };
+    auto nearProp = [&](Vector3 p, float pad) {
+        for (const auto& pr : is.props) {
+            float dx = p.x - pr.c.x, dz = p.z - pr.c.z, ca = cosf(pr.yaw), sa = sinf(pr.yaw);
+            float u = dx * ca + dz * sa, v = -dx * sa + dz * ca;
+            if (fabsf(u) <= pr.half.x + pad && fabsf(v) <= pr.half.z + pad) return true;
+        }
+        return false;
+    };
+    std::vector<std::pair<Vector3, Vector3>> roadSegs;   // (for keeping plants off the roads)
+    bool town = is.type == fl::IsleType::Town || is.type == fl::IsleType::CliffTown;
+    if (town) {
+        rt::MeshBuilder rb;
+        const Color asphalt{78, 76, 72, 255}, kerb{170, 164, 150, 255}, line{230, 226, 210, 255}, cobble{140, 128, 108, 255};
+        auto strip = [&](Vector3 a, Vector3 b, float w, Color c, float lift) {   // a road along the ground from a to b
+            Vector3 d = Vector3Subtract(b, a); d.y = 0; float L = Vector3Length(d); if (L < 0.5f) return;
+            d = Vector3Scale(d, 1 / L); Vector3 side{-d.z, 0, d.x};
+            int n = std::max(1, (int)(L / 2.0f));
+            for (int k = 0; k < n; k++) {
+                Vector3 p0 = Vector3Add(a, Vector3Scale(d, L * k / n)), p1 = Vector3Add(a, Vector3Scale(d, L * (k + 1) / n));
+                Vector3 q[4] = {Vector3Add(p0, Vector3Scale(side, -w)), Vector3Add(p0, Vector3Scale(side, w)), Vector3Add(p1, Vector3Scale(side, w)), Vector3Add(p1, Vector3Scale(side, -w))};
+                for (auto& v : q) v.y = std::max(0.3f, H(v.x, v.z)) + lift;
+                rb.Tri(q[0], q[2], q[1], c); rb.Tri(q[0], q[3], q[2], c);
+            }
+            roadSegs.push_back({a, b});
+        };
+        // the church tower (the square before it) and the harbour's head
+        Vector3 tower = is.c; bool hasTower = false;
+        for (const auto& pr : is.props) if (pr.kind == 2) { tower = pr.c; hasTower = true; break; }
+        Vector3 harbour{is.c.x, 0, is.c.z + 24};
+        float hy = H(harbour.x, harbour.z); for (int k = 0; k < 20 && hy < 1.0f; k++) { harbour.z -= 2; hy = H(harbour.x, harbour.z); }
+        Vector3 square = hasTower ? Vector3{tower.x + 10, 0, tower.z + 6} : is.c;
+        // the main street, its kerbs and its lamps
+        strip(harbour, square, 2.6f, asphalt, 0.18f);
+        {
+            Vector3 d = Vector3Normalize({square.x - harbour.x, 0, square.z - harbour.z}), side{-d.z, 0, d.x};
+            float L = Vector2Distance({harbour.x, harbour.z}, {square.x, square.z});
+            for (float u = 4; u < L - 2; u += 3.0f) {   // (the centre line, dashed)
+                Vector3 a = Vector3Add(harbour, Vector3Scale(d, u)), b = Vector3Add(harbour, Vector3Scale(d, u + 1.4f));
+                Vector3 q[4] = {Vector3Add(a, Vector3Scale(side, -0.08f)), Vector3Add(a, Vector3Scale(side, 0.08f)), Vector3Add(b, Vector3Scale(side, 0.08f)), Vector3Add(b, Vector3Scale(side, -0.08f))};
+                for (auto& v : q) v.y = std::max(0.3f, H(v.x, v.z)) + 0.2f;
+                rb.Tri(q[0], q[2], q[1], line); rb.Tri(q[0], q[3], q[2], line);
+            }
+            for (int s = -1; s <= 1; s += 2) strip(Vector3Add(harbour, Vector3Scale(side, s * 2.9f)), Vector3Add(square, Vector3Scale(side, s * 2.9f)), 0.35f, kerb, 0.24f);
+            int k = 0;
+            for (float u = 6; u < L - 3; u += 13, k++) {
+                Vector3 p = Vector3Add(Vector3Add(harbour, Vector3Scale(d, u)), Vector3Scale(side, (k % 2 ? 1 : -1) * 3.6f));
+                p.y = H(p.x, p.z);
+                place("lamppost", p, atan2f(-side.z, side.x) + (k % 2 ? PI : 0), 1, 200);
+            }
+        }
+        // the square: paved, a market stall, benches
+        for (int a = 0; a < 12; a++) { float a0 = a * PI / 6, a1 = (a + 1) * PI / 6; Vector3 c0 = square, p0{square.x + cosf(a0) * 9, 0, square.z + sinf(a0) * 9}, p1{square.x + cosf(a1) * 9, 0, square.z + sinf(a1) * 9};
+            c0.y = std::max(0.3f, H(c0.x, c0.z)) + 0.15f; p0.y = std::max(0.3f, H(p0.x, p0.z)) + 0.15f; p1.y = std::max(0.3f, H(p1.x, p1.z)) + 0.15f; rb.Tri(c0, p1, p0, cobble); }
+        place("stall", {square.x + 4, H(square.x + 4, square.z - 3), square.z - 3}, 0.4f, 1.2f, 180);
+        place("bench", {square.x - 5, H(square.x - 5, square.z + 2), square.z + 2}, PI / 2, 1.1f, 140);
+        place("bench", {square.x + 1, H(square.x + 1, square.z + 7), square.z + 7}, 0, 1.1f, 140);
+        // a lane from every door to the street, a garden behind each house
+        std::vector<Vector3> doors;
+        for (const auto& pr : is.props) {
+            if (pr.kind != 0) continue;
+            float a = -pr.yaw;
+            Vector3 fwd{sinf(a), 0, cosf(a)};
+            Vector3 door = Vector3Add(pr.c, Vector3Scale(fwd, pr.half.z + 1.6f)); door.y = H(door.x, door.z);
+            doors.push_back(door);
+            // the nearest point of the main street
+            Vector3 ab = Vector3Subtract(square, harbour); float t = std::clamp(((door.x - harbour.x) * ab.x + (door.z - harbour.z) * ab.z) / std::max(1.0f, ab.x * ab.x + ab.z * ab.z), 0.0f, 1.0f);
+            Vector3 onSt = Vector3Add(harbour, Vector3Scale(ab, t));
+            strip(door, onSt, 1.2f, cobble, 0.16f);
+            Vector3 back = Vector3Subtract(pr.c, Vector3Scale(fwd, pr.half.z + 4.0f)), sideV{fwd.z, 0, -fwd.x};
+            if (!nearProp(back, 1.0f) && H(back.x, back.z) > 1.5f) place(R() < 0.5f ? "tree" : "tree2", {back.x, H(back.x, back.z), back.z}, R() * 6.28f, 0.9f + 0.4f * R(), 320);
+            Vector3 fl = Vector3Add(door, Vector3Scale(sideV, 2.2f));
+            if (!nearProp(fl, 0.3f)) place("flowers", {fl.x, H(fl.x, fl.z), fl.z}, R() * 6.28f, 1, 100);
+            Vector3 fe = Vector3Add(Vector3Add(pr.c, Vector3Scale(sideV, pr.half.x + 2.0f)), Vector3Scale(fwd, 1.0f));
+            if (R() < 0.6f && !nearProp(fe, 0.3f)) place("fence", {fe.x, H(fe.x, fe.z), fe.z}, a, 1.4f, 120);
+        }
+        // the parking lot: a paved bay by the harbour, white bays, cars in some of them
+        for (int tries = 0; tries < 8; tries++) {
+            float side = tries % 2 ? -1.0f : 1.0f;
+            Vector3 c{harbour.x + side * (14 + tries * 2.0f), 0, harbour.z - 8 - tries * 1.5f};
+            bool ok = true;
+            for (int dz = -1; dz <= 1 && ok; dz++) for (int dx = -1; dx <= 1; dx++) { Vector3 q{c.x + dx * 8, 0, c.z + dz * 6}; if (H(q.x, q.z) < 1.2f || nearProp(q, 1.0f)) { ok = false; break; } }
+            if (!ok) continue;
+            float y = 0; for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) y = std::max(y, H(c.x + dx * 8, c.z + dz * 6));
+            y += 0.12f;
+            Vector3 q[4] = {{c.x - 8, y, c.z - 6}, {c.x + 8, y, c.z - 6}, {c.x + 8, y, c.z + 6}, {c.x - 8, y, c.z + 6}};
+            rb.Tri(q[0], q[2], q[1], asphalt); rb.Tri(q[0], q[3], q[2], asphalt);
+            for (int k = 0; k <= 5; k++) {   // the bays' white lines, two rows
+                float x = c.x - 7.5f + k * 3.0f;
+                for (int row = -1; row <= 1; row += 2) {
+                    Vector3 l[4] = {{x - 0.07f, y + 0.02f, c.z + row * 0.5f}, {x + 0.07f, y + 0.02f, c.z + row * 0.5f}, {x + 0.07f, y + 0.02f, c.z + row * 5.6f}, {x - 0.07f, y + 0.02f, c.z + row * 5.6f}};
+                    rb.Tri(l[0], l[2], l[1], line); rb.Tri(l[0], l[3], l[2], line);
+                }
+            }
+            for (int k = 0; k < 5; k++) for (int row = -1; row <= 1; row += 2) {
+                if (R() < 0.45f) continue;
+                place(R() < 0.5f ? "car_red" : "car_blue", {c.x - 6 + k * 3.0f, y, c.z + row * 3.0f}, row > 0 ? 0.0f : PI, 1, 200);
+            }
+            strip({c.x, 0, c.z - 6}, harbour, 2.0f, asphalt, 0.17f);
+            break;
+        }
+        S.roads[idx] = LoadModelFromMesh(rb.Build()); S.roadsOn[idx] = 1;
+        // the townsfolk: each walks from a door, along the lane to the street, and on to the square or the harbour, and
+        // back (a few always about while the town is near)
+        int nw = std::min(7, (int)doors.size());
+        for (int k = 0; k < nw; k++) {
+            FlightScene::Walker wk;
+            Vector3 door = doors[(k * 3) % doors.size()];
+            Vector3 ab = Vector3Subtract(square, harbour); float t = std::clamp(((door.x - harbour.x) * ab.x + (door.z - harbour.z) * ab.z) / std::max(1.0f, ab.x * ab.x + ab.z * ab.z), 0.0f, 1.0f);
+            Vector3 onSt = Vector3Add(harbour, Vector3Scale(ab, t));
+            Vector3 dest = k % 2 ? square : harbour;
+            Vector3 sideV = Vector3Normalize({-ab.z, 0, ab.x});
+            float lane = (k % 2 ? 1.0f : -1.0f) * 1.6f;   // (keeping to one side of the street)
+            wk.path = {door, Vector3Add(onSt, Vector3Scale(sideV, lane)), Vector3Add(dest, Vector3Scale(sideV, lane))};
+            for (size_t j = 1; j < wk.path.size(); j++) wk.len += Vector2Distance({wk.path[j - 1].x, wk.path[j - 1].z}, {wk.path[j].x, wk.path[j].z});
+            wk.speed = 1.1f + 0.4f * R(); wk.off = R() * 200; wk.look = k;
+            if (wk.len > 4) WK.push_back(wk);
+        }
+        // the woodpile and the boats are drawn as models in place of their boxes (DrawWorld)
+    }
+    // plants and rocks over the land: trees and bushes inland, flowers and grass in the open, rocks on the slopes
+    bool green = is.type == fl::IsleType::Tropical || town || is.type == fl::IsleType::Atoll || is.type == fl::IsleType::ReefGarden || is.type == fl::IsleType::Lighthouse || is.type == fl::IsleType::IronIsland;
+    bool rocky = is.type == fl::IsleType::Stack || is.type == fl::IsleType::Volcano || is.type == fl::IsleType::SirenRocks || is.type == fl::IsleType::KrakenCove || is.type == fl::IsleType::Lighthouse;
+    if (!green && !rocky) return;
+    const float G = 8;
+    for (float z = is.c.z - is.radius - 20; z < is.c.z + is.radius + 20; z += G)
+        for (float x = is.c.x - is.radius - 20; x < is.c.x + is.radius + 20; x += G) {
+            float jx = x + (R() - 0.5f) * G * 0.8f, jz = z + (R() - 0.5f) * G * 0.8f;
+            float h = H(jx, jz); Vector3 nrm = is.Normal(jx, jz);
+            float pick = R(), yaw = R() * 6.283f, sc = 0.8f + 0.5f * R();
+            if (h < 1.0f || nearProp({jx, h, jz}, 2.5f)) continue;
+            bool onRoad = false;
+            for (const auto& sg : roadSegs) { Vector2 a{sg.first.x, sg.first.z}, b{sg.second.x, sg.second.z}, p{jx, jz}; Vector2 ab = Vector2Subtract(b, a); float t = std::clamp(Vector2DotProduct(Vector2Subtract(p, a), ab) / std::max(0.01f, Vector2DotProduct(ab, ab)), 0.0f, 1.0f); if (Vector2Distance(p, Vector2Add(a, Vector2Scale(ab, t))) < 4.0f) { onRoad = true; break; } }
+            if (onRoad) continue;
+            bool palmNear = false; for (const auto& pp : is.palms) if (fabsf(pp.x - jx) < 2.5f && fabsf(pp.z - jz) < 2.5f) palmNear = true;
+            if (palmNear) continue;
+            Vector3 at{jx, h - 0.1f, jz};
+            if (nrm.y < 0.8f) { if (pick < 0.35f) place("rocks", at, yaw, sc * 1.3f, 220); continue; }
+            if (rocky && !green) { if (pick < 0.25f) place("rocks", at, yaw, sc, 220); else if (pick < 0.45f) place("grass", at, yaw, sc * 1.4f, 90); continue; }
+            if (town) {
+                if (pick < 0.10f) place(R() < 0.6f ? "tree" : "pine", at, yaw, sc, 320);
+                else if (pick < 0.22f) place("bush", at, yaw, sc, 160);
+                else if (pick < 0.34f) place("grass", at, yaw, sc * 1.4f, 90);
+                else if (pick < 0.40f) place("flowers", at, yaw, sc, 100);
+            } else {
+                if (h > 3 && pick < 0.05f) place("tree2", at, yaw, sc, 320);
+                else if (pick < 0.20f) place("bush", at, yaw, sc, 160);
+                else if (pick < 0.36f) place("grass", at, yaw, sc * 1.5f, 90);
+                else if (pick < 0.44f) place("flowers", at, yaw, sc, 100);
+                else if (pick < 0.48f) place("rocks", at, yaw, sc * 0.7f, 220);
+            }
+        }
+}
 void FreeModels() {
     if (!S.ready) return;
     for (Model& m : S.terr) UnloadModel(m);
     S.terr.clear();
+    for (size_t i = 0; i < S.roads.size(); i++) if (S.roadsOn[i]) UnloadModel(S.roads[i]);
+    S.roads.clear(); S.roadsOn.clear(); S.deco.clear(); S.walkers.clear();
     for (Model* m : {&S.palm, &S.nest, &S.body, &S.head, &S.beak, &S.tail, &S.wingIn, &S.wingOut, &S.egg, &S.chick, &S.pile}) UnloadModel(*m);
     S.ready = false; S.readyFor = -1;
 }
@@ -203,6 +410,10 @@ void EnsureModels() {
     FreeModels();
     if (WD().wholeMap) for (size_t i = 0; i < WD().isles.size(); i++) { rt::MeshBuilder mb; if (!fl::IsDrifting(WD().isles[i].type)) BuildTerrain(mb, WD().isles[i], (int)i == WD().home ? 1 : 2); else mb.Tri({0, -30, 0}, {0.1f, -30, 0}, {0, -30, 0.1f}, BLACK); S.terr.push_back(LoadModelFromMesh(mb.Build())); }
     else { rt::MeshBuilder mb; BuildTerrain(mb, WD().island); S.terr.push_back(LoadModelFromMesh(mb.Build())); }
+    {   // each island's dressing
+        size_t n = WD().wholeMap ? WD().isles.size() : 1;
+        for (size_t i = 0; i < n; i++) DressIsland(WD().wholeMap ? WD().isles[i] : WD().island, (int)i);
+    }
     { rt::MeshBuilder mb; BuildPalm(mb); S.palm = LoadModelFromMesh(mb.Build()); }
     { rt::MeshBuilder mb; BuildNest(mb); S.nest = LoadModelFromMesh(mb.Build()); }
     { rt::MeshBuilder mb; mb.Lathe(0.075f, 5, 8, [](float u) { return 0.028f * sinf(std::max(0.05f, u) * PI) * (1.1f - 0.25f * u); }, [](float u) { return 0.028f * sinf(std::max(0.05f, u) * PI) * (1.1f - 0.25f * u); }, {244, 238, 226, 255}, {226, 218, 204, 255}); S.egg = LoadModelFromMesh(mb.Build()); }
@@ -969,6 +1180,43 @@ void DrawDangers(const fl::World& w, const Camera3D& cam, float dt) {
         if (b.kind == 1 && b.age > 0.3f) for (int j = 0; j < 6; j++) { float a = j * 1.05f; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.2f, 1.6f + sinf(S.t * 9 + j), 1.2f), MatrixTranslate(b.p.x + cosf(a) * 4, b.p.y + 0.8f, b.p.z + sinf(a) * 4)), Color{255, 140, 40, 255}, 2.0f); }
     }
 }
+// the townsfolk walking their paths (DressIsland): out from a door to the street, along it to the square or the
+// harbour, and back, on the shared crew figure in everyday clothes; the nearest dozen are drawn
+void DrawTownsfolk(const fl::Island& is, int idx, const Camera3D& cam) {
+    (void)is;
+    if (idx >= (int)S.walkers.size()) return;
+    static const char* MODELS[3] = {"shared/crew/crew_bosun.glb", "shared/crew/crew_medic.glb", "shared/crew/crew_diver.glb"};
+    static const Color TOPS[6] = {{150, 60, 50, 255}, {60, 90, 140, 255}, {220, 200, 160, 255}, {70, 110, 70, 255}, {180, 140, 60, 255}, {120, 80, 120, 255}};
+    static const Color SKIN[4] = {{236, 196, 160, 255}, {198, 140, 104, 255}, {160, 108, 76, 255}, {118, 78, 54, 255}};
+    int drawn = 0;
+    for (const auto& wk : S.walkers[idx]) {
+        if (drawn >= 12 || wk.path.size() < 2) break;
+        // where along the path: out and back, a short pause at each end
+        float cyc = 2 * wk.len / wk.speed + 6, ph = fmodf(S.t + wk.off, cyc), s;
+        bool back = false, stand = false;
+        if (ph < wk.len / wk.speed) s = ph * wk.speed;
+        else if (ph < wk.len / wk.speed + 3) { s = wk.len; stand = true; }
+        else if (ph < 2 * wk.len / wk.speed + 3) { s = wk.len - (ph - wk.len / wk.speed - 3) * wk.speed; back = true; }
+        else { s = 0; stand = true; }
+        Vector3 p = wk.path[0], dir{0, 0, 1}; float acc = 0;
+        for (size_t j = 1; j < wk.path.size(); j++) {
+            Vector3 a = wk.path[j - 1], b = wk.path[j]; float L = Vector2Distance({a.x, a.z}, {b.x, b.z});
+            if (s <= acc + L || j + 1 == wk.path.size()) { float u = L > 0 ? std::clamp((s - acc) / L, 0.0f, 1.0f) : 0; p = Vector3Lerp(a, b, u); dir = Vector3Normalize({b.x - a.x, 0, b.z - a.z}); break; }
+            acc += L;
+        }
+        if (back) dir = Vector3Negate(dir);
+        p.y = is.Height(p.x, p.z) + 0.05f;
+        if (Vector3Distance(p, cam.position) > 150) continue;
+        const Model* m = rt::LoadAsset(MODELS[wk.look % 3]);
+        if (!m) return;
+        fig::Pose P; P.breathe = S.t * 1.5f + wk.off; P.walk = stand ? 0.0f : 1.0f; P.walkPh = S.t * 4.2f * wk.speed + wk.off;
+        fig::Build B; B.height = 0.94f + 0.12f * ((wk.look * 37) % 10) / 10.0f; B.build = 0.9f + 0.2f * ((wk.look * 53) % 10) / 10.0f;
+        std::vector<Matrix> skin = fig::PoseFigure(*m, B, P, S.t);
+        std::vector<rt::Recolor> rc = {{"skin", SKIN[wk.look % 4]}, {"top", TOPS[wk.look % 6]}, {"trousers", TOPS[(wk.look + 3) % 6]}, {"hat", TOPS[(wk.look + 1) % 6]}};
+        rt::DrawPbrSkinned(*m, fig::Frame(p, -atan2f(dir.z, dir.x)), skin, rc, 0.35f, WHITE);
+        drawn++;
+    }
+}
 void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
     rt::DrawWorldCube({cam.position.x, -25.6f, cam.position.z}, {4000, 0.4f, 4000}, Color{52, 84, 96, 255});   // (the open sea's floor)
     size_t nIsles = w.wholeMap ? w.isles.size() : 1;   // (stage 1: the one island)
@@ -986,8 +1234,41 @@ void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
             Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(h, h, h), MatrixRotateY(Hash(p.z, p.x) * 6.28f)), MatrixRotateZ(sway));
             rt::DrawStatic(S.palm, MatrixMultiply(m, MatrixTranslate(p.x, p.y - 0.2f, p.z)));
         }
-        // the town's houses, roofs, tower, docks, boats and woodpile; the wreck's hull and masts
+        // the island's dressing: its roads and parking lot, then its models near enough to matter, then the townsfolk
+        if (i < S.deco.size()) {
+            if (S.roadsOn[i] && d < 700) rt::DrawStatic(S.roads[i], MatrixIdentity());
+            for (const auto& dc : S.deco[i]) {
+                if (Vector3Distance(dc.at, cam.position) > dc.far) continue;
+                if (const Model* dm = rt::LoadAsset(dc.asset)) rt::DrawPbr(*dm, dc.m);
+            }
+            if (d < 260) DrawTownsfolk(is, (int)i, cam);
+        }
+        // the town's houses, roofs, tower, docks, boats and woodpile (as models where they're built); the wreck's hull
+        // and masts
+        auto baked = [&](const fl::Prop& pr) -> bool {
+            if (fl::IsDrifting(is.type) && pr.kind != 4) return false;
+            const char* name = nullptr; Vector3 sc{1, 1, 1}; float y = pr.c.y - pr.half.y, extraYaw = 0;
+            switch (pr.kind) {
+                case 0: name = Hash(pr.c.x, pr.c.z) < 0.5f ? "flight/town/house_a.glb" : "flight/town/house_b.glb"; sc = {pr.half.x / 4, pr.half.y / 2.5f, pr.half.z / 5}; break;
+                case 2: name = "flight/town/church.glb"; sc = {pr.half.x / 4, pr.half.y / 12, pr.half.z / 4}; break;
+                case 3: name = "flight/town/pier.glb"; sc = {pr.half.x / 2, 1, pr.half.z / 16}; y = pr.c.y + pr.half.y - 0.56f; break;
+                case 4: name = "trawl/props/skiff.glb"; sc = {2.0f, 2.0f, 2.0f}; y = pr.c.y + 0.12f * sinf(S.t * 1.3f + pr.c.x); extraYaw = PI / 2; break;
+                case 5: name = "flight/town/woodpile.glb"; sc = {pr.half.x / 3, pr.half.y, pr.half.z / 2}; break;
+                default: return false;
+            }
+            const Model* bm = rt::LoadAsset(name);
+            if (!bm) return false;
+            rt::DrawPbr(*bm, MatrixMultiply(MatrixMultiply(MatrixScale(sc.x, sc.y, sc.z), MatrixRotateY(-pr.yaw + extraYaw)), MatrixTranslate(pr.c.x, y, pr.c.z)));
+            return true;
+        };
+        auto roofOfBaked = [&](const fl::Prop& pr) {   // (a roof over a house or the tower: the model has its own)
+            if (pr.kind != 1) return false;
+            for (const auto& q : is.props) if ((q.kind == 0 || q.kind == 2) && fabsf(q.c.x - pr.c.x) < 0.5f && fabsf(q.c.z - pr.c.z) < 0.5f)
+                return rt::LoadAsset(q.kind == 0 ? "flight/town/house_a.glb" : "flight/town/church.glb") != nullptr;
+            return false;
+        };
         for (const auto& pr : is.props) {
+            if (d < 900 && (roofOfBaked(pr) || baked(pr))) continue;
             // (8 a lamp, 9 ice, 10 stone walls, 11 a kelp mat, 12 a cannon, 13 mangrove roots: the expansion's islands)
             static const Color PC[] = {{226, 218, 200, 255}, {170, 70, 52, 255}, {200, 192, 176, 255}, {132, 100, 66, 255}, {116, 84, 56, 255}, {150, 112, 70, 255}, {78, 64, 52, 255}, {96, 80, 64, 255},
                                        {255, 236, 170, 255}, {200, 226, 240, 255}, {132, 128, 122, 255}, {104, 102, 44, 255}, {44, 44, 48, 255}, {76, 60, 40, 255}, {70, 90, 44, 255}};

@@ -807,3 +807,9 @@ The long-match page (Tab, page 4) now has sub-pages: The year, Powers (the neutr
   Great Rookery, day 46), one colony speciated (the Broadback Alchemist), the Reckoning took 12% (the doc: 10-20%).
   Starvation is still the main killer (525 in a match): the next lever is the bots' growth (they court on today's
   catch, not the grounds' yield).
+## The towns and the islands dressed (2026-10-05, the user's 3D polish list)
+- tools/artgen/flight_town.py -> assets/flight/town (18 models): two styles of house (plaster, tiled gable roof, shuttered windows, a door with a step, a chimney; one with a porch and window boxes), the church tower (clock, belfry with its bell, spire), a pier on posts with bollards and a lamp, two old rounded cars, a lamp post, a bench, a market stall with an awning, a picket fence, two broadleaf trees and a pine, a bush, a flower patch, rocks, a grass tuft, a woodpile. The town's boxes are drawn as these (`baked` in `DrawWorld`; the boats are the Trawl's skiff); beyond 900 m the boxes stand in.
+- `DressIsland` (flight_game.cpp, from a hash of the island so every client builds the same): a town gets a main street from the harbour up to the church square (kerbs, a dashed centre line, lamps every 13 m), a cobbled lane from every door, a paved square with the stall and benches, a parking lot by the harbour with white bays and cars, a tree behind each house, flowers by the doors, fences; every green island gets bushes, grass, flowers, rocks and the odd tree among its palms; rocky islands rocks and grass. Draw distances by size (grass 90 m .. trees 320 m).
+- **Townsfolk** walk from their doors to the square or the harbour and back on the shared crew figure in everyday colours (`DrawTownsfolk`; the nearest dozen within 150 m).
+- The core stamps roofs into the heightmap (so a bird can land on them); the terrain is now drawn at the surrounding ground level under the buildings, so they no longer sit in blocks of turf.
+
