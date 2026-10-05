@@ -7,6 +7,7 @@
 // All play goes through Input and Command. Levels are grids of 2.5 m cells; x and z are metres, y is up.
 #include "raylib.h"
 #include "raymath.h"
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -103,7 +104,7 @@ struct Player {
     Input in; std::vector<Command> cmds;
     // bots
     int botGoal = -1; Vector3 botTarget{}; float botThink = 0; std::vector<int> botPath; int botMode = 0; int botFrom = -1; float botLevelT = 0;
-    float stayT = 0, stayPromptT = 0, mirrorT = 0, hackT = 0; bool impostor = false; int takenOnLevel = -1;   // (Level 18's Stay; Level 13's mirrors; Level 15's terminals; the social-deduction mode)
+    float stayT = 0, stayPromptT = 0, mirrorT = 0, hackT = 0; bool impostor = false; int takenOnLevel = -1; bool atParty = false, partied = false;   // (Level 18's Stay; Level 13's mirrors; Level 15's terminals; the social-deduction mode)
     bool Alive() const { return st == PS_ALIVE || st == PS_DOWNED; }
     float Height() const { return crouched ? 1.0f : 1.65f; }
     Vector3 Eye() const { return {p.x, p.y + Height(), p.z}; }
@@ -144,6 +145,13 @@ struct World {
     float lightsOutT = 0; float lockdownT = 0, lockdownNext = 0;   // (Level 1's lights-out; Level 16's lockdowns)
     std::string memo;
     bool mirror = false;
+    struct Seal { int level, cx, cz; uint8_t kind; float t; }; std::vector<Seal> seals;     // cells shut for now: 0 a Level 2 hatch (a valve opens it), 1 a Level 12 doorway (a minute)
+    struct Lever { int level; Vector3 at; uint8_t kind; }; std::vector<Lever> levers;   // 0 a Level 2 valve, 1 a Level 3 breaker
+    bool power = true; float rollPrev = 0, roomT = 0;                                  // Level 3's power; Level 17's roll; Level 12's next closing
+    bool Sealed(int level, int cx, int cz) const { for (const auto& s : seals) if (s.level == level && s.cx == cx && s.cz == cz) return true; return false; }
+    float Roll() const { return sinf(clock * 0.21f) * 0.7f + sinf(clock * 0.53f) * 0.3f; }   // Level 17: the carrier's roll, -1..1
+    int FloodRow(const Level& lv) const { float f = std::clamp((clock - D().dayStart) / (D().dayEnd - D().dayStart), 0.0f, 1.0f); return lv.h - (int)(lv.h * 0.45f * f); }   // Level 17: rows from here down are flooded
+    static int RoomNumber(int cx, int cz) { return 100 + (cx * 7 + cz * 3) % 90; }   // Level 5's door numbers (ending in 3: a trap)
     struct Mark { int level; Vector3 at; float yaw; }; std::vector<Mark> marks;   // exit chalk on the walls (for the day)
     float dayLen() const { return mode == 4 ? 3600.0f : D().dayReal; }           // (Expedition: one long hour)              // a guest's copy: levels are generated for drawing, but no loot is rolled (the host's comes in the snapshot)
     // setup and the clock

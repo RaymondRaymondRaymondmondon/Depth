@@ -117,6 +117,10 @@ Level& World::L(int level) {
         WorldItem wi; wi.level = level; wi.p = sp.at; wi.loot.def = def; const LootDef& ld = D().loot[def]; wi.loot.value = ld.min + RandI(ld.max - ld.min + 1); wi.loot.foundOn = level; wi.loot.uid = nextUid++;
         items.push_back(wi);
     }
+    // Level 2's valves and Level 3's breakers stand on open floor
+    if (level == 2 || level == 3) for (int n = 0, tries = 0; n < (level == 2 ? 4 : 3) && tries < 400; tries++) { int x = RandI(lv.w), z = RandI(lv.h); if (lv.At(x, z) != T_FLOOR) continue; levers.push_back({level, lv.Center(x, z), (uint8_t)(level == 2 ? 0 : 1)}); n++; }
+    // the Rescue contract's survivor waits on the contract's level
+    if (contract >= 0 && D().contracts[contract].id == "rescue" && level == contractLevel && EntityIndex("survivor") >= 0) for (int tries = 0; tries < 400; tries++) { int x = RandI(lv.w), z = RandI(lv.h); if (lv.At(x, z) != T_FLOOR) continue; Entity e; e.def = EntityIndex("survivor"); e.uid = nextUid++; e.level = level; e.p = lv.Center(x, z); e.st = ES_IDLE; ents.push_back(e); break; }
     // a fuel canister and a few supplies lie about most levels (the restart's fuel)
     int fuel = ItemIndex("fuel"); (void)fuel;
     return lv;
@@ -147,7 +151,7 @@ bool World::LineOfSight(int level, Vector3 a, Vector3 b) const {
 float World::LightAt(int level, Vector3 at) const {
     auto it = levels.find(level); if (it == levels.end()) return 0; const Level& lv = it->second;
     int cx = lv.CellX(at.x), cz = lv.CellZ(at.z); float best = 0;
-    bool out = overtime || (level == 1 && lightsOutT > 0) || mode == 3;
+    bool out = overtime || (level == 1 && lightsOutT > 0) || mode == 3 || (level == 3 && !power);
     if (!out) for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) { int x = cx + dx, z = cz + dz; if (x < 0 || z < 0 || x >= lv.w || z >= lv.h) continue; uint8_t l = lv.light[z * lv.w + x]; if (l) best = std::max(best, (l >= 128 && l < 255 ? 0.6f : 1.0f) * (dx || dz ? 0.6f : 1.0f)); }
     if (level == 10 || level == 11) best = std::max(best, overtime ? 0.1f : 0.8f);   // (the open sky)
     // a Lab with its generator running is lit
@@ -161,7 +165,7 @@ std::vector<int> World::Path(int level, Vector3 from, Vector3 to, int maxNodes) 
     int sx = lv.CellX(from.x), sz = lv.CellZ(from.z), tx = lv.CellX(to.x), tz = lv.CellZ(to.z);
     if (sx < 0 || sz < 0 || sx >= lv.w || sz >= lv.h || tx < 0 || tz < 0 || tx >= lv.w || tz >= lv.h) return {};
     std::vector<int> prev(lv.w * lv.h, -2); std::queue<int> q; int s = sz * lv.w + sx, t = tz * lv.w + tx; prev[s] = -1; q.push(s); int n = 0;
-    while (!q.empty() && n++ < maxNodes) { int c = q.front(); q.pop(); if (c == t) break; int x = c % lv.w, z = c / lv.w; const int D4[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}}; for (auto& d : D4) { int nx = x + d[0], nz = z + d[1]; if (nx < 0 || nz < 0 || nx >= lv.w || nz >= lv.h) continue; int ni = nz * lv.w + nx; if (prev[ni] != -2 || !lv.Walkable(nx, nz) || lv.At(nx, nz) == T_PIT) continue; prev[ni] = c; q.push(ni); } }
+    while (!q.empty() && n++ < maxNodes) { int c = q.front(); q.pop(); if (c == t) break; int x = c % lv.w, z = c / lv.w; const int D4[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}}; for (auto& d : D4) { int nx = x + d[0], nz = z + d[1]; if (nx < 0 || nz < 0 || nx >= lv.w || nz >= lv.h) continue; int ni = nz * lv.w + nx; if (prev[ni] != -2 || !lv.Walkable(nx, nz) || lv.At(nx, nz) == T_PIT || Sealed(level, nx, nz)) continue; prev[ni] = c; q.push(ni); } }
     if (prev[t] == -2) return {};
     std::vector<int> path; for (int c = t; c != -1; c = prev[c]) path.push_back(c); std::reverse(path.begin(), path.end()); return path;
 }
@@ -169,7 +173,7 @@ std::vector<int> World::Path(int level, Vector3 from, Vector3 to, int maxNodes) 
 // ---------------------------------------------------------------- the day
 void World::BeginDay() {
     inDay = true; clock = D().dayStart; overtime = false; hourT = 0; levels.clear(); items.clear(); ents.clear(); seenCells.clear(); lightsOutT = 0; lockdownT = 0; lockdownNext = 120;
-    marks.clear(); trapRooms.clear();
+    marks.clear(); trapRooms.clear(); seals.clear(); levers.clear(); power = true; roomT = 40;
     LabState* ins = insertion >= 0 && insertion < (int)labs.size() ? &labs[insertion] : nullptr;
     if (!ins || (!ins->online && mode != 1)) { ins = &labs[0]; insertion = 0; }
     Level& lv = L(ins->level); const LabPlan& lp = lv.labs[ins->idx];
@@ -214,10 +218,10 @@ void World::EndDay(bool extracted) {
     // tomorrow: a forecast (which levels are active), the Fence's rates, a contract
     daySeed = rng ^ (uint32_t)(day * 2654435761u); forecast.clear(); for (int k = 0; k < 3; k++) forecast.push_back(RandI(LEVELS));
     fenceRate.assign(8, 100); for (int& r : fenceRate) r = 60 + RandI(101);
-    std::vector<int> offer; for (int i = 0; i < (int)D().contracts.size(); i++) if (D().contracts[i].id != "party" && D().contracts[i].id != "rescue") offer.push_back(i);
+    std::vector<int> offer; for (int i = 0; i < (int)D().contracts.size(); i++) offer.push_back(i);
     contract = offer.empty() ? -1 : offer[RandI((int)offer.size())]; contractDone = false; contractLevel = std::min(LEVELS - 1, RandI(4) + (week - 1) * 2); contractTarget = 0;
     { int band = D().levels[contractLevel].lootBand; std::vector<int> pool; for (int i = 0; i < (int)D().loot.size(); i++) if (D().loot[i].level == band) pool.push_back(i); if (!pool.empty()) contractTarget = pool[RandI((int)pool.size())]; }
-    if (contract >= 0) { const std::string& cid = D().contracts[contract].id; if (cid == "retrieval") memo += " Today: bring back a " + D().loot[contractTarget].name + " from Level " + std::to_string(contractLevel) + "."; if (cid == "survey") memo += " Today: map 80% of Level " + std::to_string(contractLevel) + "."; }
+    if (contract >= 0) { const std::string& cid = D().contracts[contract].id; if (cid == "retrieval") memo += " Today: bring back a " + D().loot[contractTarget].name + " from Level " + std::to_string(contractLevel) + "."; if (cid == "survey") memo += " Today: map 80% of Level " + std::to_string(contractLevel) + "."; if (cid == "rescue") memo += " Today: a lost Bureau survivor's last signal is on Level " + std::to_string(contractLevel) + "."; if (cid == "party") memo += " Today: someone accepts a Partygoer's invitation. Fetch them back."; }
     Emit(E_DAY_END);
 }
 void World::NextWeek() {
@@ -265,6 +269,7 @@ void World::Transit(Player& p, int to, bool noclip, const std::string& how) {
     Vector3 at = lv.start; bool placed = false;
     if (!noclip) for (const auto& e : lv.exits) if (e.to == from && !e.noclip) { at = lv.Center(e.cx, e.cz); placed = true; break; }
     if (!placed) { for (int tries = 0; tries < 200; tries++) { int x = RandI(lv.w), z = RandI(lv.h); if (lv.Walkable(x, z) && lv.At(x, z) != T_PIT && lv.At(x, z) != T_DEEP && lv.At(x, z) != T_LABFLOOR) { at = lv.Center(x, z); break; } } }
+    for (auto& e : ents) if (e.level == from && e.target == p.id && D().entities[e.def].id == "survivor" && Vector3Distance(e.p, p.p) < 5) { e.level = to; e.p = at; e.path.clear(); }
     p.level = to; p.p = at; p.vel = {};
     if (noclip) { p.sanity -= 10; p.blackoutT = 2; p.noclipCount++; }
     std::string key = std::to_string(from) + ":" + how; if (std::find(learned.begin(), learned.end(), key) == learned.end()) learned.push_back(key);
@@ -276,7 +281,7 @@ void World::Move(Player& p, Vector3 wish, float speed) {
     Level& lv = L(p.level); float r = 0.3f;
     Vector3 np = Vector3Add(p.p, Vector3Scale(wish, speed * STEP));
     bool keycard = false; if (p.level == 5) for (const Loot& l : {p.pocket[0], p.pocket[1]}) if (l.def >= 0 && D().loot[l.def].name == "Key card") keycard = true;
-    auto blocked = [&](float x, float z) { int cx = lv.CellX(x), cz = lv.CellZ(z); uint8_t t = lv.At(cx, cz); if (lv.Solid(cx, cz)) return true;
+    auto blocked = [&](float x, float z) { int cx = lv.CellX(x), cz = lv.CellZ(z); uint8_t t = lv.At(cx, cz); if (lv.Solid(cx, cz) || Sealed(p.level, cx, cz)) return true;
         if (t == T_DOOR && p.level == 5 && !keycard && (cx + cz) % 3 != 0) return true;   // (the hotel's rooms: most doors want a key card)
         if (t == T_BLAST) { LabState* lab = nullptr; for (int k = 0; k < (int)lv.labs.size(); k++) if (lv.labs[k].doorX == cx && lv.labs[k].doorZ == cz) lab = Lab(p.level, k); return lab && (!lab->doorOpen || (lab->locked && false)); } return false; };
     // axis by axis against the cells (a circle of radius r)
@@ -321,7 +326,14 @@ void World::StepMeters(Player& p) {
     // water: breath under the deep water (a tank gives three minutes); the Leviathan counts the swim (noclip_ents.cpp)
     if (tile == T_DEEP) { p.swimT += dt; if (p.swimT > 30 && p.tankAir <= 0) Hurt(p, 6 * dt, "drowned"); if (p.tankAir > 0) p.tankAir -= dt; } else p.swimT = std::max(0.0f, p.swimT - dt * 2);
     // electrified floors, steam, the abyss
-    if ((fl & CF_LIVE) && fmodf(clock, 20) < 6 && p.stunT <= 0) { Hurt(p, 12, "electrocuted"); p.stunT = 2; Drop(p, false); }   // (live floors: electrified six minutes in twenty)
+    // Level 2: a dead-end tunnel's hatch can slam behind you (a valve somewhere opens it)
+    if (p.level == 2 && tile == T_FLOOR && !mirror) { int open = 0, ox = 0, oz = 0; const int D4[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}}; for (auto& d : D4) if (lv.Walkable(cx + d[0], cz + d[1]) && !Sealed(2, cx + d[0], cz + d[1])) { open++; ox = cx + d[0]; oz = cz + d[1]; }
+        int key = 100000 + cz * lv.w + cx; if (open == 1 && std::find(trapRooms.begin(), trapRooms.end(), key) == trapRooms.end()) { trapRooms.push_back(key); if (Rand() < 0.35f) { seals.push_back({2, ox, oz, 0, 90}); Emit(E_TELL, p.id, -1, 2, lv.Center(ox, oz), 2, "a hatch slams shut behind you; somewhere a valve would open it"); } } }
+    // Level 5: rooms ending in 3 are traps
+    if (p.level == 5 && tile == T_DOOR && !mirror) { int key = 200000 + cz * lv.w + cx; if (RoomNumber(cx, cz) % 10 == 3 && std::find(trapRooms.begin(), trapRooms.end(), key) == trapRooms.end()) { trapRooms.push_back(key); Hurt(p, 10, "a trapped room", IN_BLEED); int hd = EntityIndex("hound"); if (hd >= 0) { Entity e; e.def = hd; e.uid = nextUid++; e.level = 5; e.p = Vector3Add(p.p, {cosf(p.yaw) * 2.5f, 0, sinf(p.yaw) * 2.5f}); if (lv.Solid(lv.CellX(e.p.x), lv.CellZ(e.p.z))) e.p = p.p; e.st = ES_CHASE; e.target = p.id; ents.push_back(e); } Emit(E_TELL, p.id, -1, 5, p.p, 6, "Room " + std::to_string(RoomNumber(cx, cz)) + ". It was waiting for you."); } }
+    // Level 17: the lower decks flood as the day goes on
+    if (p.level == 17 && cz >= FloodRow(lv)) p.stamina -= 1.5f * dt;
+    if ((fl & CF_LIVE) && (p.level != 3 || power) && fmodf(clock, 20) < 6 && p.stunT <= 0) { Hurt(p, 12, "electrocuted"); p.stunT = 2; Drop(p, false); }   // (live floors: electrified six minutes in twenty)
     if ((fl & CF_STEAM) && fmodf(clock * 0.37f + cx * 7 + cz * 3, 30) < 0.4f) Hurt(p, 20, "a steam burst");
     if (tile == T_PIT) {
         // a pit: an exit if it is one, otherwise a fall
@@ -349,6 +361,7 @@ void World::StepPlayer(Player& p) {
     }
     if (p.st != PS_ALIVE) return;
     p.stunT = std::max(0.0f, p.stunT - dt); p.blackoutT = std::max(0.0f, p.blackoutT - dt);
+    if (p.atParty) { p.stunT = std::max(p.stunT, 0.5f); p.sanity = 100; }   // (having a lovely time; someone has to come and fetch them)
     StepMeters(p); if (p.st != PS_ALIVE) return;
     // the headlamp: a battery's ten minutes (faster on Level 6)
     if (in.lamp) p.lamp = !p.lamp;
@@ -370,11 +383,13 @@ void World::StepPlayer(Player& p) {
         speed = p.crouched ? 1.5f : canSprint ? 5.2f : 3.0f;
         Level& lv = L(p.level); uint8_t tile = lv.At(lv.CellX(p.p.x), lv.CellZ(p.p.z));
         if (tile == T_WATER) speed *= 0.6f; else if (tile == T_DEEP) speed = 1.8f; else if (tile == T_WHEAT) speed *= 0.8f;
+        if (p.level == 17 && lv.CellZ(p.p.z) >= FloodRow(lv)) speed *= 0.6f;
         speed *= p.SpeedMul();
         if (p.carryWith >= 0) speed *= 0.6f / std::max(0.6f, p.SpeedMul());   // (a huge thing between two)
         // noise: footsteps (carpet hushes them), noisy carry
         if (wl > 0.1f) { const std::string& tex = D().levels[p.level].tex[1]; float base = canSprint ? 1.0f : p.crouched ? 0.12f : 0.45f; if (tex == "carpet") base *= 0.6f; if ((p.suits >> 3) & 1) base *= 0.5f; p.noise = std::max(p.noise, base); }
         if (p.hands.def >= 0 && Has(D().loot[p.hands.def], "noisy")) p.noise = std::max(p.noise, 0.5f);
+        if (p.level == 3 && power) p.noise *= 0.5f;   // (the machines cover footsteps)
     }
     Vector3 before = p.p; Move(p, wish, speed); p.vel = Vector3Scale(Vector3Subtract(p.p, before), 1 / dt);
     // walking into a noclip spot at a run drops you through; stepping onto a door exit takes it (E for doors, below)
@@ -400,6 +415,16 @@ void World::Interact(Player& p) {
         if (o.lostT > 0) { o.lostT = 0; o.sanity = std::max(o.sanity, 15.0f); return; }
         if (o.hands.def >= 0 && SizeOf(D().loot[o.hands.def]) == SZ_H && o.carryWith < 0 && p.hands.def < 0) { o.carryWith = p.id; p.carryWith = o.id; return; }   // (taking the other end)
     }
+    // the Party: fetch a teammate out of the ballroom
+    for (auto& o : crew) if (o.id != p.id && o.atParty && o.level == p.level && Vector3Distance(o.p, p.p) < 2.0f) { o.atParty = false; o.partied = true; o.stunT = 0; o.sanity = 60; Emit(E_TELL, o.id, p.id, o.level, o.p, 3, "you pull them out of the party; the music stops for a moment"); return; }
+    // a valve (Level 2) or a breaker (Level 3)
+    for (const auto& lvr : levers) if (lvr.level == p.level && Vector3Distance(lvr.at, p.p) < 1.7f) {
+        if (lvr.kind == 0) { int n = 0; for (auto it = seals.begin(); it != seals.end();) { if (it->level == p.level && it->kind == 0) { it = seals.erase(it); n++; } else ++it; } Emit(E_TELL, p.id, -1, p.level, lvr.at, 2, n ? "the valve turns; hatches unseal somewhere" : "the valve turns; nothing you can hear"); }
+        else { power = !power; Emit(E_TELL, p.id, -1, p.level, lvr.at, 1, power ? "the breaker slams over: the machines roar back" : "the breaker drops: the halls go quiet and dark"); }
+        return;
+    }
+    // a lost Bureau survivor: they'll follow you
+    for (auto& e : ents) if (e.level == p.level && D().entities[e.def].id == "survivor" && Vector3Distance(e.p, p.p) < 2.2f && e.target != p.id) { e.target = p.id; e.st = ES_STALK; Emit(E_TELL, p.id, e.def, p.level, e.p, 3, "\"Are you real? ...okay. Okay. I'll follow you.\""); return; }
     // loot on the floor: the nearest in front
     int best = -1; float bd = 1.7f;
     for (int i = 0; i < (int)items.size(); i++) if (items[i].level == p.level) { float d = Vector3Distance(items[i].p, front); if (d < bd) { bd = d; best = i; } }
@@ -442,7 +467,7 @@ void World::Interact(Player& p) {
     }
     // a door exit: E to go through
     int cx = lv.CellX(front.x), cz = lv.CellZ(front.z), pcx = lv.CellX(p.p.x), pcz = lv.CellZ(p.p.z);
-    for (const auto& e : lv.exits) if (!e.noclip && ((e.cx == cx && e.cz == cz) || (e.cx == pcx && e.cz == pcz))) { Transit(p, e.to, false, e.label); return; }
+    for (const auto& e : lv.exits) if (!e.noclip && ((e.cx == cx && e.cz == cz) || (e.cx == pcx && e.cz == pcz))) { if (p.level == 3 && !power && e.kind == "elevator") { Emit(E_TELL, p.id, -1, 3, p.p, 1, "the elevator is dead: the breakers are off"); return; } Transit(p, e.to, false, e.label); return; }
     // Level 14's beds heal (ten seconds on a gurney); Level 15's terminals: a hack stops the Sentries for two minutes
     if (p.level == 14 && (lv.Flags(pcx, pcz) & CF_ROOM) && p.health < 100) { p.stunT = 10; p.health = 100; p.injuries = 0; Emit(E_TELL, p.id, -1, 14, p.p, 3, "you lie down on a gurney: fully healed"); return; }
     if (p.level == 15 && lv.At(cx, cz) == T_LOW) { p.stunT = 5; for (auto& e : ents) if (e.level == 15 && D().entities[e.def].id == "sentry") e.stunT = 120; Emit(E_TELL, p.id, -1, 15, p.p, 3, "the terminal's pattern matches: the Sentries power down"); return; }
@@ -499,6 +524,9 @@ void World::Extract(LabState& lab) {
     // everyone in the Portal Hall goes up, with every networked crate (generators running), and what they hold
     for (auto& l : labs) if (&l == &lab || (l.online && l.fuel > 0 && !overtime && l.level != 12)) { for (auto& c : l.crate) bay.push_back(c); l.crate.clear(); }
     for (auto& p : crew) if (InPortalHall(p, lab)) { for (Loot* l : {&p.hands, &p.pocket[0], &p.pocket[1]}) if (l->def >= 0) { bay.push_back(*l); *l = Loot{}; } p.st = PS_SURFACE; if (p.carryWith >= 0) p.carryWith = -1; }
+    if (contract >= 0) { const std::string& cid = D().contracts[contract].id;
+        if (cid == "rescue") for (auto& e : ents) if (e.level == lab.level && D().entities[e.def].id == "survivor" && LabAt(e.level, e.p) == &lab) { contractDone = true; e.st = ES_GONE; }
+        if (cid == "party") for (const auto& p : crew) if (p.partied && p.st == PS_SURFACE) contractDone = true; }
     Emit(E_EXTRACT, -1, -1, lab.level);
     if (mode == 1) { won = true; failed = true; }   // (Lost: you escaped)
     if (mode == 6) { bool impostorLeft = false, crewUp = false; for (const auto& p : crew) { if (p.impostor && p.st != PS_SURFACE) impostorLeft = true; if (!p.impostor && p.st == PS_SURFACE) crewUp = true; } if (impostorLeft && crewUp) { won = true; failed = true; memo = "The crew got out and left the thing wearing a friend behind."; } }
@@ -573,7 +601,7 @@ void World::Command(Player& p, const nc::Command& c) {
         }
         case C_ACCEPT: {   // a Partygoer's invitation: off to the Level 5 ballroom, pockets emptied
             if (p.stayPromptT > 0 && p.level == 18) { p.st = PS_SURFACE; p.hands = Loot{}; p.pocket[0] = p.pocket[1] = Loot{}; Emit(E_TAKEN, p.id, -1, 18, p.p, 4, "they had a lovely time"); break; }
-            for (auto& e : ents) if (e.level == p.level && D().entities[e.def].id == "partygoer" && Vector3Distance(e.p, p.p) < 4) { p.pocket[0] = p.pocket[1] = Loot{}; p.hands = Loot{}; Transit(p, 5, true, "the party"); Level& lv = L(5); p.p = lv.Center(lv.w / 2, lv.h / 2); break; }
+            for (auto& e : ents) if (e.level == p.level && D().entities[e.def].id == "partygoer" && Vector3Distance(e.p, p.p) < 4) { p.pocket[0] = p.pocket[1] = Loot{}; p.hands = Loot{}; Transit(p, 5, true, "the party"); Level& lv = L(5); p.p = lv.Center(lv.w / 2, lv.h / 2); if (lv.Solid(lv.CellX(p.p.x), lv.CellZ(p.p.z))) p.p = lv.start; p.atParty = true; break; }
             break;
         }
         default: break;
@@ -594,6 +622,19 @@ void World::Step() {
         Level& lv = levels[1]; int band = D().levels[1].lootBand; std::vector<int> pool; for (int i = 0; i < (int)D().loot.size(); i++) if (D().loot[i].level == band) pool.push_back(i);
         for (int tries = 0; tries < 30 && !pool.empty(); tries++) { int x = RandI(lv.w), z = RandI(lv.h); if (lv.At(x, z) != T_FLOOR) continue; Vector3 at = lv.Center(x, z); bool seenNow = false; for (const auto& p : crew) if (p.level == 1 && p.Alive() && (Vector3Distance(p.p, at) < 20 || LineOfSight(1, p.Eye(), Vector3Add(at, {0, 0.5f, 0})))) seenNow = true; if (seenNow) continue; WorldItem wi; wi.level = 1; wi.p = at; wi.loot.def = pool[RandI((int)pool.size())]; wi.loot.value = D().loot[wi.loot.def].min + RandI(D().loot[wi.loot.def].max - D().loot[wi.loot.def].min + 1); wi.loot.foundOn = 1; wi.loot.uid = nextUid++; items.push_back(wi); break; }
     }
+    for (auto& s : seals) s.t -= STEP; seals.erase(std::remove_if(seals.begin(), seals.end(), [](const Seal& s) { return s.t <= 0; }), seals.end());   // (a hatch rusts open in 90 s; a doorway in 60)
+    if (levels.count(12)) {   // the Living House: a doorway near the crew closes like a mouth, for a minute
+        int who = -1; for (const auto& p : crew) if (p.level == 12 && p.st == PS_ALIVE) who = p.id;
+        if (who >= 0 && (roomT -= STEP) <= 0) { roomT = 35 + Rand() * 20; Level& lv = levels[12]; Player& p = crew[who];
+            for (int tries = 0; tries < 60; tries++) { int x = lv.CellX(p.p.x) + RandI(17) - 8, z = lv.CellZ(p.p.z) + RandI(17) - 8; if (lv.At(x, z) != T_DOOR || Sealed(12, x, z)) continue; bool on = false; for (const auto& q : crew) if (q.level == 12 && lv.CellX(q.p.x) == x && lv.CellZ(q.p.z) == z) on = true; if (on) continue; seals.push_back({12, x, z, 1, 60}); Emit(E_TELL, p.id, -1, 12, lv.Center(x, z), 6, "somewhere close a doorway closes like a mouth"); break; } }
+    }
+    if (levels.count(17)) {   // the carrier rolls: loose things slide, and cargo falls on whoever's standing
+        float r = Roll(); if (fabsf(r) > 0.85f && fabsf(rollPrev) <= 0.85f) { Level& lv = levels[17]; int dir = r > 0 ? 1 : -1;
+            for (auto& it : items) if (it.level == 17) { int x = lv.CellX(it.p.x) + dir, z = lv.CellZ(it.p.z); if (lv.Walkable(x, z) && !lv.Solid(x, z)) it.p.x += dir * CELL; }
+            for (auto& p : crew) if (p.level == 17 && p.st == PS_ALIVE && !p.crouched && Rand() < 0.3f) { Hurt(p, 10, "falling cargo"); p.stunT = std::max(p.stunT, 1.0f); }
+            Emit(E_TELL, -1, -1, 17, {}, 1, "the whole ship heels over; something heavy breaks loose"); }
+        rollPrev = r;
+    }
     for (auto& p : crew) if (p.present) StepPlayer(p);
     // dropped lights and toys burn down
     for (auto& w : items) w.noiseT = std::max(0.0f, w.noiseT - STEP);
@@ -610,7 +651,7 @@ void World::Step() {
     }
     // everyone gone (dead, taken or up): the day ends; if nobody made it, the death fee
     bool anyAlive = false, anyUp = false; for (const auto& p : crew) { if (p.st == PS_ALIVE || p.st == PS_DOWNED) anyAlive = true; if (p.st == PS_SURFACE) anyUp = true; }
-    if (!anyAlive) { if (mode == 1 && !won) { failed = true; memo = "Lost: nobody found the way out."; } if (!anyUp) cash -= (int)(cash * D().deathFee); EndDay(anyUp); }
+    if (!anyAlive && inDay) { if (mode == 1 && !won) { failed = true; memo = "Lost: nobody found the way out."; } if (!anyUp) cash -= (int)(cash * D().deathFee); EndDay(anyUp); }
 }
 
 

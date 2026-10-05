@@ -80,6 +80,10 @@ void World::StepEntity(Entity& e) {
     };
     auto wander = [&](float speed) { if (Vector3Distance(e.goal, e.p) < 1 || e.t > 20) { e.t = 0; for (int t = 0; t < 20; t++) { int x = lv.CellX(e.p.x) + RandI(17) - 8, z = lv.CellZ(e.p.z) + RandI(17) - 8; if (lv.Walkable(x, z) && lv.At(x, z) != T_PIT && lv.At(x, z) != T_LABFLOOR) { e.goal = lv.Center(x, z); break; } } e.path.clear(); } moveTo(e.goal, speed); };
     auto attack = [&](Player& p, float dmg, int injury, const char* cause) { if (e.cool > 0) return; e.cool = 1.6f; Hurt(p, dmg, cause, injury); };
+    if (b == "survivor") {   // the Rescue contract: follows whoever found them, slowly; low sanity, no fight
+        if (e.target < 0 || e.target >= (int)crew.size()) return; const Player& f = crew[e.target]; if (!f.Alive() || f.level != e.level) return;
+        if (Vector3Distance(f.p, e.p) > 1.6f) moveTo(f.p, Vector3Distance(f.p, e.p) > 6 ? ed.chase : ed.walk); return;
+    }
     // the Siren: everything on the level comes to the Lab
     for (const auto& l : labs) if (l.level == e.level && l.sirenT > 0 && b != "seer" && b != "leviathan") { const LabPlan& lp = lv.labs[l.idx]; moveTo(lv.Center(lp.doorX, lp.doorZ), ed.chase); return; }
     Player* P = tgt >= 0 ? &crew[tgt] : nullptr;
@@ -236,7 +240,7 @@ void World::StepEntities() {
     ents.erase(std::remove_if(ents.begin(), ents.end(), [&](const Entity& e) { return e.st == ES_GONE || std::find(occupied.begin(), occupied.end(), e.level) == occupied.end(); }), ents.end());
     // a breach: an entity in a Lab's drop-off while nobody's there tips the crate
     for (auto& e : ents) {
-        if (D().entities[e.def].behaviour == "seer" || D().entities[e.def].behaviour == "leviathan") continue;
+        if (D().entities[e.def].behaviour == "seer" || D().entities[e.def].behaviour == "leviathan" || D().entities[e.def].behaviour == "survivor") continue;
         LabState* lab = LabAt(e.level, e.p); if (!lab || lab->crate.empty()) continue;
         bool manned = false; for (const auto& p : crew) if (p.Alive() && LabAt(p.level, p.p) == lab) manned = true; if (manned) continue;
         int n = std::max(1, (int)lab->crate.size() / 3); Level& lv = L(e.level); const LabPlan& lp = lv.labs[lab->idx];

@@ -33,7 +33,8 @@ void BotInput(World& w, int me, Input& in, std::vector<Command>& cmds, uint32_t&
     if (!w.inDay) {
         if (w.failed) { in = o; return; }
         if (!w.bay.empty()) { int need = w.quota - w.credit; Command c; c.kind = C_SELL_ALL; c.a = need > 0 ? 0 : 1; cmds.push_back(c); in = o; return; }
-        for (const char* id : {"battery", "almond", "medkit", "fuel", "bandages"}) if (tool(id) < 0) { int it = ItemIndex(id); if (it >= 0 && w.cash > D().items[it].price + 60) { Command c; c.kind = C_BUY; c.a = it; cmds.push_back(c); in = o; return; } }
+        bool slot = false; for (int k = 0; k < p.toolSlots; k++) if (p.tools[k].item < 0) slot = true;
+        if (slot) for (const char* id : {"battery", "almond", "medkit", "fuel", "bandages"}) if (tool(id) < 0) { int it = ItemIndex(id); if (it >= 0 && w.cash > D().items[it].price + 60) { Command c; c.kind = C_BUY; c.a = it; cmds.push_back(c); in = o; return; } }
         bool humans = false; for (const auto& q : w.crew) if (!q.bot && q.present) humans = true;
         if (!humans && me == 0) { Command c; c.kind = C_START_DAY; cmds.push_back(c); }
         in = o; return;
@@ -47,6 +48,13 @@ void BotInput(World& w, int me, Input& in, std::vector<Command>& cmds, uint32_t&
     if (p.battery <= 0) { int k = tool("battery"); if (k >= 0) { o.slot = k; p.sel = k; o.primary = true; in = o; return; } }
     // a downed teammate nearby: revive them
     for (const auto& q : w.crew) if (q.id != me && q.level == p.level && q.st == PS_DOWNED && Vector3Distance(q.p, p.p) < 25) { if (Vector3Distance(q.p, p.p) < 1.5f) { o.use = true; in = o; return; } Follow(w, p, o, q.p, true); in = o; return; }
+    // a sealed hatch on this level: someone may be trapped; turn the nearest valve
+    { bool hatch = false; for (const auto& s : w.seals) if (s.level == p.level && s.kind == 0) hatch = true;
+      if (hatch) { const World::Lever* best = nullptr; float bd = 1e9f; for (const auto& l : w.levers) if (l.level == p.level && l.kind == 0) { float d = Vector3Distance(l.at, p.p); if (d < bd && !w.Path(p.level, p.p, l.at, 4000).empty()) { bd = d; best = &l; } }
+        if (best) { if (bd < 1.4f) o.use = true; else Follow(w, p, o, best->at, true); in = o; return; } } }
+    // a lost survivor nearby (the Rescue contract): bring them along
+    for (const auto& e : w.ents) if (e.level == p.level && D().entities[e.def].id == "survivor" && e.target == me && Vector3Distance(e.p, p.p) > 7) { o.yaw = atan2f(e.p.z - p.p.z, e.p.x - p.p.x); in = o; return; }   // (wait for them)
+    for (const auto& e : w.ents) if (e.level == p.level && D().entities[e.def].id == "survivor" && e.target < 0 && (Vector3Distance(e.p, p.p) < 30 || (w.contract >= 0 && D().contracts[w.contract].id == "rescue"))) { if (Vector3Distance(e.p, p.p) < 1.8f) { o.use = true; o.yaw = atan2f(e.p.z - p.p.z, e.p.x - p.p.x); } else Follow(w, p, o, e.p, false); in = o; return; }
     int labIdx = Online(w, p.level); LabState* lab = labIdx >= 0 ? &w.labs[labIdx] : nullptr; Level& lv = w.L(p.level);
     // going home: late, or the crew's crate is enough, or the pockets are full
     bool full = p.hands.def >= 0 || (p.pocket[0].def >= 0 && p.pocket[1].def >= 0);
@@ -210,6 +218,7 @@ int RunNoclipTest() {
     {
         World w; w.Init(0, 3, 0, 31); uint32_t r = 5; int steps = 0; int day0 = w.day;
         while (w.day == day0 && steps < 60 * 30 * 40) { for (auto& p : w.crew) BotInput(w, p.id, p.in, p.cmds, r); w.Step(); steps++; }
+        Check(w.day == day0 + 1, "a day ends exactly once (the last extraction doesn't skip a day)", Fm("day %.0f", w.day));
         Check(w.day > day0 && !w.bay.empty(), "a bot crew of three works a day and extracts with loot", Fm("bay %.0f items, %.1f min", w.bay.size(), steps * STEP / 60));
     }
     // the modes
@@ -236,6 +245,45 @@ int RunNoclipTest() {
         World w; w.Init(1, 0, 0, 53); w.labs[0].upgrades |= 1 << 6; w.crew[0].cmds.push_back(Command{C_START_DAY}); w.Step();
         w.crew[0].cmds.push_back(Command{C_SIREN}); w.Step(); Check(w.labs[0].sirenT > 0, "the Siren upgrade sounds from the desk", Fm("%.0f s", w.labs[0].sirenT));
     }
+    // the levels' own rules and the last two contracts
+    {   // Level 2: a dead end's hatch seals; a valve opens it
+        World w; w.Init(1, 0, 0, 59); w.crew[0].cmds.push_back(Command{C_START_DAY}); w.Step(); Player& p = w.crew[0]; Level& lv = w.L(2); p.level = 2; w.Rand();
+        int dx = -1, dz = -1; for (int z = 1; z < lv.h - 1 && dx < 0; z++) for (int x = 1; x < lv.w - 1; x++) { if (lv.At(x, z) != T_FLOOR) continue; int n = 0; const int D4[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}}; for (auto& d : D4) if (lv.Walkable(x + d[0], z + d[1])) n++; if (n == 1) { dx = x; dz = z; break; } }
+        bool sealedOnce = false; for (int k = 0; k < 40 && !sealedOnce && dx >= 0; k++) { w.trapRooms.clear(); w.seals.clear(); p.p = lv.Center(dx, dz); w.StepMeters(p); sealedOnce = !w.seals.empty(); }
+        bool opened = false; if (sealedOnce && !w.levers.empty()) { p.p = w.levers[0].at; p.yaw = 0; w.Interact(p); opened = w.seals.empty(); }
+        Check(sealedOnce && opened, "Level 2: a dead end's hatch slams behind you, and a valve opens it", Fm("%.0f valves", w.levers.size()));
+    }
+    {   // Level 3: the breaker turns the power off (dark, quiet) and back on
+        World w; w.Init(1, 0, 0, 61); w.crew[0].cmds.push_back(Command{C_START_DAY}); w.Step(); Player& p = w.crew[0]; w.L(3); p.level = 3;
+        bool ok = false; if (!w.levers.empty()) { p.p = w.levers[0].at; w.Interact(p); bool off = !w.power; w.Interact(p); ok = off && w.power; }
+        Check(ok, "Level 3: a breaker cuts the power and restores it", Fm("%.0f breakers", w.levers.size()));
+    }
+    {   // Level 5: a room ending in 3 is a trap
+        World w; w.Init(1, 0, 0, 67); w.crew[0].cmds.push_back(Command{C_START_DAY}); w.Step(); Player& p = w.crew[0]; Level& lv = w.L(5); p.level = 5;
+        int tx = -1, tz = -1; for (int z = 0; z < lv.h && tx < 0; z++) for (int x = 0; x < lv.w; x++) if (lv.At(x, z) == T_DOOR && World::RoomNumber(x, z) % 10 == 3) { tx = x; tz = z; break; }
+        size_t before = w.ents.size(); float h = p.health; if (tx >= 0) { p.p = lv.Center(tx, tz); w.StepMeters(p); }
+        Check(tx >= 0 && p.health < h && w.ents.size() > before, "Level 5: a room ending in 3 is a trap (a hurt and a Hound)", Fm("room %.0f", tx >= 0 ? World::RoomNumber(tx, tz) : 0));
+    }
+    {   // Level 17: the lower decks flood through the day
+        World w; w.Init(1, 0, 0, 71); w.crew[0].cmds.push_back(Command{C_START_DAY}); w.Step(); Level& lv = w.L(17); int r0 = w.FloodRow(lv); w.clock = D().dayEnd - 30; int r1 = w.FloodRow(lv);
+        Check(r0 >= lv.h - 1 && r1 < lv.h - lv.h / 3, "Level 17: the lower decks flood as the day goes on", Fm("row %.0f of %.0f by evening", r1, lv.h));
+    }
+    {   // Rescue: the survivor follows the bot crew home
+        World w; w.Init(0, 1, 0, 73); w.contract = ContractIndex("rescue"); w.contractLevel = 0; w.crew[0].cmds.push_back(Command{C_START_DAY}); w.Step();
+        int si = -1; for (int i = 0; i < (int)w.ents.size(); i++) if (D().entities[w.ents[i].def].id == "survivor") si = i;
+        uint32_t r = 3; int steps = 0; int day0 = w.day; while (w.day == day0 && steps < 30 * 60 * 30) { for (auto& p : w.crew) BotInput(w, p.id, p.in, p.cmds, r); w.Step(); steps++;
+            if (getenv("DEPTH_RESCUETRACE") && steps % 900 == 0) { const Entity* s = nullptr; for (const auto& e : w.ents) if (D().entities[e.def].id == "survivor") s = &e; const Player& b = w.crew[0]; std::printf("    t %.0f bot L%d (%.0f,%.0f) st %d | survivor %s tgt %d (%.0f,%.0f) d %.1f | clock %.0f\n", steps * STEP, b.level, b.p.x, b.p.z, (int)b.st, s ? "yes" : "no", s ? s->target : -9, s ? s->p.x : 0, s ? s->p.z : 0, s ? Vector3Distance(s->p, b.p) : 0, w.clock); } }
+        si = -1; for (int i = 0; i < (int)w.ents.size(); i++) if (D().entities[w.ents[i].def].id == "survivor") si = i;
+        bool paid = w.credit >= 400; std::string why = si < 0 ? Fm("credit %.0f", w.credit) : Fm("credit %.0f, survivor following %.0f, on level %.0f", w.credit, si >= 0 ? w.ents[si].target : -9, si >= 0 ? w.ents[si].level : -9);
+        Check(si >= 0 && paid, "Rescue: a bot finds the survivor, who follows it to the portal (the contract pays)", why);
+    }
+    {   // the Party: accept, and a teammate fetches you back
+        World w; w.Init(2, 0, 0, 79); w.crew[0].cmds.push_back(Command{C_START_DAY}); w.Step(); Player& p = w.crew[0]; Player& q = w.crew[1];
+        Entity e; e.def = EntityIndex("partygoer"); e.level = p.level; e.p = Vector3Add(p.p, {1, 0, 0}); e.uid = 999; w.ents.push_back(e);
+        p.cmds.push_back(Command{C_ACCEPT}); w.Step(); bool there = p.atParty && p.level == 5;
+        q.level = 5; q.p = Vector3Add(p.p, {0.8f, 0, 0}); w.Interact(q);
+        Check(there && !p.atParty && p.partied, "the Party: an invitation sends you to the ballroom, and a teammate pulls you out");
+    }
     std::printf(gFails ? "NOCLIP: %d check(s) FAILED\n" : "NOCLIP: all checks passed\n", gFails);
     return gFails ? 1 : 0;
 }
@@ -249,16 +297,18 @@ int RunNoclipSim(int crewN, int days, int runs) {
             for (auto& p : w.crew) BotInput(w, p.id, p.in, p.cmds, rng);
             size_t e0 = w.evCount; w.Step(); steps++;
             for (const auto& p : w.crew) if (p.Alive()) levels[p.level]++;
+            if (getenv("DEPTH_SIMLOG") && steps % 9000 == 0) { std::printf("      step %d: day %d inDay %d clock %.0f ot %d |", steps, w.day, (int)w.inDay, w.clock, (int)w.overtime); for (const auto& p : w.crew) std::printf(" [L%d st%d %.0f,%.0f h%.0f]", p.level, (int)p.st, p.p.x, p.p.z, p.health); std::printf(" bay %d crate %d\n", (int)w.bay.size(), w.CrateTotal()); }
             uint32_t fresh = w.evCount - (uint32_t)e0; for (size_t k = w.events.size() - std::min<size_t>(fresh, w.events.size()); k < w.events.size(); k++) { const Event& e = w.events[k]; if (e.kind == E_DIED || e.kind == E_TAKEN) { deaths++; causes[e.s]++; } if (e.kind == E_DAY_END) dayCount++; if (e.kind == E_SALE && e.by == 0) credit += e.a; if (e.kind == E_QUOTA) quotaMet++; }
             if (w.week > 1 && weeks < w.week - 1) weeks = w.week - 1;
             if ((w.week - 1) * D().daysPerWeek + w.day > days) break;
         }
         extracted += w.credit;
+        if (getenv("DEPTH_SIMLOG")) std::printf("    run %d: week %d day %d, credit %d of %d, cash %d, failed %d, bay %d\n", r, w.week, w.day, w.credit, w.quota, w.cash, (int)w.failed, (int)w.bay.size());
     }
     std::printf("NOCLIP sim: %d runs, a bot crew of %d, %d days\n", runs, crewN, days);
     std::printf("  quota credit per day: %.0f; weeks' quotas met: %d; deaths: %d\n", credit / std::max(1, dayCount), quotaMet, deaths);
     for (auto& c : causes) std::printf("    died by %-32s %d\n", c.first.c_str(), c.second);
-    std::printf("  time spent by level:"); for (auto& l : levels) std::printf(" L%d %.0f%%", l.first, 100.0 * l.second / std::max(1, (int)(runs * 1))); std::printf("\n");
+    std::printf("  time spent by level:"); double tot = 0; for (auto& l : levels) tot += l.second; for (auto& l : levels) std::printf(" L%d %.0f%%", l.first, 100.0 * l.second / std::max(1.0, tot)); std::printf("\n");
     return 0;
 }
 

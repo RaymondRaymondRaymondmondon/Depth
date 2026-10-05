@@ -112,7 +112,31 @@ Arcade Game 10, on the Deep Arcade's **Action** reel. The user moved it there; t
   - the Siren.
 - **New shot:** `noclip_locker`.
 
+## The level rules and the last contracts (2026-10-05, later)
+- **Seals and levers:**
+  - `World::seals` are cells shut for now; `Move` and `Path` treat them as walls. A Level 2 hatch rusts open after 90 s if nobody turns a valve, and a Level 12 doorway reopens after a minute.
+  - `World::levers` are Level 2's valves and Level 3's breakers.
+- **Level 2:** standing in a dead end can slam its hatch behind you (35%, once per dead end a day). Any valve opens every hatch on the level.
+- **Level 3:** a breaker toggles `power`.
+  - On: live floors work and the machines halve footstep noise.
+  - Off: the level goes dark (like Lights Out) and the elevator exit is dead.
+- **Level 5:** doors have room numbers (`World::RoomNumber`, shown as the prompt). Rooms ending in 3 are traps: a cut and a Hound.
+- **Level 12:** every 35-55 s a doorway near the crew closes for a minute. The house's Seers already sealed rooms, and Lab Mo was already off the network.
+- **Level 17:**
+  - The carrier rolls (`World::Roll`, which also tilts the camera). On a big heel, loose loot slides a cell, and falling cargo can hit anyone standing.
+  - The lower decks flood through the day (`FloodRow`: up to 45% of the rows by evening), slowing you and draining stamina. The water is drawn.
+- **Rescue:** a lost salvager (entity `survivor`) waits on the contract's level. E makes them follow you, and they follow you through doors. The contract pays if they're in the Lab when its portal takes the crew.
+- **The Party:** accepting an invitation puts you in the Level 5 ballroom, held there. A teammate's E pulls you out, and the contract pays when you're extracted.
+- **Bots:**
+  - They turn a valve when a hatch is sealed.
+  - On Rescue days they go to the survivor and wait for them.
+  - They no longer stall at the Surface on a full tool belt.
+- **Bug fixed:** when the last of the crew extracted, `EndDay` ran twice in one step and a day was skipped. A new check covers it.
+- **The sim's report:** `--noclip-sim` reports time by level properly. `DEPTH_SIMLOG=1` prints each run and a periodic trace.
+- **Sim result:** a bot crew of 3 meets week 1's quota in 3 of 3 runs.
+
 ## Still simpler than the doc
-- **Level mechanics not built:** Level 2's valves, Level 3's breaker graph, Level 5's trapped rooms, Level 12 changing behind you, and Level 17's rolling and flooding.
-- **Contracts:** Party and Rescue are never offered.
-- **Bots:** they don't plan multi-level routes beyond one scouting hop.
+- Level 3's cages and arc flashes; Level 17's bulkheads and the flight deck's wind.
+- Rooms in Level 12 don't regenerate (doorways only close and reopen).
+- Bots never accept a Party invitation, and don't fetch a partying human.
+- Bots don't plan multi-level routes beyond one scouting hop.

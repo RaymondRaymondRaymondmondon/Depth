@@ -22,6 +22,7 @@
     {"id": "warden", "name": "The Warden", "hunts": "corridors during lockdown", "behaviour": "warden", "speed": [1.2, 3.5], "damage": 0, "tell": "Keys jingling", "counter": "Be in a cell when the bell rings; pick the lock (crowbar, loud)", "bounty": 140},
     {"id": "crew", "name": "The Crew", "hunts": "sight and voice", "behaviour": "mimic", "speed": [1.4, 5.5], "damage": 100, "tell": "A bosun's whistle", "counter": "As Skin-Stealers", "bounty": 120},
     {"id": "friend", "name": "The Friends", "hunts": "dropped loot", "behaviour": "friend", "speed": [1.5, 3.5], "damage": 0, "tell": "Giggles", "counter": "Don't put loot down; play with them and they give it back", "bounty": 60},
-    {"id": "innkeeper", "name": "The Innkeeper", "hunts": "theft", "behaviour": "innkeeper", "speed": [1.0, 5.0], "damage": 80, "tell": "A bell rings", "counter": "Pay for drinks (yes, really)", "bounty": 160}
+    {"id": "innkeeper", "name": "The Innkeeper", "hunts": "theft", "behaviour": "innkeeper", "speed": [1.0, 5.0], "damage": 80, "tell": "A bell rings", "counter": "Pay for drinks (yes, really)", "bounty": 160},
+    {"id": "survivor", "name": "A lost Bureau salvager", "hunts": "nothing", "behaviour": "survivor", "speed": [1.2, 1.6], "damage": 0, "tell": "A hard hat in the dark, and someone muttering their employee number", "counter": "Rescue contract: E to make them follow; get them into a Lab's portal hall when it opens", "bounty": 0}
   ]
 }

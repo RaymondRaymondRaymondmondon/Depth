@@ -237,6 +237,11 @@ void DrawHud(Game& g) {
         for (const auto& e : lv.exits) if (!e.noclip && e.cx == fx && e.cz == fz) prompt = "E: " + e.label + " (to Level " + std::to_string(e.to) + ")";
         for (const auto& lp : lv.labs) { if (Vector3Distance(lv.Center(lp.breakerX, lp.breakerZ), p.p) < 1.8f) prompt = "E: a breaker (the Lab's blast door)"; if (Vector3Distance(lv.Center(lp.doorX, lp.doorZ), p.p) < 2.2f) { LabState* l = w.LabAt(p.level, lv.Center(lp.x0 + 1, lp.z0 + 1)); if (l && !l->doorOpen) prompt = "A blast door. Find the level's breaker, or pry it (a crowbar and two of you)."; } }
         for (const auto& e : w.ents) { const std::string& id = D().entities[e.def].id; if (e.level == p.level && Vector3Distance(e.p, p.p) < 2.6f && ((id == "faceling" && e.mimicOf == -2) || id == "innkeeper")) prompt = id == "faceling" ? "E: trade (a pocket thing for almond water)" : "E: pay for drinks ($20)"; }
+        for (const auto& lvr : w.levers) if (lvr.level == p.level && Vector3Distance(lvr.at, p.p) < 1.7f) prompt = lvr.kind == 0 ? "E: turn the valve (opens this level's sealed hatches)" : w.power ? "E: throw the breaker (power off: quiet, dark, the elevator dies)" : "E: throw the breaker (power on: machines, light, live floors)";
+        for (const auto& e : w.ents) if (e.level == p.level && D().entities[e.def].id == "survivor" && Vector3Distance(e.p, p.p) < 2.2f && e.target != S.me) prompt = "E: \"Are you... Bureau?\" (they'll follow you; get them to a Lab's portal)";
+        for (const auto& q : w.crew) if (q.id != S.me && q.atParty && q.level == p.level && Vector3Distance(q.p, p.p) < 2.0f) prompt = "E: pull " + q.name + " out of the party";
+        if (p.level == 5) { int dx = lv.CellX(front.x), dz = lv.CellZ(front.z); if (lv.At(dx, dz) == T_DOOR && prompt.empty()) prompt = "Room " + std::to_string(World::RoomNumber(dx, dz)); }
+        if (p.atParty) prompt = "You're at the party. It's lovely. (Someone has to come and fetch you.)";
         if (!prompt.empty() && S.panel < 0 && !S.map) DrawTextCentered(prompt, cx, cy + 34, 16, INK);
     }
     {   // the scanner, if you carry one
@@ -342,7 +347,7 @@ void StepCamera(float dt) {
     S.cam.position = eye; float yaw = S.camYaw, pitch = S.camPitch;
     if (p.lostT > 0) { yaw = p.yaw; }
     if (p.sanity < 30) { yaw += sinf(S.t * 0.7f) * 0.01f; pitch += cosf(S.t * 0.5f) * 0.01f; }
-    S.cam.target = Vector3Add(eye, {cosf(pitch) * cosf(yaw), sinf(pitch), cosf(pitch) * sinf(yaw)}); S.cam.up = {0, 1, 0}; S.cam.fovy = 72; S.cam.projection = CAMERA_PERSPECTIVE;
+    S.cam.target = Vector3Add(eye, {cosf(pitch) * cosf(yaw), sinf(pitch), cosf(pitch) * sinf(yaw)}); S.cam.up = {0, 1, 0}; if (p.level == 17 && w.inDay) { float r = w.Roll() * 0.07f; Vector3 fw{cosf(yaw), 0, sinf(yaw)}, rt{-fw.z, 0, fw.x}; S.cam.up = Vector3Add(Vector3Scale({0, 1, 0}, cosf(r)), Vector3Scale(rt, sinf(r))); } S.cam.fovy = 72; S.cam.projection = CAMERA_PERSPECTIVE;
 }
 void Voice() {
     if (!S.net) return; World& w = W(); const Player& me = Me();

@@ -209,7 +209,7 @@ LevelGfx& Gfx(const Level& L) {
 }
 // the light grid this frame: steady panels, flickering ones, Level 1's lights-out, Overtime, Labs with power
 void UpdateLights(const World& w, const Level& L, LevelGfx& G, float t, float sanity, const Player* me) {
-    bool out = w.overtime || (L.id == 1 && w.lightsOutT > 0) || w.mode == 3;
+    bool out = w.overtime || (L.id == 1 && w.lightsOutT > 0) || w.mode == 3 || (L.id == 3 && !w.power);
     for (int i = 0; i < L.w * L.h; i++) {
         uint8_t l = L.light[i]; float b = 0;
         if (l == 255) b = 1; else if (l >= 128) { float ph = (l - 128) * 0.37f; b = (sinf(t * (3 + (l % 7)) + ph) > -0.6f && Nz(i, (int)(t * 8), 3) > 0.08f) ? 0.9f : 0.15f; } else if (l > 0) b = l / 255.0f;
@@ -312,6 +312,7 @@ Look LookOf(const std::string& id) {
     else if (id == "duller") { k.body = {110, 110, 110, 255}; k.head = {130, 130, 130, 255}; k.legs = k.body; k.face = false; }
     else if (id == "wretch") { k.body = {100, 104, 96, 255}; k.head = {120, 120, 110, 255}; k.legs = k.body; k.height = 1.5f; }
     else if (id == "skinstealer" || id == "mirrorthing" || id == "crew") { k.body = id == "crew" ? Color{40, 50, 80, 255} : Color{230, 225, 220, 255}; k.head = {240, 236, 230, 255}; k.legs = k.body; k.height = 2.2f; k.width = 0.35f; if (id == "mirrorthing") { k.body = {200, 230, 240, 255}; k.head = k.body; } }
+    else if (id == "survivor") { k.body = {200, 140, 40, 255}; k.head = {210, 180, 150, 255}; k.legs = {60, 60, 70, 255}; k.hat = true; k.hatC = {240, 200, 40, 255}; }
     else if (id == "partygoer") { k.body = {250, 220, 60, 255}; k.head = {250, 230, 90, 255}; k.legs = k.body; k.party = true; }
     else if (id == "neighbor") { k.body = {20, 20, 24, 255}; k.head = {20, 20, 24, 255}; k.legs = k.body; k.face = false; k.height = 1.9f; }
     else if (id == "orderly") { k.body = {120, 170, 160, 255}; k.head = {230, 220, 210, 255}; k.legs = k.body; k.height = 2.4f; k.width = 0.4f; }
@@ -427,6 +428,11 @@ void Render(const World& w, const View& v) {
     DrawLabFittings(w, L, v.t);
     for (const auto& item : w.items) if (item.level == v.level && Vector3Distance(item.p, v.cam.position) < 45) { if (item.loot.def >= 0) DrawLoot(item.loot, item.p, v.t, (item.loot.uid % 7) * 0.9f); else { const std::string& u = D().items[-1 - item.loot.def].use; Color c = u == "flare" ? Color{255, 60, 40, 255} : u == "glowstick" ? Color{80, 255, 120, 255} : u == "musicbox" ? Color{200, 160, 90, 255} : Color{150, 150, 160, 255}; Box(Vector3Add(item.p, {0, 0.1f, 0}), {0.12f, 0.12f, 0.3f}, c, 0, u == "flare" || u == "glowstick" ? 3.0f : 0); } }
     for (const auto& e : w.ents) if (e.level == v.level && Vector3Distance(e.p, v.cam.position) < 50) DrawEntity(w, e, v.t, v.me);
+    // seals (a Level 2 hatch, a Level 12 doorway grown shut), valves and breakers, Level 17's flood
+    for (const auto& s : w.seals) if (s.level == v.level) { Vector3 c{(s.cx + 0.5f) * CELL, 0, (s.cz + 0.5f) * CELL}; if (s.kind == 0) { Box(Vector3Add(c, {0, 1.3f, 0}), {CELL, 2.6f, CELL}, Color{90, 80, 60, 255}); Box(Vector3Add(c, {0, 1.3f, 0}), {CELL * 0.5f, 0.12f, CELL * 1.02f}, Color{150, 120, 60, 255}); } else { Box(Vector3Add(c, {0, 1.3f, 0}), {CELL * 0.98f, 2.6f, CELL * 0.98f}, Color{170, 90, 90, 255}); BallM(Frame(Vector3Add(c, {0, 1.5f, 0}), 0), {0, 0, 0}, {0.3f, 0.12f + 0.06f * sinf(v.t * 1.3f + s.cx), CELL * 0.52f}, Color{120, 40, 50, 255}); } }
+    for (const auto& lv2 : w.levers) if (lv2.level == v.level && Vector3Distance(lv2.at, v.cam.position) < 40) { if (lv2.kind == 0) { Box(Vector3Add(lv2.at, {0, 0.5f, 0}), {0.12f, 1.0f, 0.12f}, Color{120, 100, 70, 255}); Matrix f = Frame(Vector3Add(lv2.at, {0, 1.05f, 0}), v.t * 0.2f); for (int k = 0; k < 4; k++) BoxM(MatrixMultiply(MatrixRotateY(k * PI / 4), f), {0, 0, 0}, {0.6f, 0.05f, 0.05f}, Color{200, 60, 40, 255}); }
+        else { Box(Vector3Add(lv2.at, {0, 0.9f, 0}), {0.6f, 1.2f, 0.3f}, Color{70, 74, 80, 255}); Box(Vector3Add(lv2.at, {0, w.power ? 1.2f : 0.7f, 0.2f}), {0.08f, 0.3f, 0.08f}, Color{220, 200, 60, 255}); Box(Vector3Add(lv2.at, {0.2f, 1.4f, 0.16f}), {0.06f, 0.06f, 0.02f}, w.power ? Color{60, 255, 80, 255} : Color{255, 50, 40, 255}, 3.0f); } }
+    if (v.level == 17) { auto it = w.levels.find(17); if (it != w.levels.end()) { const Level& lv = it->second; int row = w.FloodRow(lv); if (row < lv.h) { float z0 = row * CELL, z1 = lv.h * CELL; Box({lv.w * CELL * 0.5f, 0.35f + 0.05f * sinf(v.t), (z0 + z1) * 0.5f}, {lv.w * CELL, 0.02f, z1 - z0}, Color{50, 80, 90, 200}); } } }
     for (const auto& m : w.marks) if (m.level == v.level && Vector3Distance(m.at, v.cam.position) < 30) { Matrix f = Frame(Vector3Add(m.at, {0, 1.4f, 0}), m.yaw); BoxM(f, {0, 0, 0.05f}, {0.5f, 0.06f, 0.02f}, Color{240, 240, 235, 255}, 0.4f); BoxM(f, {0.2f, 0.08f, 0.05f}, {0.2f, 0.06f, 0.02f}, Color{240, 240, 235, 255}, 0.4f); }
     for (const auto& e : v.fakes) DrawEntity(w, e, v.t, v.me);
     for (const auto& p : w.crew) if (p.level == v.level && p.id != v.me) DrawCrewMember(w, p, v.t, v.teammatesAsFacelings);
