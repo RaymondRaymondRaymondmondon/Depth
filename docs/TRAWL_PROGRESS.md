@@ -1,4 +1,4 @@
-﻿# The Trawl: build log
+# The Trawl: build log
 
 Design: `The_Trawl_Reference/The Trawl â€” Arcade Game 2 Design Document (Draft).pdf` (50 pages). Numbers live in
 `src/trawl_data.cpp` (and, from stage 3, species records in `data/trawl/trawl_species.json`).
@@ -841,3 +841,16 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
 - `Item::Cup` (appended after `Weapon`). The Chandler sells it for 5 shillings ("cup"), and it goes into the buyer's own hands. **It never runs dry** (the user: "infinite yellow liquid so a player can continue to pour it").
 - Hold the use button to pour a stream just ahead of you (`Crew::pourT`, `pourAt`). Any other hand standing under it on the same deck is drenched (`Crew::yellow` rises 0.9 a second to 1). A drenched hand fades over 45 s, and a swim rinses it off. The log says "Hand N is drenched in something yellow", and a bot barks ("Oi!", "Why is it warm?"). Purely a prank: no gameplay effect.
 - Drawn top-down (the cup in hand, a dotted stream and splash, the drenched figure tinted, with a yellow puddle, a wet glint and drips) and in first person (a tin cup brimming yellow, the stream from the raised hand, the puddle round the boots, drips off the shoulders; the multiply tint alone was lost on dark oilskins). In the snapshot. Checked in `--trawl-gear-test`; shots `trawl_cup`, `trawl3d_cup`.
+
+## The Visual Overhaul, its leftovers (2026-10-05)
+- **Faces:** the shared figure has `fear`, `strain` and `grin` (`fig::Pose`). They scale the eye and mouth bones:
+  - fear: wide eyes and a round open mouth;
+  - strain: a squint and a clenched, stretched line;
+  - grin: squinting eyes and a wide open smile.
+  - When: a hand in the water, held by the Grotto or the kelp, fallen or bleeding is afraid. On a fighting rod they strain with the line's tension, and under a load over 15 kg. Everyone grins for a moment when a fish comes aboard.
+- **Wet and bloodied:** a soaked hand is darker (drying over two minutes, from `Crew::wetT`).
+  - Blood builds on their clothes and hands at the gutting table and fades over a minute; a wound bleeds onto them; a swim rinses it.
+  - Your own first-person hands show it most.
+- **Glimmer variants shimmer** like oil on water (the colours run along the body) and glow faintly, on deck, in the hold and in your hands.
+- **Gutted fish in the hold:** up to eighteen opened fish lie in rows on the ice pounds below.
+- **Harness:** `tvis_13_expressions` (at rest, afraid and soaked, straining, grinning and bloodied).

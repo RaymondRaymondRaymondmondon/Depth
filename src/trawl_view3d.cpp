@@ -706,8 +706,9 @@ static const Model& DropModel() { static Model m{}; if (m.meshCount == 0) m = Lo
 // A baked fish: 'swim' is its phase, 'amp' how hard it beats its tail (a flop on deck is a big slow one); 'dim' the
 // water's darkening. Returns false (and draws nothing) when there's no model or the frame's budget is spent.
 static float gFishDull = 0, gFishCut = 0;   // for the next DrawFishPbr: dulled after death (0 fresh .. 1), opened by the knife (0 .. 1)
+static bool gFishGlimmer = false;           // for the next DrawFishPbr: a Glimmer variant (it shimmers like oil on water)
 static bool DrawFishPbr(const std::string& species, Vector3 p, Vector3 heading, float len, float roll, float swim, float amp, Color fallback, float dim = 1) {
-    const float dull = gFishDull, cut = gFishCut; gFishDull = gFishCut = 0;   // (this call's, whatever happens below)
+    const float dull = gFishDull, cut = gFishCut; const bool glim = gFishGlimmer; gFishDull = gFishCut = 0; gFishGlimmer = false;   // (this call's, whatever happens below)
     if (gFishBudget <= 0 || getenv("DEPTH_OLDBOAT")) return false;
     const Model* m = FishModelOf(species);
     if (!m) return false;
@@ -736,6 +737,11 @@ static bool DrawFishPbr(const std::string& species, Vector3 p, Vector3 heading, 
     if (dull > 0) { back = Mul(grey(back, 0.55f * dull), 1 - 0.25f * dull); belly = Mul(grey(belly, 0.6f * dull), 1 - 0.3f * dull); }
     if (cut > 0) belly = ColorLerp(belly, Color{120, 22, 20, 255}, std::min(1.0f, cut * 1.4f));
     Color fin = Mul(back, 0.8f);
+    if (glim) {   // a Glimmer: the colours run through the spectrum along the body like oil on water, and it glows faintly
+        float tt = (float)GetTime(), hue = fmodf(tt * 45 + p.x * 30 + p.z * 20, 360.0f);
+        back = ColorLerp(back, ColorFromHSV(hue, 0.7f, 0.95f), 0.55f); belly = ColorLerp(belly, ColorFromHSV(fmodf(hue + 120, 360.0f), 0.45f, 1.0f), 0.45f); fin = ColorFromHSV(fmodf(hue + 220, 360.0f), 0.8f, 0.9f);
+        rt::AddLateLight(Vector3Add(p, {0, 0.25f, 0}), 1.2f + len, ColorFromHSV(hue, 0.6f, 1.0f), 0.5f);
+    }
     unsigned char d = (unsigned char)std::clamp(dim * 255.0f, 0.0f, 255.0f);
     rt::DrawPbrSkinned(*m, w, sk, {{"back", back}, {"belly", belly}, {"fin", fin}}, 0.0f, Color{d, d, d, 255});
     return true;
@@ -1154,7 +1160,7 @@ static void DrawLanding3D(const Gannet& g, float t) {
 // ---------------------------------------------------------------- the sailors (Visual Overhaul phase 3)
 // Every hand, player or bot, is the shared skinned rig in its role's outfit (tools/artgen/crew.py), posed here in code
 // and given an identity from its slot: a skin tone, outfit shades, a build and a head shape, the same on every client.
-struct SailorLook { Role role = Role::Bosun; Color skin{}, top{}, trousers{}, hat{}, hair{}; float build = 1, height = 1, headW = 1, headH = 1; int beard = 0; const char* costume = nullptr; };   // costume: a model of skins::Costume   // beard: 0 none, 1 full, 2 moustache, 3 chops
+struct SailorLook { Role role = Role::Bosun; Color skin{}, top{}, trousers{}, hat{}, hair{}; float build = 1, height = 1, headW = 1, headH = 1; int beard = 0; const char* costume = nullptr; float wet = 0, blood = 0; };   // costume: a model of skins::Costume   // beard: 0 none, 1 full, 2 moustache, 3 chops
 static int gLocalSlot = -1;   // your own hand's slot (DrawTrawl3D): it wears the Wardrobe's skin
 static SailorLook LookOf(const Crew& c) {
     SailorLook L; L.role = c.role;
@@ -1181,6 +1187,13 @@ static SailorLook LookOf(const Crew& c) {
     if (sk) { L.top = sk->top; L.trousers = sk->trousers; L.hat = sk->hat; }
     const skins::Costume* co = c.slot == gLocalSlot ? skins::WornCostume(skins::TRAWL) : skins::FindCostume(skins::TRAWL, c.costume);
     if (co) { L.costume = co->model; L.top = co->sleeve; }
+    // wet and bloodied (the Visual Overhaul Spec, characters): soaked after a swim (darker, drying over two minutes);
+    // blood from the gutting table (it builds while they work there and fades over a minute; a swim rinses it) or a wound
+    {   static float bloodK[16] = {}; static double lastT[16] = {}; int s = std::clamp(c.slot, 0, 15); double now = GetTime(); float dt = (float)std::min(0.25, now - lastT[s]); lastT[s] = now;
+        bool gutting = c.station >= 0 && c.station < (int)Stations().size() && Stations()[c.station].kind == StationKind::Gutting;
+        bloodK[s] = c.overboard ? 0.0f : std::clamp(bloodK[s] + (gutting ? dt * 0.06f : -dt / 60.0f), 0.0f, 0.85f);
+        L.blood = std::max(bloodK[s], c.bleedT > 0 ? 0.6f : 0.0f);
+        L.wet = c.overboard ? 1.0f : std::clamp(c.wetT / 120.0f, 0.0f, 1.0f); }
     return L;
 }
 using SailorPose = fig::Pose;   // (the pose and its IK live in figure3d.cpp, shared with Red Tide's divers)
@@ -1380,7 +1393,8 @@ static void DrawSailor(const SailorLook& L, const SailorPose& P, Matrix frame, f
     const Model* m = SailorModel(L.role);
     if (!m) return;
     std::vector<Matrix> skin = PoseSailor(*m, L, P, t);
-    std::vector<rt::Recolor> rc = {{"skin", L.skin}, {"top", L.top}, {"trousers", L.trousers}, {"hat", L.hat}};
+    auto soak = [&](Color c) { float k = 1 - 0.38f * L.wet; c = {(unsigned char)(c.r * k), (unsigned char)(c.g * k), (unsigned char)(c.b * k), c.a}; return ColorLerp(c, Color{104, 18, 14, 255}, L.blood * 0.42f); };
+    std::vector<rt::Recolor> rc = {{"skin", ColorLerp(L.skin, Color{150, 40, 30, 255}, L.blood * 0.12f)}, {"top", soak(L.top)}, {"trousers", soak(L.trousers)}, {"hat", soak(L.hat)}};
     rt::DrawPbrSkinned(*m, frame, skin, rc, 0.35f, tint);
     if (L.costume && !P.fp) fig::DrawCostume(L.costume, *m, skin, frame, tint);   // (in first person only its sleeves' colour)
     if (L.beard > 0 && !P.fp) {   // facial hair rides the head bone, in the sailor's hair colour
@@ -1448,7 +1462,8 @@ static Vector3 DrawFirstPersonBody(const Crew& me, const Camera3D& cam, float t,
         for (int s = 0; s < 2; s++) if (!gripOn || gripOn[s]) { P.ik[s] = true; P.target[s] = Vector3Transform(grips[s], inv); }
     }
     std::vector<Matrix> skin = PoseSailor(*m, L, P, t);
-    std::vector<rt::Recolor> rc = {{"skin", L.skin}, {"top", L.top}, {"trousers", L.trousers}, {"hat", L.hat}};
+    auto soak = [&](Color c) { float k = 1 - 0.38f * L.wet; c = {(unsigned char)(c.r * k), (unsigned char)(c.g * k), (unsigned char)(c.b * k), c.a}; return ColorLerp(c, Color{104, 18, 14, 255}, L.blood * 0.42f); };
+    std::vector<rt::Recolor> rc = {{"skin", ColorLerp(L.skin, Color{150, 40, 30, 255}, L.blood * 0.25f)}, {"top", soak(L.top)}, {"trousers", soak(L.trousers)}, {"hat", soak(L.hat)}};   // (your own hands show the blood more)
     rt::DrawPbrSkinned(*m, frame, skin, rc, 0.35f, WHITE);
     return SailorGrip(*m, skin, frame);
 }
@@ -1491,6 +1506,15 @@ static void DrawHandSailor(const Gannet& g, const Crew& c, float t) {
         int ci = (int)(&c - &g.crew[0]);
         if (ci >= 0 && ci < (int)g.brains.size() && g.brains[ci].barkT > 0) P.shout = 0.55f + 0.45f * sinf(t * 18);
         if (c.talk > 0.05f) P.shout = std::max(P.shout, 0.2f + 0.7f * c.talk * (0.55f + 0.45f * sinf(t * 23 + c.slot)));   // (a player talking: the mouth works with their voice)
+    }
+    {   // faces: fear in the water, held or bleeding; strain on a heavy fish or a heavy load; a grin when a fish comes aboard
+        static int seenLanded = -1; static float grinUntil = -1; int landed = g.landedSmall + g.landedBig;
+        if (seenLanded >= 0 && landed > seenLanded) grinUntil = t + 2.5f; seenLanded = landed;
+        P.fear = c.overboard ? 0.9f : (c.tangleT > 0 || c.heldT > 0) ? 0.8f : c.fallen ? 0.55f : c.bleedT > 0 ? 0.4f : 0;
+        for (const auto& r : g.rods) if (r.station == c.station && c.station >= 0 && r.state == RodState::Fighting) P.strain = std::max(P.strain, std::clamp(r.fight.tension / std::max(1.0f, TackleOf(r.tackle).strength) * 1.3f, 0.0f, 1.0f));
+        if (c.carryKg > 15) P.strain = std::max(P.strain, std::clamp((c.carryKg - 15) / 30, 0.0f, 0.8f));
+        if (t < grinUntil && !c.overboard && !c.dead) P.grin = std::clamp((grinUntil - t) / 0.6f, 0.0f, 1.0f) * (1 - P.strain);
+        if (c.dead) { P.fear = P.strain = P.grin = 0; }
     }
     Color tint = c.dead ? Color{190, 225, 245, 120} : c.yellow > 0.01f ? ColorLerp(WHITE, Color{240, 212, 70, 255}, c.yellow * 0.65f) : WHITE;   // (drenched in something yellow)
     Item held = Item::None;
@@ -1626,11 +1650,12 @@ static void DrawHand(const Gannet& g, const Crew& c, float t) {
 // Turnarounds on a neutral stage under a lantern and the moon: 0 every role front, side and back; 1 the faces close
 // up; 2 the guns side and three-quarter (the baked test carbine beside the old box rifle); 3 the baked test head;
 // 4 four bots side by side. The current figures draw as they do aboard, so these are the "before" set.
-static void DrawFigureAt(Role role, Matrix frame, float t, int slot, int beard = -1) {
+static void DrawFigureAt(Role role, Matrix frame, float t, int slot, int beard = -1, int expr = 0) {
     if (SailorsReady()) {
         Crew c; c.role = role; c.slot = slot;
         SailorPose P; P.breathe = t * 1.7f + slot;
         SailorLook L = LookOf(c); if (beard >= 0) L.beard = beard;
+        if (expr == 1) { P.fear = 1; L.wet = 1; } else if (expr == 2) { P.strain = 1; P.reach = 0.8f; P.grip = 0.95f; } else if (expr == 3) { P.grin = 1; L.blood = 0.8f; }   // (the studio's faces: afraid and soaked, straining, grinning and bloodied)
         DrawSailor(L, P, frame, t, Item::None, WHITE);
         return;
     }
@@ -1665,6 +1690,11 @@ void DrawTrawlStudio(int which, float t) {
         lantern({-1.2f, 2.6f, 2.2f}, {0, 1.6f, 0});
         rt::RenderBegin(cam, L);
         for (int r = 0; r < 4; r++) DrawFigureAt((Role)r, Frame({(r - 1.5f) * 0.42f, 0, 0}, FRONT - 0.35f), t, r, (r + 1) % 4);   // (one of each beard)
+    } else if (which == 14) {   // the faces (the overhaul's expressions): at rest, afraid and soaked, straining, grinning with blood on them
+        cam.position = {0, 1.62f, 2.4f}; cam.target = {0, 1.45f, 0}; cam.fovy = 34;
+        lantern({-1.2f, 2.6f, 2.2f}, {0, 1.5f, 0});
+        rt::RenderBegin(cam, L);
+        for (int r = 0; r < 4; r++) DrawFigureAt((Role)r, Frame({(r - 1.5f) * 0.5f, 0, 0}, FRONT - 0.25f), t, r + 4, 0, r);
     } else if (which == 2 || which == 3) {
         cam.position = which == 2 ? Vector3{0.05f, 0.25f, 1.55f} : Vector3{0, 0.15f, 0.75f};
         cam.target = which == 2 ? Vector3{0.05f, 0.0f, 0} : Vector3{0, 0.13f, 0};
@@ -2312,9 +2342,23 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         Vector3 at = BoatPoint(b, {h.deckAt.x, DECK_Y + 0.06f + hop, h.deckAt.y});
         // (a live fish on deck lies gasping, its tail twitching, and arches through a slap; the dead lie still and dull)
         float twitch = h.dead ? 0.0f : 0.12f + arch * 0.9f;
-        gFishDull = h.dead ? std::clamp(0.35f + (1 - h.fresh) * 4, 0.0f, 1.0f) : 0.0f;
+        gFishDull = h.dead ? std::clamp(0.35f + (1 - h.fresh) * 4, 0.0f, 1.0f) : 0.0f; gFishGlimmer = h.glimmer;
         if (!DrawFishPbr(h.name, at, hd, len, 1.5f + arch * 0.4f, g.time * (arch > 0 ? 18.0f : 5.0f) + i, twitch, col, h.dead ? 0.8f : 1.0f))
             DrawFishAt(gFish, at, hd, len, col, 1.5f + arch * 0.4f);
+    }
+    // ---- the gutted catch below: opened fish laid in rows on the ice pounds of the hold (the latest on top)
+    {
+        int n = 0;
+        for (int i = (int)g.hold.size() - 1; i >= 0 && n < 18; i--) {
+            const CatchRec& h = g.hold[i];
+            if (!h.gutted || h.crated) continue;
+            int pound = n % 3, row = n / 3;
+            float len = std::clamp(0.3f + sqrtf(h.kg) * 0.2f, 0.3f, 1.0f);
+            Vector3 at = BoatPoint(b, {-2.2f + pound * 1.2f - 0.2f + (row % 2) * 0.12f, ENGINE_Y + 0.72f + (row / 2) * 0.05f, 1.35f + (row % 3) * 0.18f});
+            gFishCut = 1; gFishDull = h.iced ? 0.25f : 0.45f; gFishGlimmer = h.glimmer;
+            if (!DrawFishPbr(h.name, at, BoatDir(b, {1, 0, 0.1f * (row % 2 ? 1 : -1)}), len, 1.55f, 0, 0, Color{176, 186, 194, 255}, 0.9f)) break;
+            n++;
+        }
     }
     // ---- the web's life: schools and hunters in the water, gulls over it
     if (eco) {

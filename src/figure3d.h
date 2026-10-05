@@ -23,6 +23,7 @@ struct Pose {
     float breathe = 0, look = 0, nod = 0;   // breathing phase; head turned (rad), tipped (rad)
     float blink = 0;                    // 0 open, 1 shut
     float shout = 0;                    // the mouth open (a bark, a shout)
+    float fear = 0, strain = 0, grin = 0;   // expressions (0..1): wide eyes and an open mouth; a squint and a clenched line; a broad smile
     float swingT = 0;                   // a melee swing (0..1)
     bool fp = false;                    // your own body seen from inside it: no head, the arms up in front of you
     float aimUp = 0, twoHand = 0;       // first person: the arms tipped up (a kick, a raised swing); the left hand under a long tool

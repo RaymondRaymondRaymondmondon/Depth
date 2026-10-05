@@ -1747,7 +1747,8 @@ bool TrawlBetWinners(std::vector<int>& seats) {
     }
     if (which >= 45 && which <= 56) { S.studio = which - 45; return; }   // the visual overhaul's turnaround stage
     if (which == 58) { S.studio = 12; return; }                          // (the skins gallery)
-    if (which == 59) { S.studio = 13; return; }                          // (the costumes gallery)
+    if (which == 59) { S.studio = 13; return; }
+    if (which == 60) { S.studio = 14; return; }                          // (the faces: the expressions, wet and bloodied)                          // (the costumes gallery)
     if (which == 40 || which == 41 || which == 43 || which == 44) {
         // the visual overhaul's harness (spec, "Process and acceptance"): 40 the helm at night in the Lagoon's fog;
         // 41 a hand at the gutting table in rain; 43 aiming the lever carbine at a fish on the surface in rain

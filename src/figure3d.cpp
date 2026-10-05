@@ -60,8 +60,12 @@ std::vector<Matrix> PoseFigure(const Model& m, const Build& L, const Pose& P, fl
     if (pel >= 0) pose.scale[pel] = {L.height, L.height, L.height};
     if (ch >= 0) pose.scale[ch] = {L.build * (1 + 0.015f * br), 1 + 0.008f * br, L.build * (1 + 0.012f * br)};
     if (hd >= 0) pose.scale[hd] = {L.headW, L.headH, L.headW};
-    for (const char* e : {"eye.L", "eye.R"}) { int b = B(e); if (b >= 0) pose.scale[b] = {1, std::max(0.08f, 1 - P.blink), 1}; }
-    { int mo = B("mouth"); if (mo >= 0) pose.scale[mo] = {1, 0.3f + 1.1f * P.shout, 0.85f + 0.2f * P.shout}; }   // a thin line at rest
+    float eyeH = (1 + 0.35f * P.fear - 0.68f * P.strain - 0.5f * P.grin) * std::max(0.08f, 1 - P.blink), eyeW = 1 + 0.15f * P.fear;
+    for (const char* e : {"eye.L", "eye.R"}) { int b = B(e); if (b >= 0) pose.scale[b] = {1, std::max(0.08f, eyeH), eyeW}; }
+    { int mo = B("mouth"); if (mo >= 0) {   // a thin line at rest; a shout and fear open it (fear round), strain stretches it flat, a grin widens it
+        float hgt = 0.3f + 1.1f * P.shout + 1.3f * P.fear + 0.9f * P.grin - 0.15f * P.strain, wid = 0.85f + 0.2f * P.shout - 0.2f * P.fear + 0.55f * P.strain + 0.75f * P.grin;
+        pose.scale[mo] = {1, std::max(0.15f, hgt), std::max(0.4f, wid)};
+    } }
     // the walk: thighs swing, knees bend on the forward leg, a little hip roll; seated: thighs forward, shins down
     float s1 = sinf(P.walkPh), stride = 0.55f * P.walk;
     // swimming: a flutter kick from the hips, knees soft, the legs trailing straight behind the line of the body
