@@ -686,6 +686,12 @@ void DrawLobby() {
         gSess.gameOpts = MouthfulOpts(LENS[mfLen], mfLevel, 12, gMfMode, gMfPath);
         if (ch) gSess.Chat(TextFormat("The round: %s, %d minutes, %s filling the water to twelve", mf::ModeName(gMfMode), LENS[mfLen], LEVELS[mfLevel]));
     }
+    if (gSess.game == G_TRAWL) {   // each hand picks their own view (the playtest: guests only ever got top-down)
+        float yy = p.y + p.height - 98;
+        DrawTextCentered("Your view aboard (V switches at sea)", p.x + 250, yy - 2, 14, SCREEN_DIM);
+        if (Button({p.x + 40, yy + 18, 200, 36}, gTrawlFp ? "Top-down" : "> Top-down <", gTrawlFp, 15)) { gTrawlFp = false; PlayCue("ui.click"); }
+        if (Button({p.x + 260, yy + 18, 200, 36}, gTrawlFp ? "> First person <" : "First person", !gTrawlFp, 15)) { gTrawlFp = true; PlayCue("ui.click"); }
+    }
     if (gSess.game == G_SCUFFLE && host) {
         // the host picks the rounds to win, the arsenal (doc p. 6) and how sharp the AI seats fight
         static int sfWin = 1, sfArs = 0, sfSkill = 2, sfWorld = 0;   // (sfWorld: 0 all six, 1-6 one world, 7 endless)

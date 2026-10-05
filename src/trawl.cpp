@@ -1018,6 +1018,7 @@ void Hud(Game& g) {
             y += 16;
         }
         if (G.botsOn) Txt("G: order a hand to the station you point at   F: follow me", SCREEN_W - 260, y + 2, 11, Fade(paper, 0.4f));
+        Txt(S.fp ? "V: back to the top-down view   C/Ctrl: crouch" : "V: first person (see through your hand's eyes)", SCREEN_W - 260, y + 16, 11, Fade(paper, 0.55f));
     }
     // a leak where you stand: E patches it (6 s, 3 for a Bosun) with the ship's kits
     if (!c.overboard && !c.dead && c.station < 0 && !G.moored) {
