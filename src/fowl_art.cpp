@@ -29,7 +29,24 @@ static Matrix Local(Matrix frame, Vector3 at, Vector3 size, float rotX = 0, floa
     if (rotY) m = MatrixMultiply(m, MatrixRotateY(rotY));
     return MatrixMultiply(MatrixMultiply(m, MatrixTranslate(at.x, at.y, at.z)), frame);
 }
-static void Box(Matrix frame, Vector3 at, Vector3 size, Color c, float rx = 0, float ry = 0, float rz = 0) { rt::DrawCubeM(Local(frame, at, size, rx, ry, rz), c); }
+// a unit cube with its edges rounded off (moulded toy plastic): the toy guns' parts use it instead of the hard cube
+static Model& RoundCube() {
+    static Model m{}; if (m.meshCount) return m;
+    rt::MeshBuilder mb; const int n = 6; const float rad = 0.22f, in = 0.5f - rad;
+    auto surf = [&](Vector3 c) { Vector3 q{std::clamp(c.x * 0.5f, -in, in), std::clamp(c.y * 0.5f, -in, in), std::clamp(c.z * 0.5f, -in, in)}; Vector3 d = Vector3Subtract(Vector3Scale(c, 0.5f), q); float L = Vector3Length(d); return Vector3Add(q, L > 1e-5f ? Vector3Scale(d, rad / L) : Vector3{0, rad, 0}); };
+    for (int axis = 0; axis < 3; axis++) for (int s = -1; s <= 1; s += 2) {
+        int ua = (axis + 1) % 3, va = (axis + 2) % 3;
+        auto P = [&](int i, int j) { float c3[3]; c3[axis] = (float)s; c3[ua] = -1 + 2.0f * i / n; c3[va] = -1 + 2.0f * j / n; return surf({c3[0], c3[1], c3[2]}); };
+        for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) {
+            Vector3 a = P(i, j), b = P(i + 1, j), c = P(i + 1, j + 1), d = P(i, j + 1);
+            Vector3 nn = Vector3CrossProduct(Vector3Subtract(b, a), Vector3Subtract(c, a));
+            if ((&nn.x)[axis] * s >= 0) { mb.Tri(a, b, c, WHITE); mb.Tri(a, c, d, WHITE); } else { mb.Tri(a, c, b, WHITE); mb.Tri(a, d, c, WHITE); }
+        }
+    }
+    m = LoadModelFromMesh(mb.Build()); return m;
+}
+static bool gRoundBoxes = false;   // (on while a toy gun draws)
+static void Box(Matrix frame, Vector3 at, Vector3 size, Color c, float rx = 0, float ry = 0, float rz = 0) { if (gRoundBoxes) rt::DrawStatic(RoundCube(), Local(frame, at, size, rx, ry, rz), c); else rt::DrawCubeM(Local(frame, at, size, rx, ry, rz), c); }
 static void Ball(Matrix frame, Vector3 at, Vector3 r, Color c, float glow = 0) { Matrix m = Local(frame, at, r); if (glow > 0) rt::DrawStaticGlow(Sphere(), m, c, glow); else rt::DrawStatic(Sphere(), m, c); }
 static void Glow(Matrix frame, Vector3 at, Vector3 size, Color c, float g) { rt::DrawCubeGlow(Local(frame, at, size), c, g); }
 static const Matrix ID = MatrixIdentity();
@@ -50,7 +67,11 @@ Color PaintBody(int paint) {
     if (id == "paint_golden_zapper") return {255, 206, 60, 255};
     return {178, 178, 184, 255};
 }
+static void DrawToyGunParts(int def, Matrix frame, int paint, float spin, float sc);
 void DrawToyGun(int def, Matrix frame, int paint, float spin, float sc) {
+    gRoundBoxes = true; DrawToyGunParts(def, frame, paint, spin, sc); gRoundBoxes = false;
+}
+static void DrawToyGunParts(int def, Matrix frame, int paint, float spin, float sc) {
     if (def < 0) return;
     const GunDef& G = D().guns[def]; const std::string& id = G.id;
     if (sc != 1) frame = MatrixMultiply(MatrixScale(sc, sc, sc), frame);
@@ -142,8 +163,9 @@ void DrawMarsh(float t, bool night, float flare) {
     for (int i = 0; i < 6; i++) {
         float x = -70 + i * 28 + Hf(i + 3) * 10, z = 45 + Hf(i + 11) * 60, h = 8 + Hf(i) * 6;
         Color bark = night ? Color{30, 26, 24, 255} : Color{86, 72, 60, 255};
-        rt::DrawWorldCube({x, h / 2, z}, {0.5f, h, 0.5f}, bark);
-        for (int b = 0; b < 4; b++) { float a = Hf(i * 9 + b) * 6.28f, y = h * (0.45f + b * 0.13f); rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(3.0f, 0.18f, 0.18f), MatrixRotateZ(0.5f)), MatrixMultiply(MatrixRotateY(a), MatrixTranslate(x, y, z))), bark); }
+        rt::DrawStatic(Cyl(), MatrixMultiply(MatrixScale(0.3f, h, 0.3f), MatrixTranslate(x, 0, z)), bark);   // (round trunks and boughs, tapering)
+        rt::DrawStatic(Cone(), MatrixMultiply(MatrixScale(0.3f, 1.6f, 0.3f), MatrixTranslate(x, h, z)), bark);
+        for (int b = 0; b < 4; b++) { float a = Hf(i * 9 + b) * 6.28f, y = h * (0.45f + b * 0.13f); rt::DrawStatic(Cone(), MatrixMultiply(MatrixMultiply(MatrixScale(0.11f, 2.4f, 0.11f), MatrixRotateZ(-1.05f)), MatrixMultiply(MatrixRotateY(a), MatrixTranslate(x, y, z))), bark); }
     }
     // the reeds at the near edge (where the birds flush), swaying
     for (int i = 0; i < 170; i++) {   // clumps of reeds, fanned, with cattail heads
@@ -157,8 +179,12 @@ void DrawMarsh(float t, bool night, float flare) {
         }
     }
     // lily pads and a drifting log
-    for (int i = 0; i < 30; i++) rt::DrawWorldCube({-60 + Hf(i + 77) * 120, 0.02f, 22 + Hf(i + 88) * 30}, {0.9f, 0.03f, 0.9f}, night ? Color{20, 40, 24, 255} : Color{70, 120, 60, 255});
-    rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(5, 0.5f, 0.5f), MatrixRotateY(0.4f)), MatrixTranslate(18 + sinf(t * 0.05f) * 3, 0.1f, 34)), {90, 70, 54, 255});
+    for (int i = 0; i < 30; i++) {   // (round pads, a few with a pale flower)
+        Vector3 p{-60 + Hf(i + 77) * 120, 0.0f, 22 + Hf(i + 88) * 30};
+        rt::DrawStatic(Cyl(), MatrixMultiply(MatrixScale(0.5f + 0.2f * Hf(i), 0.03f, 0.5f + 0.2f * Hf(i)), MatrixTranslate(p.x, p.y, p.z)), night ? Color{20, 40, 24, 255} : Color{70, 120, 60, 255});
+        if (i % 4 == 0) rt::DrawStatic(Sphere(), MatrixMultiply(MatrixScale(0.12f, 0.08f, 0.12f), MatrixTranslate(p.x + 0.1f, 0.08f, p.z)), night ? Color{90, 80, 90, 255} : Color{240, 220, 230, 255});
+    }
+    rt::DrawStatic(Cyl(), MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(0.28f, 5, 0.28f), MatrixRotateZ(PI / 2)), MatrixRotateY(0.4f)), MatrixTranslate(18 + sinf(t * 0.05f) * 3 + 2.3f, 0.1f, 34 + 1.0f)), {90, 70, 54, 255});   // the drifting log
     (void)flare;
 }
 

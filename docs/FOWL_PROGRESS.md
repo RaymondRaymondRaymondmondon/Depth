@@ -98,3 +98,5 @@ The user said the gumball and slot machines didn't look like well-made machines.
 - **New shots:** `fowl_gumball`, `fowl_slots`.
 ## Playtest fix (2026-10-05)
 - **F picks up a gun from the floor**, apart from E (the stations). Before, E opened the nearest station first, so a dropped gun beside the counter couldn't be taken. The prompt and the How to play page say so.
+
+- Visual polish (2026-10-05): toy guns are built from rounded moulded parts (`RoundCube`, `gRoundBoxes` in fowl_art.cpp); the marsh's dead trees, branches, lily pads (with flowers) and the floating log are round now.
