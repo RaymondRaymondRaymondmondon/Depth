@@ -335,11 +335,11 @@ static void ShipDressing(); void BuildLevelModel() {
         Vector3 at{p.pos.x, z.y0, p.pos.z};
         const std::string& n = p.name;
         if (n.find("Air pocket") != std::string::npos) mb.Box({at.x, z.y1 - 0.9f, at.z}, {3.2f, 0.04f, 2.4f}, Color{200, 214, 220, 255});   // the silver skin of trapped air
-        else if (n.find("Moray pipes") != std::string::npos) for (int k = 0; k < 6; k++) mb.Box({at.x + k * 2.2f, z.y0 + 0.6f, z.plan.y + 0.5f}, {0.45f, 0.45f, 0.5f}, Color{60, 58, 52, 255});
-        else if (n.find("Mast") != std::string::npos) { mb.Box({at.x, z.y0 + 8, at.z}, {0.35f, 8, 0.35f}, Color{96, 74, 50, 255}); mb.Box({at.x, z.y0 + 12, at.z}, {4, 0.2f, 0.2f}, Color{96, 74, 50, 255}); }
+        else if (n.find("Moray pipes") != std::string::npos) for (int k = 0; k < 6; k++) { Vector3 o{at.x + k * 2.2f, z.y0 + 0.6f, z.plan.y + 0.05f}; mb.Tube({o, Vector3Add(o, {0, 0, 1.1f})}, 0.45f, 0.45f, 12, Color{60, 58, 52, 255}, Color{74, 70, 60, 255}, 0); mb.Tube({Vector3Add(o, {0, 0, 1.0f}), Vector3Add(o, {0, 0, 1.15f})}, 0.52f, 0.52f, 12, Color{50, 48, 44, 255}, Color{50, 48, 44, 255}, 0); }   // (pipe mouths in the wall, a flange on each)
+        else if (n.find("Mast") != std::string::npos) { mb.Tube({{at.x, z.y0, at.z}, {at.x, z.y0 + 16, at.z}}, 0.38f, 0.26f, 10, Color{96, 74, 50, 255}, Color{110, 86, 60, 255}, 0); mb.Tube({{at.x - 4, z.y0 + 12, at.z}, {at.x + 4, z.y0 + 12, at.z}}, 0.14f, 0.14f, 8, Color{96, 74, 50, 255}, Color{96, 74, 50, 255}, 0); }
         else if (n.find("Hull breach") != std::string::npos) mb.Box({std::min(at.x, z.plan.x + z.plan.width - 0.3f), z.y0 + 2, at.z}, {0.2f, 1.6f, 1.6f}, Color{30, 34, 36, 255});
         else if (n.find("Stonefish") != std::string::npos || n.find("Mantis") != std::string::npos) { mb.Box({at.x, z.y0 + 0.3f, at.z}, {0.9f, 0.3f, 0.7f}, Color{110, 100, 84, 255}); mb.Box({at.x + 0.8f, z.y0 + 0.2f, at.z + 0.5f}, {0.5f, 0.2f, 0.5f}, Color{96, 90, 76, 255}); }
-        else if (n.find("crane") != std::string::npos) { mb.Box({at.x, z.y0 + 3, at.z}, {0.4f, 3, 0.4f}, Color{150, 110, 40, 255}); mb.Box({at.x + 2.5f, z.y0 + 6, at.z}, {2.8f, 0.3f, 0.3f}, Color{150, 110, 40, 255}); }
+        else if (n.find("crane") != std::string::npos) { mb.Tube({{at.x, z.y0, at.z}, {at.x, z.y0 + 6, at.z}}, 0.4f, 0.32f, 10, Color{150, 110, 40, 255}, Color{130, 96, 36, 255}, 0); mb.Tube({{at.x, z.y0 + 6, at.z}, {at.x + 5.3f, z.y0 + 6.4f, at.z}}, 0.28f, 0.2f, 8, Color{150, 110, 40, 255}, Color{150, 110, 40, 255}, 0); mb.Tube({{at.x + 5.2f, z.y0 + 6.3f, at.z}, {at.x + 5.2f, z.y0 + 3.5f, at.z}}, 0.03f, 0.03f, 4, Color{60, 60, 60, 255}, Color{60, 60, 60, 255}, 0); mb.Octa({at.x + 5.2f, z.y0 + 3.4f, at.z}, 0.25f, Color{90, 80, 60, 255}); }
         else if (n.find("Workbench") != std::string::npos) mb.Box({at.x, z.y0 + 0.5f, at.z}, {1.2f, 0.5f, 0.6f}, Color{120, 84, 52, 255});
     }
     // the map's dressing (Level::props, placed by BuildLevel from extra.json "dressing")
@@ -353,13 +353,24 @@ static void ShipDressing(); void BuildLevelModel() {
         Vector3 c = pr.pos, h = pr.half;
         switch (pr.kind) {
             case PropKind::Column: if (natural) { LumpyRock(mb, c, h, Color{(unsigned char)(rock.r + 8), (unsigned char)(rock.g + 8), (unsigned char)(rock.b + 6), 255}, pr.seed, 0.35f); break; }
-                mb.Box(c, h, Color{(unsigned char)(rock.r + 8), (unsigned char)(rock.g + 8), (unsigned char)(rock.b + 6), 255}); break;
+                { Color cc{(unsigned char)(rock.r + 8), (unsigned char)(rock.g + 8), (unsigned char)(rock.b + 6), 255};
+                  if (m.mapKey != "ship" && h.y > 1.2f && fabsf(h.x - h.z) < 0.25f * std::max(h.x, h.z)) {   // (a free-standing pillar: a round shaft with a plinth and a capital)
+                      float r0 = std::min(h.x, h.z);
+                      mb.Tube({{c.x, c.y - h.y + 0.3f, c.z}, {c.x, c.y + h.y - 0.3f, c.z}}, r0 * 0.85f, r0 * 0.75f, 12, cc, cc, 0);
+                      mb.Box({c.x, c.y - h.y + 0.15f, c.z}, {h.x, 0.15f, h.z}, cc); mb.Box({c.x, c.y + h.y - 0.15f, c.z}, {h.x * 1.05f, 0.15f, h.z * 1.05f}, cc);
+                  } else mb.Box(c, h, cc); }
+                break;
             case PropKind::Stalagmite: if (kit("stalagmites", c, std::max(0.4f, h.y), rnd() * 6.28f)) break; mb.Cone(c, {c.x, c.y + h.y, c.z}, h.x, 5, rock); break;
-            case PropKind::Stalactite: mb.Cone(c, {c.x, c.y - h.y, c.z}, h.x, 5, lighter); break;
+            case PropKind::Stalactite: mb.Cone(c, {c.x, c.y - h.y, c.z}, h.x, 8, lighter); mb.Cone({c.x + h.x * 0.6f, c.y, c.z}, {c.x + h.x * 0.5f, c.y - h.y * 0.45f, c.z + 0.05f}, h.x * 0.45f, 6, lighter); break;
             case PropKind::Crystal: if (kit("crystal", c, 2.6f, rnd() * 6.28f)) break; for (int j = 0; j < 5; j++) mb.Cone({c.x + (rnd() - 0.5f), c.y, c.z + (rnd() - 0.5f)}, {c.x + (rnd() - 0.5f) * 1.5f, c.y + 1 + rnd() * 2.5f, c.z + (rnd() - 0.5f) * 1.5f}, 0.18f + rnd() * 0.2f, 4, Color{150, 220, 230, 255}); break;
-            case PropKind::Root: for (int j = 0; j < 4; j++) mb.Box({c.x + (rnd() - 0.5f) * 1.2f, c.y - 1.2f, c.z + (rnd() - 0.5f) * 1.2f}, {0.05f, 1.2f + rnd(), 0.05f}, Color{92, 76, 52, 255}); break;
+            case PropKind::Root: for (int j = 0; j < 4; j++) { Vector3 t0{c.x + (rnd() - 0.5f) * 1.2f, c.y, c.z + (rnd() - 0.5f) * 1.2f}; float L = 2.4f + rnd() * 2; mb.Tube({t0, {t0.x + (rnd() - 0.5f) * 0.6f, t0.y - L * 0.5f, t0.z + (rnd() - 0.5f) * 0.6f}, {t0.x + (rnd() - 0.5f) * 0.9f, t0.y - L, t0.z + (rnd() - 0.5f) * 0.9f}}, 0.09f, 0.015f, 5, Color{92, 76, 52, 255}, Color{120, 100, 70, 255}, 0); } break;   // (hanging roots: twisting, tapering to hair)
             case PropKind::Ledge: if (natural) { LumpyRock(mb, c, h, rock, pr.seed, 0.3f); break; } mb.Box(c, h, rock); break;
-            case PropKind::Pool: mb.Box(c, h, Color{40, 86, 96, 255}); break;
+            case PropKind::Pool: {   // still dark water in a rim of wet stones
+                mb.Box(c, h, Color{26, 60, 70, 255});
+                int nst = (int)((h.x + h.z) * 2.2f);
+                for (int j = 0; j < nst; j++) { float a = j * 6.2832f / nst + rnd() * 0.2f, rr = 0.3f + rnd() * 0.35f; Vector3 q{c.x + cosf(a) * (h.x + rr * 0.4f), c.y + 0.05f, c.z + sinf(a) * (h.z + rr * 0.4f)}; LumpyRock(mb, q, {rr, rr * 0.55f, rr}, Color{(unsigned char)(rock.r + 4), (unsigned char)(rock.g + 6), (unsigned char)(rock.b + 6), 255}, pr.seed + j, 0.25f); }
+                break;
+            }
             case PropKind::Silt: if (natural) { LumpyRock(mb, c, h, Color{84, 76, 60, 255}, pr.seed, 0.15f); break; } mb.Box(c, h, Color{84, 76, 60, 255}); break;
             case PropKind::Machine:
                 mb.Box(c, h, Color{96, 70, 50, 255});
@@ -399,12 +410,29 @@ static void ShipDressing(); void BuildLevelModel() {
                 mb.Box(door, alongX ? Vector3{0.6f, 1.1f, 0.03f} : Vector3{0.03f, 1.1f, 0.6f}, Color{20, 26, 30, 255});
                 for (int j = -1; j <= 1; j += 2) {
                     Vector3 col = alongX ? Vector3{c.x + j * 1.3f, c.y, c.z + sgn * (h.z + 0.35f)} : Vector3{c.x + sgn * (h.x + 0.35f), c.y, c.z + j * 1.3f};
-                    mb.Box(col, {0.22f, h.y, 0.22f}, Color{(unsigned char)std::min(255, marble.r + 20), (unsigned char)std::min(255, marble.g + 20), (unsigned char)std::min(255, marble.b + 18), 255});
+                    Color cc{(unsigned char)std::min(255, marble.r + 20), (unsigned char)std::min(255, marble.g + 20), (unsigned char)std::min(255, marble.b + 18), 255};
+                    mb.Tube({{col.x, c.y - h.y + 0.2f, col.z}, {col.x, c.y + h.y - 0.2f, col.z}}, 0.24f, 0.2f, 10, cc, cc, 0);   // (a round shaft on a square base under a capital)
+                    mb.Box({col.x, c.y - h.y + 0.1f, col.z}, {0.3f, 0.1f, 0.3f}, cc); mb.Box({col.x, c.y + h.y - 0.1f, col.z}, {0.32f, 0.1f, 0.32f}, cc);
+                }
+                {   // a pediment over the doorway's front: a low triangle of marble under the roof's edge
+                    Color pc2{(unsigned char)(marble.r - 16), (unsigned char)(marble.g - 16), (unsigned char)(marble.b - 14), 255};
+                    float y0 = c.y + h.y + 0.4f, ph = 0.9f;
+                    Vector3 L0, R0, T0, L1, R1, T1;
+                    if (alongX) { float zf = c.z + sgn * (h.z + 0.4f), zb = c.z + sgn * (h.z - 0.6f); L0 = {c.x - h.x - 0.4f, y0, zf}; R0 = {c.x + h.x + 0.4f, y0, zf}; T0 = {c.x, y0 + ph, zf}; L1 = {L0.x, y0, zb}; R1 = {R0.x, y0, zb}; T1 = {c.x, y0 + ph, zb}; }
+                    else { float xf = c.x + sgn * (h.x + 0.4f), xb = c.x + sgn * (h.x - 0.6f); L0 = {xf, y0, c.z - h.z - 0.4f}; R0 = {xf, y0, c.z + h.z + 0.4f}; T0 = {xf, y0 + ph, c.z}; L1 = {xb, y0, L0.z}; R1 = {xb, y0, R0.z}; T1 = {xb, y0 + ph, c.z}; }
+                    mb.Tri(L0, R0, T0, pc2); mb.Tri(L0, T0, R0, pc2); mb.Tri(L1, T1, R1, pc2); mb.Tri(L1, R1, T1, pc2);
+                    mb.Quad(L0, T0, T1, L1, pc2); mb.Quad(L1, T1, T0, L0, pc2); mb.Quad(T0, R0, R1, T1, pc2); mb.Quad(T1, R1, R0, T0, pc2);
                 }
                 for (int j = 0; j < 3; j++) mb.Box({c.x + (rnd() - 0.5f) * h.x * 2, c.y + h.y - 0.5f, c.z + (rnd() - 0.5f) * h.z * 2}, {0.05f, 0.6f + rnd(), 0.05f}, Color{70, 110, 70, 255});
                 break;
             }
-            case PropKind::Terrace: mb.Box(c, h, Color{120, 110, 84, 255}); mb.Box({c.x, c.y + h.y + 0.02f, c.z}, {h.x - 0.2f, 0.02f, h.z - 0.2f}, Color{90, 130, 70, 255}); break;
+            case PropKind::Terrace: {   // a dressed-stone terrace: courses, a projecting coping, weed along its top
+                mb.Box(c, h, Color{120, 110, 84, 255});
+                mb.Box({c.x, c.y + h.y + 0.06f, c.z}, {h.x + 0.08f, 0.06f, h.z + 0.08f}, Color{140, 130, 102, 255});
+                for (int j = 1; j < 3; j++) mb.Box({c.x, c.y - h.y + j * h.y * 2 / 3, c.z}, {h.x + 0.01f, 0.015f, h.z + 0.01f}, Color{96, 88, 68, 255});
+                for (int j = 0; j < 8; j++) { Vector3 q{c.x + (rnd() - 0.5f) * h.x * 1.8f, c.y + h.y + 0.12f, c.z + (rnd() - 0.5f) * h.z * 1.8f}; mb.Tube({q, {q.x + (rnd() - 0.5f) * 0.2f, q.y + 0.3f + rnd() * 0.4f, q.z}}, 0.05f, 0.01f, 4, Color{80, 120, 64, 255}, Color{110, 150, 80, 255}, 0); }
+                break;
+            }
             case PropKind::Fan: if (kit("fan", {c.x, z.y0, c.z}, std::max(0.6f, (c.y + h.y - z.y0) / 0.84f), rnd() * 6.28f)) break; for (int j = 0; j < 5; j++) mb.Box({c.x + (rnd() - 0.5f) * 0.6f, c.y + (rnd() - 0.3f) * h.y, c.z}, {h.x * (0.5f + rnd() * 0.5f), h.y * 0.35f, 0.03f}, Color{(unsigned char)(150 + rnd() * 60), 70, (unsigned char)(110 + rnd() * 50), 255}); mb.Box({c.x, z.y0 + (c.y - z.y0) / 2, c.z}, {0.05f, (c.y - z.y0) / 2, 0.05f}, Color{120, 60, 80, 255}); break;
             case PropKind::Amphora: if (kit("amphora", {c.x, c.y - h.y, c.z}, std::max(0.5f, h.y * 2.2f), rnd() * 6.28f)) break; mb.Lathe(h.y * 2, 4, 8, [&](float u) { return h.x * (0.4f + 0.6f * sinf(u * 3.14159f)); }, [&](float u) { return h.y * 2 * u - h.y; }, Color{170, 100, 60, 255}, Color{140, 80, 50, 255}, c); break;
             case PropKind::Grate: {
@@ -412,7 +440,14 @@ static void ShipDressing(); void BuildLevelModel() {
                 for (int j = -2; j <= 2; j++) { mb.Box({c.x + j * h.x * 0.4f, c.y + 0.02f, c.z}, {0.05f, 0.03f, h.z}, Color{70, 74, 70, 255}); mb.Box({c.x, c.y + 0.02f, c.z + j * h.z * 0.4f}, {h.x, 0.03f, 0.05f}, Color{70, 74, 70, 255}); }
                 break;
             }
-            case PropKind::Stake: mb.Box(c, h, Color{214, 206, 184, 255}); mb.Box({c.x, c.y + h.y, c.z}, {0.35f, 0.12f, 0.12f}, Color{200, 190, 170, 255}); break;
+            case PropKind::Stake: {   // a bone stake: a long shaft sharpened to a point, lashed crossbones and a skull at the top
+                mb.Tube({{c.x, c.y - h.y, c.z}, {c.x + 0.05f, c.y + h.y * 0.6f, c.z}}, 0.13f, 0.1f, 7, Color{196, 188, 166, 255}, Color{214, 206, 184, 255}, 0);
+                mb.Cone({c.x + 0.05f, c.y + h.y * 0.6f, c.z}, {c.x + 0.07f, c.y + h.y + 0.3f, c.z}, 0.1f, 7, Color{220, 212, 190, 255});
+                mb.Tube({{c.x - 0.4f, c.y + h.y * 0.4f, c.z - 0.1f}, {c.x + 0.45f, c.y + h.y * 0.5f, c.z + 0.1f}}, 0.05f, 0.04f, 5, Color{200, 190, 170, 255}, Color{200, 190, 170, 255}, 0);
+                mb.Octa({c.x + 0.05f, c.y + h.y * 0.46f, c.z}, 0.12f, Color{70, 50, 36, 255});   // (the lashing)
+                LumpyRock(mb, {c.x + 0.05f, c.y + h.y * 0.18f, c.z + 0.02f}, {0.17f, 0.15f, 0.15f}, Color{220, 212, 190, 255}, pr.seed, 0.1f);   // (a skull)
+                break;
+            }
             case PropKind::Tank: { if (kit("tank", {c.x, z.y0, c.z}, std::max(0.6f, h.y), 0)) break;
                 mb.Box({c.x, z.y0 + 0.15f, c.z}, {h.x + 0.1f, 0.15f, h.z + 0.1f}, Color{70, 74, 72, 255});
                 mb.Box(c, {h.x, h.y, 0.04f}, Color{120, 170, 160, 255}); mb.Box(c, {0.04f, h.y, h.z}, Color{120, 170, 160, 255});
@@ -426,8 +461,20 @@ static void ShipDressing(); void BuildLevelModel() {
     // the salon's pillars, the engine room's boiler, the cabins' partitions (so the rooms read as rooms)
     for (int zi = 0; zi < (int)map.zones.size(); zi++) {
         const Zone& z = map.zones[zi];
-        if (z.name.find("Salon") != std::string::npos) for (int k = 0; k < 3; k++) mb.Box({z.plan.x + 5 + k * 5.0f, (z.y0 + z.y1) / 2, z.plan.y + 6}, {0.3f, (z.y1 - z.y0) / 2, 0.3f}, Color{170, 130, 70, 255});
-        if (z.name.find("Engine") != std::string::npos) { mb.Box({z.plan.x + 4, z.y0 + 2, z.plan.y + 3}, {2.2f, 2, 1.6f}, Color{96, 60, 40, 255}); mb.Box({z.plan.x + 10, z.y0 + 1.2f, z.plan.y + 2}, {1.5f, 1.2f, 1.0f}, Color{80, 84, 88, 255}); }
+        if (z.name.find("Salon") != std::string::npos) for (int k = 0; k < 3; k++) {   // fluted brass-cased pillars with collars
+            Vector3 b0{z.plan.x + 5 + k * 5.0f, z.y0, z.plan.y + 6};
+            mb.Tube({b0, {b0.x, z.y1, b0.z}}, 0.3f, 0.3f, 10, Color{170, 130, 70, 255}, Color{150, 112, 60, 255}, 0);
+            for (float yy : {z.y0 + 0.15f, z.y0 + 1.2f, z.y1 - 0.2f}) mb.Tube({{b0.x, yy - 0.08f, b0.z}, {b0.x, yy + 0.08f, b0.z}}, 0.38f, 0.38f, 10, Color{196, 160, 90, 255}, Color{196, 160, 90, 255}, 0);
+        }
+        if (z.name.find("Engine") != std::string::npos) {   // a riveted boiler drum on cradles and a pump housing with its flywheel
+            Vector3 bc{z.plan.x + 4, z.y0 + 2, z.plan.y + 3};
+            mb.Tube({{bc.x - 2.2f, bc.y, bc.z}, {bc.x + 2.2f, bc.y, bc.z}}, 1.6f, 1.6f, 16, Color{96, 60, 40, 255}, Color{110, 70, 46, 255}, 0);
+            for (int k = -1; k <= 1; k++) mb.Tube({{bc.x + k * 1.6f - 0.06f, bc.y, bc.z}, {bc.x + k * 1.6f + 0.06f, bc.y, bc.z}}, 1.68f, 1.68f, 16, Color{70, 46, 32, 255}, Color{70, 46, 32, 255}, 0);
+            for (int k = -1; k <= 1; k += 2) mb.Box({bc.x + k * 1.3f, z.y0 + 0.3f, bc.z}, {0.25f, 0.3f, 1.4f}, Color{60, 62, 64, 255});
+            mb.Tube({{bc.x, bc.y + 1.5f, bc.z}, {bc.x, z.y1, bc.z}}, 0.35f, 0.3f, 10, Color{70, 50, 40, 255}, Color{60, 44, 36, 255}, 0);   // (the uptake)
+            mb.Box({z.plan.x + 10, z.y0 + 1.2f, z.plan.y + 2}, {1.5f, 1.2f, 1.0f}, Color{80, 84, 88, 255});
+            mb.Tube({{z.plan.x + 11.6f, z.y0 + 1.4f, z.plan.y + 2}, {z.plan.x + 11.8f, z.y0 + 1.4f, z.plan.y + 2}}, 1.0f, 1.0f, 18, Color{60, 62, 66, 255}, Color{60, 62, 66, 255}, 0);
+        }
         if (z.name.find("Cabin") != std::string::npos) for (int k = 1; k < 6; k++) mb.Box({z.plan.x + k * z.plan.width / 6, z.y0 + 2.5f, z.plan.y + z.plan.height - 1.2f}, {0.08f, 2.5f, 1.2f}, Color{90, 66, 46, 255});
     }
     S.level = LoadModelFromMesh(mb.Build());
