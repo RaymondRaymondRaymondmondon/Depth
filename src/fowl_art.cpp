@@ -197,8 +197,9 @@ void DrawPorch(const World& w, int me, float t) {
     rt::DrawWorldCube({0, 0.5f, 1.7f}, {18.4f, 0.08f, 0.08f}, rail);
     for (int s = 0; s <= MAX_PLAYERS; s++) {                                     // posts, partitions, the roof's posts
         float x = (s - 3.0f) * STALL_W;
-        rt::DrawWorldCube({x, 1.9f, 1.7f}, {0.12f, 3.8f, 0.12f}, post);
-        if (s > 0 && s < MAX_PLAYERS) rt::DrawWorldCube({x, 0.55f, 0.1f}, {0.06f, 1.1f, 3.0f}, Mx(rail, WHITE, 0.1f));   // the waist-high partition
+        static const Model* pp = rt::LoadAsset("fowl/porchpost.glb"); static const Model* pt = rt::LoadAsset("fowl/partition.glb");
+        if (pp) rt::DrawPbr(*pp, MatrixTranslate(x, 0, 1.7f), WHITE, 0.2f); else rt::DrawWorldCube({x, 1.9f, 1.7f}, {0.12f, 3.8f, 0.12f}, post);
+        if (s > 0 && s < MAX_PLAYERS) { if (pt) rt::DrawPbr(*pt, MatrixTranslate(x, 0, 0.1f), WHITE, 0.2f); else rt::DrawWorldCube({x, 0.55f, 0.1f}, {0.06f, 1.1f, 3.0f}, Mx(rail, WHITE, 0.1f)); }   // the waist-high partition
     }
     rt::DrawWorldCube({0, 3.85f, 0.2f}, {20, 0.15f, 4.6f}, Mx(wall, BLACK, 0.2f));   // the roof
     // each stall: a numbered post (pips for the number), a hook, the ammo tray and a scoreboard flap; the flag
@@ -255,14 +256,35 @@ void DrawRoom(const World& w, float t) {
     rt::DrawWorldCube({0, 1.8f, -17.2f}, {30.6f, 3.6f, 0.3f}, wallC); rt::DrawWorldCube({-15.2f, 1.8f, -9.5f}, {0.3f, 3.6f, 15.4f}, wallC); rt::DrawWorldCube({15.2f, 1.8f, -9.5f}, {0.3f, 3.6f, 15.4f}, wallC);
     rt::DrawWorldCube({0, 0.5f, -17.0f}, {30.4f, 1.0f, 0.1f}, wains);
     rt::DrawWorldCube({0, 3.65f, -9.5f}, {30.6f, 0.15f, 15.4f}, Mx(wallC, BLACK, 0.35f));
-    for (int i = 0; i < 4; i++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.5f, 0.12f, 0.5f), MatrixTranslate(-10.5f + i * 7, 3.5f, -9)), {255, 220, 160, 255}, 1.2f);
+    static const Model* decor = rt::LoadAsset("fowl/clubdecor.glb");
+    if (decor) {   // beams, prints, windows, moose, decoys, lamp shades, rug, stove, coat rack (tools/artgen/fowl_props.py)
+        rt::DrawPbr(*decor, MatrixIdentity(), WHITE, 0.2f);
+        for (int i = 0; i < 4; i++) rt::DrawStaticGlow(Sphere(), MatrixMultiply(MatrixScale(0.14f, 0.1f, 0.14f), MatrixTranslate(-10.5f + i * 7, 3.02f, -9)), {255, 220, 160, 255}, 1.4f);
+        for (int k = 0; k < 2; k++) {   // the window panes: dusk over the marsh, the sun's band low on the glass
+            float x = k ? 5.5f : -1.5f;
+            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.76f, 0.46f, 0.02f), MatrixTranslate(x, 2.84f, -17.04f)), {120, 110, 170, 255}, 0.5f);
+            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.76f, 0.46f, 0.02f), MatrixTranslate(x, 2.36f, -17.04f)), {240, 150, 90, 255}, 0.7f);
+        }
+        float fl = 0.8f + 0.25f * sinf(t * 7.3f) * sinf(t * 3.1f);   // the stove's firelight through the grate
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.2f, 0.18f, 0.02f), MatrixTranslate(-8.6f, 0.545f, -16.04f)), {255, 140, 50, 255}, 1.6f * fl);
+    } else
+        for (int i = 0; i < 4; i++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.5f, 0.12f, 0.5f), MatrixTranslate(-10.5f + i * 7, 3.5f, -9)), {255, 220, 160, 255}, 1.2f);
     // 0 the gun counter: a glass case of guns, the pegboard of attachments, Mr. Zappa
     Vector3 s0 = World::Station(0);
-    rt::DrawWorldCube({s0.x, 0.5f, s0.z}, {5.6f, 1.0f, 1.0f}, {90, 60, 40, 255});
-    rt::DrawCubeGlow(MatrixMultiply(MatrixScale(5.4f, 0.04f, 0.9f), MatrixTranslate(s0.x, 1.04f, s0.z)), {190, 220, 230, 255}, 0.15f);
-    DrawCounterGuns(s0.x, s0.z, t);
-    rt::DrawWorldCube({s0.x, 2.2f, s0.z - 1.5f}, {5, 1.6f, 0.06f}, {200, 180, 140, 255});
-    for (int i = 0; i < 24; i++) rt::DrawWorldCube({s0.x - 2.2f + (i % 8) * 0.62f, 1.7f + (i / 8) * 0.45f, s0.z - 1.45f}, {0.18f, 0.14f, 0.06f}, i % 3 == 0 ? Color{200, 50, 50, 255} : Color{120, 120, 128, 255});
+    static const Model* gcase = rt::LoadAsset("fowl/guncase.glb"); static const Model* peg = rt::LoadAsset("fowl/pegboard.glb");
+    if (gcase) { DrawCounterGuns(s0.x, s0.z, t); rt::DrawPbr(*gcase, MatrixTranslate(s0.x, 0, s0.z), WHITE, 0.2f); }
+    else {
+        rt::DrawWorldCube({s0.x, 0.5f, s0.z}, {5.6f, 1.0f, 1.0f}, {90, 60, 40, 255});
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(5.4f, 0.04f, 0.9f), MatrixTranslate(s0.x, 1.04f, s0.z)), {190, 220, 230, 255}, 0.15f);
+        DrawCounterGuns(s0.x, s0.z, t);
+    }
+    if (peg) rt::DrawPbr(*peg, MatrixTranslate(s0.x, 0, s0.z), WHITE, 0.2f); else rt::DrawWorldCube({s0.x, 2.2f, s0.z - 1.5f}, {5, 1.6f, 0.06f}, {200, 180, 140, 255});
+    for (int i = 0; i < 24; i++) {   // the attachment packs on their hooks: a printed card with a plastic bubble
+        Vector3 c{s0.x - 2.2f + (i % 8) * 0.62f, 1.62f + (i / 8) * 0.45f, s0.z - 1.37f};
+        Color pc = i % 3 == 0 ? Color{200, 50, 50, 255} : i % 3 == 1 ? Color{60, 110, 180, 255} : Color{230, 190, 60, 255};
+        rt::DrawWorldCube(c, {0.2f, 0.26f, 0.01f}, pc);
+        rt::DrawWorldCube({c.x, c.y - 0.03f, c.z + 0.025f}, {0.13f, 0.12f, 0.04f}, i % 2 ? Color{120, 120, 128, 255} : Color{40, 40, 44, 255});
+    }
     DrawRobot({s0.x, 0, s0.z - 0.95f}, t);
     // 1 the mystery-gun machine: a big carnival gumball machine (tools/artgen/fowl_props.py), its crank turning
     Vector3 s1 = World::Station(1);
@@ -310,23 +332,29 @@ void DrawRoom(const World& w, float t) {
     }
     // 3 the scratch-off counter: a dispenser and coins on strings
     Vector3 s3 = World::Station(3);
-    rt::DrawWorldCube({s3.x, 0.55f, s3.z}, {2.4f, 1.1f, 0.9f}, {70, 110, 80, 255});
-    rt::DrawWorldCube({s3.x - 0.6f, 1.5f, s3.z - 0.2f}, {0.8f, 0.8f, 0.5f}, {220, 190, 70, 255});
+    static const Model* sc = rt::LoadAsset("fowl/scratchcounter.glb");
+    if (sc) rt::DrawPbr(*sc, MatrixTranslate(s3.x, 0, s3.z), WHITE, 0.2f);
+    else { rt::DrawWorldCube({s3.x, 0.55f, s3.z}, {2.4f, 1.1f, 0.9f}, {70, 110, 80, 255}); rt::DrawWorldCube({s3.x - 0.6f, 1.5f, s3.z - 0.2f}, {0.8f, 0.8f, 0.5f}, {220, 190, 70, 255}); }
     for (int k = 0; k < 4; k++) rt::DrawStatic(Cyl(), MatrixMultiply(MatrixScale(0.05f, 0.01f, 0.05f), MatrixTranslate(s3.x + 0.3f + k * 0.2f, 1.12f + sinf(t * 2 + k) * 0.02f, s3.z + 0.2f)), {230, 200, 90, 255});
     // 4 the Slop Shop: a garish booth with a neon sign, the raccoon in a vest
     Vector3 s4 = World::Station(4);
-    rt::DrawWorldCube({s4.x + 0.9f, 0.6f, s4.z}, {1.0f, 1.2f, 3.0f}, {120, 50, 140, 255});
-    rt::DrawWorldCube({s4.x + 1.8f, 1.8f, s4.z}, {0.3f, 3.6f, 3.4f}, {80, 30, 100, 255});
+    static const Model* ss = rt::LoadAsset("fowl/slopshop.glb");
+    if (ss) rt::DrawPbr(*ss, MatrixTranslate(s4.x, 0, s4.z), WHITE, 0.2f);
+    else { rt::DrawWorldCube({s4.x + 0.9f, 0.6f, s4.z}, {1.0f, 1.2f, 3.0f}, {120, 50, 140, 255}); rt::DrawWorldCube({s4.x + 1.8f, 1.8f, s4.z}, {0.3f, 3.6f, 3.4f}, {80, 30, 100, 255}); }
     rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.5f, 2.6f), MatrixTranslate(s4.x + 1.6f, 2.9f, s4.z)), Color{255, (unsigned char)(80 + 60 * (sinf(t * 7) > 0.6f)), 200, 255}, 1.8f);
     DrawRaccoon({s4.x + 1.2f, 1.2f, s4.z}, t);
     // 5 the trophy wall
     Vector3 s5 = World::Station(5);
-    rt::DrawWorldCube({-15.0f, 1.8f, s5.z}, {0.1f, 2.4f, 3.6f}, {70, 50, 34, 255});
-    for (int k = 0; k < 6; k++) { float z = s5.z - 1.4f + k * 0.56f; rt::DrawWorldCube({-14.85f, 1.4f + (k % 2) * 0.8f, z}, {0.2f, 0.06f, 0.4f}, {200, 170, 80, 255}); rt::DrawStatic(Cone(), MatrixMultiply(MatrixScale(0.12f, 0.3f, 0.12f), MatrixTranslate(-14.85f, 1.45f + (k % 2) * 0.8f, z)), {230, 190, 70, 255}); }
+    static const Model* tw = rt::LoadAsset("fowl/trophywall.glb");
+    if (tw) rt::DrawPbr(*tw, MatrixTranslate(0, 0, s5.z), WHITE, 0.2f);
+    else rt::DrawWorldCube({-15.0f, 1.8f, s5.z}, {0.1f, 2.4f, 3.6f}, {70, 50, 34, 255});
+    for (int k = 0; k < 6 && !tw; k++) { float z = s5.z - 1.4f + k * 0.56f; rt::DrawWorldCube({-14.85f, 1.4f + (k % 2) * 0.8f, z}, {0.2f, 0.06f, 0.4f}, {200, 170, 80, 255}); rt::DrawStatic(Cone(), MatrixMultiply(MatrixScale(0.12f, 0.3f, 0.12f), MatrixTranslate(-14.85f, 1.45f + (k % 2) * 0.8f, z)), {230, 190, 70, 255}); }
     // 6 the bar
     Vector3 s6 = World::Station(6);
-    rt::DrawWorldCube({s6.x, 0.55f, s6.z}, {4.0f, 1.1f, 0.8f}, {84, 48, 30, 255}); rt::DrawWorldCube({s6.x, 1.12f, s6.z}, {4.1f, 0.06f, 0.9f}, {200, 160, 80, 255});
-    for (int k = 0; k < 8; k++) rt::DrawWorldCube({s6.x - 1.6f + k * 0.45f, 1.7f, s6.z - 0.9f}, {0.1f, 0.3f, 0.1f}, k % 2 ? Color{60, 120, 70, 255} : Color{140, 70, 40, 255});
+    static const Model* cb = rt::LoadAsset("fowl/clubbar.glb");
+    if (cb) rt::DrawPbr(*cb, MatrixTranslate(s6.x, 0, s6.z), WHITE, 0.2f);
+    else { rt::DrawWorldCube({s6.x, 0.55f, s6.z}, {4.0f, 1.1f, 0.8f}, {84, 48, 30, 255}); rt::DrawWorldCube({s6.x, 1.12f, s6.z}, {4.1f, 0.06f, 0.9f}, {200, 160, 80, 255}); }
+    for (int k = 0; k < 8 && !cb; k++) rt::DrawWorldCube({s6.x - 1.6f + k * 0.45f, 1.7f, s6.z - 0.9f}, {0.1f, 0.3f, 0.1f}, k % 2 ? Color{60, 120, 70, 255} : Color{140, 70, 40, 255});
     // the floor guns anyone can take
     for (const auto& f : w.floor) DrawToyGun(f.g.def, MatrixMultiply(MatrixRotateZ(PI / 2), MatrixTranslate(f.p.x, 0.05f, f.p.z)), 0);
 }
