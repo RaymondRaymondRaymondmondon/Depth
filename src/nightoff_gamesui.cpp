@@ -446,7 +446,7 @@ void Bullshit(no::Night& n, no::Player& p) {
     no::GameSeat& g = p.game; no::cards::Bullshit& B = n.bs;
     Rectangle r{40, 40, SCREEN_W - 80.0f, SCREEN_H - 80.0f}; GPanel(r);
     Vector2 c{SCREEN_W / 2.0f, r.y + 230};
-    DrawEllipse((int)c.x, (int)c.y, 380, 160, Color{70, 40, 26, 255}); DrawEllipse((int)c.x, (int)c.y, 360, 144, Color{40, 70, 90, 255});
+    DrawEllipse((int)c.x, (int)c.y, 300, 150, Color{70, 40, 26, 255}); DrawEllipse((int)c.x, (int)c.y, 282, 134, Color{40, 70, 90, 255});
     TxtBold(TextFormat("Bullshit   pot %d", B.pot), r.x + 24, r.y + 16, 18, BRASS);
     int me = -1; for (int k = 0; k < (int)B.seats.size(); k++) if (B.seats[k].kind == 0 && B.seats[k].idx == p.id) me = k;
     LeaveButton(p, r, n.bsOn);
@@ -455,30 +455,70 @@ void Bullshit(no::Night& n, no::Player& p) {
     for (int k = 0; k < N; k++) {
         if (k == me) continue;
         int rel = me >= 0 ? (k - me + N) % N : k; float a = PI / 2 + rel * 2 * PI / std::max(1, N);
-        Vector2 at{c.x + cosf(a) * 360, c.y + sinf(a) * 160};
+        Vector2 at{c.x + cosf(a) * 300, c.y + sinf(a) * 150};
         DrawRectangleRounded({at.x - 80, at.y - 24, 160, 48}, 0.3f, 6, B.turn == k && B.window <= 0 ? Color{90, 70, 30, 240} : Color{30, 22, 16, 230});
         DrawTextCenteredBold(B.seats[k].name, at.x, at.y - 20, 15, INK);
         DrawTextCentered(TextFormat("%d cards", (int)B.seats[k].hand.size()), at.x, at.y, 13, DIM);
+    }
+    // (the playtest: players couldn't follow it) the rank ladder, the rules, and a short history of what's been said
+    {
+        static const char* RW[15] = {"", "", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"};
+        static const int ORDER[13] = {14, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+        Rectangle lb{r.x + 20, r.y + 52, 230, 150};
+        DrawRectangleRounded(lb, 0.06f, 6, Color{24, 18, 14, 230});
+        TxtBold("The rank to claim", lb.x + 12, lb.y + 10, 15, BRASS);
+        Txt("(they go round in order)", lb.x + 12, lb.y + 30, 12, DIM);
+        for (int k = 0; k < 13; k++) {
+            int rk = ORDER[k]; bool now = rk == B.rank, next = rk == B.NextRank();
+            Rectangle q{lb.x + 12 + (k % 7) * 30, lb.y + 52 + (k / 7) * 34, 26, 28};
+            DrawRectangleRounded(q, 0.25f, 6, now ? Color{240, 200, 110, 255} : next ? Color{90, 74, 40, 255} : Color{40, 30, 22, 255});
+            DrawTextCenteredBold(RW[rk], q.x + 15, q.y + 6, 16, now ? Color{30, 20, 10, 255} : INK);
+        }
+        Txt(TextFormat("now: %s", no::cards::RankWord(B.rank, 2).c_str()), lb.x + 12, lb.y + 122, 14, Color{255, 220, 150, 255});
+        Rectangle rb{r.x + 20, r.y + 212, 230, 210};
+        DrawRectangleRounded(rb, 0.06f, 6, Color{24, 18, 14, 230});
+        TxtBold("How it works", rb.x + 12, rb.y + 10, 15, BRASS);
+        const char* L[] = {"1. On your turn, play 1-4 cards", "   face down and say they're", "   the rank that's called.", "2. You may lie.", "3. Anyone may shout BULLSHIT.", "   A liar takes the whole pile;", "   if it was true, the caller does.", "4. Empty your hand first: you", "   win the pot."};
+        for (int k = 0; k < 9; k++) Txt(L[k], rb.x + 12, rb.y + 34 + k * 19, 13, INK);
+        static std::vector<std::string> said; static std::string lastSaid;
+        if (B.lastSeat >= 0 && !B.claim.empty()) { std::string s = B.seats[B.lastSeat].name + ": " + B.claim; if (s != lastSaid) { lastSaid = s; said.push_back(s); if (said.size() > 5) said.erase(said.begin()); } }
+        Rectangle hb{r.x + r.width - 250, r.y + 52, 230, 150};
+        DrawRectangleRounded(hb, 0.06f, 6, Color{24, 18, 14, 230});
+        TxtBold("Said so far", hb.x + 12, hb.y + 10, 15, BRASS);
+        for (int k = 0; k < (int)said.size(); k++) Txt(said[k], hb.x + 12, hb.y + 34 + k * 20, 13, k + 1 == (int)said.size() ? INK : DIM);
     }
     // the pile, the claim, the call
     for (int k = 0; k < std::min(6, (int)B.pile.size()); k++) DrawCard(c.x - 40 + k * 3, c.y - 50 - k * 2, 50, {}, false);
     DrawTextCentered(TextFormat("%d in the pile", (int)B.pile.size()), c.x, c.y + 26, 14, DIM);
     if (B.lastSeat >= 0 && !B.claim.empty()) DrawTextCenteredBold(TextFormat("%s: \"%s\"", B.seats[B.lastSeat].name.c_str(), B.claim.c_str()), c.x, c.y + 50, 18, INK);
     if (B.revealT > 0) { for (int k = 0; k < (int)B.lastCards.size(); k++) DrawCard(c.x + 120 + k * 46, c.y - 40, 42, B.lastCards[k], true); }
-    if (!B.result.empty()) DrawTextCentered(B.result, c.x, c.y + 76, 15, Color{255, 220, 150, 255});
+    if (!B.result.empty()) DrawTextCenteredBold(B.result, c.x, c.y + 76, B.revealT > 0 ? 22 : 15, B.revealT > 0 ? (B.lastWasLie ? Color{255, 120, 100, 255} : Color{140, 230, 150, 255}) : Color{255, 220, 150, 255});
     if (g.over) { DrawTextCenteredBold(g.caption, c.x, r.y + r.height - 120, 18, INK); if (Btn({c.x - 170, r.y + r.height - 70, 160, 36}, "Again (20)", p.money >= 20)) p.in.gameAct = 4; if (Btn({c.x + 10, r.y + r.height - 70, 160, 36}, "Leave")) p.in.gameAct = 3; return; }
     if (me < 0) return;
     // your hand: click to pick up to four
     auto& hand = B.seats[me].hand; int nh = (int)hand.size(); float cw = std::min(56.0f, 900.0f / std::max(1, nh)), x0 = c.x - nh * cw / 2;
     static int sel = 0;
+    int honest = 0; for (const auto& h : hand) honest += h.r == B.rank;
     for (int k = 0; k < nh; k++) {
         bool on = (sel >> k) & 1; float x = x0 + k * cw, y = r.y + r.height - 200 - (on ? 18 : 0);
+        if (hand[k].r == B.rank) DrawRectangleRounded({x - 3, y - 3, 60, 54 * 1.4f + 6}, 0.15f, 6, Color{240, 200, 110, 200});   // (the cards you can play honestly)
         DrawCard(x, y, 54, hand[k], true, on);
         if (Clicked() && CheckCollisionPointRec(GetMousePosition(), {x, y, cw, 76})) { int cnt = 0; for (int b = 0; b < 24; b++) cnt += (sel >> b) & 1; if (on) sel &= ~(1 << k); else if (cnt < 4) sel |= 1 << k; }
     }
     bool myTurn = B.turn == me && B.window <= 0 && B.winner < 0;
     int cnt = 0; for (int b = 0; b < 24; b++) cnt += (sel >> b) & 1;
     std::string claim = cnt > 0 ? no::cards::RankWord(B.rank, cnt) : no::cards::RankWord(B.rank, 2);
+    // the turn, said plainly
+    {
+        std::string rks = no::cards::RankWord(B.rank, 2); rks = rks.substr(rks.find(' ') + 1);
+        std::string line, sub;
+        if (myTurn) { line = "YOUR TURN"; sub = honest > 0 ? TextFormat("play your %s (you have %d, outlined), or slip others in and lie", rks.c_str(), honest) : TextFormat("you have no %s: pick 1-4 cards and claim they are", rks.c_str()); }
+        else if (B.window > 0 && B.lastSeat >= 0 && B.lastSeat != me) { line = TextFormat("%s says \"%s\". Believe it?", B.seats[B.lastSeat].name.c_str(), B.claim.c_str()); sub = TextFormat("BULLSHIT before the bar runs out: a liar takes the pile (%d); if it was true, you do", (int)B.pile.size()); }
+        else if (B.window > 0 && B.lastSeat == me) { line = "You've played."; sub = "Wait and see if anyone calls you out..."; }
+        else { line = TextFormat("%s's turn", B.seats[B.turn].name.c_str()); sub = TextFormat("they must claim %s", rks.c_str()); }
+        DrawTextCenteredBold(line, c.x, r.y + r.height - 262, 18, myTurn ? Color{255, 220, 120, 255} : INK);
+        DrawTextCentered(sub, c.x, r.y + r.height - 238, 14, DIM);
+    }
     if (myTurn) { if (Btn({c.x - 150, r.y + r.height - 70, 300, 38}, cnt > 0 ? TextFormat("Play: \"%s\"", claim.c_str()) : TextFormat("Pick cards (it's %s)", claim.substr(claim.find(' ') + 1).c_str()), cnt > 0)) { p.in.gameAct = 25; p.in.gameStake = sel; sel = 0; } }
     else if (B.window > 0 && B.lastSeat != me) {
         DrawRectangle((int)(c.x - 150), (int)(r.y + r.height - 86), (int)(300 * B.window / 3), 6, Color{240, 140, 120, 255});
