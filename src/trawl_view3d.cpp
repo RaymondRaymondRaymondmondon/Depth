@@ -1119,7 +1119,13 @@ static void BuildAtollBaked(int li, const Landing& L) {
     if (tower) { at("trawl/props/tower.glb", L.sloop, ATOLL_Y); at("trawl/props/firering.glb", L.fire, gy); return; }
     if (lightH) { if (rt::LoadAsset("flight/isles/lighthouse.glb")) at("flight/isles/lighthouse.glb", L.sloop, ATOLL_Y - 0.4f, 0.6f, 0.4f);   // (the Flight's banded lighthouse, a third the size: the old one, dark now)
         at("trawl/props/stove.glb", L.fire, gy); for (int i = 0; i < 6; i++) { float a = i * 1.1f + 0.5f; Vector2 b{cosf(a) * 6.0f, sinf(a) * 6.0f}; at("trawl/props/boulder.glb", b, gy - 0.05f, a, 0.8f + 0.2f * (i % 3)); } return; }   // (the keeper's hearth: a stove in the tower's lee)
-    if (sandB) return;   // (bare sand)
+    if (sandB) {   // a bare bar of sand: a wrack line of weed round its edge, driftwood, a few stones and an old wreck's ribs
+        for (int i = 0; i < 10; i++) { float a = i * 0.63f + 0.2f, rr = L.r - 1.2f - 0.4f * (i % 2); Vector2 b{cosf(a) * rr, sinf(a) * rr}; if (Vector2Distance(b, L.sloop) < 3) continue; at("trawl/props/sargassum.glb", b, ATOLL_Y + 0.02f, -a, 0.8f + 0.2f * (i % 3)); }
+        for (int i = 0; i < 3; i++) { float a = i * 2.1f + 0.9f, rr = L.r * 0.55f; at("trawl/props/driftwood.glb", {cosf(a) * rr, sinf(a) * rr}, gy - 0.05f, a * 1.7f, 1.0f + 0.2f * i); }
+        for (int i = 0; i < 4; i++) { float a = i * 1.6f + 2.4f, rr = L.r * 0.7f; at("trawl/props/shorerock.glb", {cosf(a) * rr, sinf(a) * rr}, gy - 0.1f, a, 0.5f + 0.15f * (i % 3)); }
+        at("trawl/props/wreckribs.glb", {-L.r * 0.35f, L.r * 0.3f}, ATOLL_Y - 0.2f, 0.7f, 0.8f);
+        return;
+    }
     if (cultL) {
         at("trawl/props/tent.glb", L.sloop, ATOLL_Y); at("trawl/props/firering.glb", L.fire, gy);
         for (int k = 0; k < 4; k++) { float a = k * 1.57f + 0.4f; at("trawl/props/skullpost.glb", Vector2Add(L.fire, {cosf(a) * 3.2f, sinf(a) * 3.2f}), gy, -a); }
