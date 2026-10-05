@@ -1,0 +1,35 @@
+NOCLIP — Arcade Game 10 Design Document
+Level 4: The Abandoned Office
+• Look: An endless empty office floor: carpet, drop ceilings, cubicles, windows that show
+only darkness; water coolers that work; quiet.
+• Generation: Office blocks of cubicles, meeting rooms, break rooms, stairwells, elevator
+banks; repeats with small changes.
+• Mood rule — Safe Haven: Level 4 is the calmest level: entities are rare and slow; water
+coolers are almond water. It's the crew's rest stop and a trap for the greedy (loot is
+poor, and staying too long is a sanity drain from the windows).
+• Hazards: The windows: looking out for more than 3s drains 10 sanity; an elevator that
+sometimes goes somewhere else.
+• Entities: Rare Facelings (often friendly; traders), Dullers, the occasional Partygoer
+balloon (see Entities) drifting through.
+• Loot: Low to medium: office supplies, a computer tower, files (the Bureau buys
+documents), a coffee machine, a desk plant, someone's photo.
+• Labs: Lab Epsilon (dormant), in a server room.
+• Exits: Stairwells (Level 5 up, Level 3 down), the elevator (random: Level 5, 6, or 2), a
+cubicle with no walls (noclip to Level O); a door at the end of a corridor that opens onto
+a school hallway (Level 18).
+Level 5: The Terror Hotel
+• Look: A grand 1920s hotel: red carpet, gold sconces, endless corridors of numbered
+doors, a ballroom, a boiler room in the basement; jazz from somewhere.
+• Generation: Floors of corridors with rooms behind doors; a lobby, a ballroom, a kitchen,
+and the boiler room as set pieces; stairs and an elevator.
+• Mood rule — The Rooms: most doors are locked; key cards (loot) open them. Rooms
+have the level's best loot and its worst surprises. Room numbers are a pattern a crew
+can learn (rooms ending in 3 are traps). The jazz gets louder near danger.
+• Hazards: Trapped rooms, the boiler (scalding, and it explodes if left running), mirrors
+that show someone behind you.
+• Entities: The Partygoers (smiling figures in party hats from the ballroom who want you
+to join the party), Skin-Stealers, Hounds in the kitchen.
+• Loot: High: jewelry, silver trays, a gramophone, champagne, the hotel's ledger
+(valuable), a room key to the Penthouse (contract item).
+• Labs: Lab Zeta (dormant), behind the boiler room.
+Page 12 of 38

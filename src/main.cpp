@@ -33,6 +33,7 @@
 #include "warp_net.h"
 #include "fowl.h"
 #include "fowl_net.h"
+#include "noclip.h"
 #include "flight_costumes.h"
 #include "study.h"
 #include "course.h"
@@ -825,6 +826,10 @@ int main(int argc, char** argv) {
     // A Night Off (arcade game 6)
     if (argc >= 2 && strcmp(argv[1], "--night-test") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunNightTest(); }
     if (argc >= 2 && strcmp(argv[1], "--scuffle-test") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleTest(); }
+    // NOCLIP (arcade game 10)
+    if (argc >= 2 && strcmp(argv[1], "--noclip-test") == 0) { SetTraceLogLevel(LOG_WARNING); return nc::RunNoclipTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--noclip-gen") == 0) { SetTraceLogLevel(LOG_WARNING); return nc::RunNoclipGen(argc >= 3 ? atoi(argv[2]) : 0, argc >= 4 ? (uint32_t)atoi(argv[3]) : 1); }
+    if (argc >= 2 && strcmp(argv[1], "--noclip-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return nc::RunNoclipSim(argc >= 3 ? std::max(1, atoi(argv[2])) : 4, argc >= 4 ? std::max(1, atoi(argv[3])) : 3, argc >= 5 ? std::max(1, atoi(argv[4])) : 4); }
     // Fowl Play (arcade game 11)
     if (argc >= 2 && strcmp(argv[1], "--fowl-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fp::RunFowlTest(); }
     if (argc >= 2 && strcmp(argv[1], "--fowl-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return fp::RunFowlSim(argc >= 3 ? std::max(1, atoi(argv[2])) : 4, argc >= 4 ? std::clamp(atoi(argv[3]), 1, 6) : 6, argc >= 5 ? atoi(argv[4]) : -1); }

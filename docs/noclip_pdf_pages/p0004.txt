@@ -1,0 +1,54 @@
+NOCLIP — Arcade Game 10 Design Document
+• Everyone dies in a day: the loot in Labs is kept, the loot carried is lost, and the crew
+respawns at the Surface the next morning minus a death fee (a percentage of cash). A
+crew can afford a few of these.
+Pacing of a session
+A session is 2-4 days (45-90 minutes). Nothing is gated: all twenty levels are reachable
+from day one through their exits, and a crew can go as deep as it dares whenever it wants.
+The quota is what pushes. A typical crew makes the first quota working Levels 0-3, the
+second by reaching 5-7, and may hold at 7-8 for the third; after that the quotas can only
+be met with deep loot, so Levels 10-19 become the job. Level 11 is the deep hub, and Lab
+Omega at Level 191s Abyss Inn is the campaign's long goal. Quotas grow 40% a week to
+week four and 35% after, and the only way to keep up is to go deeper.
+The survivor
+Every player is a Bureau salvager in a hard hat and a hi-vis vest with a headlamp, a
+backpack, and three meters: health, sanity, and stamina. There is no hunger or thirst; the
+Backrooms wear you down through your mind, not your stomach. The meters are simple;
+together they're the run's clock.
+Met e r
+Health
+Sanity
+Stamina
+Range Drains from
+100
+100
+100
+Entities, falls, hazards,
+electricity, drowning
+Time in the Backrooms (-1
+per minute), darkness,
+being alone (no teammate
+within 15 m: -1 per 20 s),
+seeing an entity, the hum,
+a teammate's death
+Sprinting, climbing,
+carrying heavy loot
+Restored by
+Medkits, bandages,
+resting in a Lab (slowly)
+Almond water (+25), a
+teammate's voice nearby
+(+1 per 30 s), Lab lights
+(+5 per minute), music
+boxes, the Surface
+Walking, standing still
+At zero
+Downed
+(see Death)
+Lost (see
+below)
+Can't sprint
+Sanity, in detail
+Sanity is the Backrooms getting into your head. It is the game's most important meter
+because it changes what's real for that player.
+Page 4 of 38

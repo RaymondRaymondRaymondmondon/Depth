@@ -1,0 +1,31 @@
+NOCLIP — Arcade Game 10 Design Document
+Progression
+Between campaigns a profile keeps: the dossier (entities photographed), Labs ever
+restarted, the best week reached, exits learned (as kinds), and the Bureau rank (Intern -Y
+Salvager -Y Senior Salvager -Y Field Lead -Y Liminal Specialist), which unlocks starting gear
+(a flashlight at Salvager; a radio at Senior; a scanner at Field Lead) and cosmetic titles.
+Cosmetics
+Arcade tokens (10 per day survived, 50 per week's quota met, 25 per new entity
+photographed) buy suit colors, hard-hat stickers, vest patches, and headlamp colors. The
+crate (one token) holds 40 items in the arcade's USUal four tiers: commons (sticker sets,
+colored vests), rares (a Faceling mask that's just a mask, a party hat, a wet-carpet texture
+suit), super rares (a Smiler grin on the hard hat that glows, a hi-vis Hound costume), and
+specials (the Yellow Wallpaper suit, the Bureau Director's coat, the Exit Sign hat, the
+Almond Water Bottle costume, a working lava lamp on the hard hat). Cosmetics never
+change the numbers, though a glowing hard hat is a light source and the Smilers know it.
+Presentation, generation, sound, and build order
+Look
+NOCLIP has its own style, specific to this game (other Slop games choose their own):
+found-footage liminal. Low-poly first-person 3D with flat, overlit textures (the
+Backrooms' wallpaper, carpet, and concrete as procedurally generated tiling patterns), a
+VHS post-process (scanlines, chroma bleed, a timestamp in the corner that's the in-game
+clock), and fluorescent light that flickers. It deliberately doesn't use Depth's ink: these
+games are from somewhere else. The Labs are the one place that looks designed (brass
+and steel, the Depth palette), and the Surface is ordinary sodium-lit night.
+Generation
+Each level has a generator (a module per level) seeded per day: Level O is a grid maze with
+wall removal; Level 1 is halls and racks; Level 2 is a corridor graph with junctions; Level 3 is
+a machine-hall grid with catwalks and a breaker graph; Level 4 is office blocks; Level 5 is
+floors of corridors with room kits; Level 6 is a long winding corridor; Level 7 is a house kit
+over a water volume; Level 8 is a 3D cave from noise with a guaranteed path graph; Level 9
+Page 36 of 38

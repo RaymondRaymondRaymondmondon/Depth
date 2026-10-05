@@ -1,0 +1,34 @@
+NOCLIP — Arcade Game 10 Design Document
+• Jumping. At any online Lab's portal, a player can jump to any other online Lab: a IO s
+charge (quieter than an extraction, about a third of the hum), then they step out of the
+destination Lab's ring. One jump per player per in-game hour. A player can jump
+carrying what they hold; the crate doesn't travel.
+• Rejoining the crew. The network's main use is the one the crew will use constantly: a
+player who has pushed ahead and restarted a deep Lab can jump back to the Lab
+where teammates are, and a teammate can jump forward to them. Splitting up and
+regrouping is cheap, so a crew can SCOUt in pairs and meet at a Lab.
+• Shared state. Every online Lab shows the same crate total (each Lab's crate is still its
+own physical store, but the Portal Hall's board shows all of them), the same map
+(everything any teammate has seen syncs at any Lab), the same Observation feeds
+(any Lab's monitors can switch to any other Lab's cameras), and the same intercom (a
+player at one Lab can talk to a player at another).
+• Extracting from anywhere. An extraction at any Lab sends every crate in the network
+to the Surface, not just its own, as long as the other Labs' generators are running. A
+crew can drop loot all over the map and cash it out from the Lab nearest its last stand.
+• Calling the crew. A player at a Lab can summon: everyone else gets a prompt to jump
+there (each still on their own hourly jump), which is how a scattered crew regroups for
+a deep Lab's extraction.
+• When the network fails. A Lab whose generator dies drops off the network (its crate is
+stuck until it's refuelled; its jumps are offline). In Overtime the network goes down
+entirely until 06:00. Level 121s Lab is the exception noted in that level.
+The ten levels
+Each level is procedurally generated from its own rules every day (a seed per day per
+level), with fixed landmarks (its Labs, its exits, a handful of set pieces) so a crew can learn
+it without memorizing it. Difficulty rises with the number. Every level has a mood rule that
+makes it play unlike the others.
+Level O: The Lobby
+• Look: Endless rooms of mono-yellow wallpaper, damp beige carpet, buzzing
+fluorescent panels; no windows, no furniture, no end.
+• Generation: A maze of rooms and corridors on a grid, with random wall removals so it's
+never quite a maze; pillars; occasional rooms of a different size.
+Page g of 38

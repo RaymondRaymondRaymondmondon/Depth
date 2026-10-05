@@ -1,0 +1,37 @@
+NOCLIP — Arcade Game 10 Design Document
+Contract
+The Party
+Specimen
+Between days
+Task
+Let one crew member accept a Partygoer's
+invitation, retrieve them from the Level 5
+ballroom
+Bring back a living thing (a Deathmoth egg, a
+jar from Level 2, a spider in a box)
+Pays
+600 credit (it's a terrible
+idea)
+450 cash
+The crew can shop, install Lab upgrades, read the dossier, review the map, sell to the
+Fence, and pick tomorrow's insertion Lab. A day ends with a short Bureau memo (a joke
+about the day's events, written from the log: "Employee 3 noclipped twice; please stop").
+Multiplayer
+1-6 players on the shared arcade layer. The crew shares a campaign, a quota, money, and a
+map; each player has their own body, meters, and hallucinations.
+Proximity voice
+• Voice is positional within 25 m, muffled by walls, louder in tunnels and quieter in
+carpeted rooms. The radio (shop) carries it across a level.
+• Entities hear voices. Talking is noise (a third of a footstep's alarm per second of
+speech); shouting is more. Hounds come to voices.
+• Skin-Stealers record voices. The game keeps a rolling buffer of each player's recent
+proximity speech (on the host, for this purpose only, cleared at the end of the session)
+and plays clips from it as the mimic. Voice mimicry is on by default; a lobby toggle
+replaces it with synthesized speech for groups who prefer.
+• Ghost players (Wanderers) whisper at 3 m.
+Roles
+No classes; roles emerge from gear and habit. The crew usually settles into: a Guide at a
+Lab's Observation Room (cameras, intercom, map), a Lead with the flashlight and chalk,
+Haulers with the cart, and a Watcher for Level 9's Neighbors and the portal charge. A solo
+player can do it all slowly.
+Page 34 of 38

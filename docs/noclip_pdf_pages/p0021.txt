@@ -1,0 +1,14 @@
+NOCLIP — Arcade Game 10 Design Document
+• Entities: The Innkeeper (an entity that's polite, offers you a room, and if you sleep in
+one you lose the night; it fights anyone who steals from the inn's bar), Smilers in the
+dark rooms, the abyss itself (a sound from below that gets closer when you're near the
+edge).
+• Loot: The best in the game: the inn's ledger (a list of every guest, including the crew),
+an antique key that opens something in Level 5's penthouse, a lantern from the bottom
+of the abyss (no one knows how), the guest rooms' luggage.
+• Labs: Lab Omega, in the inn's wine cellar: the deepest Lab, the hardest restart, and the
+campaign's long goal.
+• Exits: The front door (Level 16); the attic stairs (Level 12); the balcony (into the abyss: a
+noclip, they say, to somewhere beyond the map; in the game, a rare chance to land in
+Level O and a far likelier death).
+Page 21 of 38

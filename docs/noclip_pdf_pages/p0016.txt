@@ -1,0 +1,34 @@
+NOCLIP — Arcade Game 10 Design Document
+• Labs: Lab Kappa, under the silo.
+• Exits: The road's end (Level 11); the barn's cellar (Level 8); a crop circle (noclip to Level
+9).
+Level 11: The Concrete Jungle
+• Look: An endless empty city: skyscrapers, streets, traffic lights cycling for no one,
+shopfronts, an overcast day that doesn't end.
+• Generation: A city grid with blocks of buildings; most doors are locked; some buildings
+are open from ground to roof; a subway.
+• Mood rule — The Safe City: Level 11 is the deep levels' haven. Entities are rare in the
+open; the city's shops have supplies (almond water from vending machines, batteries
+from a hardware store). It's where a crew restocks deep. The danger is height: loot is in
+the towers, and the towers are tall.
+• Hazards: Falls; elevators that work and stop between floors; the subway (trains run).
+• Entities: Rare Facelings (the traders are here in numbers: a Faceling market in a plaza),
+Deathmoths on rooftops.
+• Loot: Medium-high: shop stock, an office's server, a penthouse's art (huge), a jeweler's
+case, a car battery from a parked car.
+• Labs: Lab Lambda, in a tower's basement; the safest Lab in the game, and a natural hub.
+• Exits: The subway (Level 13 or Level 15); a storm drain (Level 10); a tower's top floor
+(Level 17); a door that opens into a white house (Level 12).
+Level 12: Aedificium (In the Flesh)
+• Look: It starts as an ordinary suburban house: a garage, a hall, rooms with furniture.
+The longer you're there, the more the walls are skin, the floors are warm, the doors are
+something else, and there are eyes.
+• Generation: A house that rebuilds itself: rooms generate as you enter them and
+change when nobody looks; the layout loops.
+• Mood rule — The Living House: the level is one entity. It doesn't chase; it digests. Every
+minute in Level 12 drains sanity and adds static to every player's screen; radios and
+the Lab network don't work (signals can't leave or enter), so a crew in Level 12 is cut
+off. Televisions show static and, at low sanity, the other players.
+• Hazards: Rooms that close (a doorway seals and the crew must find another way);
+floors that soften; time loss (a player who stares at a TV loses a minute).
+Page 16 of 38

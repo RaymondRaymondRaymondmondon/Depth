@@ -1,0 +1,103 @@
+NOCLIP
+— Arcade Game 10 Design Document
+Entity
+Seer
+Mirror
+Thing
+Orderly
+Sentry
+Patient
+The
+Warden
+The Crew
+The Friends
+The
+Innkeeper
+Levels Hunts by
+12
+13
+14
+15
+16
+16
+17
+18
+19
+Sight
+Your gaze
+The PA's page
+Motion on its
+route
+Being
+unwatched
+Corridors
+during
+lockdown
+Sight and voice
+Dropped loot
+Theft
+Behavior
+Eyes in every surface;
+three at once draw the
+hOUSe
+Your reflection steps
+out after you've looked
+at it 5 s; mimics you;
+shatters on a hit
+Comes for a low-health
+player and wheels
+them to surgery
+Patrols; tases
+Follows; stops when
+Puts players in cells
+Skin-Stealer sailors
+who run drills
+Take what you put
+down
+Polite until you take
+from the bar
+Tell
+An eye opens
+Your reflection
+is late
+Your name on
+the PA
+A red scanning
+light
+Footsteps in a
+gown
+Keys jingling
+A bosun's
+whistle
+Giggles
+A bell rings
+Counter
+Break line of sight;
+cover them (a coat, a
+sheet)
+Don't stare at mirrors;
+hit it once
+Heal above half; hide in
+a ward with the door
+shut
+Hack a terminal to stop
+it; EMP
+Watch it, move as a
+group
+Be in a cell when the
+bell rings; pick the lock
+(crowbar, loud)
+As Skin-Stealers
+Don't put loot down;
+play with them (a IO s
+mini-game) and they
+give it back
+Pay for drinks (yes,
+really)
+Deep loot values and the quota
+Deep loot runs 150-2,500 per item (the inn's ledger is the most valuable thing in the
+game), which is what makes week five's quota (2,300) and week eight's (6,400) reachable.
+Quotas past week four grow 35% a week instead of 40%. Lab restarts in the deep levels
+need two fuel canisters and a part found in the level (a fuse from 15, a ward key from 14, a
+ship's breaker from 17).
+Page 23 of 38

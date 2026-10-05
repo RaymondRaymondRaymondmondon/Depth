@@ -1,0 +1,88 @@
+NOCLIP — Arcade Game 10 Design Document
+Routes
+A day's plan is a route: Lab levels Lab. A good route has a Lab at each end, passes
+through one high-loot level, avoids today's active-entity levels in the forecast, and comes
+home before 18:00. The Observation Room's cameras and the Archive's map fragments
+make better routes possible, which is the progression a crew feels.
+Entities
+Entities are rare, readable, and different from each other: every one has a sense it hunts
+by, a tell, and a counter. They're the Backrooms' shared cast reinterpreted as game
+behavior, and the Bureau's dossier (a field guide in the Archive) fills in as the crew
+photographs each one.
+Entity
+Smiler
+Hound
+Faceling
+Duller
+Levels
+(dark
+places)
+Hunts by
+Light
+Sound and
+blood
+— (mostly
+harmless)
+Proximity
+Behavior
+Only a face of
+glowing eyes and
+teeth in the dark;
+approaches anyone
+whose light is
+pointed at it or near
+it; charges and does
+60
+A gaunt humanoid
+on all fours with a
+too-wide mouth;
+packs of 2-3;
+chases sprinting
+and bleeding
+players; 30 per bite
+A humanoid with no
+face; wanders; some
+are traders (swap
+loot for almond
+water); a few are
+aggressive if
+touched
+Grey, slow, droning
+humanoids during
+lights-out; swarm
+anyone who stops
+moving
+Tell
+A grin appears in
+the dark; your
+headlamp flickers
+when one's within
+10m
+Panting and
+scrabbling; a howl
+before the pack
+moves
+Silent; they stop
+when you look at
+them
+A Iow drone like the
+hum
+Counter
+Point light away,
+back off slowly,
+and never run; a
+flare scares it off
+for 30 s; a lit room
+it can't enter
+Walk, don't run;
+stand still and hold
+eye contact (it
+hesitates);
+bandage bleeds; a
+slammed door
+holds it IO S
+Don't touch; trade
+if they offer
+Keep moving; light
+makes them freeze
+Page 26 of 38

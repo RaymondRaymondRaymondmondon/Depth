@@ -1,0 +1,32 @@
+NOCLIP — Arcade Game 10 Design Document
+Each restarted Lab is a permanent foothold, which is how a crew pushes deeper week by
+week.
+Signalling the portal
+1. At the control desk, a player starts the signal: a 30 s charge with a rising hum and the
+ring spinning up.
+2. During the charge the Lab's lights pulse, the hum carries across the level, and entities
+that hear it come. Doors can be locked from the desk (if the generator is running); a
+breach (an entity through a door, or a Smiler in the dark corners if the lights flicker) is
+the crew's fight.
+3. The charge can be paused (the hum stops, progress holds) and resumed, which is how
+a crew hides from a Hound pack mid-charge.
+4. At 100%, the portal opens for 20 s. Everyone in the Portal Hall goes to the Surface; the
+crate goes with them. Anyone outside is left behind (and can extract from another Lab
+or wait for tomorrow).
+5. A Lab's portal needs a cooldown (one in-game hour) after an extraction.
+Lab breaches
+If an entity gets into the Drop-off while nobody's there, it can tip the crate: a third of the
+stored loot is scattered in the Lab and has to be re-dropped, and the most valuable item
+may be carried off (it's in the level now, somewhere). Locking the Drop-off's door keeps it
+safe as long as the generator runs.
+Lab upgrades (bought on the Surface, installed per Lab)
+Floodlights (no Smilers inside the Lab), reinforced doors (twice as long to breach), a
+second camera bank, a quick-charge coil (20 s charge, but the hum is twice as loud), a fuel
+tank (generator runs two days), a cargo link (the Lab's crate can send loot to another
+online Lab's crate without extracting, once per hour), and the Siren: a speaker that, when
+played, draws every entity in the level to the Lab, which is a terrible idea except for one
+contract.
+The Lab network
+Every online Lab is part of one synced network by default. Restarting a Lab adds it to the
+network for the whole crew for the rest of the campaign.
+Page 8 of 38

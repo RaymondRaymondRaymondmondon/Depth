@@ -1,0 +1,107 @@
+NOCLIP
+— Arcade Game 10 Design Document
+Entity
+Wretch
+Clump
+Skin-Stealer
+Partygoer
+Deathmoth
+2
+2
+Hunts by
+Sanity
+Touch and
+heat
+Sight and
+voice
+Invitation
+Light and
+warmth
+Behavior
+Feral once-humans
+with grey skin; they
+come for the player
+with the lowest
+sanity
+A mass of limbs that
+crawls along pipes
+and drops on
+anything below
+A tall, pale entity
+that wears human
+skin. It mimics a
+teammate's voice
+(from their recent
+proximity audio)
+and lures; if it
+catches a lone
+player, it takes
+them: the player is
+dead and a Skin-
+Stealer with their
+name, voice, and
+outfit rejoins the
+crew
+Smiling figures in
+party hats who
+want you to come to
+the party; harmless
+until you accept a
+balloon or an
+invitation (a
+prompt)
+Giant moths; larvae
+nest in warm
+corners; adults
+swarm lights; their
+dust poisons (sanity
+and health)
+Tell
+Muttering in the
+pipes
+Pipes clank
+overhead
+Its "teammate" says
+lines a beat late; its
+walk is too smooth;
+it never picks up
+loot; it won't drink
+almond water
+Party music, a
+balloon drifting past
+Fluttering; dust in
+the beam
+Counter
+Keep sanity up
+(almond water); a
+group with high
+sanity is invisible
+to them
+Look up; stay away
+from pipe-heavy
+junctions; fire (a
+flare)
+Ask questions only
+the real teammate
+knows; offer
+almond water; stay
+together; the
+Bureau's scanner
+(shop) shows a
+heartbeat
+Never accept;
+their balloons can
+be popped; a crew
+that "joins the
+party" is removed
+from the level and
+appears in the
+ballroom of Level 5
+with their pockets
+emptied
+Turn off lights; fire;
+don't touch eggs
+(unless a contract
+wants them;
+they're valuable)
+Page 27 of 38

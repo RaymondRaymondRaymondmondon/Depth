@@ -1,0 +1,35 @@
+NOCLIP — Arcade Game 10 Design Document
+• Entities: Seers (eyes in the walls, ceilings, and furniture that watch; being watched by
+three at once draws the house's attention: a room seals on you), the house itself.
+• Loot: Very high, and strange: furniture from nowhere, a family's photo albums of people
+who were never there, a TV that shows a real channel, a heart-shaped thing in a jar
+(huge value, cursed).
+• Labs: Lab Mo, in the garage, off the network (it works as a Lab, but its portal can only
+extract, not jump, and its crate doesn't sync until the crew extracts from it).
+• Exits: The garage door (Level 11); the attic (Level 19); the front door, sometimes (Level
+9).
+Level 13: Vitrum Madness
+• Look: A maze of glass: walls, floors, and ceilings of clear and frosted glass and mirrors;
+everything is visible and nothing is reachable; light bends.
+• Generation: A 3D lattice of glass corridors with mirror panels; some glass is clear (see
+through, can't pass), some frosted, some mirror.
+• Mood rule — Reflections: you can see the loot, the exit, and the entities, and none of
+them are where they look. Mirrors show reflections that are delayed by a second (a
+teammate's reflection can be wrong). Shattering glass (a crowbar, the shotgun) opens
+paths and is the loudest thing in the level.
+• Hazards: Shattered glass (bleeds), dead ends that look open, falls through glass floors.
+• Entities: Mirror Things (a player's reflection that steps out of a mirror when they've
+looked at it too long; it's a Skin-Stealer variant made of glass and it shatters on a hit),
+Smilers reflected (one Smiler, many reflections; only one is real).
+• Loot: High and fragile: glass sculptures, crystal glassware, a mirror that shows
+somewhere else (anomalous), lenses.
+• Labs: Lab No, behind frosted glass that has to be broken.
+• Exits: A mirror that's a door (Level 14); the subway's glass station (Level 11); a shattered
+floor (Level 16).
+Level 14: Inhospitality
+• Look: An endless hospital: wards, corridors with gurneys, operating theaters, a
+reception, a morgue; flickering lights; the smell of antiseptic; announcements over the
+PA paging doctors who aren't there.
+• Generation: Wings of wards around nurses' stations; floors connected by stairs and
+elevators; a morgue in the basement.
+Page 17 of 38

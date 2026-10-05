@@ -1,0 +1,35 @@
+NOCLIP — Arcade Game 10 Design Document
+Level 16: J. Barry Mental Asylum
+• Look: A decaying 1950s asylum: tiled corridors, padded cells, a day room with a TV, an
+administration wing, restraint beds, peeling paint.
+• Generation: Wings of cells around day rooms; an administration block; a basement
+with the boiler and the records.
+• Mood rule — Lockdown: at intervals the asylum's bell rings and every door locks for a
+minute; anyone in a corridor is out in the open, anyone in a cell is safe and trapped.
+Sanity drains at low sanity, the PA speaks to you by name.
+• Hazards: Lockdowns; cells that lock from outside; the boiler.
+• Entities: The Patients (figures in gowns who follow at a distance and stop when seen,
+like the Neighbors; in groups they block corridors), Wretches in the basement, The
+Warden (a single entity in the administration wing who walks the halls during
+lockdowns with keys; if it finds a player in a corridor, it puts them in a cell).
+• Loot: High: patient files (the Bureau pays for records), restraints, an old radio, the
+administrator's safe.
+• Labs: Lab Pi, in the basement's records room.
+• Exits: The boiler (Level 13); the front gate (Level 14); the chapel's altar (Level 19).
+Level 17: Abandoned Carrier
+• Look: An enormous aircraft carrier adrift on a grey sea: a flight deck with derelict
+aircraft, a hangar deck, endless steel corridors below, bunk rooms, the bridge.
+• Generation: A fixed carrier hull with generated interior decks and corridors; the flight
+deck and bridge are set pieces.
+• Mood rule — The Ship: the carrier rolls with the sea, and the angle changes what's
+loose and where water goes; bulkhead doors seal compartments; the lower decks flood
+as the day goes on. The flight deck is open and windswept: the best loot (aircraft parts)
+and nowhere to hide.
+• Hazards: Flooding compartments, falling cargo when the ship rolls, the flight deck's
+edge, the elevators.
+• Entities: The Crew (Skin-Stealer sailors who wear uniforms and run drills), Hounds in
+the hangar, something under the hull (the sea is Level 7's sea).
+• Loot: Very high and heavy: aircraft instruments, a jet's black box, the ship's bell, the
+armory's crates, the captain's log.
+• Labs: Lab Rho, in the ship's sick bay.
+Page 19 of 38

@@ -1,0 +1,71 @@
+NOCLIP — Arcade Game 10 Design Document
+Entity
+The
+Neighbors
+Crawler I
+Cave Spider
+The
+Leviathan of
+7
+Entity rules
+9
+8
+7
+Hunts by
+Being
+looked away
+from
+Vibration
+Time in the
+water
+Behavior
+Figures in windows
+that are closer each
+time you look away;
+reach you if you
+turn your back on
+one long enough
+Large many-eyed
+arachnids in webs
+and chasms; webs
+hold a player for a
+bite
+An enormous shape
+in the dark water;
+takes anyone in the
+water too long
+Tell
+A silhouette in a lit
+window
+Web strands
+tremble
+The water goes still;
+a Iow groan
+Counter
+Keep a teammate
+watching while you
+work (one player is
+the Neighbor-
+watcher)
+Burn webs; walk on
+rock not dust;
+spiders hate the
+crystal light
+Keep swims under
+60 s; have a rope
+from the house
+• Each level has a population budget per hour that rises after 18:00 and triples in
+Overtime. The forecast says which levels are active today.
+• Entities move between levels only through the same exits players use (a Hound pack
+can follow a crew down a stairwell).
+• Entities that see each other mostly ignore each other; Smilers avoid Skin-Stealers;
+Hounds chase Facelings; that's enough to be exploitable.
+• Photographs: a Bureau camera (shop) can photograph an entity for the dossier: a first
+photo of each entity pays a bounty and unlocks its counter tip in the Archive. The
+photo has to be in frame, lit, and within 15 m, which is the problem.
+Loot
+Loot is objects that were lost into the Backrooms from the real world, plus a few things
+that only exist there. Every item has a size, a weight, a value range (rolled when found),
+and sometimes a property. Values rise with level number; the deepest loot is worth ten
+times the shallowest.
+Page 28 of 38

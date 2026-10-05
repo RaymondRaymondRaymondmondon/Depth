@@ -1,0 +1,34 @@
+NOCLIP — Arcade Game 10 Design Document
+• Labs: None (the only level without one): a crew comes here and leaves.
+• Exits: The basement's drain (Level 8); swim down into the dark (Level 8, if the
+Leviathan doesn't intervene); the front door (Level 6); swim far enough out and a grey
+hull appears (Level 17).
+Level 8: The Cave System
+• Look: Rock caves, tunnels, chasms, underground rivers, crystal formations, spider
+webs. Cold. Dripping.
+• Generation: A 3D cave network with vertical shafts, chasms with bridges, and large
+chambers.
+• Mood rule — Verticality: climbing (ropes, ladders found and placed) and falling are the
+level; the crew needs ropes and lights; the deeper the cave, the better the loot and the
+bigger the spiders.
+• Hazards: Falls; cave-ins (noise triggers them); rivers that sweep you; webs that hold
+you.
+• Entities: Spiders (the Backrooms' cave arachnids, large and many-eyed), Crawlers,
+Hounds, Deathmoths in the warm chambers.
+• Loot: High: crystals (the most valuable small loot in the game), old mining equipment,
+gold ore, a lost researcher's journal.
+• Labs: Lab Theta (dormant), in a chamber reached by a long rope descent.
+• Exits: A tunnel that opens into a suburban street (Level 9); an underground river noclip
+(Level 7); climb all the way up (Level 1); a ladder up into a farm cellar (Level 10).
+Level 9: The Darkened Suburbs
+• Look: An endless American SUbUrb at night: identical houses, streetlights (some
+working), lawns, a sky with no stars. Houses are dark inside.
+• Generation: A street grid of houses with yards and fences; house interiors from a kit; a
+park, a school, a convenience store as set pieces.
+• Mood rule — The Houses: houses are the loot and the danger; each is a small dungeon;
+their front doors lock behind you sometimes. Streetlights are safe; the dark between
+them isn't. The level is too big to search, so contracts send crews to specific
+addresses.
+• Hazards: The dark between streetlights; houses that change when you leave a room;
+the ice cream truck's song.
+Page 14 of 38

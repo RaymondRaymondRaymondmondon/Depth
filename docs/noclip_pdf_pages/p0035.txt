@@ -1,0 +1,36 @@
+NOCLIP — Arcade Game 10 Design Document
+Losing teammates
+A crew that splits up loses sanity (the alone drain) and gains speed. A crew that stays
+together is safe and slow. The game's best moments come from someone wandering off.
+Sharing
+Loot in a player's hands is theirs; loot in the crate is the crew's; money is the crew's; a
+player who sells their own carry to the Fence on the Surface does it for the crew.
+Cosmetics and tokens are personal.
+Modes, progression, and cosmetics
+Modes
+Mode
+The Bureau (campaign)
+Lost
+Noclip Roulette
+Lights Out
+Expedition
+Lonely
+Skin-Stealer (social deduction)
+Rule
+As designed: weeks of quotas until one is missed
+No Surface: the crew starts in Level O with nothing
+and must find a Lab and restart it to escape. One
+life each. About 45 minutes
+Every exit is a noclip to a random level; the quota is
+low; chaos
+Every level plays by Level 6's rule
+A single long day (60 minutes) with a contract at
+every level; no shop mid-run; scored
+One player, and the Backrooms adjust (fewer
+entities, more hallucinations)
+One player is secretly a Skin-Stealer from the start:
+they can't die, they can take one player per level,
+and they win if the crew misses the quota. The
+crew wins by extracting with them identified and
+left behind
+Page 35 of 38

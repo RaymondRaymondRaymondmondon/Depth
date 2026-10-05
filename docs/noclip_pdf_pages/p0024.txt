@@ -1,0 +1,63 @@
+NOCLIP — Arcade Game 10 Design Document
+Moving between levels
+The ten levels are one connected place. Getting between them is half the game: every
+level has several exits to others, some reliable and some not, and a crew's knowledge of
+them is its real map.
+Kinds of exit
+Exit
+Doors and
+stairs
+Noclip
+spots
+The Lab
+network
+Being
+taken
+How it works
+A physical door,
+stairwell, ladder,
+elevator, drain, or
+tunnel that leads to a
+specific level
+A wall, floor, or object
+that's slightly wrong (a
+manila-paper room, a
+flickering wall, a steam
+vent, a cubicle with no
+walls). Walking into it at
+a run drops you
+through reality
+Every online Lab is
+synced; a player at any
+online Lab's portal can
+jump to any other
+online Lab (see The Lab
+network)
+The Level 7 Leviathan, a
+Lost player's wander, a
+Skin-Stealer's drag
+Reliability
+Fixed for the day (same
+seed); it's always where
+the generator placed it
+The destination is one
+of two levels, weighted;
+a group that noclips
+together arrives
+together only if they
+hold hands (grab each
+other within 1 s)
+Perfect
+It goes where it goes
+Cost
+Finding it
+10 sanity; a2 s blackout
+on arrival in which you
+can't move
+A 10 s charge; one jump
+per player per in-game
+hour
+Everything
+The connection map
+The default connections (a day's seed can add or remove a noclip spot, never a door):
+Page 24 of 38

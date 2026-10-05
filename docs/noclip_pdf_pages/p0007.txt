@@ -1,0 +1,42 @@
+NOCLIP — Arcade Game 10 Design Document
+Room
+The Drop-off
+The Commissary
+The Bunks
+The Generator Room
+The Observation Room
+The Archive
+What it does
+A row of lockers and a conveyor that takes loot into
+the Bureau's sealed crate. Anything in the crate
+goes to the Surface on extraction and counts
+toward the day's sale. Loot in the crate is safe from
+everything except a Lab breach
+A vending terminal: the shop (see Equipment).
+Prices are Lab-specific (a Lab deep in Level 6
+charges more for batteries and less for almond
+water)
+Sleep for 30 s to restore 20 sanity once per day; the
+only rest in the Backrooms
+Powers the Lab's lights, doors, and portal.
+Generators need fuel (a canister found on most
+levels) to run past the day; a Lab with a dead
+generator is dark, its doors don't lock, and its portal
+can't be signalled
+CRT monitors on cameras the Lab placed in its
+level: the crew can watch hallways, see entities on
+their routes, and talk over an intercom to anyone
+near a camera. A player at the monitors is the
+crew's guide, Lethal Company's terminal role
+Filing cabinets of the old researchers' notes: lore,
+and at each Lab one map fragment of how its level
+connects to others
+Restarting a dormant Lab
+1. Find it (the Bureau's map shows roughly where; the level's exits and the old
+researchers' arrows point to it).
+2. Get inside: the blast door needs power from a breaker found somewhere in the level,
+or a crowbar and two players (loud).
+3. Fuel the generator (one canister) and flip the breakers.
+4. The Lab is now online for the rest of the campaign: insertion point, drop-off, shop, rest,
+cameras, and an extraction point.
+Page 7 of 38

@@ -1,0 +1,17 @@
+{
+  "_source": "NOCLIP design doc pp. 33-34 (contracts) and p. 33 (the quota), p. 3-4 (the death fee), p. 36 (ranks, tokens)",
+  "contracts": [
+    {"id": "retrieval", "name": "Retrieval", "task": "Bring back a named item from a named level", "credit": [200, 600], "cash": 0},
+    {"id": "rescue", "name": "Rescue", "task": "Find the lost Bureau survivor and extract them", "credit": [400, 400], "cash": 200},
+    {"id": "survey", "name": "Survey", "task": "Map 80% of a level", "credit": [250, 250], "cash": 0},
+    {"id": "documentation", "name": "Documentation", "task": "Photograph three different entities", "credit": [300, 300], "cash": 0},
+    {"id": "restart", "name": "Restart", "task": "Bring a dormant Lab online", "credit": [350, 350], "cash": 0},
+    {"id": "nightshift", "name": "Night Shift", "task": "Survive Overtime in a Lab with at least 300 of loot", "credit": [500, 500], "cash": 0},
+    {"id": "party", "name": "The Party", "task": "Let one crew member accept a Partygoer's invitation; retrieve them from the Level 5 ballroom", "credit": [600, 600], "cash": 0},
+    {"id": "specimen", "name": "Specimen", "task": "Bring back a living thing", "credit": [0, 0], "cash": 450}
+  ],
+  "quota": {"week1": 600, "growth": 0.40, "growthLate": 0.35, "lateFrom": 6, "daysPerWeek": 3, "bureauCashShare": 0.20, "deathFee": 0.15, "startCash": 120},
+  "day": {"start": 360, "end": 1440, "realSeconds": 900, "evening": 1080},
+  "ranks": [["Intern", 0], ["Salvager", 1500], ["Senior Salvager", 5000], ["Field Lead", 12000], ["Liminal Specialist", 30000]],
+  "tokens": {"day": 10, "quota": 50, "entity": 25}
+}

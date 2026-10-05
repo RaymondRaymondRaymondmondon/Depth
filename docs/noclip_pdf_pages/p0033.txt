@@ -1,0 +1,44 @@
+NOCLIP — Arcade Game 10 Design Document
+Selling
+• Extracted loot comes through the portal in the Bureau's crate onto the loading bay.
+• The Bureau buys for quota credit at a fixed rate (the item's base value). Only Bureau
+sales count toward the quota. The Bureau pays 20% of credit as cash too.
+• The Fence (a man in a van called Dez) buys for cash at a rate that changes daily
+("crystals are hot, office chairs aren't"); he pays more than the Bureau for anomalous
+and cursed items and asks no questions. Fence sales don't count toward the quota.
+• The split is the decision: quota keeps the campaign alive; cash buys the gear that
+makes the next quota possible.
+The quota
+Week 1: 600 credit. Each week +40% (week 2: 840; week 3: 1,180; week 4: 1,650; week 5:
+2,300). A crew that hits the quota by day 2 can spend day 3 on cash or on contracts. The
+whiteboard shows the quota, credit so far, days left, and a running list of everything sold.
+Contracts
+Each morning the Bureau offers one contract from a list; it pays a bonus in credit and cash
+if completed that day.
+Contract
+Retrieval
+Rescue
+Survey
+Documentation
+Restart
+Night Shift
+Task
+Bring back a named item from a named level
+(the Penthouse key, a transformer core, a
+crystal cluster)
+A lost Bureau crew's last signal is on a level;
+find the survivor (an NPC who follows you,
+slowly, with low sanity) and extract them
+Map 80% of a level (the field map counts)
+Photograph three different entities
+Bring a dormant Lab online
+Survive Overtime in a Lab with at least 300
+of loot
+Pays
+200-600 credit
+400 credit, 200 cash
+250 credit
+300 credit
+350 credit, and the Lab
+500 credit
+Page 33 of 38

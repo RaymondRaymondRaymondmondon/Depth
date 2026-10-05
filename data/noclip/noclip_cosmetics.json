@@ -1,0 +1,26 @@
+{
+  "_source": "NOCLIP design doc p. 36 (cosmetics: the crate's 40 items in four tiers). kind: suit, hat (hard-hat sticker or topper), vest, lamp (headlamp colour), costume. glow: a light source.",
+  "cosmetics": [
+    {"id": "st_smiley", "name": "Sticker set: smileys", "kind": "hat", "tier": 0}, {"id": "st_bureau", "name": "Sticker set: Bureau logos", "kind": "hat", "tier": 0},
+    {"id": "st_hazard", "name": "Sticker set: hazard", "kind": "hat", "tier": 0}, {"id": "st_stars", "name": "Sticker set: stars", "kind": "hat", "tier": 0},
+    {"id": "vest_orange", "name": "Orange vest", "kind": "vest", "tier": 0}, {"id": "vest_lime", "name": "Lime vest", "kind": "vest", "tier": 0},
+    {"id": "vest_pink", "name": "Pink vest", "kind": "vest", "tier": 0}, {"id": "vest_blue", "name": "Blue vest", "kind": "vest", "tier": 0},
+    {"id": "vest_black", "name": "Black vest", "kind": "vest", "tier": 0}, {"id": "suit_navy", "name": "Navy coveralls", "kind": "suit", "tier": 0},
+    {"id": "suit_olive", "name": "Olive coveralls", "kind": "suit", "tier": 0}, {"id": "suit_grey", "name": "Grey coveralls", "kind": "suit", "tier": 0},
+    {"id": "lamp_warm", "name": "Warm headlamp", "kind": "lamp", "tier": 0}, {"id": "lamp_cold", "name": "Cold headlamp", "kind": "lamp", "tier": 0},
+    {"id": "lamp_green", "name": "Green headlamp", "kind": "lamp", "tier": 0}, {"id": "patch_duck", "name": "Vest patch: duck", "kind": "vest", "tier": 0},
+    {"id": "patch_eye", "name": "Vest patch: eye", "kind": "vest", "tier": 0}, {"id": "patch_exit", "name": "Vest patch: EXIT", "kind": "vest", "tier": 0},
+    {"id": "faceling_mask", "name": "A Faceling mask (just a mask)", "kind": "hat", "tier": 1}, {"id": "party_hat", "name": "A party hat", "kind": "hat", "tier": 1},
+    {"id": "carpet_suit", "name": "Wet-carpet suit", "kind": "suit", "tier": 1}, {"id": "wallpaper_vest", "name": "Wallpaper vest", "kind": "vest", "tier": 1},
+    {"id": "lamp_red", "name": "Red headlamp", "kind": "lamp", "tier": 1}, {"id": "lamp_purple", "name": "Purple headlamp", "kind": "lamp", "tier": 1},
+    {"id": "suit_hivis", "name": "Hi-vis coveralls", "kind": "suit", "tier": 1}, {"id": "concrete_suit", "name": "Concrete suit", "kind": "suit", "tier": 1},
+    {"id": "pipe_hat", "name": "A length of pipe (hat)", "kind": "hat", "tier": 1}, {"id": "moth_wings", "name": "Moth wings", "kind": "costume", "tier": 1},
+    {"id": "smiler_grin", "name": "A Smiler grin (it glows)", "kind": "hat", "tier": 2, "glow": true}, {"id": "hound_costume", "name": "A hi-vis Hound costume", "kind": "costume", "tier": 2},
+    {"id": "lamp_rainbow", "name": "Rainbow headlamp", "kind": "lamp", "tier": 2}, {"id": "balloon", "name": "A Partygoer balloon (popped)", "kind": "costume", "tier": 2},
+    {"id": "scarecrow_hat", "name": "Scarecrow hat", "kind": "hat", "tier": 2}, {"id": "glass_suit", "name": "Vitrum suit", "kind": "suit", "tier": 2},
+    {"id": "wallpaper_suit", "name": "The Yellow Wallpaper suit", "kind": "suit", "tier": 3}, {"id": "director_coat", "name": "The Bureau Director's coat", "kind": "suit", "tier": 3},
+    {"id": "exit_hat", "name": "The Exit Sign hat", "kind": "hat", "tier": 3, "glow": true}, {"id": "almond_costume", "name": "The Almond Water Bottle costume", "kind": "costume", "tier": 3},
+    {"id": "lava_lamp", "name": "A working lava lamp (hard hat)", "kind": "hat", "tier": 3, "glow": true}, {"id": "lamp_uv", "name": "Ultraviolet headlamp", "kind": "lamp", "tier": 2}
+  ],
+  "prices": [15, 30, 60, 0], "crate": 1, "crateWeights": [60, 28, 10, 2]
+}

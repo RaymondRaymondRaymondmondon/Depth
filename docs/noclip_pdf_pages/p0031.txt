@@ -1,0 +1,55 @@
+NOCLIP — Arcade Game 10 Design Document
+Value
+Sold value depends on the buyer (the Bureau pays quota credit at a fixed rate; the Fence
+pays cash at market rates that change daily) and on condition (damaged items are worth
+half). Every item is logged on the Surface with its level and a one-line description:
+collectors' notes from the Bureau, dry and funny.
+Equipment
+Bought on the Surface between days (delivered with the crew at insertion) or at a Lab's
+Commissary (more expensive, but available mid-day). Equipment is cheap enough that a
+crew always has some and expensive enough that every purchase is a trade against quota.
+Item
+Headlamp battery
+Flashlight
+Glow sticks (5)
+Flare
+Almond water
+Medkit
+Bandages (3)
+Splint
+Radio
+Rope (20 m)
+Crowbar
+Cart
+Price What it does
+10
+25
+15
+30
+20
+60
+25
+30
+50
+40
+35
+80
+IO minutes of light faster drain on Level 6)
+A focused beam; the Smiler's problem
+2 minutes of light each (30 s on Level 6); drop to
+mark a route
+30 s of red light; scares Smilers and Clumps; draws
+everything else
++25 sanity, +10 health, and a full stamina refill
+Heals 50; revives in 6 s
+Stops bleeding; fixes sprains
+Fixes a break
+Talk to the crew at any range on the same level
+(crackly); shows teammates on the map
+Climb, descend, haul loot up a shaft, tie to a
+swimmer
+Pries doors, crates, vents; a weapon (20, stuns a
+Hound)
+Carries 6 medium or 2 large items; loud on hard
+floors
+Page 31 of 38

@@ -1,0 +1,34 @@
+NOCLIP — Arcade Game 10 Design Document
+• Entities: Skin-Stealers in houses (wearing the residents), The Neighbors (a Level 9-
+specific entity: figures standing in windows that are closer every time you look away),
+Hounds in the dark streets, Smilers inside dark houses.
+• Loot: Very high: TVs, jewelry, family photos (strange), toys, a car battery, the
+convenience store's register.
+• Labs: Lab Iota (dormant), in the school's basement: the deepest Lab, and the hardest
+extraction (the school is full).
+• Exits: A storm drain (Level 8); the convenience store's back door (Level 4, rarely); a
+house with all its lights on (Level O); a crop circle in a back yard (Level 10) and a white
+house's front door (Level 12, sometimes).
+The deep levels (10-19)
+The next ten levels in the Backrooms wiki's numbered list, part of the same map and
+reachable at any time; the rising quota is what drives a crew down into them. They are
+bigger, stranger, and worth far more; each has a Lab that is harder to restart, and two of
+them break the rules the crew has learned. Names follow the wiki's list; where the wiki's
+take on a level is thin or varied, the game builds from the name and premise.
+Level 10: The Bumper Crop
+• Look: An endless wheat field under an overcast sky; a wind that never stops; a barn, a
+silo, a scarecrow on a pole every few hundred meters; a dirt road.
+• Generation: Open terrain with wheat at shoulder height (sight 3 m inside it, 200 m
+above it), roads, farm buildings as landmarks.
+• Mood rule — The Wheat: inside the wheat nobody can see anything, including entities;
+the wheat moves in the wind and also when something walks through it, so the only tell
+is a wave that goes against the wind. Climbing a silo or a barn roof gives the view;
+standing there makes you the only thing visible for a mile.
+• Hazards: Getting lost (the compass works here, the only deep level where it does); a
+combine harvester that drives the road and the field on a route; storms that flatten the
+wheat for a minute.
+• Entities: The Scarecrows (they're on different poles each time you look; one per field
+comes down at dusk), Hounds in the wheat.
+• Loot: Medium-high, heavy: farm tools, a tractor battery, sacks of grain (the Bureau pays
+for Backrooms grain), a barn's tack, the farmhouse's quilt.
+Page 15 of 38

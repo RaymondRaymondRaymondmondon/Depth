@@ -1,0 +1,36 @@
+NOCLIP — Arcade Game 10 Design Document
+• Exits: Over the side (Level 7); the bridge's ladder (Level 11, a rooftop); the hangar
+elevator, when it works (Level 15).
+Level 18: Nostalgic Memories
+•
+•
+•
+Look: A place made of childhood: a school, a playground, a living room from the
+nineties, a birthday party, a summer camp. Bright, warm, slightly wrong; music from a
+toy.
+Generation: Rooms and outdoor scenes from a kit of "memories", stitched together
+without logic; a schoolhouse is the hub.
+Mood rule — Comfort: Level 18 restores sanity (+1 per 30 s just by being here) and
+that's the trap: it's hard to leave. A player who stays more than 10 minutes gets the Stay
+prompt every minute, and if they accept it once by accident they're gone for the day
+(they appear back on the Surface in the morning, with nothing, saying they had a lovely
+time).
+Hazards: The Stay prompt; rooms that loop; toys that are noisy loot.
+Entities: The Friends (child-sized figures who want to play; harmless; they take your
+loot to their "clubhouse" if you put it down), Partygoers (the birthday party is theirs).
+Loot: High, sentimental, and strange: a toy collection, a lunchbox, a yearbook (with
+your name in it), a game console, a birthday cake (it's fine).
+Labs: Lab Sigma, in the school's gym.
+Exits: The schoolhouse front door (Level 4); a slide in the playground (Level 9); a closet
+(Level 19).
+Level 19: Abyss Inn
+• Look: An old inn on the edge of a chasm with no bottom: a lobby with a fire, a bar,
+rooms upstairs, a balcony over the abyss, and below it, nothing.
+• Generation: An inn (rooms from Level 51s kit, rotted) built along a cliff edge, with rooms
+that hang over the abyss on stilts and corridors that end in air.
+• Mood rule — The Edge: the abyss pulls: standing within 3 m of the edge for more than 5
+s drains sanity fast and, at low sanity, walks you toward it. Falling in is death (you
+respawn on the Surface; your carry is gone). The inn is the deepest Lab and the end of
+the map: the most valuable loot in the game is in its rooms and on its ledges.
+• Hazards: The edge; rotten floors over the abyss; the innkeeper's bell.
+Page 20 of 38

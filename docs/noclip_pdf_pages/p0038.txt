@@ -1,0 +1,34 @@
+NOCLIP — Arcade Game 10 Design Document
+Stage Work
+4
+5
+6
+Sanity and hallucinations; the map;
+contracts; equipment
+Levels 5-9 and their entities (Skin-Stealers
+with voice mimicry, Partygoers,
+Deathmoths, the Neighbors, spiders, the
+Leviathan)
+Lab upgrades, Overtime, modes (Lost,
+Skin-Stealer), progression, cosmetics, six
+players, internet play
+A Lost player wanders into a noclip
+A crew reaches Level 9 by week four
+in testing
+All targets met or logged
+Tests and targets
+--noclip-gen <level> <seed> prints a level's layout and asserts reachability from
+every Lab to every exit.
+--noclip-sim <crew> <days> runs a bot crew and reports: credit per day, deaths by
+cause, levels reached, quota met.
+• A new crew meets week one's quota about 80% of the time and week three's about
+40%; a veteran crew reaches week five.
+• Deaths: entities 50%, hazards 25%, getting lost or Overtime 15%, teammates 10% (it
+happens).
+Open questions for the designer
+Decided: the voice-recording mimic is on by default.
+Decided: Levels 10-19 are part of the normal progression, open from the start and
+pushed into by the quota.
+Decided: the VHS style is NOCLIPIs own, not a shelf-wide look.
+Decided: Skin-Stealer social deduction is a launch mode.
+Page 38 of 38

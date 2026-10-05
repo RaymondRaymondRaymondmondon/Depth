@@ -1,0 +1,34 @@
+NOCLIP — Arcade Game 10 Design Document
+• Mood rule — Triage: the hospital heals: beds restore health, the pharmacy has every
+medical item in the game, and a player who lies on a gurney for 10 s is fully healed. It
+also admits: a player who's low on health is paged by name over the PA, and something
+comes to take them to surgery.
+• Hazards: Locked wards; the morgue's drawers; the PA (it says where you are).
+• Entities: The Orderlies (tall figures in scrubs who come for paged players and wheel
+them away on a gurney: a player taken is found on an operating table in the theater
+with half health and a missing item; or a kidney, and a note), Dullers in the waiting
+rooms.
+• Loot: High: medical equipment, a pharmacy's stock, surgical instruments, the morgue's
+tagged personal effects (valuable, cursed).
+• Labs: Lab Xi, in the hospital's records room.
+• Exits: The ambulance bay (Level 11); a morgue drawer (Level 16); an elevator (Level 15).
+Level 15: Futuristic Halls
+• Look: Clean white corridors with glowing panels, sliding doors, terminals, and
+holographic signs; someone's idea of the future, empty and humming.
+• Generation: A grid of corridors and rooms with automated doors; terminals; a central
+control room.
+• Mood rule — The System: the level is run by a computer. Terminals show maps, open
+doors, and lock them; they also log the crew's position, and the system's security
+responds. A crew that hacks a terminal (a 15 s mini-game: match the pattern) controls a
+section; a crew that fails is locked in.
+• Hazards: Sliding doors that close on you; security drones that tase (electrocution);
+decontamination rooms (sealed, gassed briefly).
+• Entities: Sentries (security robots that patrol on routes and shoot taser darts;
+disabled by EMP or hacking), Facelings in lab coats.
+• Loot: Very high, light: data drives, prototype devices (anomalous), a robot's core, a
+holographic projector.
+• Labs: Lab Omicron, which is already powered (it's part of the system) but locked; a
+hack opens it.
+• Exits: An elevator (Level 14 or 17); a maintenance hatch (Level 13); the control room's
+hidden door (Level 18).
+Page 18 of 38

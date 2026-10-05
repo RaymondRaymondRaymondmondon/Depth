@@ -1,0 +1,38 @@
+NOCLIP — Arcade Game 10 Design Document
+Sanity
+100-70
+69-50
+49-30
+29-10
+9-1
+What the player experiences
+Normal
+The hum gets louder; walls breathe slightly at the
+edge of vision; a fluorescent light flickers that the
+others can't see
+False sounds: footsteps behind, a teammate's voice
+from the wrong direction (synthesized from that
+teammate's recent voice lines), a door that wasn't
+there; Smilers' eyes in dark corners that aren't real
+(and sometimes are)
+Fake entities: hallucinated Hounds and Facelings
+that move toward you and vanish on contact; loot
+shows the wrong value; the minimap lies by a room
+Your teammates sometimes look like Facelings;
+your own voice on proximity is distorted for others
+Lost: the player wanders off on autopilot toward
+the nearest noclip point for IO s unless a teammate
+grabs them; if they reach it, they noclip to a random
+level alone
+Hallucinations are per-player and client-side: the others don't see them, so a crew learns
+to ask "do you see that?" over voice, which is the point.
+Carrying
+• A backpack holds 4 small items (tools, consumables) and 2 small loot items. Loot
+comes in sizes: small (in a pocket slot), medium (in the hands, one at a time, -15%
+speed), large (two hands, -30% speed, no tools usable), and huge (two players carry it
+together, -40%).
+• Weight slows sprinting and drains stamina. Dropping loot is instant (a key) and makes a
+noise; throwing it is a 3 m toss that makes more.
+• A cart (shop item) carries 6 medium items or 2 large; it's loud on hard floors and silent
+on carpet.
+Page 5 of 38

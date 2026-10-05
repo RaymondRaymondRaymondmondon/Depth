@@ -1,0 +1,34 @@
+NOCLIP — Arcade Game 10 Design Document
+1. An expansive map. Levels connect to each other and to the Labs; a run is a route
+through several levels, not one building.
+2. Threshold Labs as outposts with portals, shops, storage, and generators to restart.
+3. The Surface: the real world, where loot is sold to a fence for money and to the firm for
+the quota, and where the crew buys the next run.
+4. Sanity as a second health bar: the Backrooms change what you see and hear the
+longer you're in them.
+5. Contracts: each run has a job (retrieve a thing, rescue a lost crew, map a level,
+photograph an entity) on top of the quota.
+Design pillars
+1. Liminal first, monsters second. The levels are scary because they're empty, endless,
+and almost normal. Entities are rare enough that each one is an event.
+2. Greed versus getting out. Every extra minute is more loot and more risk; every Lab is a
+choice to cash in or go deeper.
+3. Navigation is the skill. Knowing how levels connect, where the exits hide, and how to
+get back is what a veteran crew has that a new one doesn't.
+4. Funny with friends. Proximity voice, ragdolls, a teammate's voice coming from the
+wrong direction, a shopping list that includes a traffic cone.
+Session. A run is one "week" of three in-game days, about 45-60 minutes; a full campaign
+is runs until the quota beats the crew.
+A note on sources. The ten levels and the entities named here are from the Backrooms
+community's shared mythology (the Backrooms wiki's level list). The game Uses each
+level's premise and mood and invents its own layouts, mechanics, and loot; it doesn't
+reproduce wiki text.
+The run
+A campaign
+The crew works for the Liminal Recovery Bureau (the Bureau), a firm that sells
+Backrooms objects to collectors and labs. The Bureau sets a quota every week. A week is
+three in-game days. Meet the quota by the end of day 3 and the crew is paid and the next
+quota is higher; miss it and the Bureau "stops maintaining the portals" for you, which ends
+the campaign with the crew left in the Backrooms (a game-over screen in the Bureau's dry
+memo style).
+Page 2 of 38

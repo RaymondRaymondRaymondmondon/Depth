@@ -1,0 +1,34 @@
+NOCLIP — Arcade Game 10 Design Document
+• Exits: The boiler room's furnace (Level 6, cold and dark on the other side), the elevator
+(Level 4 or 7), a window that opens onto water (Level 7).
+Level 6: Lights Out
+• Look: Total darkness. Concrete corridors that can only be seen by what you bring. The
+air is still; there's no hum.
+• Generation: A long, winding, mostly linear set of corridors with occasional rooms; few
+landmarks.
+• Mood rule — The Dark: no light sources work for long (batteries drain sounds are
+louder; sanity drains Teammates' voices are the only comfort, and the voices are
+sometimes not teammates. A glow stick lasts 30 s.
+• Hazards: Everything, unseen; pits; the voices.
+• Entities: Smilers everywhere (eyes and teeth in the dark), Hounds by SOUnd, Skin-
+Stealers imitating voices.
+• Loot: Few items, all valuable: a glowing lantern (worth a lot and works here), an old
+researcher's camera with film, a box of batteries.
+• Labs: Lab Eta (dormant), a Lab that has never been lit; restarting it is the hardest task
+in week three.
+• Exits: A door at the end that opens onto water (Level 7); a pit (Level 8); walk long
+enough and you're in Level O (the only way back without a Lab).
+Level 7: Thalassophobia
+• Look: A small room or two of an old house, and beyond them, an endless dark ocean.
+The house's lower floors are flooded.
+• Generation: A few rooms above the water, a flooded basement below, and the ocean (a
+fixed-size open water area with a floor far below).
+• Mood rule — The Water: most of the level is underwater; swimming drains stamina;
+diving needs a breathing tank (shop); something very large lives in it and anything in
+the water for more than 60 s draws it. Loot is in the flooded house and on the sea floor.
+• Hazards: Drowning; the cold (stamina drain); the thing in the water.
+• Entities: The Leviathan of Level 7 (one enormous presence that pulls swimmers down;
+a player taken reappears in Level 8, see Death), Deathmoths around the house's lamps.
+• Loot: High and heavy: a ship's bell, waterlogged chests, a diving helmet, the house's
+family silver.
+Page 13 of 38

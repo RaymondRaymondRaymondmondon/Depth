@@ -1,0 +1,34 @@
+NOCLIP — Arcade Game 10 Design Document
+•
+Mood rule — The Hum: the lights' buzz drains sanity slowly (-1 per 90 s extra); silence
+(a room with a dead light) restores it, and dead lights are where Smilers are. Direction
+is meaningless: the compass spins.
+Hazards: Getting lost; dead-light rooms; carpet stains that are damp and squelch
+(noise); the occasional manila room (a different wallpaper: noclip spot).
+Entities: Rare. A Faceling or two wandering; a Smiler in dark rooms after 18:00.
+Loot: Low value, light, everywhere: abandoned backpacks, VHS tapes, a working
+flashlight, an office chair, almond water, someone's wallet.
+Labs: Lab Alpha (the start).
+Exits: Noclip through a manila-room wall (to Level 1); a stairwell door that's sometimes
+there (to Level 2); fall through the floor in a carpet-stain room (to Level 1, painfully).
+Level 1: The Habitable Zone
+Look: A vast concrete warehouse: grey floors and walls, exposed rebar, puddles, steel
+crates on racks, fluorescent lights that occasionally flicker off for minutes. Fog in low
+rooms.
+Generation: Large halls connected by corridors and ramps; supply crates in clusters;
+stairwells.
+Mood rule — Supply Crates: crates spawn and despawn when nobody's looking: a
+room checked is a room that might have changed. Crates hold the level's loot and
+supplies (almond water, batteries, food), so Level 1 is where a crew restocks.
+Hazards: Lights-out periods (2-5 minutes; entities move); fog rooms (sight 5 m).
+Entities: Hounds (in packs of 2-3 during lights-out), Dullers (slow, grey, everywhere
+when the lights are off), Facelings (wanderers; some trade).
+Loot: Medium value: crates of tools, a generator part, a crate of almond water (sells
+well), old Bureau equipment, a Faceling's mask (very valuable, see Entities).
+Labs: Lab Beta (dormant), near a large hall with a loading door.
+Exits: Stairwells down (Level 2); a loading-bay door that opens onto Level 3 (rare);
+noclip through a flickering wall (Level O or 4).
+Level 2: Pipe Dreams
+• Look: Long, narrow maintenance tunnels of grey concrete with pipes on every wall and
+ceiling; some pipes leak hot water or steam; dim red bulbs; sweltering.
+Page 10 of 38

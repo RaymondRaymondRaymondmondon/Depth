@@ -1,0 +1,32 @@
+NOCLIP — Arcade Game 10 Design Document
+NOCLIP — Arcade Game 10 Design
+Document (the Slop shelf)
+Oct 4, 2026 • @Phillip Argall
+Overview
+NOCLIP is a 1-6 player first-person co-op horror scavenging game on the Deep Arcade's
+new Slop shelf: the games that are knowingly a little cursed, a little internet, and very fun
+with friends. The crew are salvagers hired by a shady firm to go into the Backrooms (the
+endless liminal spaces behind reality), find things worth money, and get them out. There's
+no ship. Instead, scattered through the levels are Threshold Labs: abandoned industrial
+research stations, each with a portal back to the real world. Labs are where you drop loot,
+buy gear, rest, and signal the portal to charge so the crew can extract.
+What it takes from Lethal Company
+• Co-op scavenging under a quota: bring back enough value in a set number of days or
+you're fired (and in this case, left behind).
+• Scrap with weight and value that has to be carried by hand, so greed is a choice.
+• Proximity voice: you hear teammates only when they're near, and the things in the dark
+hear you.
+• Death that is funny for everyone else, and a ghost to watch from.
+A shop between runs; cheap gear that matters; a crew that gets better at the same
+awful places.
+What it takes from the Backrooms
+• The first ten levels (0-9) of the Backrooms wiki's numbered list: the yellow Lobby, the
+warehouse Habitable Zone, Pipe Dreams, the Electrical Station, the Abandoned Office,
+the Terror Hotel, Lights Out, Thalassophobia, the Cave System, and the Darkened
+Suburbs, each with its mood, its hazards, and its entities.
+• Noclipping: moving between levels by falling through reality at the wrong spot, plus
+the doors, stairwells, and strange exits each level has.
+• Almond water, the hum, the smell of wet carpet, and entities that are a meme until one
+is behind you.
+What NOCLIP adds
+Page 1 of 38

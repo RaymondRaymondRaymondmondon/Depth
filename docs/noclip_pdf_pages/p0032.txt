@@ -1,0 +1,52 @@
+NOCLIP — Arcade Game 10 Design Document
+Item
+Bureau camera
+Scanner
+Breathing tank
+Fuel canister
+Noise maker
+Shotgun (Bureau-issue)
+Exit chalk
+Music box
+Grappling hook
+Thermal flask
+price
+70
+120
+100
+40
+30
+300
+15
+45
+90
+25
+What it does
+Photographs entities (dossier bounties) and
+documents; the flash scares a Smiler
+A heartbeat monitor: shows living things within 20
+m; reveals Skin-Stealers (no heartbeat)
+3 minutes underwater (Level 7)
+Runs a Lab generator for a day
+A wind-up toy that walks and makes noise for 20 s;
+Hounds follow it
+Two shells; stuns any entity for 5 s; loud enough to
+draw everything on the level; a crew owns at most
+one
+Mark walls; marks persist for the day; the classic
+way not to get lost
+Wound and set down, restores 2 sanity per 10 s to
+anyone within 5 m for a minute; Partygoers love it
+Fire to a ledge 15 m; Level 8's best friend
+Halves the stamina drain from heat (Levels 2 and 3)
+and cold (Level 7) for IO minutes
+Suits (permanent upgrades, bought once)
+A hazmat suit (heat's stamina and sanity drains halved; no Deathmoth poison), a wetsuit
+(cold water halved), a backpack with an extra slot, boots (silent on hard floors), a hard hat
+with a stronger lamp, and the Bureau Field Kit (a better map that shows exits once they're
+within 20 m).
+The Surface
+The real world is the Bureau's warehouse on an industrial estate at night: a loading bay, a
+portal ring identical to the Labs', a sales counter, the Fence's van in the car park, a vending
+machine, and a whiteboard. It's the crew's safe room and its spreadsheet.
+Page 32 of 38

@@ -1,0 +1,37 @@
+NOCLIP — Arcade Game 10 Design Document
+Properties
+Property
+Fragile
+Noisy
+Glowing
+Heavy
+Cursed
+Living
+Effect
+Breaks if dropped from height or hit; worth nothing
+broken (champagne, the gramophone)
+Makes a sound when carried (a music box, a ticking
+clock, a toy that talks); Hounds follow
+A light source (the lantern, crystals); Smilers and
+Deathmoths follow
+Two-handed or two-player
+Drains the carrier's sanity (a doll, a mirror shard, a
+Partygoer's balloon); worth a lot
+Moves (a Deathmoth egg, ajar with something in
+it); can escape
+Anomalous Does something (below)
+Anomalous objects
+Rare items (one in fifty) with a function that's also loot:
+• Almond Water (Pure): heals all meters fully; worth more sold than drunk.
+• The Lucky Die: roll it; a random effect for the day (good or bad).
+• A Bureau Compass That Works: points to the nearest Lab on any level.
+• The Smiler's Tooth: Smilers ignore the carrier; it's worth a lot and it whispers.
+• The Exit Sign: placed on any door, it makes that door an exit to the level of the crew's
+choice, once.
+• A Faceling's Mask: the wearer is ignored by Facelings and Dullers; Skin-Stealers want
+it.
+• The Empty Room Key: opens a room that wasn't there (a pocket room: safe storage for
+the day).
+• The Hotel Penthouse Key: opens the penthouse on Level 5 (a vault of jewelry and the
+Terror Hotel's worst guest).
+Page 30 of 38

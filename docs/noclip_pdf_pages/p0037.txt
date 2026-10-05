@@ -1,0 +1,39 @@
+NOCLIP — Arcade Game 10 Design Document
+is a street grid with house kits. Each generator places its Labs and exits at fixed rules (a
+Lab is always within 300 m of an exit to a shallower level) and runs a reachability check
+from every Lab to every exit, as the parkour side's --verify does.
+Sound
+The hum (Level O's fluorescent buzz) is the game's identity and changes per level: the
+hum, warehouse drips, pipe hiss and clank, the station's transformer roar, office HVAC
+and a distant phone, hotel jazz and a vacuum somewhere, Lights Out's total silence and
+your own breathing, the house's creak and the ocean, the caves' drips and echoes, the
+suburbs' crickets and a far-off dog and the ice cream truck. Entities each have a tell (the
+Hounds' panting, the Smiler's faint giggle, the Partygoers' music, the Duller drone, the
+Clump's clank, Deathmoth wings, spiders' clicks, the Leviathan's groan). Proximity voice is
+reverb-processed by the room. Hallucinated sounds use the same assets, which is the
+trick.
+Data
+noclip_levels . j son (each level's generator parameters, mood rule, hazards, entity
+budgets, loot tables, Labs, exits), noclip_entities .json , noclip_loot . json ,
+noclip_items.json , noclip_contracts.json , noclip_quota.json ,
+noclip_cosmetics .json .
+Build order
+Stage Work
+1
+2
+3
+First-person body, meters, carrying, the
+headlamp; Level O's generator; Lab Alpha;
+extraction
+Proximity voice and multiplayer (4 players)
+on the shared layer; death and Wanderers;
+the Surface, the Bureau, the Fence, the
+quota
+Levels 1-4 with their generators, mood
+rules, Labs, and exits; Smilers, Hounds,
+Facelings, Dullers, Wretches, Clumps
+Gate
+One player loots Level O and extracts
+A crew completes a week on Level O
+A crew routes O -->1 2 and back
+Page 37 of 38

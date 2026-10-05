@@ -1,0 +1,47 @@
+NOCLIP — Arcade Game 10 Design Document
+From
+O Lobby
+1 Habitable Zone
+2 Pipe Dreams
+3 Electrical Station
+4 Abandoned
+Office
+5 Terror Hotel
+6 Lights Out
+7 Thalassophobia
+8 Cave System
+9 Darkened
+SUbUrbS
+Doors and stairs to
+2 (stairwell, sometimes)
+2 (stairs down), 3 (loading door, rare)
+3 (manhole), 4 (crawl pipe), 1 (stairs up)
+4 (elevator, powered), 2 (ladder), 1
+(freight door)
+5 (stairs up), 3 (stairs down), 2/5/6
+(elevator)
+6 (furnace), 4/7 (elevator), 7 (window)
+7 (end door), 8 (pit)
+8 (drain, the deep), 6 (front door)
+9 (tunnel), 1 (climb)
+8 (storm drain), 4 (store back door, rare)
+Noclip to
+1 (manila room), 1 (carpet
+stain)
+1
+6
+O (walk long enough)
+7 (river)
+O (the lit house)
+The shape: Levels 0-4 are a tangle near the start; 5-8 are a descent; 9 is the deepest,
+reached only through the caves (or rarely from the office). The way home is always either
+a Lab or a path up.
+The map screen
+Each player carries a Bureau field map (the M key): a hand-drawn chart that fills in as the
+crew explores. It shows the current level's rooms the crew has seen (shared, if they're
+within proximity range when they see them, or synced at a Lab), every exit found with its
+destination (once used or once its Archive fragment is read), Labs (dormant or online),
+and the crew's positions (only if a teammate has a radio). Sanity below 30 distorts the
+map by one room. A level's map resets each day (new seed), but exits learned stay learned
+as kinds ("the manila room is always the noclip to 1").
+Page 25 of 38

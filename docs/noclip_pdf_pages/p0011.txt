@@ -1,0 +1,34 @@
+NOCLIP — Arcade Game 10 Design Document
+• Generation: Long corridors with side rooms, branching at junctions; dead ends are
+frequent; valves.
+• Mood rule — Heat: the heat drains stamina (sprints are short and recovery is slow)
+and sanity steam pipes burst when shot, hit, or randomly (scald 20, fog 5 s); valves
+open and close sections (a puzzle and a trap).
+• Hazards: Steam bursts; electrified puddles near junction boxes; dead-end tunnels
+whose hatches seal behind you until someone opens the right valve.
+• Entities: Wretches (once-people, now feral, in packs in side rooms), Clumps (masses
+of limbs that crawl along pipes), Hounds.
+• Loot: Medium: brass valves, pressure gauges, a lost crew's toolbox, cans of food, a
+copper pipe section (heavy, valuable).
+• Labs: Lab Gamma (dormant), behind a valve-sealed door.
+• Exits: A ladder up through a manhole (Level 3); a pipe that's big enough to crawl (Level
+4); a steam vent noclip (Level 1).
+Level 3: The Electrical Station
+• Look: Brick and concrete halls full of humming machinery, transformers, conveyor
+belts, cages of wiring; the air smells of ozone; very hot; loud.
+• Generation: A grid of machine halls with catwalks above and crawlspaces below;
+breakers; locked cages.
+• Mood rule — Power: the whole level runs on breakers. Throwing breakers changes
+which doors open, which machines run (noise covers footsteps), and which floors are
+electrified. A crew with a map of breakers controls the level.
+• Hazards: Live floors (the conveyor halls), arc flashes, crushing machinery, heat
+(stamina drains and the shimmer blurs vision past 20 m), noise that hides entities'
+tells•
+• Entities: Hounds, Smilers in powered-down halls, Skin-Stealers (begin appearing here;
+see Entities), Deathmoths (eggs in warm corners).
+• Loot: High: fuses, breakers, a working radio, copper coils (heavy), machine parts, a
+transformer core (huge, two players, very valuable).
+• Labs: Lab Delta (dormant), in a control room above the main hall.
+• Exits: An elevator that works when powered (Level 4); a ladder down to Level 2; a
+freight door to Level 1; a transformer room noclip (Level 6, unpowered = very dark).
+Page 11 of 38

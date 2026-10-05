@@ -1,0 +1,58 @@
+NOCLIP — Arcade Game 10 Design Document
+Connections for 10-19
+From
+10 Bumper Crop
+11 Concrete Jungle
+12 Aedificium
+13 Vitrum Madness
+14 Inhospitality
+15 Futuristic Halls
+16 Asylum
+17 Carrier
+18 Nostalgic
+Memories
+19 Abyss Inn
+Doors and stairs to
+11 (road), 8 (barn cellar)
+13 or 15 (subway), IO (storm drain), 17 (tower
+roof), 12 (white house)
+11 (garage), 19 (attic), 9 (front door,
+sometimes)
+14 (mirror door), 11 (glass station)
+11 (ambulance bay), 16 (morgue drawer), 15
+(elevator)
+14 or 17 (elevator), 13 (hatch), 18 (hidden
+door)
+13 (boiler), 14 (front gate), 19 (chapel altar)
+7 (over the side), 11 (bridge ladder), 15
+(hangar elevator)
+4 (school door), 9 (slide), 19 (closet)
+16 (front door), 12 (attic)
+Noclip to
+9 (crop circle)
+16 (shattered floor)
+The balcony (O or
+death)
+The deep levels connect to the first ten through four two-way doors in the first ten: Level
+8's farm-cellar ladder (to 10), Level 9's crop circle (to 10) and white house (to 12), Level 7's
+open sea (to 17), and Level 4's school door (to 18). Level 11 is the deep hub; Level 19 is the
+end •
+New entities in the deep levels
+Entity
+Scarecrow
+Levels Hunts by
+Being
+10
+unwatched
+Behavior
+On a different pole
+each time; one comes
+down at dusk and
+stalks the wheat
+Tell
+A pole with no
+scarecrow
+Counter
+Keep it in sight; climb
+high; burn it (a flare)
+Page 22 of 38

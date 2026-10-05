@@ -1,0 +1,31 @@
+NOCLIP — Arcade Game 10 Design Document
+Injuries
+Hits do health damage and sometimes an injury: a sprain (no sprint until a bandage), a
+bleed (-1 health per 3 s until a bandage; leaves a trail that Hounds follow), a break (half
+speed until a splint), electrocution (a 2 s stun, drops what you're holding).
+Death
+• At O health a player is downed: they crawl, they can talk (proximity), and they bleed
+out over 40 s unless a teammate revives them (6 s with a medkit; 15 s without, and the
+reviver can't do anything else).
+A dead player drops everything they carried and becomes a Wanderer: a ghost who
+can drift through walls at walking speed, see entities through walls, and talk to the
+living only in a whisper they can barely hear within 3 m. Wanderers can't touch
+anything but can stand somewhere and be an arrow. They respawn at the Surface next
+morning.
+• Some entities don't kill; they take. A player taken by a Skin-Stealer is replaced by one
+(see Entities). A player swallowed by Level 7's water reappears on Level 8 a minute
+later with no gear and IO sanity. A player who noclips while Lost is alive and alone
+somewhere.
+Threshold Labs
+The Labs are the crew's ship, split into outposts across the map. Each is an abandoned
+research station from whoever studied the Backrooms before the Bureau: concrete, steel
+doors, banks of CRT monitors, chalkboards of equations, a generator, and in the center a
+ring of machinery around a portal that opens to the Surface. Every level has one or two;
+most start dormant and have to be found and restarted.
+The rooms of a Lab
+Room
+The Portal Hall
+What it does
+The ring and the control desk. The portal is
+signalled here (see below)
+Page 6 of 38

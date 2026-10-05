@@ -1,0 +1,33 @@
+NOCLIP — Arcade Game 10 Design Document
+A day
+1. Briefing (the Surface). The crew is in the Bureau's warehouse in the real world. They
+see the quota, the days left, today's contract (an optional job with a bonus), and the
+forecast (which levels are "active" today: more loot, more entities). They buy gear with
+money from previous sales.
+2. Insertion. The Bureau's portal drops the crew into a Threshold Lab chosen by the crew
+from those they've unlocked. Every crew starts its first day at Lab Alpha, on Level O.
+3. The shift. About 12-18 real minutes of in-game time (a day is 06:00 to 24:00 Backrooms
+time; the clock is on every watch). The crew explores, scavenges, carries loot back to a
+Lab, moves between levels, and comes back. The Backrooms get worse as the day goes
+on: more entities after 18:00; the lights flicker more; after midnight anyone still out is in
+the Overtime (below).
+4. Extraction. At any Lab the crew can signal the portal: a 30 s charge-up the crew has to
+defend (the portal's hum is the loudest thing in the level and draws entities). When it
+opens, everyone in the Lab is pulled to the Surface with everything stored in the Lab's
+drop-off.
+5. The Surface (end of day). Loot is sold: to the Bureau for quota credit, or to the Fence
+for cash (see The Surface). The crew restocks. The next day starts from the Lab they
+extracted from, or any other unlocked Lab.
+Overtime
+If the clock passes 24:00 with crew still in the Backrooms, the portal network shuts until
+06:00. Anyone outside a Lab is stuck for the night: the lights go out level-wide, entity
+activity triples, and the only safe places are Labs with their generators running. Surviving
+the night in a Lab with loot is a legitimate (insane) strategy: the morning's extraction
+counts for the next day. Surviving it outside a Lab is a story.
+How a run ends
+• The quota is met at week's end: the crew is paid, a bonus is offered to the player who
+brought in the most (a cosmetic token bonus), and a new week begins with a higher
+quota and a new forecast.
+• The quota is missed: campaign over; a score screen shows weeks survived, total loot,
+entities documented, levels reached, and how everyone died.
+Page 3 of 38

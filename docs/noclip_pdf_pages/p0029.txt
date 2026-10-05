@@ -1,0 +1,88 @@
+NOCLIP — Arcade Game 10 Design Document
+By level (examples; each level has 15-20 items)
+Level Small
+o
+1
+2
+3
+4
+5
+6
+7
+8
+9
+Wallet, VHS tape,
+keys, a flashlight
+Batteries, a can of
+food, a Bureau
+badge
+A pressure gauge, a
+brass valve
+A fuse, a radio tube
+A stapler, a USB
+drive (documents)
+Jewelry, a key card,
+a cufflink
+A camera with film, a
+battery box
+A pocket watch
+A crystal, gold ore
+A family photo, a toy,
+a remote
+Medium
+A backpack, an office
+chair, a lamp
+A supply crate, a
+toolbox, a jerrycan
+A lost crew's toolbox, a
+pipe wrench
+A working radio, copper
+coils
+A computer tower, a
+coffee machine, a desk
+plant
+A gramophone,
+champagne, a silver
+tray
+A glowing lantern
+A diving helmet, the
+family silver
+Mining equipment, a
+researcher's journal
+A TV, a register drawer,
+a car battery
+Large or huge
+A pallet of almond
+water (huge)
+A copper pipe section
+(large)
+A transformer core
+(huge)
+A filing cabinet (large)
+A grandfather clock
+(huge)
+— (nothing large
+survives here)
+A ship's bell (large), a
+waterlogged chest
+(huge)
+A crystal cluster
+(large)
+A grand piano (huge,
+impossible, worth it)
+Value
+range
+5-40
+15-80
+20-120
+30-250
+15-150
+50-400
+100-
+500
+80-450
+100-
+700
+120-
+900
+Page 29 of 38
