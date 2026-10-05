@@ -1090,7 +1090,7 @@ void DrawDangers(const fl::World& w, const Camera3D& cam, float dt) {
             switch (is.type) {
             case fl::IsleType::Maelstrom:   // rings of foam turning in, faster near the rocks
                 for (int r = 0; r < 6; r++) { float rad = 20 + r * 16.0f, sp = 0.6f / (1 + r * 0.4f);
-                    for (int k = 0; k < 18; k++) { float a = k * 2 * PI / 18 + S.t * sp + r; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(rad * 0.3f, 0.08f, 0.6f), MatrixRotateY(-a - PI * 0.5f)), MatrixTranslate(is.c.x + cosf(a) * rad, 0.15f - r * 0.05f, is.c.z + sinf(a) * rad)), Color{226, 240, 244, 255}); } }
+                    for (int k = 0; k < 18; k++) { static Model foam = LoadModelFromMesh(GenMeshSphere(1, 8, 12)); float a = k * 2 * PI / 18 + S.t * sp + r; rt::DrawStatic(foam, MatrixMultiply(MatrixMultiply(MatrixScale(rad * 0.17f, 0.06f, 0.5f), MatrixRotateY(-a - PI * 0.5f)), MatrixTranslate(is.c.x + cosf(a) * rad, 0.12f - r * 0.05f, is.c.z + sinf(a) * rad)), Color{226, 240, 244, 255}); } }   // (streaks of foam)
                 break;
             case fl::IsleType::Lighthouse: if (nightNow) {   // the beam sweeping round
                 float a = S.t * 0.6f; Vector3 lamp = is.hill;
@@ -1100,16 +1100,24 @@ void DrawDangers(const fl::World& w, const Camera3D& cam, float dt) {
                     rt::DrawSky(cone, cm, Color{255, 236, 180, 30}); } }
                 break;
             case fl::IsleType::Whale: if (w.isx.whaleUnderT <= 0) {   // the blowhole's spout now and then
-                float ph = fmodf(S.t * 0.12f, 1.0f); if (ph < 0.25f) for (int k = 0; k < 6; k++) { float u = ph * 4; rt::DrawCubeM(MatrixMultiply(MatrixScale(1 + u * 2, 1.2f, 1 + u * 2), MatrixTranslate(is.hill.x, is.hill.y + 1 + k * 1.5f * u, is.hill.z)), Color{230, 238, 244, 255}); } }
+                float ph = fmodf(S.t * 0.12f, 1.0f); if (ph < 0.25f) for (int k = 0; k < 10; k++) { static Model puff = LoadModelFromMesh(GenMeshSphere(1, 8, 12)); float u = ph * 4, sz = (0.6f + k * 0.18f) * (0.5f + u); rt::DrawStatic(puff, MatrixMultiply(MatrixScale(sz, sz * 0.8f, sz), MatrixTranslate(is.hill.x + sinf(k * 2.1f) * u * k * 0.25f, is.hill.y + 1 + k * 1.3f * u, is.hill.z + cosf(k * 1.7f) * u * k * 0.25f)), Color{230, 238, 244, 255}); } }   // (the spout: a column of spray puffs, widening)
                 break;
             case fl::IsleType::SirenRocks: for (int k = 0; k < 3; k++) {   // the Sirens on their rocks, a glow of song about them
                 float a = k * 2.1f + 0.3f; Vector3 p{is.c.x + cosf(a) * 16, w.HeightAt(is.c.x + cosf(a) * 16, is.c.z + sinf(a) * 16) + 1.2f, is.c.z + sinf(a) * 16};
-                rt::DrawCubeM(MatrixMultiply(MatrixScale(0.8f, 2.2f, 0.8f), MatrixTranslate(p.x, p.y, p.z)), Color{110, 170, 160, 255});
-                rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.6f, 1.6f, 1.6f), MatrixTranslate(p.x, p.y + 2 + 0.5f * sinf(S.t * 2 + k), p.z)), Color{160, 255, 230, 255}, 0.4f + 0.3f * sinf(S.t * 3 + k)); }
+                static Model blob = LoadModelFromMesh(GenMeshSphere(1, 10, 14));
+                {   // a Siren sat on her rock: a long scaled tail curled round, a body, long hair, a glow of song about her
+                    float sw = 0.15f * sinf(S.t * 1.3f + k);
+                    for (int j = 0; j < 5; j++) { float u = j / 4.0f; rt::DrawStatic(blob, MatrixMultiply(MatrixScale(0.45f - u * 0.25f, 0.35f - u * 0.15f, 0.45f - u * 0.25f), MatrixTranslate(p.x + cosf(a + u * 2.4f + sw) * (0.3f + u * 0.9f), p.y - 0.9f + u * 0.15f, p.z + sinf(a + u * 2.4f + sw) * (0.3f + u * 0.9f))), Color{70, 150, 140, 255}); }
+                    rt::DrawStatic(blob, MatrixMultiply(MatrixScale(0.4f, 0.75f, 0.32f), MatrixTranslate(p.x, p.y, p.z)), Color{200, 170, 150, 255});
+                    rt::DrawStatic(blob, MatrixMultiply(MatrixScale(0.3f, 0.32f, 0.3f), MatrixTranslate(p.x, p.y + 0.95f, p.z)), Color{210, 180, 160, 255});
+                    rt::DrawStatic(blob, MatrixMultiply(MatrixScale(0.36f, 0.75f, 0.3f), MatrixTranslate(p.x - cosf(a) * 0.15f, p.y + 0.55f, p.z - sinf(a) * 0.15f)), Color{60, 120, 110, 255});   // (her hair)
+                }
+                rt::DrawStaticGlow(blob, MatrixMultiply(MatrixScale(1.1f, 1.1f, 1.1f), MatrixTranslate(p.x, p.y + 2 + 0.5f * sinf(S.t * 2 + k), p.z)), Color{160, 255, 230, 255}, 0.4f + 0.3f * sinf(S.t * 3 + k)); }
                 break;
             case fl::IsleType::BirdIsland: for (int k = 0; k < 40; k++) {   // the wild colony wheeling over its rock
                 float a = S.t * (0.3f + 0.02f * (k % 7)) + k * 0.61f, rr = 20 + (k % 9) * 4.0f; Vector3 p{is.c.x + cosf(a) * rr, is.hill.y - 10 + (k % 5) * 5.0f + 2 * sinf(S.t + k), is.c.z + sinf(a) * rr};
-                rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.4f, 0.12f, 0.4f), MatrixRotateY(-a)), MatrixTranslate(p.x, p.y, p.z)), Color{246, 246, 240, 255}); }
+                if (Vector3Distance(p, cam.position) < 160) { float bt = sinf(S.t * 7 + k); DrawBirdBody(w.Def(), PoseWorld(p, a + PI * 0.5f, 0, 0.2f, 0.7f), 0.5f * bt, 0.3f * bt, 0, 0, 0, 0.9f, Color{246, 246, 240, 255}); }
+                else rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.4f, 0.12f, 0.4f), MatrixRotateY(-a)), MatrixTranslate(p.x, p.y, p.z)), Color{246, 246, 240, 255}); }
                 break;
             case fl::IsleType::GhostShip: if (nightNow) for (int k = 0; k < 4; k++) { static Model orb = LoadModelFromMesh(GenMeshSphere(1, 10, 12)); float fl2 = 0.8f + 0.2f * sinf(S.t * 5 + k * 2.3f); rt::DrawStaticGlow(orb, MatrixMultiply(MatrixScale(0.45f, 0.6f, 0.45f), MatrixTranslate(is.hill.x - 9 + 6 * k, is.hill.y + 3 + 0.4f * sinf(S.t * 2 + k), is.hill.z)), Color{120, 255, 190, 255}, 1.6f * fl2); }   // (ghostfire lanterns)
                 break;
@@ -1134,8 +1142,16 @@ void DrawDangers(const fl::World& w, const Camera3D& cam, float dt) {
     }
     if (w.LongFlight() && w.FarOpen() && w.far.frigateTown >= 0 && Vector3Distance(w.far.frigate, cam.position) < 900) {
         Vector3 f = w.far.frigate; float yaw = w.time * 0.02f;
-        rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(4, 2.4f, 16), MatrixRotateY(-yaw)), MatrixTranslate(f.x, 1, f.z)), Color{60, 50, 44, 255});
-        for (int k = -1; k <= 1; k++) rt::DrawCubeM(MatrixMultiply(MatrixScale(0.35f, 14, 0.35f), MatrixTranslate(f.x + sinf(yaw) * k * 5, 8, f.z + cosf(yaw) * k * 5)), Color{90, 74, 60, 255});
+        if (const Model* hm = rt::LoadAsset("flight/isles/wreckhull.glb")) {   // the navy's frigate: the galleon hull with three masts and sails
+            rt::DrawPbr(*hm, MatrixMultiply(MatrixMultiply(MatrixScale(0.66f, 0.8f, 0.36f), MatrixRotateY(-yaw)), MatrixTranslate(f.x, 0.6f + 0.2f * sinf(S.t * 0.8f), f.z)), Color{120, 110, 110, 255});
+            static Model mast = LoadModelFromMesh(GenMeshCylinder(0.5f, 1, 10));
+            for (int k = -1; k <= 1; k++) { Vector3 mp{f.x + sinf(yaw) * k * 5, 0, f.z + cosf(yaw) * k * 5};
+                rt::DrawStatic(mast, MatrixMultiply(MatrixScale(0.4f, 15, 0.4f), MatrixTranslate(mp.x, 1, mp.z)), Color{90, 74, 60, 255});
+                for (int s2 = 0; s2 < 2; s2++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(6.5f - s2 * 1.6f, 3.2f, 0.12f), MatrixRotateY(-yaw + PI / 2)), MatrixTranslate(mp.x, 7 + s2 * 4.2f, mp.z)), Color{232, 226, 210, 255}); }
+        } else {
+            rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(4, 2.4f, 16), MatrixRotateY(-yaw)), MatrixTranslate(f.x, 1, f.z)), Color{60, 50, 44, 255});
+            for (int k = -1; k <= 1; k++) rt::DrawCubeM(MatrixMultiply(MatrixScale(0.35f, 14, 0.35f), MatrixTranslate(f.x + sinf(yaw) * k * 5, 8, f.z + cosf(yaw) * k * 5)), Color{90, 74, 60, 255});
+        }
     }
     // ---- the neutral factions: the pirate band, the fleet's boats, the Grey Wings over their crag
     if (w.pirates.on && w.time >= w.pirates.scatterUntil && Vector3Distance(w.pirates.pos, cam.position) < 500)
@@ -1143,8 +1159,14 @@ void DrawDangers(const fl::World& w, const Camera3D& cam, float dt) {
             DrawBirdBody(w.Def(), PoseWorld(p, a + PI * 0.5f, 0, 0.3f, 0.8f), 0.5f * bt, 0.3f * bt, 0, 0, 0, 0.9f, Color{40, 40, 46, 255}); }
     for (const auto& b : w.fleet) if (Vector3Distance(b.pos, cam.position) < 600) {
         float yaw = atan2f(b.pos.z, b.pos.x);
-        rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(7, 1.4f, 2.4f), MatrixRotateY(yaw)), MatrixTranslate(b.pos.x, 0.3f, b.pos.z)), Color{150, 100, 60, 255});
-        rt::DrawCubeM(MatrixMultiply(MatrixScale(0.25f, 6, 0.25f), MatrixTranslate(b.pos.x, 3.5f, b.pos.z)), Color{120, 90, 60, 255});
+        if (const Model* sk = rt::LoadAsset("trawl/props/skiff.glb")) {   // (the fleet's boats: the Trawl's skiff, scaled up, under a mast)
+            static Model mast = LoadModelFromMesh(GenMeshCylinder(0.5f, 1, 8));
+            rt::DrawPbr(*sk, MatrixMultiply(MatrixMultiply(MatrixScale(2.4f, 2.4f, 2.4f), MatrixRotateY(yaw)), MatrixTranslate(b.pos.x, 0.1f + 0.12f * sinf(S.t * 1.2f + b.pos.x), b.pos.z)));
+            rt::DrawStatic(mast, MatrixMultiply(MatrixScale(0.22f, 6.5f, 0.22f), MatrixTranslate(b.pos.x, 0.5f, b.pos.z)), Color{120, 90, 60, 255});
+        } else {
+            rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(7, 1.4f, 2.4f), MatrixRotateY(yaw)), MatrixTranslate(b.pos.x, 0.3f, b.pos.z)), Color{150, 100, 60, 255});
+            rt::DrawCubeM(MatrixMultiply(MatrixScale(0.25f, 6, 0.25f), MatrixTranslate(b.pos.x, 3.5f, b.pos.z)), Color{120, 90, 60, 255});
+        }
         rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.1f, 4, 3), MatrixRotateY(yaw)), MatrixTranslate(b.pos.x + 0.3f, 4, b.pos.z)), Color{236, 230, 214, 255});
     }
     if (w.grey.isle >= 0 && !w.grey.dead && Vector3Distance(w.grey.crag, cam.position) < 700)
