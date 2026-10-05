@@ -1293,6 +1293,7 @@ struct DrawCmd {
     int recOff = 0, recN = 0;      // recoloured materials in gRecPool
     int partOff = -1, partN = 0;   // per-mesh local transforms in gPartPool (an asset's moving parts)
     int water = 0, skydome = 0;    // the sea's and the sky's own shaders (one of each a frame)
+    unsigned int screenTex = 0;    // a surface showing a texture by screen position (a portal's view of the other side)
 };
 static WaterLook gWaterLook;
 static SkyLook gSkyLook;
@@ -1335,6 +1336,15 @@ void DrawStatic(const Model& m, Matrix world, Color tint) {
 void DrawCubeM(Matrix world, Color col) {
     gQueue.push_back({&gCube, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, col});
 }
+// A surface that shows a texture by where it is on the screen: a portal's face showing the view rendered from its
+// partner (RenderCapture with the same projection). Unlit, unfogged; edges and depth as any geometry.
+static Shader gScreenSh{}; static int gScreenView = -1;
+void DrawScreenTex(const Model& m, Matrix world, Texture2D tex, Color tint) {
+    DrawCmd d{&m, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, tint}; d.screenTex = tex.id; d.noShadow = true; gQueue.push_back(d);
+}
+static RenderTexture2D* gCaptureRT = nullptr;
+void RenderCapture(RenderTexture2D& target) { gCaptureRT = &target; RenderEnd(); gCaptureRT = nullptr; }
+Vector2 ViewSize() { return {roundf(SCREEN_W * gQuality.scale), roundf(SCREEN_H * gQuality.scale)}; }
 void DrawSky(const Model& m, Matrix world, Color tint) {
     DrawCmd d{&m, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, tint};
     d.sky = 1;
@@ -1627,6 +1637,18 @@ static void DrawQueue(Shader sh, bool lit) {
             else DrawPbrCmd(d, gPbr, true);
             continue;
         }
+        if (d.screenTex && lit) {
+            if (!gScreenSh.id) {
+                gScreenSh = LoadShaderFromMemory(nullptr, "#version 330\nin vec2 fragTexCoord; in vec4 fragColor; uniform sampler2D texture0; uniform vec4 colDiffuse; uniform vec2 uView; out vec4 finalColor;\nvoid main() { vec2 uv = gl_FragCoord.xy / uView; finalColor = vec4(texture(texture0, uv).rgb * colDiffuse.rgb, 1.0); }\n");
+                gScreenView = GetShaderLocation(gScreenSh, "uView");
+            }
+            Vector2 vs{(float)gColorRT.texture.width, (float)gColorRT.texture.height}; SetShaderValue(gScreenSh, gScreenView, &vs, SHADER_UNIFORM_VEC2);
+            Model& m = const_cast<Model&>(*d.model);
+            Material mat = m.materials[0]; MaterialMap maps[12]; memcpy(maps, mat.maps, sizeof(maps)); mat.maps = maps; mat.shader = gScreenSh;
+            maps[MATERIAL_MAP_DIFFUSE].texture.id = d.screenTex; maps[MATERIAL_MAP_DIFFUSE].color = d.tint;
+            DrawMesh(m.meshes[0], mat, d.world);
+            continue;
+        }
         Model& m = const_cast<Model&>(*d.model);
         m.materials[0].shader = sh;
         m.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = d.tint;
@@ -1763,7 +1785,8 @@ void RenderEnd() {
         }
         rlActiveTextureSlot(SHADOW_UNIT); rlEnableTexture(gShadowRT.texture.id); rlActiveTextureSlot(0);
     } else { SetI(gLit, L_litShadow[2], 0); SetI(gPbr, L_pbrShadow[2], 0); }
-    BeginLayer(gColorRT);
+    RenderTexture2D colourTarget = gCaptureRT ? *gCaptureRT : gColorRT;   // (a capture: the lit colour alone, into the caller's texture)
+    BeginLayer(colourTarget);
     ClearBackground(gLight.silhouette > 0.5f ? Color{216, 209, 189, 255} : gLight.fog);
     BeginMode3D(gCam);
     rlDisableBackfaceCulling();
@@ -1771,6 +1794,7 @@ void RenderEnd() {
     rlEnableBackfaceCulling();
     EndMode3D();
     EndLayer();
+    if (gCaptureRT) return;
     // normal/depth pass
     SetF(gND, L_nd[6], FAR);
     SetV3(gND, L_nd[7], gCam.position);

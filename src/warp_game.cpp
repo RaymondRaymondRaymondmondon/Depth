@@ -3,6 +3,7 @@
 #include "game.h"
 #include "input.h"
 #include "redtide_render.h"
+#include "rlgl.h"
 #include "figure3d.h"
 #include "warp.h"
 #include "warp_net.h"
@@ -53,64 +54,170 @@ Matrix PanelFrame(Vector3 c, Vector3 n, Vector3 u, float sx, float sy, float sz)
     Matrix m = {r.x * sx, u.x * sy, n.x * sz, c.x, r.y * sx, u.y * sy, n.y * sz, c.y, r.z * sx, u.z * sy, n.z * sz, c.z, 0, 0, 0, 1};
     return m;
 }
+// the clip of a portal's view: the exit portal's plane (things behind it are inside the wall, hidden)
+bool gClipOn = false; Vector3 gClipP{}, gClipN{};
+bool Behind(Vector3 c) { return gClipOn && Vector3DotProduct(Vector3Subtract(c, gClipP), gClipN) < -0.02f; }
+bool OnClip(Vector3 c, Vector3 n) { return gClipOn && fabsf(Vector3DotProduct(Vector3Subtract(c, gClipP), gClipN)) < 0.06f && Vector3DotProduct(n, gClipN) > 0.9f; }
 void DrawArena() {
+    // (a portal's view: nothing behind the exit portal's plane, nor the plate the exit portal sits on)
+    auto cube = [&](Vector3 c, Vector3 s, Color col) { if (!Behind(c)) rt::DrawWorldCube(c, s, col); };
     const Arena& a = W().arena; float X = a.OuterX(), Z = a.OuterZ();
     // the floor: the run-off dark, the court in two halves, the lines
-    rt::DrawWorldCube({0, -0.1f, 0}, {X * 2, 0.2f, Z * 2}, {70, 62, 58, 255});
-    for (int s = 0; s < 2; s++) rt::DrawWorldCube({(s ? 1 : -1) * a.halfL / 2, -0.04f, 0}, {a.halfL, 0.1f, a.halfW * 2}, Mix(Color{176, 132, 88, 255}, TEAM[s], 0.12f));
-    auto line = [&](float x0, float z0, float x1, float z1, Color c) { rt::DrawWorldCube({(x0 + x1) / 2, 0.02f, (z0 + z1) / 2}, {std::max(0.06f, fabsf(x1 - x0)), 0.02f, std::max(0.06f, fabsf(z1 - z0))}, c); };
+    cube({0, -0.1f, 0}, {X * 2, 0.2f, Z * 2}, {70, 62, 58, 255});
+    for (int s = 0; s < 2; s++) cube({(s ? 1 : -1) * a.halfL / 2, -0.04f, 0}, {a.halfL, 0.1f, a.halfW * 2}, Mix(Color{176, 132, 88, 255}, TEAM[s], 0.12f));
+    auto line = [&](float x0, float z0, float x1, float z1, Color c) { cube({(x0 + x1) / 2, 0.02f, (z0 + z1) / 2}, {std::max(0.06f, fabsf(x1 - x0)), 0.02f, std::max(0.06f, fabsf(z1 - z0))}, c); };
     Color W{236, 232, 220, 255};
     line(0, -a.halfW, 0, a.halfW, {250, 210, 80, 255});
     for (int s = -1; s <= 1; s += 2) { line(s * Cfg().attackLine, -a.halfW, s * Cfg().attackLine, a.halfW, W); line(s * a.halfL, -a.halfW, s * a.halfL, a.halfW, W); }
     line(-a.halfL, -a.halfW, a.halfL, -a.halfW, W); line(-a.halfL, a.halfW, a.halfL, a.halfW, W);
     // the walls (dark) and the ceiling
     Color wall{48, 54, 66, 255};
-    rt::DrawWorldCube({-X - 0.15f, a.ceil / 2, 0}, {0.3f, a.ceil, Z * 2}, wall); rt::DrawWorldCube({X + 0.15f, a.ceil / 2, 0}, {0.3f, a.ceil, Z * 2}, wall);
-    rt::DrawWorldCube({0, a.ceil / 2, -Z - 0.15f}, {X * 2, a.ceil, 0.3f}, wall); rt::DrawWorldCube({0, a.ceil / 2, Z + 0.15f}, {X * 2, a.ceil, 0.3f}, wall);
-    rt::DrawWorldCube({0, a.ceil + 0.15f, 0}, {X * 2, 0.3f, Z * 2}, {40, 44, 54, 255});
+    cube({-X - 0.15f, a.ceil / 2, 0}, {0.3f, a.ceil, Z * 2}, wall); cube({X + 0.15f, a.ceil / 2, 0}, {0.3f, a.ceil, Z * 2}, wall);
+    cube({0, a.ceil / 2, -Z - 0.15f}, {X * 2, a.ceil, 0.3f}, wall); cube({0, a.ceil / 2, Z + 0.15f}, {X * 2, a.ceil, 0.3f}, wall);
+    cube({0, a.ceil + 0.15f, 0}, {X * 2, 0.3f, Z * 2}, {40, 44, 54, 255});
     // the light grey portal panels (a raised plate, so they read from across the court)
-    for (const auto& p : a.panels) rt::DrawCubeM(PanelFrame(Vector3Add(p.c, Vector3Scale(p.n, 0.015f)), p.n, p.u, p.hw * 2, p.hh * 2, 0.03f), {206, 210, 216, 255});
+    for (const auto& p : a.panels) if (!Behind(p.c) && !OnClip(p.c, p.n)) rt::DrawCubeM(PanelFrame(Vector3Add(p.c, Vector3Scale(p.n, 0.015f)), p.n, p.u, p.hw * 2, p.hh * 2, 0.03f), {206, 210, 216, 255});
     // the pieces
     for (const auto& b : a.boxes) {
         Vector3 c{(b.lo.x + b.hi.x) / 2, (b.lo.y + b.hi.y) / 2, (b.lo.z + b.hi.z) / 2}, s{b.hi.x - b.lo.x, b.hi.y - b.lo.y, b.hi.z - b.lo.z};
         Color col = b.kind == 1 ? Color{96, 100, 110, 255} : b.kind == 2 ? Color{60, 64, 76, 255} : b.kind == 3 ? Color{130, 96, 62, 255} : Color{150, 160, 172, 255};
-        rt::DrawWorldCube(c, s, col);
-        if (b.kind == 3) for (int k = -1; k <= 1; k += 2) for (int j = -1; j <= 1; j += 2) rt::DrawWorldCube({c.x + k * (s.x / 2 - 0.08f), b.lo.y / 2, c.z + j * (s.z / 2 - 0.08f)}, {0.12f, b.lo.y, 0.12f}, {80, 70, 60, 255});   // (the nest's legs)
+        cube(c, s, col);
+        if (b.kind == 3) for (int k = -1; k <= 1; k += 2) for (int j = -1; j <= 1; j += 2) cube({c.x + k * (s.x / 2 - 0.08f), b.lo.y / 2, c.z + j * (s.z / 2 - 0.08f)}, {0.12f, b.lo.y, 0.12f}, {80, 70, 60, 255});   // (the nest's legs)
     }
     for (const auto& l : a.ladders) for (int r = 0; r < 8; r++) {
-        rt::DrawWorldCube({l.base.x, (r + 0.5f) * l.top / 8, l.base.z}, {0.06f, 0.06f, 0.6f}, {200, 170, 80, 255});
-        if (!r) for (int k = -1; k <= 1; k += 2) rt::DrawWorldCube({l.base.x, l.top / 2, l.base.z + k * 0.3f}, {0.07f, l.top, 0.07f}, {170, 140, 60, 255});
+        cube({l.base.x, (r + 0.5f) * l.top / 8, l.base.z}, {0.06f, 0.06f, 0.6f}, {200, 170, 80, 255});
+        if (!r) for (int k = -1; k <= 1; k += 2) cube({l.base.x, l.top / 2, l.base.z + k * 0.3f}, {0.07f, l.top, 0.07f}, {170, 140, 60, 255});
     }
     // banners over each end in the team's colour
     for (int s = 0; s < 2; s++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.1f, 0.5f, a.halfW * 1.4f), MatrixTranslate((s ? 1 : -1) * (X - 0.05f), a.wall + (a.ceil - a.wall) * 0.5f, 0)), TEAM[s], 0.25f);
 }
-void DrawPortals() {
+// Portal colours as each player sees them (the playtest): your own pair cyan (A) and royal blue (B), a teammate's in
+// steel blues, the other team's in reds (orange-red A, crimson B)
+Color PortalColour(const Player& owner, int k) {
+    if (owner.id == S.me) return k == 0 ? Color{90, 220, 255, 255} : Color{60, 100, 255, 255};
+    if (owner.team == Me().team) return k == 0 ? Color{130, 170, 220, 255} : Color{80, 110, 190, 255};
+    return k == 0 ? Color{255, 110, 60, 255} : Color{220, 30, 50, 255};
+}
+// the window: where the view through a portal is seen from (the camera carried through the pair: in at A, out at B)
+static Vector3 Through(Vector3 v, const Portal& a, const Portal& b) {
+    Vector3 ra = Vector3CrossProduct(a.u, a.n), rb = Vector3CrossProduct(b.u, b.n);
+    float x = Vector3DotProduct(v, ra), y = Vector3DotProduct(v, a.u), z = Vector3DotProduct(v, a.n);
+    return Vector3Add(Vector3Add(Vector3Scale(rb, -x), Vector3Scale(b.u, y)), Vector3Scale(b.n, -z));
+}
+Camera3D PortalCam(const Camera3D& c, const Portal& a, const Portal& b) {
+    Camera3D v = c;
+    v.position = Vector3Add(b.c, Through(Vector3Subtract(c.position, a.c), a, b));
+    v.target = Vector3Add(v.position, Through(Vector3Subtract(c.target, c.position), a, b));
+    v.up = Through(c.up, a, b);
+    return v;
+}
+struct PortalView { int owner = -1, k = 0; RenderTexture2D rt{}; bool live = false; };
+PortalView gPV[2];
+// ---------------------------------------------------------------- the dressing (the playtest: "funny posters on walls (portal
+// goes over the posters) and benches on the side of the arena"): gym posters painted in code on the portal walls, under
+// the portals; team benches along the sidelines, where the out players sit, with towels, bottles and kit bags
+struct PosterDef { const char* top; const char* big; const char* small; Color bg, ink; int art; };
+static const PosterDef POSTERS[] = {
+    {"THE MANAGEMENT SAYS", "THINK WITH\nPORTALS", "throw with your arms", {40, 90, 160, 255}, {250, 240, 220, 255}, 0},
+    {"", "DODGE\nDUCK\nDIP\nDIVE\n...WARP", "the five Ds", {200, 60, 40, 255}, {255, 236, 200, 255}, 1},
+    {"NOTICE", "NO WARPING\nIN THE\nSHOWERS", "we mean it, Gary", {230, 226, 210, 255}, {30, 30, 36, 255}, 2},
+    {"EMPLOYEE OF", "THE MONTH", "the ball (again)", {250, 210, 70, 255}, {60, 30, 20, 255}, 3},
+    {"LOST", "ONE LEFT\nSHOE", "last seen going\ninto portal B", {236, 232, 220, 255}, {40, 40, 40, 255}, 4},
+    {"", "HYDRATE\nOR\nDIE-DRATE", "water is free", {40, 150, 170, 255}, {250, 250, 240, 255}, 5},
+    {"CAUTION", "BALL MAY\nEXIT FROM\nCEILING", "look up sometimes", {250, 200, 30, 255}, {20, 20, 20, 255}, 6},
+    {"PORTALS ARE", "NOT FOR\nSNACK\nSTORAGE", "this means you", {120, 60, 160, 255}, {250, 240, 250, 255}, 7},
+    {"TEAM SPIRIT!", "(MANDATORY)", "smile for the cameras", {60, 160, 90, 255}, {250, 250, 240, 255}, 8},
+    {"IF YOU CAN", "DODGE A\nPORTAL", "you can dodge a ball", {30, 30, 40, 255}, {250, 200, 90, 255}, 9},
+};
+constexpr int POSTER_N = (int)(sizeof(POSTERS) / sizeof(POSTERS[0]));
+static void ImageEllipse(Image* im, int cx, int cy, int rx, int ry, Color c) { for (int y = -ry; y <= ry; y++) { float w = rx * sqrtf(std::max(0.0f, 1 - (float)(y * y) / (ry * ry))); ImageDrawRectangle(im, cx - (int)w, cy + y, (int)(2 * w) + 1, 1, c); } }
+static Texture2D PosterTex(int k) {
+    static Texture2D t[POSTER_N] = {}; if (t[k].id) return t[k];
+    const PosterDef& d = POSTERS[k]; const int W = 256, H = 360;
+    Image im = GenImageColor(W, H, d.bg);
+    ImageDrawRectangleLines(&im, {6, 6, W - 12.0f, H - 12.0f}, 4, d.ink);
+    Font f = GetFontDefault();
+    auto centred = [&](const char* s, int y, int size) { int ly = y; std::string str = s; size_t a = 0; while (a <= str.size()) { size_t b = str.find('\n', a); std::string line = str.substr(a, b == std::string::npos ? std::string::npos : b - a); Vector2 m = MeasureTextEx(f, line.c_str(), (float)size, size / 10.0f); ImageDrawTextEx(&im, f, line.c_str(), {(W - m.x) / 2, (float)ly}, (float)size, size / 10.0f, d.ink); ly += size + 4; if (b == std::string::npos) break; a = b + 1; } return ly; };
+    int y = 22; if (d.top[0]) y = centred(d.top, y, 20) + 6;
+    // a little picture under the heading
+    Color c2 = ColorLerp(d.bg, d.ink, 0.5f);
+    switch (d.art) {
+        case 3: ImageDrawCircle(&im, W / 2, y + 60, 50, Color{220, 70, 60, 255}); ImageDrawCircle(&im, W / 2 - 18, y + 48, 7, WHITE); ImageDrawCircle(&im, W / 2 + 18, y + 48, 7, WHITE); ImageDrawCircle(&im, W / 2 - 18, y + 48, 3, BLACK); ImageDrawCircle(&im, W / 2 + 18, y + 48, 3, BLACK); ImageDrawRectangle(&im, W / 2 - 22, y + 78, 44, 6, BLACK); y += 125; break;
+        case 6: for (int r = 0; r < 3; r++) ImageDrawCircleLines(&im, W / 2, y + 40, 22 + r * 8, d.ink); ImageDrawCircle(&im, W / 2, y + 95, 16, Color{220, 70, 60, 255}); y += 125; break;
+        case 0: case 7: case 9: ImageEllipse(&im, W / 2 - 40, y + 45, 22, 38, Color{90, 220, 255, 255}); ImageEllipse(&im, W / 2 + 40, y + 45, 22, 38, Color{255, 120, 60, 255}); ImageEllipse(&im, W / 2 - 40, y + 45, 15, 30, c2); ImageEllipse(&im, W / 2 + 40, y + 45, 15, 30, c2); y += 98; break;
+        case 4: ImageDrawRectangle(&im, W / 2 - 40, y + 40, 70, 26, d.ink); ImageDrawRectangle(&im, W / 2 - 40, y + 20, 26, 30, d.ink); y += 82; break;
+        case 5: ImageDrawRectangle(&im, W / 2 - 16, y + 10, 32, 70, Color{200, 240, 250, 255}); ImageDrawRectangle(&im, W / 2 - 8, y, 16, 12, d.ink); y += 90; break;
+        default: ImageDrawCircle(&im, W / 2, y + 30, 26, Color{220, 70, 60, 255}); y += 66; break;
+    }
+    y = centred(d.big, y + 6, 30);
+    centred(d.small, std::max(y + 8, H - 70), 16);
+    ImageFlipVertical(&im);   // (the cube's face maps its texture upside down)
+    t[k] = LoadTextureFromImage(im); UnloadImage(im); SetTextureFilter(t[k], TEXTURE_FILTER_BILINEAR); GenTextureMipmaps(&t[k]); return t[k];
+}
+static Model& PosterModel(int k) {
+    static Model m[POSTER_N] = {}; static bool made[POSTER_N] = {};
+    if (!made[k]) { m[k] = LoadModelFromMesh(GenMeshCube(1, 1, 1)); m[k].materials[0].maps[MATERIAL_MAP_ALBEDO].texture = PosterTex(k); m[k].materials[0].maps[MATERIAL_MAP_METALNESS].value = 0; m[k].materials[0].maps[MATERIAL_MAP_ROUGHNESS].value = 0.85f; made[k] = true; }
+    return m[k];
+}
+void DrawDressing() {
+    const Arena& a = W().arena; float X = a.OuterX(), Z = a.OuterZ();
+    // posters: on the side walls in a row at eye height and above, two on each end wall; each a different one (a portal opens over them)
+    int k = 0;
+    auto poster = [&](Vector3 c, Vector3 n) { if (Behind(c) || OnClip(c, n)) { k++; return; } rt::DrawPbr(PosterModel(k % POSTER_N), PanelFrame(Vector3Add(c, Vector3Scale(n, 0.034f)), n, {0, 1, 0}, 0.9f, 1.26f, 0.004f), WHITE, 0.3f); k++; };
+    for (int s = -1; s <= 1; s += 2) for (int j = 0; j < 3; j++) poster({(j - 1) * X * 0.55f + s * 1.2f, 2.9f, s * Z}, {0, 0, (float)-s});
+    for (int s = -1; s <= 1; s += 2) for (int j = -1; j <= 1; j += 2) poster({s * X, 3.1f, j * Z * 0.5f}, {(float)-s, 0, 0});
+    // the benches (where the out players sit), a towel, bottles and a kit bag at each
+    bool classic = a.kind == AR_CLASSIC; float bz = classic ? a.halfW + 1.2f + 0.22f : Z - 0.28f;
+    auto cube = [&](Vector3 c, Vector3 s, Color col) { if (!Behind(c)) rt::DrawWorldCube(c, s, col); };
+    for (int t = 0; t < 2; t++) {
+        float s = t == 0 ? -1.0f : 1.0f, x0 = s * 1.5f, x1 = s * 5.5f, cx = (x0 + x1) / 2, len = fabsf(x1 - x0);
+        for (float zz : {bz, -bz}) {
+            float zs = zz > 0 ? 1.0f : -1.0f;
+            cube({cx, 0.43f, zz}, {len, 0.06f, 0.4f}, Color{168, 120, 72, 255});   // the seat
+            cube({cx, 0.43f, zz + zs * 0.18f}, {len, 0.07f, 0.06f}, Color{140, 98, 58, 255});
+            for (float u : {0.08f, 0.5f, 0.92f}) cube({x0 + (x1 - x0) * u, 0.2f, zz}, {0.06f, 0.4f, 0.32f}, Color{70, 70, 76, 255});   // the legs
+            if (zz > 0) {   // (on the far side only: a towel, two bottles and a bag in the team's colour)
+                cube({x0 + (x1 - x0) * 0.75f, 0.47f, zz}, {0.45f, 0.03f, 0.32f}, Mix(TEAM[t], WHITE, 0.55f));
+                for (int b = 0; b < 2; b++) { Vector3 bc{x0 + (x1 - x0) * (0.86f + b * 0.05f), 0.56f, zz - 0.05f}; cube(bc, {0.07f, 0.2f, 0.07f}, Color{180, 220, 240, 255}); cube({bc.x, 0.69f, bc.z}, {0.035f, 0.05f, 0.035f}, TEAM[t]); }
+                cube({x0 - s * 0.6f, 0.17f, zz + 0.05f}, {0.7f, 0.34f, 0.32f}, TEAM_DARK[t]);
+            }
+        }
+    }
+}
+void DrawPortals(bool views) {
     const Config& C = Cfg();
     for (const auto& p : W().players) for (int k = 0; k < 2; k++) {
         const Portal& o = p.portal[k]; if (!o.on) continue;
-        bool both = p.portal[0].on && p.portal[1].on;
-        Color c = k == 0 ? Mix(TEAM[p.team], Color{255, 200, 80, 255}, 0.45f) : Mix(TEAM[p.team], Color{120, 120, 255, 255}, 0.45f);
-        float pulse = 0.8f + 0.2f * sinf(S.t * 5 + p.id + k);
-        // the rim: a ring of glowing segments round the oval; the face: a flattened sphere, swirling when the pair is open
         Vector3 cc = Vector3Add(o.c, Vector3Scale(o.n, 0.03f)), rr = Vector3CrossProduct(o.u, o.n);
+        if (gClipOn && (Behind(cc) || OnClip(o.c, o.n))) continue;   // (in a portal's own view, not the exit itself)
+        bool both = p.portal[0].on && p.portal[1].on;
+        Color c = PortalColour(p, k);
+        float pulse = 0.8f + 0.2f * sinf(S.t * 5 + p.id + k);
+        // the rim: a ring of glowing segments round the oval
         for (int j = 0; j < 28; j++) {
             float a0 = j * 2 * PI / 28 + (both ? S.t * 0.8f : 0), ca = cosf(a0), sa = sinf(a0);
             Vector3 q = Vector3Add(cc, Vector3Add(Vector3Scale(rr, ca * C.portalW / 2), Vector3Scale(o.u, sa * C.portalH / 2)));
             Vector3 tng = Vector3Normalize(Vector3Add(Vector3Scale(rr, -sa * C.portalW / 2), Vector3Scale(o.u, ca * C.portalH / 2)));
             rt::DrawCubeGlow(PanelFrame(q, o.n, tng, 0.07f, 0.2f, 0.05f), j % 2 ? c : Mix(c, WHITE, 0.4f), (both ? 1.6f : 0.7f) * pulse);
         }
-        if (both) rt::DrawStaticGlow(SphereModel(), PanelFrame(cc, o.n, o.u, C.portalW / 2 * 0.93f, C.portalH / 2 * 0.93f, 0.012f), Mix(c, Color{30, 20, 60, 255}, 0.5f + 0.1f * sinf(S.t * 3 + k)), 0.7f);
+        if (!both) continue;
+        // the face: the view out of its partner where it's being rendered this frame; elsewhere a swirl in its colour
+        const PortalView* pv = nullptr; if (views) for (const auto& v : gPV) if (v.live && v.owner == p.id && v.k == k) pv = &v;
+        Matrix face = PanelFrame(cc, o.n, o.u, C.portalW / 2 * 0.93f, C.portalH / 2 * 0.93f, 0.012f);
+        if (pv) rt::DrawScreenTex(SphereModel(), face, pv->rt.texture, Mix(WHITE, c, 0.12f));
+        else rt::DrawStaticGlow(SphereModel(), face, Mix(c, Color{30, 20, 60, 255}, 0.5f + 0.1f * sinf(S.t * 3 + k)), 0.7f);
     }
-}
-const Model* Body() { return rt::LoadAsset("shared/crew/crew_diver.glb"); }
+}const Model* Body() { return rt::LoadAsset("shared/crew/crew_diver.glb"); }
 void DrawPlayer(const Player& p, bool sideline, int slot) {
-    if (p.id == S.me && !sideline && p.alive) return;   // (your own body: first person)
+    if (p.id == S.me && !sideline && p.alive && !gClipOn) return;   // (your own body: first person; seen through a portal it's there)
+    if (Behind(p.pos)) return;
     const Model* m = Body(); if (!m) return;
     fig::Pose P; fig::Build B; B.build = 1.0f + 0.04f * (p.id % 3);
     Vector3 feet = p.pos; float yaw = p.yaw;
     if (sideline) {   // out: standing along their side of the court, in catch order
         float s = p.team == 0 ? -1.0f : 1.0f; float z = W().arena.kind == AR_CLASSIC ? W().arena.halfW + 1.2f : W().arena.OuterZ() - 0.5f;
         feet = {s * (2.0f + slot * 0.9f), 0, z}; yaw = -PI / 2; P.breathe = S.t * 2 + p.id;
+        P.sit = 1; P.grip = 0.2f; P.look = sinf(S.t * 0.4f + p.id) * 0.3f;   // (sitting on the team bench, watching)
     } else {
         float spd = Vector3Length({p.vel.x, 0, p.vel.z});
         P.walk = std::min(1.0f, spd / 5); P.walkPh = S.t * (4 + spd) + p.id;
@@ -322,11 +429,40 @@ void Render() {
     const Arena& a = W().arena;
     for (int i = -1; i <= 1; i++) L.AddPoint({i * a.halfL * 0.66f, a.ceil - 0.6f, 0}, a.ceil * 1.8f, {255, 240, 220, 255}, 0.45f);
     int n = 0; for (const auto& p : W().players) for (int k = 0; k < 2 && n < 4; k++) if (p.portal[k].on && p.portal[0].on && p.portal[1].on) { L.AddPoint(Vector3Add(p.portal[k].c, Vector3Scale(p.portal[k].n, 0.6f)), 3.5f, k ? Color{140, 140, 255, 255} : Color{255, 190, 90, 255}, 0.6f); n++; }
-    rt::ApplyGameQuality(); rt::RenderBegin(S.cam, L);
-    DrawArena(); DrawPortals();
-    int slot[2] = {0, 0};
-    for (const auto& p : W().players) if (p.present) { if (p.alive) DrawPlayer(p, false, 0); else { int k = 0; for (size_t i = 0; i < W().sideline[p.team].size(); i++) if (W().sideline[p.team][i] == p.id) k = (int)i; DrawPlayer(p, true, k); slot[p.team]++; } }
-    DrawBalls(); DrawViewmodel();
+    rt::ApplyGameQuality();
+    auto scene = [&](bool views) {
+        DrawArena(); DrawDressing(); DrawPortals(views);
+        for (const auto& p : W().players) if (p.present) { if (p.alive) DrawPlayer(p, false, 0); else { int k = 0; for (size_t i = 0; i < W().sideline[p.team].size(); i++) if (W().sideline[p.team][i] == p.id) k = (int)i; DrawPlayer(p, true, k); } }
+        DrawBalls();
+    };
+    {   // the views through the two nearest open portals facing you (the playtest: "the portals don't show what is through them")
+        Vector3 fwd = Vector3Normalize(Vector3Subtract(S.cam.target, S.cam.position));
+        struct Cand { int owner, k; float d; }; std::vector<Cand> cs;
+        for (const auto& p : W().players) for (int k = 0; k < 2; k++) {
+            const Portal& o = p.portal[k]; if (!o.on || !p.portal[1 - k].on) continue;
+            Vector3 to = Vector3Subtract(o.c, S.cam.position); float d = Vector3Length(to);
+            if (d > 45 || Vector3DotProduct(Vector3Scale(to, -1), o.n) < 0.05f || Vector3DotProduct(Vector3Scale(to, 1 / std::max(0.01f, d)), fwd) < 0.15f) continue;
+            cs.push_back({p.id, k, d});
+        }
+        std::sort(cs.begin(), cs.end(), [](const Cand& a, const Cand& b) { return a.d < b.d; });
+        Vector2 vs = rt::ViewSize(); int tw = std::max(64, (int)vs.x / 2), th = std::max(36, (int)vs.y / 2);   // (half the view's resolution: the face is small)
+        for (int i = 0; i < 2; i++) {
+            PortalView& v = gPV[i]; v.live = false;
+            if (i >= (int)cs.size()) continue;
+            if (v.rt.texture.width != tw) { if (v.rt.id) UnloadRenderTexture(v.rt); v.rt = LoadRenderTexture(tw, th); SetTextureFilter(v.rt.texture, TEXTURE_FILTER_BILINEAR); }
+            const Player& owner = W().players[cs[i].owner]; const Portal& a = owner.portal[cs[i].k]; const Portal& b = owner.portal[1 - cs[i].k];
+            Camera3D vc = PortalCam(S.cam, a, b);
+            gClipOn = true; gClipP = b.c; gClipN = b.n;
+            float plane = Vector3DotProduct(Vector3Subtract(b.c, vc.position), b.n);   // (how far behind the exit's plane the eye is)
+            rlSetClipPlanes(std::max(0.05, (double)plane * 0.9), RL_CULL_DISTANCE_FAR);
+            rt::RenderBegin(vc, L); scene(false); rt::RenderCapture(v.rt);
+            rlSetClipPlanes(RL_CULL_DISTANCE_NEAR, RL_CULL_DISTANCE_FAR);
+            gClipOn = false;
+            v.owner = cs[i].owner; v.k = cs[i].k; v.live = true;
+        }
+    }
+    rt::RenderBegin(S.cam, L);
+    scene(true); DrawViewmodel();
     rt::RenderEnd();
 }
 }  // namespace
@@ -432,5 +568,10 @@ void DebugWarpShot(Game& g, int which) {
     }
     if (which == 4) { run(4); w.Out(Me(), (int)w.players.size() / 2, "hit"); Me().outCause = "hit"; S.camYaw = 0; S.camPitch = -0.35f; for (int i = 0; i < 300; i++) StepCamera(1 / 60.0f); }
     if (which == 5) { w.wins[0] = 3; w.wins[1] = 1; w.champion = 0; w.phase = PH_MATCH_END; S.camPitch = 0; }
+    if (which == 6) {   // a window: your pair on the two end walls; looking into the far one shows the court from behind the near one (you in it)
+        run(2); Player& m = Me(); m.alive = true; m.pos = {4, 0, 0.5f}; m.yaw = 0;
+        m.portal[0] = {true, {w.arena.OuterX() - 0.01f, 2.0f, 0}, {-1, 0, 0}, {0, 1, 0}, 0}; m.portal[1] = {true, {-w.arena.OuterX() + 0.01f, 2.0f, 0}, {1, 0, 0}, {0, 1, 0}, 0};
+        S.camYaw = 0; S.camPitch = 0.0f;
+    }
     ReadEvents();
 }

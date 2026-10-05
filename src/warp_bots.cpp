@@ -78,13 +78,19 @@ void BotInput(const World& w, int me, Input& in, uint32_t& rng, int skill) {
         float curve = H01(key + 1) < (skill == 2 ? 0.35f : 0.15f) ? (H01(key + 2) < 0.5f ? -1.0f : 1.0f) : 0;
         // the portal play (sharp bots, now and then): A on our own end wall behind us, B on the ceiling over the target,
         // then a full throw straight back into A: it drops out of the ceiling onto them
-        if (skill >= 2 && !w.suddenDeath && H01(key + 9) < 0.3f) {
+        // (the playtest: the game is built round the portals, so able bots play them too, more often, and two ways:
+        // the drop out of the ceiling, and the flank: B low on the side wall nearest the target, the ball across at waist height)
+        if (skill >= 1 && !w.suddenDeath && !getenv("DEPTH_NOPORTALBOT") && H01(key + 9) < (skill >= 2 ? 0.55f : 0.3f)) {
+            bool flank = H01(key + 10) < 0.5f;
             Vector3 aPt{side * w.arena.OuterX(), 1.6f, std::clamp(p.pos.z, -w.arena.OuterZ() + 0.6f, w.arena.OuterZ() - 0.6f)};
             float lead = 0.15f + Vector3Distance(p.Eye(), aPt) / 26 + 0.35f;
-            Vector3 bPt{std::clamp(f.pos.x + f.vel.x * lead, -w.arena.halfL + 0.6f, w.arena.halfL - 0.6f), w.arena.ceil, std::clamp(f.pos.z + f.vel.z * lead, -w.arena.halfW + 0.6f, w.arena.halfW - 0.6f)};
+            float tz = f.pos.z + f.vel.z * lead, wallZ = (tz >= 0 ? 1.0f : -1.0f) * w.arena.OuterZ();
+            Vector3 bPt = flank ? Vector3{std::clamp(f.pos.x + f.vel.x * lead, -w.arena.halfL + 0.8f, w.arena.halfL - 0.8f), 1.2f, wallZ}
+                                : Vector3{std::clamp(f.pos.x + f.vel.x * lead, -w.arena.halfL + 0.6f, w.arena.halfL - 0.6f), w.arena.ceil, std::clamp(tz, -w.arena.halfW + 0.6f, w.arena.halfW - 0.6f)};
             auto aimAt = [&](Vector3 q) { Vector3 d = Vector3Subtract(q, p.Eye()); o.yaw = atan2f(d.z, d.x); o.pitch = atan2f(d.y, sqrtf(d.x * d.x + d.z * d.z)); };
-            bool aOk = p.portal[0].on && fabsf(p.portal[0].c.x - aPt.x) < 0.1f && fabsf(p.portal[0].c.z - aPt.z) < 2.5f;
-            bool bOk = p.portal[1].on && p.portal[1].n.y < -0.9f && Vector2Distance({p.portal[1].c.x, p.portal[1].c.z}, {bPt.x, bPt.z}) < 1.6f;
+            bool aOk = p.portal[0].on && p.portal[0].n.x * side < -0.9f && (p.portal[0].c.x - p.pos.x) * side > 0.6f && p.portal[0].c.y > 0.5f;   // (any A behind us facing the far side: the end wall, or a board in the way)
+            bool bOk = flank ? (p.portal[1].on && p.portal[1].n.z * wallZ < -0.9f && fabsf(p.portal[1].c.x - bPt.x) < 1.6f)
+                             : (p.portal[1].on && p.portal[1].n.y < -0.9f && Vector2Distance({p.portal[1].c.x, p.portal[1].c.z}, {bPt.x, bPt.z}) < 1.6f);
             if (!aOk && p.portal[0].cool <= 0) { aimAt(aPt); o.portalA = true; in = o; return; }
             if (!bOk && p.portal[1].cool <= 0) { aimAt(bPt); o.portalB = true; in = o; return; }
             if (aOk && bOk) {
@@ -147,9 +153,9 @@ int RunWarpTest() {
     // M1 the arena
     {
         Arena a = MakeArena(AR_CLASSIC), x = MakeArena(AR_EXTREME);
-        Check(a.halfL * 2 == C.cLength && a.halfW * 2 == C.cWidth && a.panels.size() == 5, "classic court 18 x 9 with 5 portal panels", F("%.0f panels", (double)a.panels.size()));
-        int pads = 0; for (const auto& p : x.panels) if (p.n.y > 0.9f) pads++;
-        Check(x.boxes.size() >= 18 && x.ladders.size() == 4 && pads == 4, "extreme: cover, pillars, nests, deflectors, 4 ladders, 4 floor pads", F("%.0f boxes", (double)x.boxes.size()));
+        Check(a.halfL * 2 == C.cLength && a.halfW * 2 == C.cWidth && a.panels.size() == 17, "classic court 18 x 9: four walls, the ceiling, 4 run-off pads and 4 boards (both faces) take portals", F("%.0f panels", (double)a.panels.size()));
+        int pads = 0, decks = 0; for (const auto& p : x.panels) if (p.n.y > 0.9f) { if (p.c.y < 0.1f) pads++; else decks++; }
+        Check(x.boxes.size() >= 18 && x.ladders.size() == 4 && pads == 6 && decks == 4 && x.panels.size() >= 40, "extreme: cover, pillars, nests, deflectors, 4 ladders, 6 floor pads, the decks; every face of the pieces takes portals", F("%.0f boxes, %.0f panels", (double)x.boxes.size(), (double)x.panels.size()));
         bool mirror = true; for (const auto& b : x.boxes) { bool found = false; for (const auto& c : x.boxes) if (fabsf(c.lo.x + b.hi.x) < 1e-3f && fabsf(c.lo.z - b.lo.z) < 1e-3f && fabsf(c.hi.y - b.hi.y) < 1e-3f) found = true; if (!found) mirror = false; }
         Check(mirror, "extreme is mirror-symmetric");
     }
@@ -321,9 +327,10 @@ int RunWarpTest() {
 
 // ---------------------------------------------------------------- the sim (balance)
 int RunWarpSim(int matches, int perTeam) {
-    std::map<std::string, int> causes; int rounds = 0, catches = 0, transits = 0, throws = 0, blocks = 0, wins[2] = {0, 0}; double minutes = 0; int stalls = 0;
+    std::map<std::string, int> causes; int outsBy[2] = {0, 0}, transBy[2] = {0, 0}; int rounds = 0, catches = 0, transits = 0, throws = 0, blocks = 0, wins[2] = {0, 0}; double minutes = 0; int stalls = 0;
     for (int m = 0; m < matches; m++) {
-        World w; w.Init(m % 2 ? AR_EXTREME : AR_CLASSIC, perTeam, 100 + m); uint32_t rng = 1 + m; int steps = 0;
+        int ar = getenv("DEPTH_WARPARENA") ? atoi(getenv("DEPTH_WARPARENA")) : (m % 2 ? AR_EXTREME : AR_CLASSIC);
+        World w; w.Init(ar, perTeam, 100 + m); uint32_t rng = 1 + m; int steps = 0;
         while (w.phase != PH_MATCH_END && steps < 120 * 60 * 30) {
             for (auto& p : w.players) BotInput(w, p.id, p.in, rng, (p.id + m) % 3);
             size_t e0 = w.events.size(); w.Step(); steps++;
@@ -334,7 +341,7 @@ int RunWarpSim(int matches, int perTeam) {
                 for (const auto& p : w.players) std::printf(" p%d%s(%.1f,%.1f,%.1f b%d c%.2f po%d)", p.id, p.alive ? "" : "x", p.pos.x, p.pos.y, p.pos.z, p.ball, p.charge, (int)p.po);
                 std::printf("\n");
             }
-            for (size_t i = std::min(e0, w.events.size()); i < w.events.size(); i++) { const Event& ev = w.events[i]; if (ev.kind == EV_CATCH) catches++; else if (ev.kind == EV_TRANSIT) transits++; else if (ev.kind == EV_THROW) throws++; else if (ev.kind == EV_BLOCK) blocks++; else if (ev.kind == EV_OUT) causes[w.players[ev.who].outCause]++; }
+            for (size_t i = std::min(e0, w.events.size()); i < w.events.size(); i++) { const Event& ev = w.events[i]; if (ev.kind == EV_CATCH) catches++; else if (ev.kind == EV_TRANSIT) { transits++; if (ev.who >= 0 && ev.who < (int)w.players.size()) transBy[w.players[ev.who].team]++; } else if (ev.kind == EV_THROW) throws++; else if (ev.kind == EV_BLOCK) blocks++; else if (ev.kind == EV_OUT) { causes[w.players[ev.who].outCause]++; outsBy[w.players[ev.who].team]++; if (getenv("DEPTH_WARPOUTS")) std::printf("  out t%d %s by %d(t%d)\n", w.players[ev.who].team, w.players[ev.who].outCause.c_str(), ev.by, ev.by >= 0 ? w.players[ev.by].team : -1); } }
         }
         if (w.champion < 0) stalls++; else wins[w.champion]++;
         rounds += w.round; minutes += steps * STEP / 60;
@@ -342,6 +349,7 @@ int RunWarpSim(int matches, int perTeam) {
     std::printf("Warp sim: %d matches %dv%d: team wins %d-%d, %d unfinished, %.1f rounds, %.1f min a match\n", matches, perTeam, perTeam, wins[0], wins[1], stalls, rounds / (double)matches, minutes / matches);
     std::printf("  per match: %.0f throws, %.1f catches, %.1f blocks, %.1f portal transits\n", throws / (double)matches, catches / (double)matches, blocks / (double)matches, transits / (double)matches);
     for (auto& c : causes) std::printf("  out by %-40s %.1f a match\n", c.first.c_str(), c.second / (double)matches);
+    std::printf("  by team: outs %.1f / %.1f a match, portal transits %.1f / %.1f\n", outsBy[0] / (double)matches, outsBy[1] / (double)matches, transBy[0] / (double)matches, transBy[1] / (double)matches);
     return stalls ? 1 : 0;
 }
 

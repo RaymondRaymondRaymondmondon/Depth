@@ -123,6 +123,11 @@ void DrawCubeGlow(Matrix world, Color col, float glow);             // the same,
 void DrawStaticGlow(const Model& m, Matrix world, Color tint, float glow);
 void DrawSky(const Model& m, Matrix world, Color tint);           // unlit, unfogged, no ink edges (stars, the moon, rain)
 void DrawWorldCube(Vector3 c, Vector3 size, Color col);             // blockout boxes (walls, floors, props)
+// A view of elsewhere (Warp's portals): render a frame's lit colour alone into a texture of your own (RenderBegin with
+// that camera, draw, RenderCapture instead of RenderEnd), then show it on a surface by screen position
+void RenderCapture(RenderTexture2D& target);
+void DrawScreenTex(const Model& m, Matrix world, Texture2D tex, Color tint = WHITE);
+Vector2 ViewSize();                                                 // the 3D view's resolution (the quality's scale applied)
 // The physically based path: a glTF model (base colour, metallic-roughness, normal, occlusion and emission maps, as
 // the art generators bake them into assets/) under the same lamp, points and fog, plus the moon and the ambient.
 const Model* LoadAsset(const std::string& relPath);                 // assets/<relPath>, cached; nullptr if missing

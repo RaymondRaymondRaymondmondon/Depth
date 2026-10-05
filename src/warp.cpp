@@ -44,12 +44,18 @@ Arena MakeArena(int kind) {
     if (kind == AR_CLASSIC) {
         a.halfL = C.cLength / 2; a.halfW = C.cWidth / 2; a.runoff = C.cRunoff; a.wall = C.cWall; a.ceil = C.cCeil;
         float X = a.OuterX(), Z = a.OuterZ();
-        // the full end wall behind each team; the upper half (3 to 6 m) of both side walls; the whole ceiling. Not the floor
+        // the full end wall behind each team; both side walls whole (the playtest: the game is the portals, so more
+        // places to put them); the whole ceiling; floor pads in the run-off behind each team
         panel({-X, a.wall / 2, 0}, {1, 0, 0}, {0, 1, 0}, Z, a.wall / 2);
         panel({X, a.wall / 2, 0}, {-1, 0, 0}, {0, 1, 0}, Z, a.wall / 2);
-        panel({0, a.wall * 0.75f, -Z}, {0, 0, 1}, {0, 1, 0}, X, a.wall / 4);
-        panel({0, a.wall * 0.75f, Z}, {0, 0, -1}, {0, 1, 0}, X, a.wall / 4);
+        panel({0, a.wall / 2, -Z}, {0, 0, 1}, {0, 1, 0}, X, a.wall / 2);
+        panel({0, a.wall / 2, Z}, {0, 0, -1}, {0, 1, 0}, X, a.wall / 2);
         panel({0, a.ceil, 0}, {0, -1, 0}, {1, 0, 0}, Z, X);   // (u along x: hw is across, hh along the length)
+        for (int s = -1; s <= 1; s += 2) {
+            for (float z : {-a.halfW * 0.55f, a.halfW * 0.55f}) panel({s * (a.halfL + a.runoff / 2), 0.0f, z}, {0, 1, 0}, {1, 0, 0}, 0.95f, 0.95f);   // floor pads in the run-off
+            // a freestanding portal board on each side of each half: cover, and a portal surface on both faces
+            for (float z : {-a.halfW * 0.55f, a.halfW * 0.55f}) { Box b; b.lo = {s * 6.0f - 0.1f, 0, z - 1.1f}; b.hi = {s * 6.0f + 0.1f, 2.6f, z + 1.1f}; b.portalFaces = 1 | 2; b.kind = 4; a.boxes.push_back(b); }
+        }
     } else {
         a.halfL = C.xLength / 2; a.halfW = C.xWidth / 2; a.runoff = 0; a.wall = C.xWall; a.ceil = C.xCeil;
         float X = a.OuterX(), Z = a.OuterZ();
@@ -61,21 +67,27 @@ Arena MakeArena(int kind) {
             auto box = [&](float x, float z, float hx, float hz, float y0, float y1, uint8_t faces, int k) { Box b; b.lo = {s * x - hx, y0, z - hz}; b.hi = {s * x + hx, y1, z + hz}; b.portalFaces = faces; b.kind = k; a.boxes.push_back(b); };
             uint8_t back = s < 0 ? 1 : 2;   // (the face toward its own end wall: -x for the left half... see below)
             back = s < 0 ? (1 << 0) : (1 << 1);
-            box(4.5f, -4.0f, 0.5f, 1.0f, 0, 1.0f, back, 1); box(4.5f, 4.0f, 0.5f, 1.0f, 0, 1.0f, back, 1); box(7.5f, 0, 0.5f, 1.0f, 0, 1.0f, back, 1);   // low cover (2 m wide x 1 m)
-            box(9.5f, -5.5f, 0.75f, 0.75f, 0, a.wall, 1 << 5, 2); box(9.5f, 5.5f, 0.75f, 0.75f, 0, a.wall, 1 << 4, 2);   // pillars (one side face each)
-            box(12.5f, -5.5f, 1.5f, 1.5f, 3.2f, 3.5f, 0, 3); box(12.5f, 5.5f, 1.5f, 1.5f, 3.2f, 3.5f, 0, 3);   // nest decks (3 x 3 at 3.5 m)
+            (void)back;
+            box(4.5f, -4.0f, 0.5f, 1.0f, 0, 1.0f, 1 | 2, 1); box(4.5f, 4.0f, 0.5f, 1.0f, 0, 1.0f, 1 | 2, 1); box(7.5f, 0, 0.5f, 1.0f, 0, 1.0f, 1 | 2, 1);   // low cover (2 m wide x 1 m): both long faces
+            box(9.5f, -5.5f, 0.75f, 0.75f, 0, a.wall, 1 | 2 | 16 | 32, 2); box(9.5f, 5.5f, 0.75f, 0.75f, 0, a.wall, 1 | 2 | 16 | 32, 2);   // pillars: every side
+            box(12.5f, -5.5f, 1.5f, 1.5f, 3.2f, 3.5f, 4 | 8, 3); box(12.5f, 5.5f, 1.5f, 1.5f, 3.2f, 3.5f, 4 | 8, 3);   // nest decks (3 x 3 at 3.5 m): the deck and its underside
             a.ladders.push_back({{s * 11.0f - s * 0.0f, 0, -5.5f}, 3.5f, {(float)s, 0, 0}}); a.ladders.back().base.x = s * 10.9f;
             a.ladders.push_back({{s * 10.9f, 0, 5.5f}, 3.5f, {(float)s, 0, 0}});
-            box(6.5f, -6.5f, 1.3f, 0.12f, 0, 2.5f, 0, 4); box(6.5f, 6.5f, 1.3f, 0.12f, 0, 2.5f, 0, 4);   // deflectors (approximated square-on)
+            box(6.5f, -6.5f, 1.3f, 0.12f, 0, 2.5f, 16 | 32, 4); box(6.5f, 6.5f, 1.3f, 0.12f, 0, 2.5f, 16 | 32, 4);   // deflectors (approximated square-on): both faces
             panel({s * 3.5f, 0.0f, -3.0f}, {0, 1, 0}, {1, 0, 0}, 1.0f, 1.0f); panel({s * 3.5f, 0.0f, 3.0f}, {0, 1, 0}, {1, 0, 0}, 1.0f, 1.0f);   // floor pads
+            panel({s * 9.0f, 0.0f, 0.0f}, {0, 1, 0}, {1, 0, 0}, 1.0f, 1.0f);   // and one by the back cover
             // portal faces of the pieces as panels too (cover backs, a pillar face)
         }
-        for (const auto& b : a.boxes) for (int f = 0; f < 6; f++) if ((b.portalFaces >> f) & 1) {
-            Vector3 c{(b.lo.x + b.hi.x) / 2, (b.lo.y + b.hi.y) / 2, (b.lo.z + b.hi.z) / 2}, n{}, u{0, 1, 0}; float hw = 0, hh = (b.hi.y - b.lo.y) / 2;
-            if (f == 0) { c.x = b.lo.x; n = {-1, 0, 0}; hw = (b.hi.z - b.lo.z) / 2; } else if (f == 1) { c.x = b.hi.x; n = {1, 0, 0}; hw = (b.hi.z - b.lo.z) / 2; }
-            else if (f == 4) { c.z = b.lo.z; n = {0, 0, -1}; hw = (b.hi.x - b.lo.x) / 2; } else if (f == 5) { c.z = b.hi.z; n = {0, 0, 1}; hw = (b.hi.x - b.lo.x) / 2; } else continue;
-            panel(c, n, u, hw, hh);
-        }
+    }
+    // every portal face of the pieces as a panel (both arenas): the sides, and a deck's top (bit 3) and underside (bit 2)
+    for (const auto& b : a.boxes) for (int f = 0; f < 6; f++) if ((b.portalFaces >> f) & 1) {
+        Vector3 c{(b.lo.x + b.hi.x) / 2, (b.lo.y + b.hi.y) / 2, (b.lo.z + b.hi.z) / 2}, n{}, u{0, 1, 0}; float hw = 0, hh = (b.hi.y - b.lo.y) / 2;
+        if (f == 0) { c.x = b.lo.x; n = {-1, 0, 0}; hw = (b.hi.z - b.lo.z) / 2; } else if (f == 1) { c.x = b.hi.x; n = {1, 0, 0}; hw = (b.hi.z - b.lo.z) / 2; }
+        else if (f == 4) { c.z = b.lo.z; n = {0, 0, -1}; hw = (b.hi.x - b.lo.x) / 2; } else if (f == 5) { c.z = b.hi.z; n = {0, 0, 1}; hw = (b.hi.x - b.lo.x) / 2; }
+        else if (f == 3) { c.y = b.hi.y; n = {0, 1, 0}; u = {1, 0, 0}; hw = (b.hi.z - b.lo.z) / 2; hh = (b.hi.x - b.lo.x) / 2; }
+        else if (f == 2) { c.y = b.lo.y; n = {0, -1, 0}; u = {1, 0, 0}; hw = (b.hi.z - b.lo.z) / 2; hh = (b.hi.x - b.lo.x) / 2; }
+        else continue;
+        panel(c, n, u, hw, hh);
     }
     return a;
 }

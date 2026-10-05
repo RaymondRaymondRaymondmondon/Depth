@@ -85,3 +85,20 @@ The spec names Godot 4 and Blender. Warp Dodgeball is built inside Depth instead
 - **Bots:** they don't climb the Extreme's ladders to the nests.
 ## Playtest fix (2026-10-05)
 - **Out, you see the whole game.** A broadcast camera sits high on the court's long side and frames the whole court. Tab cycles three views: the whole court, over your bench (the old view), and following a teammate still in (any player if your side is all out). The OUT notice moved to the top, so the court stays clear.
+
+## Built round the portals (2026-10-05, the playtest)
+- **More portal surfaces.**
+  - Classic now has both side walls whole, two floor pads in the run-off behind each team, and a freestanding portal board on each side of each half: cover, with a portal surface on both faces. That's 17 surfaces, up from 5.
+  - The Extreme has every face of the cover, the pillars and the deflectors, the nests' decks and their undersides, and six floor pads: 55 surfaces.
+  - Box faces of every kind, tops and undersides included, become panels in both arenas.
+- **Portals show what's through them.** The shared renderer can capture a frame's lit colour into a texture (`rt::RenderCapture`). Each frame, the two nearest open portals facing you get a view rendered from your eye carried through the pair (`PortalCam`: in at A, out at B, a half turn about up), at half resolution.
+  - That view is shown on the portal's face by screen position (`rt::DrawScreenTex`), so it's exact.
+  - Things behind the exit portal's plane, and the plate it sits on, are left out of that view (`Behind`, `OnClip`).
+  - You can see yourself through a portal. Further portals keep the swirl.
+- **Colours as you see them:** your own pair is cyan (A) and royal blue (B), a teammate's are steel blues, and the other team's are reds.
+- **Bots play portals more:** able bots as well as sharp ones, and two ways: the drop out of the ceiling, and a new flank shot out of the side wall at waist height. Any A behind them facing the far side counts, a board included.
+  - The bot sim's team split swings 50-0 one way or the other on tiny changes. The bot matches are close to deterministic (the seed barely matters), so that split measures chaos, not fairness. `DEPTH_NOPORTALBOT=1`, `DEPTH_WARPARENA=0|1` and `DEPTH_WARPOUTS=1` help look at it.
+- **The dressing:**
+  - Ten gym posters painted in code (Think with portals; Dodge duck dip dive... warp; No warping in the showers; Employee of the month: the ball; Lost: one left shoe; Hydrate or die-drate; Ball may exit from ceiling; Portals are not for snack storage; Team spirit (mandatory); If you can dodge a portal...), on the side and end walls, under the portals.
+  - Team benches along both sidelines, with a towel, bottles and a kit bag. Out players sit on them, watching.
+- **New shot:** `warp_window` (a pair on the two end walls: through the far one, the court from behind the near one).
