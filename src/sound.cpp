@@ -791,6 +791,7 @@ int gRoomWant = RR_SALON;
 #include "sound_flight.inl"
 #include "sound_mouthful.inl"
 #include "sound_scuffle.inl"
+#include "sound_fowl.inl"
 #include "sound_nightoff.inl"
 float gTestBusOpen = 0;   // --audio-test: open the music and ambience buses with no scene playing
 
@@ -1000,6 +1001,7 @@ void Render(float* out, int frames) {
         FlUpdate(blockT);
         MfUpdate(blockT);
         SfUpdate(blockT);
+        FpUpdate(blockT);
         NoUpdate(blockT);
         if (gHub.on) {
             gHub.tickT += blockT;
@@ -1033,7 +1035,7 @@ void Render(float* out, int frames) {
             v.env0 = EnvAt(v, v.t); v.env1 = EnvAt(v, v.t + blockT);
         }
         float voiceDuck = 1 - 0.37f * gVoiceS;   // a voice ducks everything else 4 dB
-        float roomS = std::max({gHub.s, gExp.s, gRt.s, gTw.s, gFl.s, gMf.s, gNo.s, gSf.s, gTestBusOpen});  // aboard, on an expedition, in the arcade games: the generated rooms
+        float roomS = std::max({gHub.s, gExp.s, gRt.s, gTw.s, gFl.s, gMf.s, gNo.s, gSf.s, gFp.s, gTestBusOpen});  // aboard, on an expedition, in the arcade games: the generated rooms
         float musicLevel = std::max(gScene, roomS) * (1 - 0.29f * gDuck); // combat impacts duck the music 3 dB
         float busG[5] = {gVol.sfx * voiceDuck, gVol.music * musicLevel * voiceDuck, gVol.ambience * std::max(gScene, roomS) * voiceDuck, gVol.sfx, gVol.sfx};
         for (int i = 0; i < n; i++) {
@@ -1097,6 +1099,7 @@ void Render(float* out, int frames) {
             if (gFl.s > 0.002f) { float e = FlBedSample(gClock + i * dtS, base + i) * gVol.ambience * gFl.s * voiceDuck; mL += e * 0.94f; mR += e; send += e * 0.3f; }
             if (gMf.s > 0.002f) { float e = MfBedSample(gClock + i * dtS, base + i) * gVol.ambience * gMf.s * voiceDuck; mL += e; mR += e * 0.95f; send += e * 0.35f; }
             if (gSf.s > 0.002f) { float e = SfBedSample(gClock + i * dtS, base + i) * gVol.ambience * gSf.s * voiceDuck; mL += e; mR += e * 0.95f; send += e * 0.3f; }
+            if (gFp.s > 0.002f) { float e = FpBedSample(gClock + i * dtS, base + i) * gVol.ambience * gFp.s * voiceDuck; mL += e; mR += e * 0.95f; send += e * 0.3f; }
             if (gNo.s > 0.002f) { float e = NoBedSample(gClock + i * dtS, base + i) * gVol.ambience * voiceDuck; mL += e; mR += e * 0.96f; send += e * 0.3f; }
             if (gExp.s > 0.002f) { float e = ExpBedSample(gClock + i * dtS, base + i) * gVol.ambience * gExp.s * voiceDuck; mL += e; mR += e * 0.92f; send += e * 0.3f; }
             // the music (heard through the deck from the Study)
@@ -1166,6 +1169,8 @@ void TrawlCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCue
 void AudioFlight(const FlAudio& a) { gFl.want = a; }
 void AudioScuffle(const SfAudio& a) { gSf.want = a; if (a.on) gRoomWant = a.world == 1 || a.world == 4 ? RR_CAVE : a.world == 3 ? RR_HALL : RR_OPENSEA; }
 void ScuffleCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) SfCueImpl(kind, vol, pan, pitch); }
+void AudioFowl(const FpAudio& a) { gFp.want = a; if (a.on) gRoomWant = a.phase == 3 ? RR_HALL : RR_OPENSEA; }
+void FowlCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) FpCueImpl(kind, vol, pan, pitch); }
 void AudioMouthful(const MfAudio& a) { gMf.want = a; if (a.on) gRoomWant = a.band >= 3 ? RR_OPENSEA : RR_OPENSEA; }
 void MouthfulCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) MfCueImpl(kind, vol, pan, pitch); }
 void AudioNightOff(const NoAudio& a) { gNo.want = a; if (a.on) gRoomWant = RR_SALON; }
@@ -1561,6 +1566,34 @@ bool AudioSelfTest(const char* wavPath) {
         for (int k = 0; k < SFC_COUNT; k++) { float pk = solo([&] { SfCueImpl(k, 1, 0, 1); }); if (pk < 0.01f || pk > 0.97f) { printf("  scuffle effect %d is %s (peak %.3f)\n", k, pk < 0.01f ? "silent" : "clipping", pk); mute++; } }
         gTestBusOpen = 0;
         printf("scuffle: 10 states, %d effects: %d silent or clipping\n", (int)SFC_COUNT, mute);
+        if (mute) ok = false;
+    }
+    // Fowl Play: the march (early and late), the bonus, the clubhouse with the Slop jingle, a bagpiper, night; every effect alone
+    {
+        auto fpPass = [&](FpAudio st, const char* label, float secs) {
+            for (auto& v : gV) v.on = false;
+            gFp = FpState{}; gFp.want = st; gFp.s = 1; gFpBedKind = -1; gRoomWant = RR_OPENSEA; gFp.marchS = st.phase == 1 || st.phase == 2 ? 1.0f : 0.0f; gFp.pianoS = st.phase == 3 ? 1.0f : 0.0f; gFp.pipeS = st.bagpipe ? 1.0f : 0.0f; gFp.lastPhase = st.phase;
+            int N = (int)(SR * secs);
+            std::vector<float> b(N * 2);
+            for (int at = 0; at < N; at += BLOCK) Render(&b[at * 2], std::min(BLOCK, N - at));
+            double sum = 0; float pk = 0; int bad = 0; for (float x : b) { if (!std::isfinite(x)) bad++; else { sum += x * x; pk = std::max(pk, fabsf(x)); } }
+            float db = 20 * log10f(std::max(1e-6f, sqrtf((float)(sum / b.size()))));
+            bool pass = !bad && db > -52.0f && pk < 0.97f;
+            printf("fowl     %-10s rms %5.1f dB  peak %.2f%s\n", label, db, pk, pass ? "" : "  FAIL");
+            if (!pass) ok = false;
+            if (wavPath) all.insert(all.end(), b.begin(), b.end());
+        };
+        { FpAudio st; st.on = true; st.phase = 1; st.round = 1; fpPass(st, "march r1", 5); }
+        { FpAudio st; st.on = true; st.phase = 1; st.round = 15; st.golden = true; fpPass(st, "march r15", 5); }
+        { FpAudio st; st.on = true; st.phase = 2; st.round = 6; fpPass(st, "bonus", 4); }
+        { FpAudio st; st.on = true; st.phase = 3; st.slop = true; fpPass(st, "clubhouse", 5); }
+        { FpAudio st; st.on = true; st.phase = 1; st.bagpipe = true; fpPass(st, "bagpipe", 4); }
+        { FpAudio st; st.on = true; st.phase = 1; st.night = true; fpPass(st, "night", 4); }
+        gFp = FpState{}; gFpBeds.clear(); gFpBedKind = -1; gTestBusOpen = 1;
+        int mute = 0;
+        for (int k = 0; k < FPC_COUNT; k++) { float pk = solo([&] { FpCueImpl(k, 1, 0, 1); }); if (pk < 0.01f || pk > 0.97f) { printf("  fowl effect %d is %s (peak %.3f)\n", k, pk < 0.01f ? "silent" : "clipping", pk); mute++; } }
+        gTestBusOpen = 0;
+        printf("fowl: 6 states, %d effects: %d silent or clipping\n", (int)FPC_COUNT, mute);
         if (mute) ok = false;
     }
     // A Night Off: early and quiet, the peak, a fight, rain, the sad song at 2 a.m. wrecked, the wake, the morning

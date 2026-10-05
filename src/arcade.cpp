@@ -18,6 +18,7 @@
 static int gWardrobe = -1;
 static bool gMfWardrobe = false; static int gMfMode = 0, gMfPath = 2;   // Mouthful's wardrobe page; the mode (and One Path's path) picked on its reel
 static bool gSfLocker = false;   // (Scuffle's locker page over the arcade)
+static bool gFpLocker = false;   // (Fowl Play's locker)
 static bool gFlWardrobe = false; static int gFlGallery = -1;   // the Flight's Roost wardrobe; a costume gallery page (--shots)   // the skins page over the arcade (skins::TRAWL), -1 none
 #include "sound.h"
 #include <algorithm>
@@ -419,7 +420,7 @@ void DrawReels(Game& g) {
         row(c.y + 42, SKILL[fpSkill], fpSkill, 3, 0);
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Take a stall (solo)", true, 15)) { StartFowl(g, gFowlMode, fpBots, fpSkill); return; }
         DrawTextCentered(fp::D().modes[std::clamp(gFowlMode, 0, (int)fp::D().modes.size() - 1)].rule.c_str(), c.x, c.y + 280, 13, SCREEN_DIM);
-        DrawTextCentered(TextFormat("Arcade tokens from the gun club: %d", FowlTokens()), c.x, c.y + 300, 13, SCREEN_DIM);
+        if (Button({40, 574, 244, 30}, TextFormat("The locker (%d tokens)", FowlTokens()), true, 13)) { gFpLocker = true; return; }
     }
     if (selGame == G_NIGHT_OFF) {   // solo: one sailor, the bar, the night (the modes that make sense alone; Host above for friends)
         static const char* CREW[6] = {"the Diver", "the Whaler", "the Stowaway", "the Mechanic", "the Captain", "the Nurse"};
@@ -1238,6 +1239,7 @@ void SceneArcade(Game& g) {
     if (gFlGallery >= 0) { DrawFlightCostumeGallery(gFlGallery); return; }
     if (gFlWardrobe) { if (FlightWardrobePage(gFlSel)) gFlWardrobe = false; return; }
     if (gSfLocker) { if (ScuffleLockerPage(g)) gSfLocker = false; return; }
+    if (gFpLocker) { if (FowlLockerPage(g)) gFpLocker = false; return; }
     if (gMfWardrobe) { if (MouthfulWardrobePage()) gMfWardrobe = false; return; }
     if (gNoCloakShot) { gNoCloak = true; gNoCloakShot = false; }
     if (gNoCloak) { if (NightCloakroomPage()) gNoCloak = false; return; }
@@ -1329,6 +1331,7 @@ void DebugArcadeShot(int which) {
     SetAudioSuppressed(false);
 }
 int ArcadeTableGame() { return gMode == MODE_ROOM ? (int)gSess.game : -1; }
+void DebugArcadeFowlLocker(Game& g) { g.scene = Scene::Arcade; gFpLocker = true; }
 void DebugArcadeScuffleLocker(Game& g, int tab) { g.scene = Scene::Arcade; gSfLocker = true; DebugScuffleLocker(tab); }
 void DebugArcadeFlightWardrobe(Game& g, int tab, const char* pick, int galleryPage) {
     g.scene = Scene::Arcade; gFlGallery = galleryPage; gFlWardrobe = galleryPage < 0;

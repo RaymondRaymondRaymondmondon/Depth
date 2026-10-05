@@ -909,6 +909,8 @@ void LeaveFowl(Game& g);
 void FowlMenuTick(float dt);
 int FowlTokens();
 extern int gFowlMode;
+bool FowlLockerPage(Game& g);
+void DebugArcadeFowlLocker(Game& g);
 void DebugFowlShot(Game& g, int which);
 void SceneNightOff(Game& g);  // A Night Off, arcade game 6: one night ashore at the Sodden Gull (nightoff_game.cpp)
 void StartNightOff(Game& g, int crew = 0, int mode = 0, int crowd = 1, int bar = 0, int season = 0);

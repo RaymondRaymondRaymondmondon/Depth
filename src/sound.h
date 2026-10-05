@@ -212,3 +212,16 @@ enum SfCue { SFC_PUNCH, SFC_HIT, SFC_HAYMAKER, SFC_KICK, SFC_LAND, SFC_DIE, SFC_
              SFC_EXPLODE, SFC_BLOCK, SFC_CRATE, SFC_PICKUP, SFC_EMPTY, SFC_SWING, SFC_WALL, SFC_EVENT, SFC_FREEZE, SFC_BURN, SFC_ZAP, SFC_SPLASH, SFC_GRAB,
              SFC_ROAR, SFC_SLAM, SFC_HAT, SFC_INK, SFC_CONFETTI, SFC_COUNT };
 void ScuffleCue(int kind, float vol, float pan, float pitch = 1);   // pitch: the yelp's voice (per player colour)
+
+// Fowl Play (the Deep Arcade's duck shoot): a chiptune march for the hunt that speeds up each round, a piano loop in
+// the clubhouse, the Slop Shop's jingle, a bagpiper when a Loud Neighbor is on you; marsh, room and night beds.
+struct FpAudio {
+    bool on = false;
+    int phase = 0;              // 0 lobby, 1 hunt, 2 the bonus wave, 3 the clubhouse, 4 the tally, 5 the podium
+    int round = 1;
+    bool golden = false, night = false, bagpipe = false, slop = false;
+};
+void AudioFowl(const FpAudio& a);
+enum FpCue { FPC_ZAP, FPC_BOOM, FPC_RATTLE, FPC_CRACK, FPC_POP, FPC_RAY, FPC_QUACK, FPC_HONK, FPC_HISS, FPC_SHRIEK, FPC_HUM, FPC_BARK, FPC_LAUGH,
+             FPC_SQUEAK, FPC_PING, FPC_SPLASH, FPC_DING, FPC_FANFARE, FPC_SCRATCH, FPC_CRANK, FPC_BELL, FPC_BOO, FPC_CHEER, FPC_RELOAD, FPC_COUNT };
+void FowlCue(int kind, float vol, float pan, float pitch = 1);

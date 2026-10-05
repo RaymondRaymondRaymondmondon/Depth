@@ -548,3 +548,16 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   - Action: the Trawl, Red Tide, NOCLIP.
   - Slop: A Night Off, Warp Dodgeball, Fowl Play.
   - `CAT_LIST[5][3]`. `G_FOWL` and `G_NOCLIP` are reserved GameIds.
+
+## Fowl Play (arcade game 11, Slop; build log in docs/FOWL_PROGRESS.md)
+- **Design:** `Reference_For_Future_MP_Games/Fowl Play — Arcade Game 11 Design Document.pdf` (OCR in `docs/fowl_pdf_pages/`). It is a first-person light-gun duck shoot for 1-6 players (bots fill the stalls). Each round is a 60 s hunt, then a 5 s tally, then a 45 s intermission in the clubhouse, where players shop, gamble and buy sabotage.
+- **Code (namespace `fp`):**
+  - `fowl.h/.cpp`: the core at 60 Hz. The data is in `data/fowl/fowlplay_*.json`.
+  - `fowl_shop.cpp`: Commands, gambling, sabotage.
+  - `fowl_bots.cpp`.
+  - `fowl_net.*`: `FowlHost`, with lag-compensated shots via `Bird::hist`.
+  - `fowl_art.cpp`.
+  - `fowl_game.cpp`: `Scene::Fowl`, the panels, the locker.
+  - `sound_fowl.inl`.
+- **All play is an `fp::Input` or an `fp::Command`.** The snapshot Visit is in fowl_net.cpp: any new field a screen draws goes there.
+- **Checks:** `--fowl-test`, `--fowl-sim`, `--fowl-gamble-sim`, `--fowl-net-test`, `--net-loop fowl [lagMs] [mem]`. Shots: `fowl_*`, `arcade_fowl`. Tokens and the locker are saved in `fowl_profile.txt`.

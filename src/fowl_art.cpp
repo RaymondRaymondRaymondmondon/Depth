@@ -42,6 +42,12 @@ Color PaintBody(int paint) {
     if (id == "paint_gold") return {236, 190, 70, 255};
     if (id == "paint_camo") return {96, 112, 70, 255};
     if (id == "paint_pink") return {250, 140, 190, 255};
+    if (id == "paint_mint") return {150, 230, 190, 255};
+    if (id == "paint_ocean") return {70, 130, 200, 255};
+    if (id == "paint_lava") return {230, 90, 40, 255};
+    if (id == "paint_midnight") return {50, 50, 90, 255};
+    if (id == "paint_bone") return {232, 224, 200, 255};
+    if (id == "paint_golden_zapper") return {255, 206, 60, 255};
     return {178, 178, 184, 255};
 }
 void DrawToyGun(int def, Matrix frame, int paint, float spin, float sc) {
@@ -353,7 +359,11 @@ void DrawDog(const World& w, float t, float tallyX) {
     if (d.state == 3) Box(hf, {0, -0.13f, 0.2f}, {0.12f, 0.06f, 0.14f}, {200, 70, 80, 255});   // (the laugh: mouth open)
     Box(f, {0, 0.75f + bob, -0.5f}, {0.05f, 0.05f, 0.3f}, fur, -0.7f + sinf(t * 10) * 0.3f);
     // a dog outfit from the Slop Shop (whoever bought one gets it while their birds are fetched)
-    for (const auto& p : w.players) if (p.dogCoat >= 0) { Ball(f, {0, 0.62f + bob, 0}, {0.28f, 0.2f, 0.4f}, {200, 60, 60, 255}); break; }
+    for (const auto& p : w.players) if (p.dogCoat >= 0) {
+        const std::string& id = D().cosmetics[p.dogCoat].id;
+        if (id == "dog_duck") { Ball(f, {0, 0.66f + bob, 0}, {0.3f, 0.26f, 0.5f}, {250, 220, 70, 255}); Matrix hf2 = MatrixMultiply(MatrixTranslate(0, 0.9f + bob, 0.45f), f); Ball(hf2, {0, 0.14f, 0}, {0.22f, 0.12f, 0.22f}, {250, 220, 70, 255}); Box(hf2, {0, 0.1f, 0.3f}, {0.2f, 0.05f, 0.16f}, {240, 150, 40, 255}); }
+        else { Color cc = id == "dog_bandana" ? Color{60, 90, 200, 255} : id == "dog_sweater" ? Color{60, 140, 80, 255} : id == "dog_raincoat" ? Color{250, 210, 50, 255} : id == "dog_sailor" ? Color{240, 240, 250, 255} : Color{200, 60, 60, 255}; if (id == "dog_bandana") Box(f, {0, 0.82f + bob, 0.38f}, {0.3f, 0.08f, 0.12f}, cc); else Ball(f, {0, 0.62f + bob, 0}, {0.28f, 0.2f, 0.4f}, cc); }
+        break; }
     // holding up the birds at the tally
     if (w.phase == PH_TALLY) for (int s = -1; s <= 1; s += 2) { Box(f, {s * 0.25f, 1.15f, 0.25f}, {0.07f, 0.45f, 0.07f}, fur); Ball(f, {s * 0.25f, 1.45f, 0.25f}, {0.18f, 0.14f, 0.24f}, {70, 110, 60, 255}); }
 }
@@ -401,10 +411,16 @@ void DrawPlayerFigure(const World& w, const Player& p, float t) {
     if (p.hat >= 0) {
         const std::string& id = D().cosmetics[p.hat].id;
         Vector3 head = Vector3Add(p.pos, {0, 1.82f - p.crouchK * 0.4f, 0}); if (p.hatOff) head = {p.pos.x + 0.4f, 0.05f, p.pos.z + 0.3f};
-        Color c = id == "hat_cowboy" ? Color{140, 90, 50, 255} : id == "hat_duck" ? Color{240, 200, 60, 255} : id == "hat_bucket" ? Color{90, 110, 80, 255} : Color{240, 200, 60, 255};
-        rt::DrawStatic(Cyl(), MatrixMultiply(MatrixScale(id == "hat_cowboy" ? 0.32f : 0.2f, 0.03f, id == "hat_cowboy" ? 0.32f : 0.2f), MatrixTranslate(head.x, head.y, head.z)), c);
-        rt::DrawStatic(Cyl(), MatrixMultiply(MatrixScale(0.14f, id == "hat_crown" ? 0.14f : 0.12f, 0.14f), MatrixTranslate(head.x, head.y, head.z)), c);
-        if (id == "hat_duck") rt::DrawWorldCube({head.x + sinf(p.yaw) * 0.2f, head.y + 0.02f, head.z + cosf(p.yaw) * 0.2f}, {0.18f, 0.03f, 0.18f}, {240, 150, 40, 255});
+        Color c = id == "hat_cowboy" ? Color{140, 90, 50, 255} : id == "hat_duck" ? Color{240, 200, 60, 255} : id == "hat_bucket" ? Color{90, 110, 80, 255} : id == "hat_top" ? Color{30, 30, 36, 255} : id == "hat_beanie" ? Color{220, 60, 60, 255} : id == "hat_fishing" ? Color{180, 170, 120, 255} : Color{240, 200, 60, 255};
+        if (id == "hat_zappa") DrawToyGun(0, MatrixMultiply(MatrixMultiply(MatrixScale(1.4f, 1.4f, 1.4f), MatrixRotateY(p.yaw)), MatrixTranslate(head.x, head.y + 0.1f, head.z)), 0);
+        else {
+            float brim = id == "hat_cowboy" ? 0.32f : id == "hat_top" ? 0.2f : id == "hat_beanie" ? 0.14f : 0.22f, crown = id == "hat_top" ? 0.3f : id == "hat_crown" ? 0.14f : 0.12f;
+            rt::DrawStatic(Cyl(), MatrixMultiply(MatrixScale(brim, 0.03f, brim), MatrixTranslate(head.x, head.y, head.z)), c);
+            rt::DrawStatic(Cyl(), MatrixMultiply(MatrixScale(0.14f, crown, 0.14f), MatrixTranslate(head.x, head.y, head.z)), c);
+            if (id == "hat_duck") rt::DrawWorldCube({head.x + sinf(p.yaw) * 0.2f, head.y + 0.02f, head.z + cosf(p.yaw) * 0.2f}, {0.18f, 0.03f, 0.18f}, {240, 150, 40, 255});
+            if (id == "hat_beanie") { float a = t * 20; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.3f, 0.01f, 0.04f), MatrixRotateY(a)), MatrixTranslate(head.x, head.y + 0.16f, head.z)), {60, 140, 220, 255}); }
+            if (id == "hat_crown") for (int k = 0; k < 5; k++) { float a = k * 1.2566f; rt::DrawWorldCube({head.x + cosf(a) * 0.12f, head.y + 0.17f, head.z + sinf(a) * 0.12f}, {0.04f, 0.07f, 0.04f}, c); }
+        }
     }
     // bees round the head
     if (p.beesT > 0) for (int k = 0; k < 6; k++) { float a = t * (5 + k) + k; rt::DrawStatic(Sphere(), MatrixMultiply(MatrixScale(0.03f, 0.03f, 0.03f), MatrixTranslate(p.pos.x + cosf(a) * 0.35f, 1.8f + sinf(a * 1.3f) * 0.2f, p.pos.z + sinf(a) * 0.35f)), k % 2 ? Color{250, 210, 40, 255} : Color{30, 30, 30, 255}); }

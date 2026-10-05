@@ -165,7 +165,7 @@ void World::Command(Player& p, const fp::Command& c) {
         case CMD_SCRATCH: { int k = c.a; if (k < 0 || k >= (int)D().scratch.size() || k >= 8 || !CanBuy(p, 3)) break; if (!pay(D().scratch[k].price)) break; p.scratchPocket[k]++; break; }
         case CMD_SCRATCH_OPEN: { int k = c.a; if (k < 0 || k >= 8 || p.scratchPocket[k] <= 0 || p.scratchOpen >= 0) break; p.scratchPocket[k]--; p.scratchOpen = k; p.scratchT = D().scratchTime; break; }
         case CMD_COSMETIC: {
-            int k = c.a; if (k < 0 || k >= (int)D().cosmetics.size() || !CanBuy(p, 4)) break; const SlopItem& it = D().cosmetics[k];
+            int k = c.a; if (k < 0 || k >= (int)D().cosmetics.size() || !CanBuy(p, 4) || D().cosmetics[k].crateOnly) break; const SlopItem& it = D().cosmetics[k];
             if (!pay(it.price)) break;
             if (it.kind == "hat") { p.hat = k; p.hatOff = false; } else if (it.kind == "paint") p.paint = k; else if (it.kind == "dance") p.dance = k; else if (it.kind == "flag") p.flag = k; else if (it.kind == "dog") p.dogCoat = k; else if (it.kind == "sound") p.killSound = k; else p.tracer = k;
             Emit(EV_BUY, p.pos, p.id, -2, (float)k);

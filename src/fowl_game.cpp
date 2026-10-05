@@ -21,10 +21,13 @@ using namespace fp;
 
 // ---------------------------------------------------------------- the profile (tokens, the permanent locker)
 namespace {
-struct FowlProfile { int tokens = 0; bool ufoFirst = false; std::vector<std::string> owned; std::string hat, paint, sound, dog; };
+struct FowlProfile { int tokens = 0; bool ufoFirst = false; std::vector<std::string> owned; std::vector<std::pair<std::string, std::string>> eq; };   // eq: kind -> cosmetic id
 FowlProfile gProf; bool gProfLoaded = false;
-void LoadProf() { if (gProfLoaded) return; gProfLoaded = true; std::ifstream f("fowl_profile.txt"); std::string k; while (f >> k) { if (k == "tokens") f >> gProf.tokens; else if (k == "ufo") { int u; f >> u; gProf.ufoFirst = u; } else if (k == "own") { std::string s; f >> s; gProf.owned.push_back(s); } else if (k == "hat") f >> gProf.hat; else if (k == "paint") f >> gProf.paint; else if (k == "sound") f >> gProf.sound; else if (k == "dog") f >> gProf.dog; } }
-void SaveProf() { std::ofstream f("fowl_profile.txt"); f << "tokens " << gProf.tokens << "\nufo " << (gProf.ufoFirst ? 1 : 0) << "\n"; for (auto& s : gProf.owned) f << "own " << s << "\n"; if (!gProf.hat.empty()) f << "hat " << gProf.hat << "\n"; if (!gProf.paint.empty()) f << "paint " << gProf.paint << "\n"; if (!gProf.sound.empty()) f << "sound " << gProf.sound << "\n"; if (!gProf.dog.empty()) f << "dog " << gProf.dog << "\n"; }
+void LoadProf() { if (gProfLoaded) return; gProfLoaded = true; std::ifstream f("fowl_profile.txt"); std::string k; while (f >> k) { if (k == "tokens") f >> gProf.tokens; else if (k == "ufo") { int u; f >> u; gProf.ufoFirst = u; } else if (k == "own") { std::string s; f >> s; gProf.owned.push_back(s); } else if (k == "eq") { std::string a, b; f >> a >> b; gProf.eq.push_back({a, b}); } } }
+void SaveProf() { std::ofstream f("fowl_profile.txt"); f << "tokens " << gProf.tokens << "\nufo " << (gProf.ufoFirst ? 1 : 0) << "\n"; for (auto& s : gProf.owned) f << "own " << s << "\n"; for (auto& e : gProf.eq) f << "eq " << e.first << " " << e.second << "\n"; }
+bool Owns(const std::string& id) { return std::find(gProf.owned.begin(), gProf.owned.end(), id) != gProf.owned.end(); }
+std::string Equipped(const std::string& kind) { for (auto& e : gProf.eq) if (e.first == kind) return e.second; return ""; }
+void Equip(const std::string& kind, const std::string& id) { for (auto& e : gProf.eq) if (e.first == kind) { e.second = id; return; } gProf.eq.push_back({kind, id}); }
 int CosIndex(const std::string& id) { for (int i = 0; i < (int)D().cosmetics.size(); i++) if (D().cosmetics[i].id == id) return i; return -1; }
 
 const char* SYMBOL[5] = {"DUCK", "DOG", "GUN", "BELL", "ZAPPA"};
@@ -43,6 +46,7 @@ struct FowlScene {
     std::vector<int> myWaveBirds;
     Camera3D cam{};
     std::vector<Command> outbox;
+    struct Tracer { Vector3 a, b; Color c; float t; }; std::vector<Tracer> tracers;
 } S;
 
 World& W() { return S.hostW ? *S.hostW : S.Wm; }
@@ -58,29 +62,35 @@ void ReadEvents() {
     for (size_t k = ev.size() - std::min<size_t>(fresh, ev.size()); k < ev.size(); k++) {
         const Event& e = ev[k]; bool mine = e.who == S.me, byMe = e.by == S.me;
         switch (e.kind) {
-            case EV_FLASH: if (e.who == S.me) { S.flash = 1; S.kick = 1; if (!S.shot) PlayCue("hit.shot", 0.55f); } else if (!S.shot && e.who >= 0) PlayCue("hit.shot", 0.15f); if (e.a >= 99) S.megaFlash = 1; break;
-            case EV_KILL: if (mine) { int def = (int)e.a; const BirdDef& B = D().birds[std::clamp(def, 0, (int)D().birds.size() - 1)]; S.pops.push_back({B.pays >= 0 ? TextFormat("+$%d", B.pays) : TextFormat("-$%d", -B.pays), B.pays >= 0 ? Color{255, 240, 120, 255} : Color{255, 120, 100, 255}, S.t, e.at, true}); if (!S.shot) PlayCue("imp.flesh", 0.6f); } break;
+            case EV_FLASH: {
+                if (e.who == S.me) { S.flash = 1; S.kick = 1; }
+                if (!S.shot && e.who >= 0 && e.by >= 0) { const GunDef& G = D().guns[std::clamp(e.by, 0, (int)D().guns.size() - 1)]; int k = G.type == "Shotgun" ? FPC_BOOM : G.type == "SMG" || G.type == "Machine gun" || G.special == "spinup" ? FPC_RATTLE : G.type == "Rifle" || G.type == "Sniper" || G.type == "Assault rifle" ? FPC_CRACK : G.special == "beam" || G.special == "chain" ? FPC_RAY : G.Fun() ? FPC_POP : FPC_ZAP; float pan = std::clamp((W().players[e.who].pos.x - Me().pos.x) / -12.0f, -1.0f, 1.0f); FowlCue(k, e.who == S.me ? 0.8f : 0.25f, pan); }
+                if (e.a >= 99) S.megaFlash = 1; break; }
+            case EV_KILL: if (mine) { int def = (int)e.a; const BirdDef& B = D().birds[std::clamp(def, 0, (int)D().birds.size() - 1)]; S.pops.push_back({B.pays >= 0 ? TextFormat("+$%d", B.pays) : TextFormat("-$%d", -B.pays), B.pays >= 0 ? Color{255, 240, 120, 255} : Color{255, 120, 100, 255}, S.t, e.at, true}); if (!S.shot) { const std::string& bid = B.id; FowlCue(bid == "goose" ? FPC_HONK : bid == "swan" ? FPC_HISS : bid == "phoenix" ? FPC_SHRIEK : bid == "armored" ? FPC_PING : bid == "clay" ? FPC_POP : FPC_QUACK, 0.7f, 0); if (Me().killSound >= 0) { const std::string& ks = D().cosmetics[Me().killSound].id; PlayCue(ks == "snd_quack" ? "arc.gull" : ks == "snd_kazoo" ? "arc.chat" : ks == "snd_horn" ? "arc.match" : ks == "snd_trombone" ? "arc.lose" : ks == "snd_boing" ? "arc.molt" : "arc.tick", 0.7f); } } } break;
             case EV_HIT: if (mine && e.by == -2) S.pops.push_back({"squeak", {250, 220, 120, 255}, S.t, e.at, true}); break;
-            case EV_ARMOR: if (mine) { S.pops.push_back({"PING", {200, 220, 240, 255}, S.t, e.at, true}); if (!S.shot) PlayCue("imp.metal", 0.6f); } break;
-            case EV_DOG_LAUGH: S.feed.push_back({"The whole wave got away. The dog laughs.", S.t}); if (!S.shot) PlayCue("arc.lose", 0.5f); break;
-            case EV_DOG_SHOT: S.feed.push_back({W().players[e.who].name + " shot the dog (-1 bird; it will remember)", S.t}); break;
-            case EV_PERFECT: S.feed.push_back({W().players[e.who].name + ": a PERFECT WAVE (+$" + std::to_string(D().perfectBonus) + ")", S.t}); if (mine && !S.shot) PlayCue("cmb.crit", 0.8f); break;
-            case EV_BELL: S.bell = 1.5f; if (!S.shot) PlayCue("arc.tick", 1.0f); break;
-            case EV_JACKPOT: S.feed.push_back({W().players[e.who].name + " hit the JACKPOT on the slots!", S.t}); if (!S.shot) PlayCue("arc.match", 1.0f); break;
-            case EV_SLOT: if (mine && !S.shot) PlayCue(Me().slotWin > 0 ? "arc.pearl" : "arc.tick", 0.7f); break;
+            case EV_ARMOR: if (mine) { S.pops.push_back({"PING", {200, 220, 240, 255}, S.t, e.at, true}); if (!S.shot) FowlCue(FPC_PING, 0.6f, 0); } break;
+            case EV_DOG_LAUGH: S.feed.push_back({"The whole wave got away. The dog laughs.", S.t}); if (!S.shot) FowlCue(FPC_LAUGH, 0.8f, 0); break;
+            case EV_DOG_SHOT: if (!S.shot) FowlCue(FPC_SQUEAK, 0.7f, 0); S.feed.push_back({W().players[e.who].name + " shot the dog (-1 bird; it will remember)", S.t}); break;
+            case EV_PERFECT: S.feed.push_back({W().players[e.who].name + ": a PERFECT WAVE (+$" + std::to_string(D().perfectBonus) + ")", S.t}); if (!S.shot) FowlCue(FPC_CHEER, mine ? 0.8f : 0.4f, 0); break;
+            case EV_BELL: S.bell = 1.5f; if (!S.shot) FowlCue(FPC_BELL, 0.9f, 0); break;
+            case EV_JACKPOT: S.feed.push_back({W().players[e.who].name + " hit the JACKPOT on the slots!", S.t}); if (!S.shot) FowlCue(FPC_FANFARE, 1.0f, 0); break;
+            case EV_SLOT: if (mine && !S.shot) FowlCue(Me().slotWin > 0 ? FPC_DING : FPC_SQUEAK, 0.7f, 0); break;
             case EV_SCRATCH: if (mine) S.pops.push_back({e.a > 1 ? TextFormat("Scratched: $%d", (int)e.a) : e.by >= 0 ? "A winner!" : "Nothing this time", {240, 220, 140, 255}, S.t, {}, false}); break;
-            case EV_MYSTERY: if (mine) S.pops.push_back({"The capsule: " + D().guns[std::clamp(e.by, 0, (int)D().guns.size() - 1)].name, {255, 200, 120, 255}, S.t, {}, false}); if (!S.shot) PlayCue("arc.deal", 0.8f); break;
+            case EV_MYSTERY: if (mine) S.pops.push_back({"The capsule: " + D().guns[std::clamp(e.by, 0, (int)D().guns.size() - 1)].name, {255, 200, 120, 255}, S.t, {}, false}); if (!S.shot) FowlCue(FPC_CRANK, 0.8f, 0); break;
             case EV_BUY: if (mine && !S.shot) PlayCue("ui.confirm", 0.6f); break;
             case EV_SABOTAGE: { const SlopItem& it = D().sabotage[std::clamp((int)e.a, 0, (int)D().sabotage.size() - 1)]; if (W().phase == PH_INTER && e.by >= 0) S.feed.push_back({W().players[e.by].name + " bought " + it.name + " for " + W().players[e.who].name, S.t}); else if (mine) S.pops.push_back({it.name + "!", {255, 140, 200, 255}, S.t, {}, false}); break; }
             case EV_COUNTER: if (mine) S.pops.push_back({"Countered", {160, 255, 180, 255}, S.t, {}, false}); break;
             case EV_JAM: if (mine) S.pops.push_back({"The swan bit your gun! (jammed)", {255, 160, 120, 255}, S.t, {}, false}); break;
             case EV_DROP: if (mine) S.pops.push_back({"Butter fingers!", {255, 230, 140, 255}, S.t, {}, false}); break;
             case EV_HATOFF: if (mine) S.pops.push_back({"Your hat!", {255, 200, 140, 255}, S.t, {}, false}); break;
-            case EV_BOO: if (mine) { S.pops.push_back({"Boo!", {255, 120, 120, 255}, S.t, e.at, true}); } break;
-            case EV_UFO: S.feed.push_back({"A UFO! Shoot it to free the ducks it takes.", S.t}); break;
+            case EV_BOO: if (mine) { S.pops.push_back({"Boo!", {255, 120, 120, 255}, S.t, e.at, true}); if (!S.shot) FowlCue(FPC_BOO, 0.8f, 0); } break;
+            case EV_UFO: if (!S.shot) FowlCue(FPC_HUM, 0.8f, 0); S.feed.push_back({"A UFO! Shoot it to free the ducks it takes.", S.t}); break;
             case EV_FREE: if (mine) S.pops.push_back({"Freed!", {150, 255, 170, 255}, S.t, e.at, true}); break;
             case EV_BONUS: S.feed.push_back({"BONUS WAVE: clays from the traps, everyone on the grey pistol", S.t}); break;
-            case EV_RELOAD: if (mine && !S.shot) PlayCue("ui.drag", 0.5f); break;
+            case EV_RELOAD: if (mine && !S.shot) FowlCue(FPC_RELOAD, 0.6f, 0); break;
+            case EV_WAVE: if (!S.shot) FowlCue(FPC_BARK, 0.5f, 0.2f); break;
+            case EV_HONK: if (!S.shot) FowlCue(FPC_HONK, 0.9f, 0); break;
+            case EV_ESCAPE: break;
             case EV_DECOY: if (mine) S.pops.push_back({"A decoy! -$10", {255, 140, 100, 255}, S.t, e.at, true}); break;
             default: break;
         }
@@ -217,7 +227,7 @@ void PanelSlop() {
     for (int k = 0; k < 3; k++) if (Button({r.x + 150 + k * 160.0f, r.y + 66, 150, 30}, TABS[k], true, 15)) { S.slopTab = k; S.sabPick = -1; }
     float y0 = r.y + 110;
     if (S.slopTab == 0) {
-        for (int i = 0; i < (int)D().cosmetics.size(); i++) { const SlopItem& it = D().cosmetics[i]; float x = r.x + 20 + (i / 9) * 365, y = y0 + (i % 9) * 30; bool on = p.hat == i || p.paint == i || p.dance == i || p.flag == i || p.dogCoat == i || p.killSound == i || p.tracer == i; if (Row({x, y, 350, 26}, it.name + (on ? " (yours)" : ""), Money(it.price), p.money >= it.price && !on)) { Command c; c.kind = CMD_COSMETIC; c.a = i; Send(c); } }
+        int n2 = 0; for (int i = 0; i < (int)D().cosmetics.size(); i++) { const SlopItem& it = D().cosmetics[i]; if (it.crateOnly) continue; float x = r.x + 20 + (n2 / 13) * 242, y = y0 + (n2 % 13) * 27; n2++; bool on = p.hat == i || p.paint == i || p.dance == i || p.flag == i || p.dogCoat == i || p.killSound == i || p.tracer == i; if (Row({x, y, 234, 25}, it.name + (on ? " *" : ""), Money(it.price), p.money >= it.price && !on)) { Command c; c.kind = CMD_COSMETIC; c.a = i; Send(c); } }
         DrawTextCentered("Match-only: tokens buy the permanent ones in the arcade.", r.x + r.width / 2, r.y + r.height - 60, 14, Color{210, 200, 180, 255});
     } else if (S.slopTab == 1) {
         if (S.sabPick < 0) {
@@ -402,6 +412,8 @@ void Render() {
     for (const auto& b : w.birds) fpart::DrawBird(b, S.t, night && w.flareT <= 0);
     fpart::DrawDog(w, S.t, Me().pos.x);
     fpart::DrawProjs(w, S.t);
+    S.tracers.erase(std::remove_if(S.tracers.begin(), S.tracers.end(), [](const FowlScene::Tracer& x) { return S.t - x.t > 0.15f; }), S.tracers.end());
+    for (const auto& tr : S.tracers) { Vector3 a = Vector3Add(tr.a, {0, -0.25f, 0}), d = Vector3Subtract(tr.b, a); float L = Vector3Length(d); if (L < 0.5f) continue; Vector3 f = Vector3Scale(d, 1 / L), r = Vector3Normalize(Vector3CrossProduct({0, 1, 0}, f)), u = Vector3CrossProduct(f, r); Vector3 mid = Vector3Lerp(a, tr.b, 0.5f); Matrix m = {r.x * 0.03f, u.x * 0.03f, f.x * L, mid.x, r.y * 0.03f, u.y * 0.03f, f.y * L, mid.y, r.z * 0.03f, u.z * 0.03f, f.z * L, mid.z, 0, 0, 0, 1}; rt::DrawCubeGlow(m, tr.c, 1.6f); }
     DrawViewmodel();
     rt::RenderEnd();
 }
@@ -417,7 +429,7 @@ void StartFowl(Game& g, int mode, int bots, int skill) {
     static const char* BOTS[6] = {"Gus", "Mabel", "Otis", "Pearl", "Hank", "Dottie"};
     for (auto& p : S.Wm.players) p.name = p.id == 0 ? "You" : BOTS[p.id % 6];
     // the permanent cosmetics from the locker
-    Player& me = S.Wm.players[0]; me.hat = CosIndex(gProf.hat); me.paint = std::max(0, CosIndex(gProf.paint)); me.killSound = CosIndex(gProf.sound); me.dogCoat = CosIndex(gProf.dog);
+    Player& me = S.Wm.players[0]; me.hat = CosIndex(Equipped("hat")); me.paint = std::max(0, CosIndex(Equipped("paint"))); me.killSound = CosIndex(Equipped("sound")); me.dogCoat = CosIndex(Equipped("dog")); me.flag = CosIndex(Equipped("flag")); me.dance = CosIndex(Equipped("dance")); me.tracer = CosIndex(Equipped("tracer"));
     S.botRng.resize(S.Wm.players.size()); for (size_t i = 0; i < S.botRng.size(); i++) S.botRng[i] = 7777u * (uint32_t)(i + 1) + (uint32_t)GetRandomValue(0, 1 << 20);
     S.camYaw = 0; S.camPitch = 0.15f;
     g.scene = Scene::Fowl;
@@ -468,10 +480,47 @@ void SceneFowl(Game& g) {
     if (W().phase == PH_INTER && S.lastPhase != PH_INTER) { S.camYaw = PI; S.camPitch = -0.05f; }
     if (W().phase == PH_OVER && S.lastPhase != PH_OVER) PayTokens();
     S.lastPhase = W().phase;
+    { FpAudio a; a.on = !S.shot; const World& w = W(); a.phase = w.phase == PH_HUNT ? 1 : w.phase == PH_BONUS ? 2 : w.phase == PH_INTER ? 3 : w.phase == PH_TALLY ? 4 : w.phase == PH_OVER ? 5 : 0; a.round = w.round; a.golden = w.round >= D().goldenHour; a.night = w.M().night; a.bagpipe = Me().bagpipe; a.slop = S.panel == 4; AudioFowl(a); }
     ReadEvents(); StepCamera(dt); Render(); DrawHud(g);
 }
 void FowlMenuTick(float dt) { if (S.active && S.net) { Writer w; w.U8(0); Input in; WriteInput(in, w); S.net->Act(w); S.net->Update(GetTime(), dt); } }
 int FowlTokens() { LoadProf(); return gProf.tokens; }
+
+// ---------------------------------------------------------------- the locker (permanent cosmetics, bought with arcade tokens; the crate)
+static std::string gCrateWon; static float gCrateT = 0;
+bool FowlLockerPage(Game& g) {
+    (void)g; LoadProf(); const Data& d = D();
+    ClearBackground(Color{26, 18, 14, 255});
+    DrawTextCenteredBold("The Fowl Play locker", SCREEN_W / 2.0f, 24, 30, Color{255, 220, 150, 255});
+    DrawTextCentered(TextFormat("%d arcade tokens  -  10 a match, 1 per 5 birds, 25 for a win, 20 for a perfect wave, 50 for your first UFO", gProf.tokens), SCREEN_W / 2.0f, 62, 15, Color{220, 210, 190, 255});
+    static const Color TIER[4] = {{200, 200, 200, 255}, {110, 200, 255, 255}, {220, 140, 255, 255}, {255, 200, 80, 255}};
+    static const char* TNAME[4] = {"common", "uncommon", "rare", "special"};
+    for (int i = 0; i < (int)d.cosmetics.size(); i++) {
+        const SlopItem& it = d.cosmetics[i]; float x = 30 + (i / 14) * 410.0f, y = 96 + (i % 14) * 36.0f; Rectangle r{x, y, 396, 32};
+        bool own = Owns(it.id), on = Equipped(it.kind) == it.id;
+        DrawRectangleRec(r, on ? Color{80, 60, 30, 230} : Color{44, 34, 28, 220}); DrawRectangle((int)x, (int)y, 5, 32, TIER[std::clamp(it.tier, 0, 3)]);
+        Txt(it.name, x + 12, y + 8, 15, own ? WHITE : Color{200, 190, 180, 255});
+        std::string right = on ? "worn" : own ? "wear it" : it.crateOnly ? "crate only" : TextFormat("%d tokens", d.lockerPrice[std::clamp(it.tier, 0, 3)]);
+        bool can = on ? false : own ? true : !it.crateOnly && gProf.tokens >= d.lockerPrice[std::clamp(it.tier, 0, 3)];
+        if (Button({x + 290, y + 3, 100, 26}, right.c_str(), can, 12)) {
+            if (!own) { gProf.tokens -= d.lockerPrice[std::clamp(it.tier, 0, 3)]; gProf.owned.push_back(it.id); }
+            Equip(it.kind, it.id); SaveProf();
+        }
+        if (on && Button({x + 236, y + 3, 50, 26}, "off", true, 12)) { Equip(it.kind, "-"); SaveProf(); }
+        (void)TNAME;
+    }
+    // the crate: one of the forty by tier
+    Rectangle cr{SCREEN_W - 260.0f, SCREEN_H - 150.0f, 230, 46};
+    if (Button(cr, TextFormat("Open a crate (%d tokens)", d.cratePrice), gProf.tokens >= d.cratePrice, 15)) {
+        gProf.tokens -= d.cratePrice; int tot = 0; for (int k = 0; k < 4; k++) tot += d.crateWeight[k]; int roll = GetRandomValue(0, tot - 1), tier = 0; for (; tier < 3; tier++) { roll -= d.crateWeight[tier]; if (roll < 0) break; }
+        std::vector<int> pool; for (int i = 0; i < (int)d.cosmetics.size(); i++) if (d.cosmetics[i].tier == tier) pool.push_back(i);
+        if (!pool.empty()) { const SlopItem& it = d.cosmetics[pool[GetRandomValue(0, (int)pool.size() - 1)]]; if (Owns(it.id)) { gProf.tokens += d.cratePrice / 2; gCrateWon = it.name + " (a duplicate: half your tokens back)"; } else { gProf.owned.push_back(it.id); gCrateWon = it.name + " (" + TNAME[tier] + ")"; } gCrateT = 3; }
+        SaveProf(); PlayCue("arc.deal");
+    }
+    if (gCrateT > 0) { gCrateT -= GetFrameTime(); DrawTextCenteredBold("From the crate: " + gCrateWon, SCREEN_W / 2.0f, SCREEN_H - 96.0f, 20, Color{255, 220, 120, 255}); }
+    return Button({30, SCREEN_H - 60.0f, 160, 40}, "Back", true, 16) || IsKeyPressed(KEY_ESCAPE);
+}
+void DebugFowlLocker() { LoadProf(); }
 
 // --shots: 0 the hunt (round 4), 1 the clubhouse room, 2 the gun counter panel, 3 the tally with the dog, 4 the Slop Shop,
 // 5 sabotage on screen (bees, smudge, the moose), 6 the podium, 7 round 13 (swans, the convoy), 8 the bonus clays, 9 night

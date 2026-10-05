@@ -25,14 +25,14 @@ struct AttDef { std::string id, name, slot, note; int price = 0, slotIdx = -1; f
 struct BirdDef { std::string id, name, pattern; int from = 1, hp = 1, counts = 1, pays = 10, flock = 0, convoy = 0, split = 0, perRound = 0; float speed = 7, r = 0.4f, life = 8, rare = 1; bool armor = false, metal = false, decoy = false, angry = false, boo = false, clay = false; Color body{}, wing{}, head{}; };
 struct Bracket { int from = 1, perWave = 2, waves = 6; float speed = 1, erratic = 0; std::vector<int> birds; };
 struct Scratch { std::string id, name; int price = 5, odds = 3; std::vector<std::pair<std::string, float>> prizes; };
-struct SlopItem { std::string id, name, kind, effect, counter, counterItem; int price = 0, counterPrice = 0; bool sabotage = false; };
+struct SlopItem { std::string id, name, kind, effect, counter, counterItem; int price = 0, counterPrice = 0, tier = 0; bool sabotage = false, crateOnly = false; };
 struct ModeDef { std::string id, name, rule; int rounds = 15; float intermission = 45; int startMoney = -1; bool zapperOnly = false, moneyScore = false, teams = false, night = false, mystery = false, practice = false; };
 struct Data {
     std::vector<GunDef> guns; std::vector<AttDef> atts; std::vector<BirdDef> birds; std::vector<Bracket> brackets;
     float hunt = 60, tally = 5, intermission = 45, bell = 10, patience = 0.05f; int rounds = 15, startMoney = 60, perfectBonus = 30, bonusEvery = 3, bonusClays = 10, goldenHour = 15; float bonusLength = 10;
     std::vector<int> slotBets; std::vector<int> slotWeights; float slotPull = 2; int threeBell = 12, threeZappa = 30;
     std::vector<Scratch> scratch; float scratchTime = 3; int mysteryPrice = 100;
-    std::vector<SlopItem> cosmetics, sabotage; int perTarget = 2; float leaderMarkup = 0.5f;
+    std::vector<SlopItem> cosmetics, sabotage; int perTarget = 2; float leaderMarkup = 0.5f; int lockerPrice[4] = {10, 20, 40, 0}, cratePrice = 25, crateWeight[4] = {60, 28, 10, 2};
     std::vector<ModeDef> modes; int tokMatch = 10, tokPerBirds = 5, tokWin = 25, tokUfo = 50, tokPerfect = 20;
 };
 const Data& D();

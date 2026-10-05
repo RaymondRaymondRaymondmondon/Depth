@@ -56,7 +56,8 @@ static Data Load() {
     }
     d.scratchTime = m["scratchTime"].F(3); d.mysteryPrice = m["mystery"]["price"].I(100);
     Json s = LoadJsonFile(dir + "fowlplay_slop.json");
-    for (const auto& e : s["cosmetics"].a) { SlopItem x; x.id = e["id"].Str0(""); x.name = e["name"].Str0(x.id); x.kind = e["kind"].Str0(""); x.price = e["price"].I(20); d.cosmetics.push_back(x); }
+    for (const auto& e : s["cosmetics"].a) { SlopItem x; x.id = e["id"].Str0(""); x.name = e["name"].Str0(x.id); x.kind = e["kind"].Str0(""); x.price = e["price"].I(20); x.tier = e["tier"].I(0); x.crateOnly = e["crate"].Bool0(false); d.cosmetics.push_back(x); }
+    for (int k = 0; k < 4; k++) { d.lockerPrice[k] = s["lockerPrices"][k].I(d.lockerPrice[k]); d.crateWeight[k] = s["crateWeights"][k].I(d.crateWeight[k]); } d.cratePrice = s["crate"].I(25);
     for (const auto& e : s["sabotage"].a) { SlopItem x; x.sabotage = true; x.id = e["id"].Str0(""); x.name = e["name"].Str0(x.id); x.price = e["price"].I(50); x.effect = e["effect"].Str0(""); x.counter = e["counter"].Str0(""); x.counterItem = e["counterItem"].Str0(""); x.counterPrice = e["counterPrice"].I(0); d.sabotage.push_back(x); }
     d.perTarget = s["perTarget"].I(2); d.leaderMarkup = s["leaderMarkup"].F(0.5f);
     Json md = LoadJsonFile(dir + "fowlplay_modes.json");
