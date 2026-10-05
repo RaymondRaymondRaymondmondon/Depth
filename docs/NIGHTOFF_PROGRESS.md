@@ -272,3 +272,5 @@ A Night Off's design document is built through p. 42. Next: Scuffle (arcade game
 
 - **The costumes are the shared costume models** (`CostumeOfShape`, `DrawPersonCostume`): fish, sack, lobster claws, crab, ghost sheet, mermaid tail, pirate, gull, sandwich board, life ring, scarecrow, barnacles, lantern angler, tentacles (octopus) and the diving bell are drawn instead of the person (posed by their skeleton), so nothing of the wearer shows; knocked down or passed out, the person shows. The clothing skins (stripes, cardigan, coat, jacket) are the figure's own clothes in the skin's colours, with only their small pieces (buttons, epaulettes, caps) added.
 
+- The alley dog and the goat are modelled in parts (tools/artgen/nightoff_animals.py: body, head, a leg, a tail), placed where the old boxes were: the legs swing from the hip, the dog sleeps stretched out with its head down and wags when it's yours. The pool cue, frying pan, kitchen knife, police club, shotgun, the bikers' motorbikes and the wake's coffin are models too.
+

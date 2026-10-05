@@ -381,6 +381,8 @@ void DrawProps(const no::Night& n) {
         if (k == "window") { if (broken) { rt::DrawWorldCube({at.x, at.y, 0.2f}, {1.5f, 1.2f, 0.08f}, {14, 18, 26, 255}); for (int j = 0; j < 5; j++) cubeR({at.x - 0.6f + j * 0.3f, at.y + 0.5f - (j % 3) * 0.15f, 0.22f}, {0.04f, 0.3f + 0.1f * (j % 2), 0.04f}, 0, 0.5f * (j % 3 - 1), {150, 180, 210, 255}); for (int j = 0; j < 6; j++) rt::DrawWorldCube({at.x - 0.7f + j * 0.28f, 0.02f, 0.6f + (j % 3) * 0.25f}, {0.12f, 0.02f, 0.08f}, {150, 180, 210, 255}); } continue; }
         if (k == "slot") { if (broken) { rt::DrawWorldCube({at.x + 0.42f, 1.3f, at.z}, {0.06f, 0.5f, 0.62f}, {20, 16, 16, 255}); if (fmodf(S.t + h * 3, 1.3f) < 0.08f) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.08f, 0.08f), MatrixTranslate(at.x + 0.5f, 1.4f, at.z)), {255, 230, 140, 255}, 2.0f); } continue; }
         if (k == "kitty") { if (p.state == no::PS_OK) { rt::DrawWorldCube({at.x, at.y + 0.05f, at.z}, {0.3f, 0.1f, 0.2f}, {200, 180, 120, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.26f, 0.04f, 0.16f), MatrixTranslate(at.x, at.y + 0.12f, at.z)), {120, 200, 120, 255}, 0.5f); } continue; }
+        if (k == "bike" && NP("bike")) { if (p.state == no::PS_OK) model(NP("bike"), {at.x, 0, at.z}, p.yaw, 0); continue; }
+        if (k == "coffin" && NP("coffin")) { if (p.state == no::PS_OK) model(NP("coffin"), {at.x, at.y, at.z}, p.yaw, 0); continue; }
         if (k == "bike") { if (p.state != no::PS_OK) continue; Color m{40, 40, 46, 255}, chrome{180, 180, 190, 255};
             cubeR({at.x, 0.55f, at.z}, {1.6f, 0.35f, 0.3f}, p.yaw, 0, m); cubeR({at.x + cosf(p.yaw) * 0.75f, 0.32f, at.z + sinf(p.yaw) * 0.75f}, {0.6f, 0.6f, 0.12f}, p.yaw, 0, {20, 20, 20, 255});
             cubeR({at.x - cosf(p.yaw) * 0.75f, 0.32f, at.z - sinf(p.yaw) * 0.75f}, {0.6f, 0.6f, 0.12f}, p.yaw, 0, {20, 20, 20, 255}); cubeR({at.x + cosf(p.yaw) * 0.6f, 0.95f, at.z + sinf(p.yaw) * 0.6f}, {0.08f, 0.08f, 0.7f}, p.yaw, 0, chrome); continue; }
@@ -391,7 +393,13 @@ void DrawProps(const no::Night& n) {
         if (broken) { if (k == "glass" || k == "bottle" || k == "broken") for (int j = 0; j < 4; j++) rt::DrawWorldCube({at.x + (j - 1.5f) * 0.09f, 0.015f, at.z + (h - 0.5f) * 0.2f + j * 0.03f}, {0.05f, 0.015f, 0.04f}, k == "glass" ? Color{210, 220, 220, 255} : Color{60, 120, 70, 255}); continue; }
         float tilt = over ? PI * 0.5f : 0;
         float y = over ? 0.05f : at.y;
-        if (k == "glass" && NP("mug")) model(NP("mug"), {at.x, y, at.z}, p.yaw, tilt, 1.2f);
+        bool heldW = p.state == no::PS_HELD;
+        if (k == "cue" && NP("cue")) { bool up = p.state == no::PS_OK; model(NP("cue"), {at.x, up ? at.y : y + 0.03f, at.z}, p.yaw, up ? 0.0f : heldW ? PI / 2 - 0.9f : PI / 2); }
+        else if (k == "pan" && NP("pan")) model(NP("pan"), {at.x, y + 0.01f, at.z}, p.yaw, tilt);
+        else if (k == "knife" && NP("knife")) model(NP("knife"), {at.x, y + 0.01f, at.z}, p.yaw, 0);
+        else if (k == "club" && NP("club")) model(NP("club"), {at.x, y + (over || p.state == no::PS_OK ? 0.03f : 0.2f), at.z}, p.yaw, over ? PI * 0.5f : (heldW ? -0.9f : 0.1f));
+        else if (k == "shotgun" && NP("shotgun")) model(NP("shotgun"), {at.x, y + 0.05f, at.z}, p.yaw, heldW ? -0.15f : 0);
+        else if (k == "glass" && NP("mug")) model(NP("mug"), {at.x, y, at.z}, p.yaw, tilt, 1.2f);
         else if (k == "bottle" && NP("bottle")) model(NP("bottle"), {at.x, y, at.z}, p.yaw, tilt);
         else if (k == "glass") rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.12f, 0.08f), MatrixTranslate(at.x, y + 0.06f, at.z)), {220, 190, 120, 255}, 0.25f);
         else if (k == "bottle" || k == "broken") { cubeR({at.x, y + 0.13f, at.z}, {0.08f, k == "broken" ? 0.16f : 0.24f, 0.08f}, p.yaw, tilt, {50, 110, 60, 255}); if (k == "bottle") cubeR({at.x, y + 0.3f, at.z}, {0.035f, 0.1f, 0.035f}, p.yaw, tilt, {50, 110, 60, 255}); }
@@ -405,8 +413,16 @@ void DrawProps(const no::Night& n) {
     if (n.goatOn) {
         Color wool{226, 222, 210, 255}, horn{120, 110, 90, 255}; float gy = n.goatYaw, st = sinf(n.goatPh * 6) * 0.1f;
         auto gp = [&](float fx, float fy, float fz, Vector3 s, Color c) { Vector2 f{cosf(gy), sinf(gy)}, r{-sinf(gy), cosf(gy)}; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(s.x, s.y, s.z), MatrixRotateY(-gy)), MatrixTranslate(n.goatPos.x + f.x * fx + r.x * fz, fy, n.goatPos.y + f.y * fx + r.y * fz)), c); };
+        if (NP("goat_body") && NP("goat_head") && NP("goat_leg")) {   // (modelled, like the dog)
+            Vector2 f{cosf(gy), sinf(gy)}, r{-sinf(gy), cosf(gy)};
+            auto at = [&](float fx, float fy, float fz, Matrix local) { return MatrixMultiply(MatrixMultiply(local, MatrixRotateY(-gy)), MatrixTranslate(n.goatPos.x + f.x * fx + r.x * fz, fy, n.goatPos.y + f.y * fx + r.y * fz)); };
+            rt::DrawPbr(*NP("goat_body"), at(0, 0.58f, 0, MatrixIdentity()));
+            rt::DrawPbr(*NP("goat_head"), at(0.45f, 0.8f, 0, MatrixRotateZ(-0.15f + 0.1f * sinf(S.t * 3))));
+            for (int j = 0; j < 4; j++) rt::DrawPbr(*NP("goat_leg"), at(j < 2 ? 0.25f : -0.25f, 0.42f, j % 2 ? 0.1f : -0.1f, MatrixRotateZ((j % 2 ? 1 : -1) * st * 3)));
+        } else {
         gp(0, 0.55f, 0, {0.75f, 0.32f, 0.32f}, wool); gp(0.45f, 0.78f, 0, {0.26f, 0.24f, 0.2f}, wool); gp(0.5f, 0.96f, 0.06f, {0.05f, 0.18f, 0.05f}, horn); gp(0.5f, 0.96f, -0.06f, {0.05f, 0.18f, 0.05f}, horn); gp(0.62f, 0.66f, 0, {0.06f, 0.14f, 0.06f}, wool);
         for (int j = 0; j < 4; j++) gp((j < 2 ? 0.25f : -0.25f) + (j % 2 ? st : -st), 0.2f, (j % 2 ? 0.1f : -0.1f), {0.06f, 0.4f, 0.06f}, {90, 80, 70, 255});
+        }
     }
     // rain over the yard (and on the street): streaks near the camera
     if (n.raining) for (int j = 0; j < 160; j++) {
@@ -420,6 +436,22 @@ void DrawProps(const no::Night& n) {
     Color fur{124, 86, 52, 255}, dark{70, 48, 30, 255};
     float yaw = d.yaw, sl = d.sleeping && d.owner < 0 ? 1.0f : 0.0f, step = sinf(d.walkPh) * 0.12f;
     auto part = [&](float fx, float fy, float fz, Vector3 s, Color c) { Vector2 f{cosf(yaw), sinf(yaw)}, r{-sinf(yaw), cosf(yaw)}; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(s.x, s.y, s.z), MatrixRotateY(-yaw)), MatrixTranslate(d.pos.x + f.x * fx + r.x * fz, fy, d.pos.y + f.y * fx + r.y * fz)), c); };
+    // (the dog in modelled parts, tools/artgen/nightoff_animals.py: the same places as the old boxes, the legs swinging
+    // from the hip, the head lowered and the legs tucked when it sleeps, the tail wagging when it's yours)
+    if (NP("dog_body") && NP("dog_head") && NP("dog_leg") && NP("dog_tail")) {
+        Vector2 f{cosf(yaw), sinf(yaw)}, r{-sinf(yaw), cosf(yaw)};
+        auto at = [&](float fx, float fy, float fz, Matrix local) { return MatrixMultiply(MatrixMultiply(local, MatrixRotateY(-yaw)), MatrixTranslate(d.pos.x + f.x * fx + r.x * fz, fy, d.pos.y + f.y * fx + r.y * fz)); };
+        rt::DrawPbr(*NP("dog_body"), at(0, 0.42f - 0.24f * sl, 0, MatrixIdentity()));
+        rt::DrawPbr(*NP("dog_head"), at(0.36f, 0.6f - 0.42f * sl, 0, MatrixRotateZ(-0.3f * sl + 0.05f * sinf(S.t * 1.3f) * (1 - sl))));
+        float wag = d.owner >= 0 ? 0.6f * sinf(S.t * 14) : 0.15f * sinf(S.t * 2);
+        rt::DrawPbr(*NP("dog_tail"), at(-0.32f, 0.5f - 0.24f * sl, 0, MatrixMultiply(MatrixRotateZ(0.4f - 0.6f * sl), MatrixRotateY(wag))));
+        for (int j = 0; j < 4; j++) {
+            float sw = (j % 2 ? 1 : -1) * sinf(d.walkPh) * 0.5f * (1 - sl);
+            Matrix leg = sl > 0.5f ? MatrixRotateZ(j < 2 ? -1.4f : 1.4f) : MatrixRotateZ(sw);   // (asleep: legs stretched out along the ground)
+            rt::DrawPbr(*NP("dog_leg"), at(j < 2 ? 0.2f : -0.22f, sl > 0.5f ? 0.12f : 0.33f, j % 2 ? 0.1f : -0.1f, leg));
+        }
+        return;
+    }
     part(0, 0.42f - 0.22f * sl, 0, {0.62f, 0.26f, 0.28f}, fur);
     part(0.36f, 0.6f - 0.42f * sl, 0, {0.24f, 0.22f, 0.22f}, fur); part(0.5f, 0.56f - 0.42f * sl, 0, {0.12f, 0.1f, 0.12f}, dark);
     part(-0.36f, 0.55f - 0.3f * sl + 0.05f * sinf(S.t * 12) * (1 - sl), 0, {0.22f, 0.06f, 0.06f}, dark);   // (the tail; it wags when it is yours)
