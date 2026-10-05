@@ -1,0 +1,31 @@
+{
+  "_source": "Fowl Play design doc pp. 11-13 (the Slop Shop). Sabotage lands on the target's next hunt; at most two per target per hunt; +50% on the leader.",
+  "cosmetics": [
+    {"id": "hat_cowboy", "name": "Cowboy hat", "kind": "hat", "price": 30}, {"id": "hat_duck", "name": "Duck-bill cap", "kind": "hat", "price": 30},
+    {"id": "hat_bucket", "name": "Bucket hat", "kind": "hat", "price": 30}, {"id": "hat_crown", "name": "Crown", "kind": "hat", "price": 30},
+    {"id": "paint_chrome", "name": "Chrome paint", "kind": "paint", "price": 40}, {"id": "paint_gold", "name": "Gold paint", "kind": "paint", "price": 40},
+    {"id": "paint_camo", "name": "Camo paint", "kind": "paint", "price": 40}, {"id": "paint_pink", "name": "Bubblegum pink", "kind": "paint", "price": 40},
+    {"id": "dance", "name": "Victory dance", "kind": "dance", "price": 25}, {"id": "flag", "name": "Stall flag", "kind": "flag", "price": 20},
+    {"id": "dogcoat", "name": "Dog outfit", "kind": "dog", "price": 35},
+    {"id": "snd_quack", "name": "Kill sound: quack", "kind": "sound", "price": 30}, {"id": "snd_kazoo", "name": "Kill sound: kazoo", "kind": "sound", "price": 30},
+    {"id": "snd_horn", "name": "Kill sound: airhorn", "kind": "sound", "price": 30}, {"id": "snd_trombone", "name": "Kill sound: sad trombone", "kind": "sound", "price": 30},
+    {"id": "tracer", "name": "Tracer colours", "kind": "tracer", "price": 20}
+  ],
+  "sabotage": [
+    {"id": "rubber", "name": "Rubber Ducky Rounds", "price": 80, "effect": "Their first magazine is squeaky rubber ducks (no damage)", "counter": "Reload early (the second magazine is normal)", "counterItem": ""},
+    {"id": "butter", "name": "Butter Fingers", "price": 100, "effect": "Their gun slips out of their hands twice (a 2 s pickup)", "counter": "Grip tape ($30)", "counterItem": "griptape", "counterPrice": 30},
+    {"id": "cardboard", "name": "Cardboard Sightline", "price": 90, "effect": "A cardboard moose stands in front of their stall for 15 s", "counter": "Shoot it (3 hits)", "counterItem": ""},
+    {"id": "bees", "name": "Bee Hat", "price": 120, "effect": "Bees round their head for 10 s; their aim sways wildly", "counter": "A smoke pipe ($40)", "counterItem": "smokepipe", "counterPrice": 40},
+    {"id": "decoyrain", "name": "Decoy Rain", "price": 70, "effect": "Extra decoys fly through their half of the sky (each hit costs $10)", "counter": "Look carefully: decoys have no eyes", "counterItem": ""},
+    {"id": "smudge", "name": "Lens Smudge", "price": 60, "effect": "A greasy blur on their screen for 20 s", "counter": "Wipe it (hold Q for 2 s)", "counterItem": ""},
+    {"id": "reverse", "name": "Reverse Controls", "price": 150, "effect": "Their horizontal aim is inverted for the first 15 s", "counter": "Nothing; learn it", "counterItem": ""},
+    {"id": "bagpipe", "name": "Loud Neighbor", "price": 90, "effect": "A bagpiper beside their stall all hunt; it drowns the bird cues", "counter": "Earplugs ($25)", "counterItem": "earplugs", "counterPrice": 25},
+    {"id": "grudge", "name": "The Dog's Grudge", "price": 300, "effect": "The dog retrieves none of their birds; that hunt's money is halved at the end of the match", "counter": "Feed the dog a sausage ($50) before the hunt", "counterItem": "sausage", "counterPrice": 50},
+    {"id": "tax", "name": "Taxman", "price": 250, "effect": "Takes 20% of their next hunt's winnings and gives it to the buyer", "counter": "A lawyer ($100) returns it to sender", "counterItem": "lawyer", "counterPrice": 100},
+    {"id": "swap", "name": "Swap Meet", "price": 300, "effect": "Swaps their primary gun with the buyer's for the next hunt", "counter": "A lock box on the stall hook ($80)", "counterItem": "lockbox", "counterPrice": 80},
+    {"id": "pepper", "name": "Ghost Pepper Snack", "price": 60, "effect": "Their screen goes red and wobbly for 10 s", "counter": "Milk ($20)", "counterItem": "milk", "counterPrice": 20},
+    {"id": "repel", "name": "Duck Repellent", "price": 180, "effect": "Birds avoid their side of the field for 20 s", "counter": "A duck call ($40)", "counterItem": "duckcallc", "counterPrice": 40},
+    {"id": "glitter", "name": "Glitter Bomb", "price": 40, "effect": "Their stall is covered in glitter for the match (cosmetic)", "counter": "None; you are sparkly now", "counterItem": ""}
+  ],
+  "perTarget": 2, "leaderMarkup": 0.5
+}

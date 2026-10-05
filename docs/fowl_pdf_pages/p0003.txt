@@ -1,0 +1,53 @@
+Fowl play — Arcade Game 11 Design Document
+Escalation
+Rounds Birds per
+1-3
+4—6
+7-9
+10-12
+13-15
+Winning
+wave
+2
+3
+4
+5
+6
+Waves
+6
+7
+8
+8
+9
+Speed
+Slow
+Medium
+Fast
+Fast,
+erratic
+Very fast
+New birds
+Mallards, teal
+Geese, pigeons, the first golden duck
+Crows, armored ducks, decoy flocks
+Swans, ducklings in convoy, the phoenix
+Everything; round 15 is the Golden Hour
+(all bird values doubled)
+• Birds shot is the score (each bird counts once, credited to whoever fired the killing
+shot; specials count more, see Birds).
+• Money comes from birds (by species) and from gambling; it buys guns, attachments,
+and Slop. A player can lead in money and lose on birds.
+• Ties break on accuracy.
+• Perfect wave: shooting every bird of a wave before anyone else does pays a bonus and
+a crowd cheer.
+The range
+The whole game is one building and the marsh in front of it: the Fowl Play Gun Club, a
+timber clubhouse with a long covered porch facing a marsh at dusk.
+The porch: six stalls
+• Six stalls side by side along the porch rail, 3 m wide each, divided by waist-high wooden
+partitions so everyone can see everyone. Each stall has a numbered post, a hook for
+spare guns, an ammo tray, and a little scoreboard flap.
+• The marsh in front is 200 m wide and 150 m deep: reeds at the near edge (where birds
+flush), open water, a few dead trees, a hill at the back where the sun sets, and a
+treeline. Birds fly across the whole field, so a bird on the far left is reachable from stall
+Page 3 of 16

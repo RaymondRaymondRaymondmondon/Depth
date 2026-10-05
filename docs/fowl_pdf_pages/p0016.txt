@@ -1,0 +1,19 @@
+Fowl play — Arcade Game 11 Design Document
+Balance targets
+• A round-I Zapper player shoots 6-9 birds; by round 10 a well-bought player shoots 20-
+30.
+• The fun guns are fun, not best: each wins on one bird type and loses on another; none
+takes more than 15% of birds across a sample.
+• Gambling loses money on average (8% edge) and wins the match about one time in ten
+for the player who leans on it.
+• Sabotage costs about a third of a round's earnings and costs the target about a fifth of
+a round's birds.
+Open questions for the designer
+Should shooting another player's gun knock it out of their hands (a stronger PvP edge),
+or stay cosmetic as written?
+Should the mystery-gun machine be able to dispense the Zapper (a duplicate, and a
+laugh)?
+Is the UFO in every match, or a rare event?
+Should money carry between matches as a profile bank, or reset each match as
+written?
+Page 16 of 16

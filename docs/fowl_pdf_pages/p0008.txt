@@ -1,0 +1,58 @@
+Fowl play — Arcade Game 11 Design Document
+Fun guns (fifteen)
+Gun
+Crab Cannon
+Gatling Gun
+Ray Gun
+Net Launcher
+Bread Gun
+Boomerang Blaster
+Bubble Cannon
+Magnet Gun
+Firework Launcher
+Plunger Rifle
+Leaf Blower
+Banana Bazooka
+Price
+$350
+$600
+$500
+$250
+$150
+$280
+$220
+$320
+$400
+$180
+$260
+$300
+What it does
+Fires a live crab that clamps onto a bird and drags it
+down (a kill after 1 s); crabs that miss land in the
+marsh and walk back to your stall
+A hand-cranked toy gatling: spins up for 1 s, then a
+firehose of plastic pellets; turning it is slow
+A toy ray gun that fires a slow green beam;
+anything in the beam is turned into a roast chicken
+(a kill)
+A weighted net that catches up to three birds in an
+area; they fall together
+Fires bread; birds that eat it fly slowly toward your
+stall for 3 s (easy shots, and other players can steal
+them)
+A boomerang that arcs out and back, hitting
+everything on its path both ways; catch it or lose it
+Bubbles trap a bird and float it upward slowly for 4
+s; pop it for the kill (anyone can pop it)
+Pulls metal: armored ducks, the UFO, and other
+players/ dropped guns; armored ducks are yanked
+to the rail
+A rocket that bursts into a sky-wide spray of
+sparkles: a few random kills and a show
+Sticks a plunger to a bird; the bird flies erratically
+and slowly; a second plunger kills
+Blows birds back toward the porch (they stay in
+the sky longer) and blows other players' hats off
+Fires a banana bunch that splits into five bananas
+in the air; each is a kill on a small bird
+Page 8 of 16

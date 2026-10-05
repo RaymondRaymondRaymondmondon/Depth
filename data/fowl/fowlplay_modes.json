@@ -1,0 +1,14 @@
+{
+  "_source": "Fowl Play design doc pp. 13-14 (modes, end of match, tokens)",
+  "modes": [
+    {"id": "open", "name": "Open Season", "rule": "15 rounds; most birds wins", "rounds": 15, "intermission": 45},
+    {"id": "quick", "name": "Quick Draw", "rule": "7 rounds, 30 s intermissions", "rounds": 7, "intermission": 30},
+    {"id": "zapper", "name": "Zapper Only", "rule": "Everyone keeps the starting pistol; the shop sells only attachments and Slop", "rounds": 15, "intermission": 45, "zapperOnly": true},
+    {"id": "high", "name": "High Roller", "rule": "Everyone starts with $1,000; money is the score", "rounds": 15, "intermission": 45, "startMoney": 1000, "moneyScore": true},
+    {"id": "teams", "name": "Teams", "rule": "Stalls 1-3 against 4-6 (or three pairs with 2v2v2); team bird totals; no sabotage on teammates", "rounds": 15, "intermission": 45, "teams": true},
+    {"id": "night", "name": "Night Shoot", "rule": "Dark rounds; birds have glowing eyes; flares are essential", "rounds": 15, "intermission": 45, "night": true},
+    {"id": "mystery", "name": "Mystery Box", "rule": "No gun counter; the mystery-gun machine is free once per intermission", "rounds": 15, "intermission": 45, "mystery": true},
+    {"id": "practice", "name": "Practice", "rule": "Solo, no money, any gun, any bird", "rounds": 99, "intermission": 45, "practice": true}
+  ],
+  "tokens": {"match": 10, "perBirds": 5, "win": 25, "ufo": 50, "perfect": 20}
+}

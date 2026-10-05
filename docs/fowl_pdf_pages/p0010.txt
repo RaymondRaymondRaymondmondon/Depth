@@ -1,0 +1,41 @@
+Fowl play — Arcade Game 11 Design Document
+Attachment
+Duck-call
+underbarrel
+Sticker pack
+Slot
+Under-
+barrel
+Cosmetic
+price
+$150
+$20
+Effect
+A button to call ducks toward you once per
+wave (others can shoot them too)
+Stickers on the plastic
+Guns and attachments are kept for the match; nothing carries to the next match.
+The intermission
+Forty-five seconds, one room, six people, and everything costs money. The room is laid
+out so a player can do two or three things in that time, not all of them, which is the
+decision.
+The gun counter
+Walk up to the glass case: guns and attachments show on the case with price and stats;
+buying is one click and the gun appears in your hands. Mr. Zappa gives each player one
+daily deal per intermission (a random gun or attachment at 30% off, shown only to that
+player).
+The mystery-gun machine
+A big red crank machine. One crank costs the price of the cheapest gun in the game
+(the Flare Pistol, $100).
+• It dispenses a plastic capsule with a random gun from all 30 (the Zapper excluded),
+equal odds. A crank can hand you the Mega Zapper for $100, or the Bread Gun.
+• The gun goes in your hands; your current second gun drops to the stall hook (or the
+floor if the hook is full, where anyone can take it).
+• A crank at under 10 s left plays a drumroll; the capsule opens on the porch as the hunt
+starts.
+Slot machines
+• Six machines; $10, $25, or $50 a pull. Three reels of ducks, dogs, guns, bells, and the
+Zappa logo.
+• Payouts: two of a kind returns the bet; three ducks three dogs three guns pays
+a random gun; three bells three Zappa logos and a fanfare everyone hears.
+Page 10 of 16

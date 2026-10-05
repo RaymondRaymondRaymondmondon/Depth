@@ -1,0 +1,13 @@
+{
+  "_source": "Fowl Play design doc pp. 2-3 (the match, escalation) and p. 6 (bonus waves)",
+  "hunt": 60, "tally": 5, "intermission": 45, "bell": 10, "rounds": 15, "startMoney": 60, "patience": 0.05, "perfectWaveBonus": 30,
+  "bonusEvery": 3, "bonusLength": 10, "bonusClays": 10,
+  "brackets": [
+    {"from": 1, "perWave": 2, "waves": 6, "speed": 1.0, "erratic": 0.0, "birds": ["mallard", "teal"]},
+    {"from": 4, "perWave": 3, "waves": 7, "speed": 1.2, "erratic": 0.1, "birds": ["mallard", "teal", "goose", "pigeon"]},
+    {"from": 7, "perWave": 4, "waves": 8, "speed": 1.45, "erratic": 0.2, "birds": ["mallard", "teal", "goose", "pigeon", "crow", "armored", "decoy"]},
+    {"from": 10, "perWave": 5, "waves": 8, "speed": 1.6, "erratic": 0.5, "birds": ["mallard", "teal", "goose", "pigeon", "crow", "armored", "decoy", "swan", "mother", "phoenix"]},
+    {"from": 13, "perWave": 6, "waves": 9, "speed": 1.8, "erratic": 0.5, "birds": ["mallard", "teal", "goose", "pigeon", "crow", "armored", "decoy", "swan", "mother", "phoenix", "turkey"]}
+  ],
+  "goldenHour": 15
+}

@@ -1,0 +1,36 @@
+Fowl play — Arcade Game 11 Design Document
+6, just harder.
+With fewer than six players, the empty stalls hold cardboard cutout hunters (and bots,
+if chosen).
+The room behind the porch
+A single open clubhouse room, 30 m by 15 m, reached through the stall gates:
+Area
+The gun counter
+The mystery-gun machine
+The slot row
+The scratch-off counter
+The Slop Shop
+The trophy wall
+The bar
+The dog
+What's there
+A glass case of guns and a pegboard of
+attachments; the shopkeeper (a toy-gun-shaped
+robot called Mr. Zappa)
+A big red gumball-machine-shaped crank that
+dispenses a random gun in a capsule
+Six slot machines along the back wall, so nobody
+waits
+A dispenser and a counter with coins on strings
+A garish booth with a neon sign, run by a raccoon in
+a vest
+Every player's best round so far and the club
+records
+Cosmetic only; nothing for sale; the dog sleeps
+under it
+The club dog (a scruffy hunting hound) flushes birds from the reeds at the start of each
+wave, runs out to retrieve kills, and holds them up at the tally. When a whole wave
+escapes, it pops up and laughs, as tradition demands. It can be shot. It can't be hurt (shots
+bounce off with a squeak), but shooting the dog costs the shooter one bird from their
+score and the dog remembers: next round it retrieves that player's birds last.
+Page 4 of 16

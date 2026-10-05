@@ -1,0 +1,28 @@
+Fowl play — Arcade Game 11 Design Document
+4. Grief is a feature. The Slop Shop sells ways to ruin your friends' rounds, and every one
+has a counter.
+Session. 15 rounds, about 25 minutes. 1-6 players (bots fill). Score pays arcade tokens.
+The match
+A match is 15 rounds. Each round is a hunt (60 seconds of birds) followed by an
+intermission (45 seconds in the room). The leader after round 15 by birds shot wins;
+money is how you get there, not the score.
+Phase
+Hunt
+Tally
+Intermission
+Length
+60s
+5s
+45 s
+What happens
+Players are locked to their stalls (they can step left
+and right inside their stall, crouch, and lean). Birds
+are released in waves from the reeds; everyone
+shoots. The dog flushes and retrieves
+The dog holds up each player's birds; the board
+updates; money is paid
+The stall gates open and players walk the room: the
+gun counter, the mystery-gun machine, slots,
+scratchers, the Slop Shop. A bell at 10 s; at O the
+gates pull everyone back to their stalls
+Page 2 of 16

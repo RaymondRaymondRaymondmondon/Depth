@@ -1,0 +1,109 @@
+Fowl play — Arcade Game 11 Design Document
+Birds
+Birds flush from the reeds in waves, fly a pattern across and away over the marsh, and
+escape off the far edge after 6-10 seconds if nobody hits them. Every bird has HP (most
+die to one pistol shot), a pattern, a bird count toward the score, and a payout.
+Bird
+Mallard
+Teal
+Goose
+Pigeon
+Golden Duck
+Crow
+Armored
+Duck
+Decoy Flock
+Swan
+Duckling
+Convoy
+Phoenix
+Clay Pigeon
+The Turkey
+UFO
+From round
+4
+4
+4 (l per round)
+7
+7
+7
+10
+10
+IO (rare)
+Any (bonus
+waves)
+13
+15 (once)
+HP
+1
+1
+3
+2
+1
+4
+1
+6
+1
+each
+8
+1
+10
+20
+Pattern
+Rises, zigzags twice, flies off
+Low and fast along the water
+Slow, straight, high; honks
+Flocks of 5 that scatter when one is
+hit
+Very fast, erratic, glints
+Dives at the porch, then away (it can
+knock a hat off)
+A duck in a tiny helmet; shots to the
+body ping off, the belly is the weak
+point
+Wooden decoys that fly; shooting
+one costs $10 (they're club property)
+Graceful, slow, enormous; hitting it
+angers it (it flies at the porch and
+bites a random player's gun, jamming
+it 3 s)
+A mother duck (3 HP) leads six
+ducklings; shooting the mother
+scatters the ducklings; shooting
+ducklings boos you
+Fiery, loops, explodes into three
+small fire birds when killed
+Launched from traps in arcs, no
+flapping
+Runs along the ground through the
+reeds; does not fly
+A flying saucer abducts a wave of
+ducks; shoot it to free them (each
+freed duck is a free kill for the
+shooter)
+Counts as
+3
+2
+2
+1 each, the
+mother 2
+5
+3
+5
+Pays
+$10
+$12
+$25
+$5 each
+$100
+$15
+$40
+-$10
+$60
+$5 each,
+$30
+$250
+$8
+$150
+$500
+Page 5 of 16

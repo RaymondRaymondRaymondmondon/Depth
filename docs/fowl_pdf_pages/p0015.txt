@@ -1,0 +1,47 @@
+Fowl play — Arcade Game 11 Design Document
+• Guns are data: a mesh built from toy-gun parts (body, barrel, grip, slide, magazine,
+accessories) with the shared grey-and-red palette, so new guns are cheap.
+Sound
+Plastic: every gun has a toy click under its real sound (the pistol's zap is a beep and a
+crack). Ducks quack, geese honk, swans hiss, the phoenix shrieks, the UFO hums. The dog
+barks, sniffs, and laughs. The clubhouse is a jaunty piano loop during the intermission; the
+hunt is a chiptune march that speeds up each round. Slot machines ding; scratchers
+scratch; the Slop Shop has its own tacky jingle. A jackpot plays a fanfare everyone hears
+from the porch.
+Data
+fowlplay_guns.json , fowlplay_attachments. json , fowlplay_birds . json ,
+fowlplay_rounds.json , fowlplay_gambling.json , fowlplay_slop.json ,
+fowl play _ modes . json .
+Build order
+Stage Work
+1
+2
+3
+4
+5
+6
+7
+The porch, the marsh, the Zapper, three
+bird types, rounds and tally, the dog
+Six stalls and multiplayer with hit credit;
+bots
+The room: gun counter, the 15 real guns,
+attachments, money
+The 15 fun guns; all birds; bonus waves
+Gambling: slots, scratchers, the
+mystery-gun machine
+The Slop Shop with every sabotage and
+its counter
+Modes, tokens, cosmetics, sound,
+internet play
+One player shoots ducks for 3 rounds
+and it feels right
+Six players finish a match on LAN
+Buying and swapping guns in 45 s works
+Every gun has a bird it's best at
+The house edge holds over 10,000
+simulated pulls
+A sabotaged player can always fight
+back
+All targets met
+Page 15 of 16

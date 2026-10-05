@@ -1,0 +1,29 @@
+Fowl play — Arcade Game 11 Design Document
+Bonus waves
+Once every three rounds, a 10 s bonus wave of clay pigeons fires from traps at the end of
+the porch. Everybody's guns are swapped for the classic grey pistol for the bonus; it's a
+pure aim contest.
+Kill credit
+The killing shot gets the bird. Damage from other players' shots isn't shared, so a goose
+softened by one player is stolen by another, which is the point.
+Shooting
+• Aim: mouse or stick, first person, with the gun visible in hand. No aim assist. Each gun
+has a small sway and a recoil kick in its own direction.
+Light-gun feel: every shot flashes the screen for a frame (a nod to the old light-gun
+trick), the hit spark is a white square, and a hit bird freezes for a beat with a surprised
+face before falling. Misses kick up a puff of feathers or water.
+• Ammo: each gun has a magazine and reserve; ammo is refilled free at the start of each
+hunt; a few guns need ammo bought (noted). Reloading is a big chunky animation (the
+toy guns' magazines are oversized plastic boxes).
+• Range: every gun hits anywhere on the field, but accuracy falls off with distance per
+gun.
+• Friendly fire: shooting another player does nothing to them (it's a toy gun), but
+shooting their hat knocks it off, and some fun guns push.
+• Accuracy is tracked and shown; it's the tiebreak and a few attachments reward it.
+• Money is paid at the tally for each bird and kept between rounds.
+The arsenal
+Thirty guns, all in the toy light-gun style (two-tone grey plastic, ribbed grip, red trigger,
+ribbed top slide, screw bosses, the red "Zappa" stamp), each keeping the real silhouette
+of its type. Prices are in the club's money. A player holds two guns (swap with a key) and
+can store one more on the stall hook.
+Page 6 of 16

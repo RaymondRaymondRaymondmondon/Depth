@@ -1,0 +1,48 @@
+Fowl play — Arcade Game 11 Design Document
+• The house edge is about 8%. Pulls take 2 s, so a player can pull about 15 times in an
+intermission, which is a whole intermission spent gambling.
+Scratch-off tickets
+Ticket
+Lucky Duck
+Golden Goose
+Gun Lottery
+The Dog's
+Bone
+Slop Ticket
+price
+$5
+$20
+$50
+$15
+$10
+Top prize
+$100
+$500
+A random gun plus $200
+The dog retrieves your birds first and sniffs out
+a golden duck for you next round
+A random Slop Shop item
+Odds of any
+win
+lin3
+1 in 4
+lin5
+lin6
+lin2
+Scratching is done with the cursor (3 s a ticket) and can be pocketed to scratch on the
+porch between waves.
+Timing
+The bell at 10 s. At O everyone is pulled back to their stall wherever they are (a slot pull
+mid-spin finishes and pays). A player who bought nothing gets a small interest on cash
+(+5%) for patience.
+The Slop Shop
+A neon booth run by a raccoon in a vest. It sells two kinds of thing: cosmetics that last the
+match, and sabotage that ruins someone else's next hunt. Every sabotage item names a
+target player when bought (or "the leader" for a premium), shows on the board so
+everyone knows who did it, and has a counter that the target can buy or do.
+Cosmetics (match-only)
+A hat (cowboy, duck bill, bucket, crown) $30; a gun paint (chrome, gold, camo, bubblegum
+pink) $40; a victory dance $25; a stall flag $20; a dog outfit (the dog wears it while
+retrieving your birds) $35; a kill sound (quack, kazoo, airhorn, sad trombone) $30; tracer
+colors $20. Permanent cosmetics are bought with arcade tokens outside the match.
+Page 11 of 16

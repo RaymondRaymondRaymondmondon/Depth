@@ -1,0 +1,53 @@
+Fowl play — Arcade Game 11 Design Document
+Item
+Swap Meet
+Ghost Pepper
+Snack
+Duck Repellent
+Glitter Bomb
+Rules
+price
+$300
+$60
+$180
+$40
+Effect on the target's next
+hunt
+Swaps their primary gun with
+the buyer's for the next hunt
+Their screen goes red and
+wobbly for 10 s, then normal
+Birds avoid flying over their
+side of the field for 20 s
+Their stall is covered in glitter;
+purely cosmetic; it never
+comes off this match
+Counter
+Lock box on the stall hook
+($80)
+Milk ($20)
+A duck call ($40)
+None; you are sparkly now
+A player can be targeted by at most two sabotage items per hunt (the shop shows
+"sold out" on a third).
+• Sabotage on the leader costs +50% (it's a common purchase).
+A player who buys sabotage on everyone gets the Menace title on the board; the bots
+and the dog treat them with suspicion.
+• The Slop Ticket scratcher is the cheap way in.
+Modes, scoring, and tokens
+Mode
+Open Season (default)
+Quick Draw
+Zapper Only
+High Roller
+Teams
+Rule
+15 rounds; most birds wins
+7 rounds, 30 s intermissions
+Everyone keeps the starting pistol; the shop sells
+only attachments and Slop; pure aim
+Everyone starts with $1,000; money is the score
+(birds pay, gambling counts)
+3v3 or 2v2v2; team bird totals; sabotage can't
+target teammates
+Page 13 of 16

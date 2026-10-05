@@ -1,0 +1,75 @@
+Fowl play — Arcade Game 11 Design Document
+Sabotage
+Item
+Rubber Ducky
+Rounds
+Butter Fingers
+Cardboard
+Sightline
+Bee Hat
+Decoy Rain
+Lens Smudge
+Reverse
+Controls
+Loud Neighbor
+The Dog's
+Grudge
+Taxman
+Price
+$80
+$100
+$90
+$120
+$70
+$60
+$150
+$90
+$300
+$250
+Effect on the target's next
+hunt
+Their first magazine is
+squeaky rubber ducks (no
+damage)
+Their gun slips out of their
+hand twice during the hunt (a
+2 s pickup)
+A cardboard cutout of a
+moose stands in front of their
+stall for 15 s
+A swarm of bees around their
+head for 10 s; aim sways wildly
+Extra decoy ducks fly through
+their half of the sky (each hit
+costs $10)
+A greasy blur on their screen
+for 20 s
+Their horizontal aim is
+inverted for the first 15 s
+A bagpiper stands in the stall
+beside them for the whole
+hunt; the audio drowns bird
+CUes
+The dog retrieves none of
+their birds this round (they
+still count, but their money
+earned is halved at the end of
+the match, not now)
+Takes 20% of their winnings
+from the next hunt and gives it
+to the buyer
+Counter
+Reload early (the second
+magazine is normal)
+A grip tape attachment ($30)
+Shoot it (3 hits)
+A smoke pipe ($40)
+Look carefully: decoys have no
+Wipe it (hold a key 2 s)
+Nothing; learn it
+Earplugs ($25)
+Feed the dog a sausage ($50)
+before the hunt
+A lawyer at the Slop Shop
+($100) returns it to sender
+Page 12 of 16

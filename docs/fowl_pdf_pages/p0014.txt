@@ -1,0 +1,34 @@
+Fowl play — Arcade Game 11 Design Document
+Mode
+Night Shoot
+Mystery Box
+Practice
+End of match
+Rule
+Dark rounds; birds have glowing eyes; flares are
+essential
+No gun counter; the mystery-gun machine is free
+once per intermission
+Solo, no money, any gun, any bird
+A podium on the porch: first place gets the dog's trophy; the board shows birds, accuracy,
+money won and lost gambling, sabotage given and received, and a stat for the most
+expensive gun bought and how many birds it shot.
+Tokens
+10 per match, 1 per 5 birds, 25 for a win, 50 for a first UFO kill, 20 for a perfect wave. Tokens
+buy permanent cosmetics (gun paints, hats, kill sounds, dog outfits) or spin the arcade
+crate (the USUal 40 items in four tiers; the Special tier includes the Golden Zapper, a Duck
+Costume for the dog, and a Mr. Zappa hat).
+Presentation, technology, sound, and build order
+Look
+Fowl Play is bright and plastic: a low-poly marsh at golden hour, a warm timber clubhouse,
+and toy guns that look moulded and slightly glossy. Birds are rounded and expressive (a
+hit bird's eyes go wide; a falling bird spins). The HUD is a chunky 8-bit-style strip along the
+bottom (round number, bullets as little icons, birds as little silhouettes that fill as they're
+hit), a love letter to the old screen, rendered crisp. This look is Fowl Play's own.
+Technology
+• First-person 3D on the arcade's shared renderer; birds are simple rigged meshes on
+spline flight paths with noise, plus behaviors (scatter, dive, flee, charge).
+• Host-authoritative hits with lag compensation (rewind birds up to 150 ms) so shooting
+feels local; bird paths are deterministic from a seed so clients agree.
+• Six players, about 40 birds in the air at most, small bandwidth.
+Page 14 of 16

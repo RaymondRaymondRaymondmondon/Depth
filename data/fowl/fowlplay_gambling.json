@@ -1,0 +1,15 @@
+{
+  "_source": "Fowl Play design doc pp. 10-11 (slots, scratchers, the mystery-gun machine). Slot weights are tuned so the house edge is about 8% (checked by --fowl-gamble-sim).",
+  "slots": {"bets": [10, 25, 50], "pull": 2.0,
+    "symbols": ["duck", "dog", "gun", "bell", "zappa"], "weights": [30, 26, 22, 14, 8],
+    "pairPays": 1.0, "threeDuck": "gun", "threeDog": "gun", "threeGun": "gun", "threeBell": 12, "threeZappa": 30, "gunValue": 1.0},
+  "scratch": [
+    {"id": "lucky", "name": "Lucky Duck", "price": 5, "top": 100, "odds": 3, "prizes": [[5, 0.70], [10, 0.22], [25, 0.06], [100, 0.02]]},
+    {"id": "goose", "name": "Golden Goose", "price": 20, "top": 500, "odds": 4, "prizes": [[20, 0.62], [40, 0.25], [100, 0.11], [500, 0.02]]},
+    {"id": "lottery", "name": "Gun Lottery", "price": 50, "top": "gun+200", "odds": 5, "prizes": [["gun", 0.85], ["gun+200", 0.15]]},
+    {"id": "bone", "name": "The Dog's Bone", "price": 15, "top": "dog", "odds": 6, "prizes": [["dog", 1.0]]},
+    {"id": "slop", "name": "Slop Ticket", "price": 10, "top": "slop", "odds": 2, "prizes": [["slop", 1.0]]}
+  ],
+  "scratchTime": 3.0,
+  "mystery": {"price": 100, "excludeZapper": true}
+}

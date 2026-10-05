@@ -1,0 +1,21 @@
+{
+  "_source": "Fowl Play design doc p. 5 (Birds). speed in m/s at round 1-3 (the round brackets scale it); r = hit radius in metres; life = seconds before it escapes off the far edge",
+  "birds": [
+    {"id": "mallard", "name": "Mallard", "from": 1, "hp": 1, "counts": 1, "pays": 10, "speed": 7.0, "r": 0.45, "life": 8, "pattern": "zigzag", "body": [70, 110, 60], "wing": [120, 96, 70], "head": [40, 120, 70]},
+    {"id": "teal", "name": "Teal", "from": 1, "hp": 1, "counts": 1, "pays": 12, "speed": 10.5, "r": 0.35, "life": 7, "pattern": "skim", "body": [120, 100, 80], "wing": [60, 140, 120], "head": [130, 70, 50]},
+    {"id": "goose", "name": "Goose", "from": 4, "hp": 3, "counts": 3, "pays": 25, "speed": 6.0, "r": 0.7, "life": 10, "pattern": "high", "body": [120, 110, 100], "wing": [90, 84, 76], "head": [30, 30, 30]},
+    {"id": "pigeon", "name": "Pigeon", "from": 4, "hp": 1, "counts": 1, "pays": 5, "speed": 8.0, "r": 0.32, "life": 8, "flock": 5, "pattern": "flock", "body": [140, 140, 156], "wing": [110, 110, 126], "head": [90, 110, 130]},
+    {"id": "golden", "name": "Golden Duck", "from": 4, "hp": 1, "counts": 5, "pays": 100, "speed": 14.0, "r": 0.4, "life": 6, "pattern": "erratic", "perRound": 1, "body": [250, 200, 60], "wing": [255, 220, 110], "head": [240, 180, 40]},
+    {"id": "crow", "name": "Crow", "from": 7, "hp": 2, "counts": 2, "pays": 15, "speed": 9.0, "r": 0.4, "life": 8, "pattern": "dive", "body": [30, 30, 36], "wing": [40, 40, 50], "head": [24, 24, 30]},
+    {"id": "armored", "name": "Armored Duck", "from": 7, "hp": 4, "counts": 3, "pays": 40, "speed": 6.5, "r": 0.5, "life": 9, "pattern": "zigzag", "armor": true, "metal": true, "body": [90, 120, 70], "wing": [130, 130, 140], "head": [150, 150, 160]},
+    {"id": "decoy", "name": "Decoy", "from": 7, "hp": 1, "counts": 0, "pays": -10, "speed": 7.0, "r": 0.45, "life": 8, "pattern": "zigzag", "decoy": true, "body": [150, 110, 70], "wing": [120, 86, 54], "head": [60, 100, 60]},
+    {"id": "swan", "name": "Swan", "from": 10, "hp": 6, "counts": 2, "pays": 60, "speed": 5.0, "r": 0.9, "life": 11, "pattern": "glide", "angry": true, "body": [240, 240, 236], "wing": [250, 250, 248], "head": [240, 240, 236]},
+    {"id": "mother", "name": "Mother Duck", "from": 10, "hp": 3, "counts": 2, "pays": 30, "speed": 6.0, "r": 0.5, "life": 10, "pattern": "convoy", "convoy": 6, "body": [130, 104, 70], "wing": [110, 86, 60], "head": [120, 96, 64]},
+    {"id": "duckling", "name": "Duckling", "from": 10, "hp": 1, "counts": 1, "pays": 5, "speed": 6.0, "r": 0.25, "life": 10, "pattern": "follow", "boo": true, "body": [250, 220, 80], "wing": [240, 210, 70], "head": [250, 224, 90]},
+    {"id": "phoenix", "name": "Phoenix", "from": 10, "hp": 8, "counts": 5, "pays": 250, "speed": 11.0, "r": 0.8, "life": 10, "pattern": "loop", "rare": 0.25, "split": 3, "body": [255, 120, 30], "wing": [255, 200, 60], "head": [255, 230, 120]},
+    {"id": "firebird", "name": "Fire Bird", "from": 99, "hp": 1, "counts": 1, "pays": 20, "speed": 12.0, "r": 0.3, "life": 5, "pattern": "erratic", "body": [255, 150, 40], "wing": [255, 200, 80], "head": [255, 220, 120]},
+    {"id": "clay", "name": "Clay Pigeon", "from": 1, "hp": 1, "counts": 1, "pays": 8, "speed": 18.0, "r": 0.18, "life": 3.5, "pattern": "arc", "clay": true, "body": [230, 110, 50], "wing": [230, 110, 50], "head": [230, 110, 50]},
+    {"id": "turkey", "name": "The Turkey", "from": 13, "hp": 10, "counts": 3, "pays": 150, "speed": 5.0, "r": 0.7, "life": 14, "pattern": "ground", "body": [110, 74, 50], "wing": [140, 96, 60], "head": [200, 60, 50]},
+    {"id": "ufo", "name": "UFO", "from": 15, "hp": 20, "counts": 5, "pays": 500, "speed": 4.0, "r": 1.6, "life": 30, "pattern": "ufo", "metal": true, "body": [170, 180, 200], "wing": [120, 255, 160], "head": [200, 220, 255]}
+  ]
+}

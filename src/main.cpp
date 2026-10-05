@@ -31,6 +31,7 @@
 #include "scuffle_net.h"
 #include "warp.h"
 #include "warp_net.h"
+#include "fowl.h"
 #include "flight_costumes.h"
 #include "study.h"
 #include "course.h"
@@ -822,6 +823,10 @@ int main(int argc, char** argv) {
     // A Night Off (arcade game 6)
     if (argc >= 2 && strcmp(argv[1], "--night-test") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunNightTest(); }
     if (argc >= 2 && strcmp(argv[1], "--scuffle-test") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleTest(); }
+    // Fowl Play (arcade game 11)
+    if (argc >= 2 && strcmp(argv[1], "--fowl-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fp::RunFowlTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--fowl-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return fp::RunFowlSim(argc >= 3 ? std::max(1, atoi(argv[2])) : 4, argc >= 4 ? std::clamp(atoi(argv[3]), 1, 6) : 6, argc >= 5 ? atoi(argv[4]) : -1); }
+    if (argc >= 2 && strcmp(argv[1], "--fowl-gamble-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return fp::RunFowlGambleSim(argc >= 3 ? std::max(1, atoi(argv[2])) : 10000); }
     // Warp Dodgeball (arcade game 12)
     if (argc >= 2 && strcmp(argv[1], "--warp-test") == 0) { SetTraceLogLevel(LOG_WARNING); return wd::RunWarpTest(); }
     if (argc >= 2 && strcmp(argv[1], "--warp-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return wd::RunWarpNetTest(); }

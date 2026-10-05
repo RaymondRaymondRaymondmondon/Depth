@@ -1,0 +1,139 @@
+Fowl play — Arcade Game 11 Design Document
+Real types
+Gun
+The Zapper
+Twin
+Zappers
+Long Zapper
+Pump
+Shotgun
+Double
+Barrel
+Auto
+Shotgun
+Pocket SMG
+Tommy
+Carbine
+Lever Rifle
+Battle Rifle
+Hunting
+Sniper
+Light
+Machine
+Gun
+Belt-fed
+Heavy
+Flare Pistol
+Type
+Pistol
+(starting
+gun)
+Akimbo
+pistols
+Revolver
+Shotgun
+Shotgun
+Shotgun
+SMG
+SMG
+Rifle
+Rifle
+Assault rifle
+Sniper
+Machine gun
+Machine gun
+Utility
+Price
+$120
+$150
+$200
+$180
+$450
+$220
+$300
+$260
+$240
+$380
+$550
+$700
+$100
+Damage
+1
+1 each
+3
+6 pellets x I
+8 pellets x
+6 pellets
+1
+1
+2
+3
+2
+10
+1
+2
+2 + lights
+the sky
+Rate
+Semi
+Semi,
+alternating
+Slow
+Pump
+Two shots then
+reload
+Auto
+Fast auto
+Auto
+Semi
+Lever
+Auto
+Bolt
+Very fast auto
+Fast auto
+Single
+Mag
+6
+12
+6
+5
+2
+8
+30
+50
+(drum)
+15
+8
+30
+5
+100
+150
+Notes
+The classic; never sold,
+never lost
+Two at once; each hand
+aims slightly differently
+One-shots geese; big kick
+Spread; the pigeon flock's
+nightmare
+Both barrels at once for a
+wide blast
+Expensive and greedy
+Spray at a flock; poor at
+range
+The drum is a toy biscuit tin
+Accurate at range
+Satisfying click; good on
+golden ducks
+The all-rounder
+A scope; one-shots
+everything but the UFO
+Pins you in place while
+firing (no stepping)
+Needs a bipod on the rail;
+can't turn more than 90
+degrees
+A flare lights birds (and
+night rounds) for everyone;
+buy flares
+Page 7 of 16

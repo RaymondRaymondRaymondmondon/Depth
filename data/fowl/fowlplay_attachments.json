@@ -1,0 +1,20 @@
+{
+  "_source": "Fowl Play design doc pp. 9-10 (attachments; one per slot per gun)",
+  "attachments": [
+    {"id": "reddot", "name": "Red dot", "slot": "sight", "price": 60, "spread": 0.75, "note": "Tighter aim; a red dot"},
+    {"id": "scope", "name": "Toy scope", "slot": "sight", "price": 120, "zoom": 2.0, "spread": 0.8, "note": "Zoom on rifles and pistols"},
+    {"id": "extmag", "name": "Extended mag", "slot": "magazine", "price": 80, "mag": 1.5, "note": "+50% magazine"},
+    {"id": "drum", "name": "Drum mag", "slot": "magazine", "price": 150, "mag": 2.5, "reload": 1.3, "note": "+150% magazine, slower reload"},
+    {"id": "speedloader", "name": "Speed loader", "slot": "magazine", "price": 70, "reload": 0.5, "note": "Reload twice as fast"},
+    {"id": "choke", "name": "Choke", "slot": "barrel", "price": 90, "shotSpread": 0.6, "note": "Tighter shotgun spread"},
+    {"id": "longbarrel", "name": "Long barrel", "slot": "barrel", "price": 100, "range": 1.6, "note": "Less falloff at range"},
+    {"id": "seeker", "name": "Bird-seeker sticker", "slot": "barrel", "price": 200, "seek": 1.2, "note": "Shots curve slightly toward the nearest bird (a little)"},
+    {"id": "golden", "name": "Golden trigger", "slot": "trigger", "price": 250, "money": 1.5, "note": "+50% money per kill with this gun"},
+    {"id": "hair", "name": "Hair trigger", "slot": "trigger", "price": 90, "rate": 1.2, "note": "+20% fire rate"},
+    {"id": "laser", "name": "Laser pointer", "slot": "under", "price": 50, "spread": 0.9, "note": "A red line everyone can see (and birds can't)"},
+    {"id": "bipod", "name": "Bipod", "slot": "under", "price": 70, "steady": 0.5, "note": "Steadier when resting on the rail"},
+    {"id": "duckcall", "name": "Duck-call underbarrel", "slot": "under", "price": 150, "note": "Calls ducks toward you once per wave (others can shoot them too)"},
+    {"id": "stickers", "name": "Sticker pack", "slot": "cosmetic", "price": 20, "note": "Stickers on the plastic"},
+    {"id": "griptape", "name": "Grip tape", "slot": "counter", "price": 30, "note": "Counters Butter Fingers"}
+  ]
+}

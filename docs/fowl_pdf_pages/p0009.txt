@@ -1,0 +1,76 @@
+Fowl play — Arcade Game 11 Design Document
+The Honker
+Lightning Rod
+The Mega Zapper
+Attachments
+price
+$200
+$550
+$800
+What it does
+Fires a goose call; every goose and swan turns
+toward you for 3 s (geese become easy; swans
+become a problem)
+A toy tesla gun; the bolt chains between birds up
+to five times
+An enormous version of the starting pistol, held in
+two hands; fires one huge shot per 3 s that kills
+everything in a wide cone; the screen flash is
+blinding (it flashes everyone's screen)
+Sold on the pegboard; each gun takes one of each slot where it fits.
+Attachment
+Red dot
+Toy scope
+Extended mag
+Drum mag
+Speed loader
+Choke
+Long barrel
+Bird-seeker sticker
+Golden trigger
+Hair trigger
+Laser pointer
+Bipod
+Slot
+Sight
+Sight
+Magazine
+Magazine
+Magazine
+Barrel
+Barrel
+Barrel
+Trigger
+Trigger
+Under-
+barrel
+Under-
+barrel
+price
+$60
+$120
+$80
+$150
+$70
+$90
+$100
+$200
+$250
+$90
+$50
+$70
+Effect
+Tighter aim; a red dot
+zoom on rifles and pistols
++50% magazine
++150% magazine, slower reload
+Reload twice as fast
+Tighter shotgun spread
+Less falloff at range
+Shots curve slightly toward the nearest bird
+(a little)
++50% money per kill with this gun
++20% fire rate
+A red line everyone can see (and birds can't)
+Steadier when resting on the rail
+Page g of 16

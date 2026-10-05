@@ -1,0 +1,32 @@
+Fowl play — Arcade Game 11 Design Document
+Fowl Play — Arcade Game 11 Design
+Document (the Slop shelf)
+Oct 5, 2026 • @Phillip Argall
+Overview
+Fowl Play is a 1-6 player first-person 3D bird-shooting competition on the Deep Arcade's
+Slop shelf, built on the bones of the classic NES light-gun duck shooter. Players stand in a
+row of stalls on a covered shooting porch overlooking a marsh, birds are released over the
+field, and everyone shoots at the same sky. Between hunts there are 45 seconds to walk
+the room behind the stalls: buy guns and attachments, spin the mystery-gun machine,
+gamble winnings at slots and scratchers, and visit the Slop Shop for cosmetics and dirty
+tricks to use on everyone else.
+What it takes from the light-gun classic: the marsh, the reeds, the flushed birds flying up
+and away, the round-by-round escalation, the hit counter at the bottom of the screen, the
+dog who retrieves your birds (and laughs at your misses), and the plastic toy gun. What it
+adds: a real 3D space shared by six players, money, an arsenal of 30 guns built in that
+same toy style, gambling, and sabotage.
+The look of the guns. Every gun in the game is drawn as a chunky toy light-gun version of
+itself: two-tone grey moulded plastic (a lighter grey body over a darker grey barrel and
+grip), a ribbed grip, a stubby red trigger, a ribbed slide on top, visible screw bosses, and a
+red maker's stamp on the side (an invented brand, the "Zappa" logo, never a real one). A
+shotgun is a toy shotgun in grey and red; a gatling gun is a toy gatling gun; the ray gun is a
+toy ray gun. Real gun types keep their real silhouettes so players can recognize them; the
+plastic is the joke and the identity.
+Design pillars
+1. One sky, six guns. Everyone shoots the same birds, so every shot is a race and every
+kill is stolen from somebody.
+2. Money changes everything. Birds pay; the intermission spends; the arsenal and the
+gambling decide who's ahead by round 10.
+3. Slop with craft. Crab cannons and pigeon decoys, but the shooting feels tight and the
+economy is balanced enough to compete on.
+Page 1 of 16
