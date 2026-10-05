@@ -136,10 +136,11 @@ int RunMouthfulSkinsTest() {
     gWardrobeNoSave = true;
     int store = 0, crate[5] = {}; for (const auto& s : Skins()) { if (s.tier == 0) store++; else crate[s.tier]++; }
     check(store == 10 && crate[1] == 15 && crate[2] == 10 && crate[3] == 10 && crate[4] == 5, TextFormat("the shop's 10 and the crate's 40 (%d; %d/%d/%d/%d)", store, crate[1], crate[2], crate[3], crate[4]));
-    gW = Wardrobe{}; gWLoaded = true; gW.tokens = 60;
+    const SkinDef* camo = FindSkin("reef_camo"); const SkinDef* pearl = FindSkin("pearl"); int camoP = camo ? camo->price : 0, pearlP = pearl ? pearl->price : 0;   // (prices from the catalogue: they were halved, 2026-10-05)
+    gW = Wardrobe{}; gWLoaded = true; gW.tokens = camoP + 10;
     std::string why;
-    check(BuySkin("reef_camo", &why) && gW.tokens == 10 && gW.Owns("reef_camo"), "Reef Camo for 50 tokens");
-    check(!BuySkin("pearl", &why), "Pearl at 100 is out of reach with 10");
+    check(camo && BuySkin("reef_camo", &why) && gW.tokens == 10 && gW.Owns("reef_camo"), TextFormat("Reef Camo for its %d tokens", camoP));
+    check(pearlP > 10 && !BuySkin("pearl", &why), TextFormat("Pearl at %d is out of reach with 10", pearlP));
     check(WearSkin(P_SHARK, "reef_camo") && WornSkin(LookString(), P_SHARK) && WornSkin(LookString(), P_SHARK)->id == "reef_camo" && !WornSkin(LookString(), P_EEL), "worn on the shark path, and only there");
     // the crate's odds over many clams: commons about 60%, specials about 1.8% (three crateable at 0.6%)
     int n = 20000, tierN[5] = {}, earned = 0;

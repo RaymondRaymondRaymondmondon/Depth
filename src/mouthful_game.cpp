@@ -373,8 +373,13 @@ void DrawSkinExtras(const mf::SkinDef& sk, Vector3 pos, Vector3 f, float L, floa
     if (Vector3Length(side) < 0.1f) side = {1, 0, 0};
     up = Vector3Normalize(Vector3CrossProduct(side, f));
     auto at = [&](float along, float upK, float sideK) { return Vector3Add(pos, Vector3Add(Vector3Scale(f, along * L), Vector3Add(Vector3Scale(up, upK * L), Vector3Scale(side, sideK * L)))); };
-    auto box = [&](Vector3 c, float s, Color col) { rt::DrawWorldCube(c, {s, s, s}, col); };
-    auto glow = [&](Vector3 c, float s, Color col, float k) { rt::DrawCubeGlow(MatrixMultiply(MatrixScale(s, s, s), MatrixTranslate(c.x, c.y, c.z)), col, k); };
+    // (patches, beads and studs are round; the hats are moulded shapes, not boxes)
+    static Model cyl = LoadModelFromMesh(GenMeshCylinder(1, 1, 16)); static Model cone = LoadModelFromMesh(GenMeshCone(1, 1, 12));
+    auto box = [&](Vector3 c, float s, Color col) { rt::DrawStatic(Ball(), MatrixMultiply(MatrixScale(s * 0.6f, s * 0.45f, s * 0.6f), MatrixTranslate(c.x, c.y, c.z)), col); };
+    auto glow = [&](Vector3 c, float s, Color col, float k) { rt::DrawStaticGlow(Ball(), MatrixMultiply(MatrixScale(s * 0.55f, s * 0.55f, s * 0.55f), MatrixTranslate(c.x, c.y, c.z)), col, k); };
+    auto ell = [&](Vector3 c, Vector3 r, Color col) { Matrix B{side.x * r.x, up.x * r.y, f.x * r.z, c.x, side.y * r.x, up.y * r.y, f.y * r.z, c.y, side.z * r.x, up.z * r.y, f.z * r.z, c.z, 0, 0, 0, 1}; rt::DrawStatic(Ball(), B, col); };   // (an ellipsoid along the body's axes: side, up, forward)
+    auto rod = [&](Model& m, Vector3 base, Vector3 dir, float r, float len, Color col) { Vector3 d = Vector3Normalize(dir), a = fabsf(d.y) < 0.9f ? Vector3{0, 1, 0} : Vector3{1, 0, 0}, x = Vector3Normalize(Vector3CrossProduct(a, d)), z = Vector3CrossProduct(x, d);
+        Matrix B{x.x * r, d.x * len, z.x * r, base.x, x.y * r, d.y * len, z.y * r, base.y, x.z * r, d.z * len, z.z * r, base.z, 0, 0, 0, 1}; rt::DrawStatic(m, B, col); };
     const std::string& p = sk.pattern;
     if (p == "stripes") for (int k = 0; k < 4; k++) box(at(0.25f - k * 0.16f, 0.12f, 0), L * 0.06f, {30, 30, 34, 255});
     if (p == "spots" || p == "mottle") for (int k = 0; k < 6; k++) box(at(0.2f - k * 0.08f, 0.1f + 0.04f * (k % 2), (k % 3 - 1) * 0.08f), L * 0.04f, p == "spots" ? Color{40, 34, 30, 255} : Color{120, 90, 60, 255});
@@ -382,24 +387,24 @@ void DrawSkinExtras(const mf::SkinDef& sk, Vector3 pos, Vector3 f, float L, floa
     if (p == "scales" || p == "blocks") for (int k = 0; k < 5; k++) box(at(0.15f - k * 0.1f, 0.13f, 0), L * 0.05f, p == "blocks" ? Color{250, 210, 60, 255} : Color{50, 120, 70, 255});
     if (sk.hasGlow) for (int k = 0; k < 7; k++) glow(at(0.3f - k * 0.09f, 0.05f + 0.06f * sinf(k * 2.1f), 0.12f * cosf(k * 1.7f)), L * 0.025f + 0.01f, sk.glow, 1.2f + 0.4f * sinf(t * 3 + k));
     const std::string& h = sk.hat;
-    if (h == "bicorne") { Vector3 c = at(0.28f, 0.2f, 0); rt::DrawWorldCube(c, {L * 0.1f, L * 0.08f, L * 0.32f}, {24, 22, 26, 255}); box(Vector3Add(c, Vector3Scale(up, L * 0.04f)), L * 0.03f, {220, 180, 80, 255}); }
+    if (h == "bicorne") { Vector3 c = at(0.28f, 0.2f, 0); ell(c, {L * 0.17f, L * 0.06f, L * 0.05f}, {24, 22, 26, 255}); ell(Vector3Add(c, Vector3Scale(up, L * 0.04f)), {L * 0.06f, L * 0.04f, L * 0.04f}, {24, 22, 26, 255}); box(Vector3Add(Vector3Add(c, Vector3Scale(up, L * 0.04f)), Vector3Scale(f, L * 0.04f)), L * 0.035f, {220, 180, 80, 255}); }
     if (h == "crown") for (int k = 0; k < 5; k++) { float a = k * 1.2566f; glow(Vector3Add(at(0.25f, 0.2f, 0), Vector3Add(Vector3Scale(side, cosf(a) * L * 0.06f), Vector3Scale(f, sinf(a) * L * 0.06f))), L * 0.035f, {255, 214, 90, 255}, 1.2f); }
-    if (h == "toque") { Vector3 c = at(0.25f, 0.22f, 0); rt::DrawWorldCube(Vector3Add(c, Vector3Scale(up, L * 0.06f)), {L * 0.1f, L * 0.16f, L * 0.1f}, {246, 246, 240, 255}); }
+    if (h == "toque") { Vector3 c = at(0.25f, 0.18f, 0); rod(cyl, c, up, L * 0.055f, L * 0.12f, {246, 246, 240, 255}); ell(Vector3Add(c, Vector3Scale(up, L * 0.14f)), {L * 0.08f, L * 0.05f, L * 0.08f}, {250, 250, 246, 255}); }
     if (h == "monocle") glow(at(0.36f, 0.06f, 0.12f), L * 0.035f, {250, 240, 200, 255}, 0.8f);
     if (h == "bigeyes") { box(at(0.36f, 0.08f, 0.11f), L * 0.07f, {250, 250, 250, 255}); box(at(0.36f, 0.08f, -0.11f), L * 0.07f, {250, 250, 250, 255}); }
     if (h == "eyepatch") box(at(0.36f, 0.06f, 0.12f), L * 0.05f, {20, 20, 22, 255});
-    if (h == "key") { Vector3 c = at(-0.05f, 0.2f, 0); rt::DrawWorldCube(c, {L * 0.03f, L * 0.12f, L * 0.03f}, {200, 170, 80, 255}); rt::DrawWorldCube(Vector3Add(c, Vector3Scale(up, L * 0.08f)), {L * 0.02f, L * 0.06f, L * 0.12f}, {200, 170, 80, 255}); }
-    if (h == "streamers") for (int k = 0; k < 3; k++) { Color c3[3] = {{230, 60, 50, 255}, {250, 250, 250, 255}, {60, 90, 220, 255}}; Vector3 c = at(-0.45f - 0.1f * k, 0.05f * sinf(t * 4 + k), 0.08f * (k - 1)); rt::DrawWorldCube(c, {L * 0.05f, L * 0.02f, L * 0.05f}, c3[k]); }
+    if (h == "key") { Vector3 c = at(-0.05f, 0.14f, 0); float tw = t * 2; Vector3 ax{side.x * cosf(tw) + f.x * sinf(tw), side.y * cosf(tw) + f.y * sinf(tw), side.z * cosf(tw) + f.z * sinf(tw)}; rod(cyl, c, up, L * 0.015f, L * 0.1f, {200, 170, 80, 255}); for (int s2 = -1; s2 <= 1; s2 += 2) rod(cyl, Vector3Add(c, Vector3Scale(up, L * 0.08f)), Vector3Scale(ax, (float)s2), L * 0.012f, L * 0.07f, {200, 170, 80, 255}); }   // (a wind-up key, turning)
+    if (h == "streamers") for (int k = 0; k < 3; k++) { Color c3[3] = {{230, 60, 50, 255}, {250, 250, 250, 255}, {60, 90, 220, 255}}; Vector3 c = at(-0.45f - 0.1f * k, 0.05f * sinf(t * 4 + k), 0.08f * (k - 1)); ell(c, {L * 0.025f, L * 0.008f, L * 0.06f}, c3[k]); }
     if (h == "chain") for (int k = 0; k < 4; k++) box(at(-0.45f - k * 0.08f, -0.05f, 0), L * 0.03f, {120, 120, 126, 255});
     if (h == "rivets") for (int k = 0; k < 6; k++) box(at(0.2f - k * 0.08f, 0.14f, (k % 2 ? 0.06f : -0.06f)), L * 0.025f, {170, 140, 70, 255});
-    if (h == "ribs") for (int k = 0; k < 5; k++) rt::DrawWorldCube(at(0.15f - k * 0.08f, 0.0f, 0), {L * 0.02f, L * 0.24f, L * 0.22f}, {236, 232, 220, 255});
+    if (h == "ribs") for (int k = 0; k < 5; k++) for (int s2 = -1; s2 <= 1; s2 += 2) rod(cyl, at(0.15f - k * 0.08f, 0.1f, 0), Vector3Add(Vector3Scale(side, (float)s2), Vector3Scale(up, -0.6f)), L * 0.012f, L * 0.14f, {236, 232, 220, 255});   // (bare ribs arching down each side)
     if (h == "gems") for (int k = 0; k < 4; k++) glow(at(0.2f - k * 0.12f, 0.14f, 0), L * 0.03f, k % 2 ? Color{90, 220, 140, 255} : Color{255, 80, 140, 255}, 1.4f);
-    if (h == "horns") { rt::DrawWorldCube(at(0.28f, 0.2f, 0.07f), {L * 0.03f, L * 0.12f, L * 0.03f}, {230, 210, 170, 255}); rt::DrawWorldCube(at(0.28f, 0.2f, -0.07f), {L * 0.03f, L * 0.12f, L * 0.03f}, {230, 210, 170, 255}); }
+    if (h == "horns") for (int s2 = -1; s2 <= 1; s2 += 2) rod(cone, at(0.26f, 0.13f, 0.07f * s2), Vector3Add(up, Vector3Add(Vector3Scale(side, 0.5f * s2), Vector3Scale(f, -0.3f))), L * 0.025f, L * 0.13f, {230, 210, 170, 255});
     if (h == "mask") glow(at(0.42f, 0.05f, 0), L * 0.09f, {255, 200, 80, 255}, 0.9f);
-    if (h == "rice") rt::DrawWorldCube(at(0, 0.16f, 0), {L * 0.24f, L * 0.06f, L * 0.12f}, {250, 248, 240, 255});
+    if (h == "rice") { ell(at(0, 0.15f, 0), {L * 0.07f, L * 0.035f, L * 0.13f}, {250, 248, 240, 255}); ell(at(0, 0.17f, 0), {L * 0.072f, L * 0.02f, L * 0.03f}, {30, 40, 30, 255}); }   // (a rice ball with its nori band)
     if (h == "box") rt::DrawWorldCube(pos, {L * 0.55f, L * 0.4f, L * 0.4f}, {196, 156, 104, 255});
-    if (h == "sub") rt::DrawWorldCube(at(0, 0.2f, 0), {L * 0.12f, L * 0.08f, L * 0.3f}, {110, 116, 108, 255});
-    if (h == "lamp") { rt::DrawWorldCube(at(0.32f, 0.22f, 0), {L * 0.015f, L * 0.12f, L * 0.015f}, {60, 60, 60, 255}); glow(at(0.4f, 0.3f, 0), L * 0.05f, {255, 240, 160, 255}, 2.0f); }
+    if (h == "sub") { ell(at(0, 0.17f, 0), {L * 0.05f, L * 0.05f, L * 0.16f}, {110, 116, 108, 255}); ell(at(0.02f, 0.23f, 0), {L * 0.02f, L * 0.04f, L * 0.035f}, {96, 100, 94, 255}); }   // (a little submarine: hull and sail)
+    if (h == "lamp") { rod(cyl, at(0.3f, 0.14f, 0), Vector3Add(up, Vector3Scale(f, 0.6f)), L * 0.008f, L * 0.18f, {60, 60, 60, 255}); glow(at(0.4f, 0.3f, 0), L * 0.05f, {255, 240, 160, 255}, 2.0f); }   // (an angler's lure on its stalk)
     if (h == "scar") glow(at(0.1f, 0.08f, 0.12f), L * 0.02f, {255, 90, 70, 255}, 1.0f);
     if (h == "fishhat") rt::DrawCreature(rt::Creature("mouthful_reef", "Snapper"), at(0.18f, 0.24f, 0), atan2f(f.x, f.z), 0, L * 0.35f / std::max(0.05f, rt::Creature("mouthful_reef", "Snapper").length), t * 3, 0.3f, WHITE);
 }
@@ -443,7 +448,14 @@ void DrawMouth(const mf::World& w, const mf::Mouth& m, bool mine) {
     if (m.immuneT > 0) for (int k = 0; k < 6; k++) { float a = k * 1.047f + S.t * 2.5f, r = L * 0.8f + 0.06f; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.025f, 0.025f, 0.025f), MatrixTranslate(m.pos.x + cosf(a) * r, m.pos.y + sinf(a * 2) * r * 0.3f, m.pos.z + sinf(a) * r)), {255, 240, 170, 255}, 1.0f); }
     if (m.king) {   // the crown: a gold glow over the king, seen by everyone
         Vector3 c = Vector3Add(m.pos, {0, L * 0.45f + 0.2f, 0});
-        for (int k = 0; k < 5; k++) { float a = k * 1.2566f + S.t; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(L * 0.06f, L * 0.12f, L * 0.06f), MatrixTranslate(c.x + cosf(a) * L * 0.12f, c.y, c.z + sinf(a) * L * 0.12f)), {255, 214, 90, 255}, 1.6f); }
+        {   // the crown: a gold band, five points with a pearl on each, a ruby at each point's foot; turning slowly
+            static Model band = LoadModelFromMesh(GenMeshCylinder(1, 1, 24)); static Model cone = LoadModelFromMesh(GenMeshCone(1, 1, 10));
+            rt::DrawStaticGlow(band, MatrixMultiply(MatrixScale(L * 0.15f, L * 0.06f, L * 0.15f), MatrixTranslate(c.x, c.y - L * 0.06f, c.z)), {255, 200, 70, 255}, 0.9f);
+            for (int k = 0; k < 5; k++) { float a = k * 1.2566f + S.t * 0.6f; Vector3 q{c.x + cosf(a) * L * 0.13f, c.y, c.z + sinf(a) * L * 0.13f};
+                rt::DrawStaticGlow(cone, MatrixMultiply(MatrixScale(L * 0.04f, L * 0.13f, L * 0.04f), MatrixTranslate(q.x, q.y - L * 0.01f, q.z)), {255, 214, 90, 255}, 1.1f);
+                rt::DrawStaticGlow(Ball(), MatrixMultiply(MatrixScale(L * 0.022f, L * 0.022f, L * 0.022f), MatrixTranslate(q.x, q.y + L * 0.125f, q.z)), {250, 246, 236, 255}, 1.2f);
+                rt::DrawStaticGlow(Ball(), MatrixMultiply(MatrixScale(L * 0.025f, L * 0.025f, L * 0.025f), MatrixTranslate(c.x + cosf(a) * L * 0.155f, c.y - L * 0.03f, c.z + sinf(a) * L * 0.155f)), {230, 30, 50, 255}, 1.4f); }
+        }
     }
     (void)mine;
 }
