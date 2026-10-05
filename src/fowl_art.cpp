@@ -185,6 +185,42 @@ void DrawMarsh(float t, bool night, float flare) {
         if (i % 4 == 0) rt::DrawStatic(Sphere(), MatrixMultiply(MatrixScale(0.12f, 0.08f, 0.12f), MatrixTranslate(p.x + 0.1f, 0.08f, p.z)), night ? Color{90, 80, 90, 255} : Color{240, 220, 230, 255});
     }
     rt::DrawStatic(Cyl(), MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(0.28f, 5, 0.28f), MatrixRotateZ(PI / 2)), MatrixRotateY(0.4f)), MatrixTranslate(18 + sinf(t * 0.05f) * 3 + 2.3f, 0.1f, 34 + 1.0f)), {90, 70, 54, 255});   // the drifting log
+    // the marsh's own life, which nobody's shooting at: frogs on the pads, two herons wading, dragonflies over the reeds
+    // by day and fireflies by night
+    for (int i = 0; i < 30; i += 7) {
+        Vector3 p{-60 + Hf(i + 77) * 120, 0.0f, 22 + Hf(i + 88) * 30};
+        float hop = fmodf(t * 0.1f + Hf(i) * 7, 7.0f) < 0.25f ? sinf(fmodf(t * 0.1f + Hf(i) * 7, 7.0f) / 0.25f * PI) * 0.3f : 0;
+        Matrix f = MatrixMultiply(MatrixRotateY(Hf(i + 5) * 6.28f), MatrixTranslate(p.x, 0.06f + hop, p.z));
+        Color fr = night ? Color{30, 50, 30, 255} : Color{90, 140, 60, 255};
+        Ball(f, {0, 0.06f, 0}, {0.11f, 0.07f, 0.13f}, fr); Ball(f, {0, 0.1f, 0.1f}, {0.08f, 0.05f, 0.06f}, fr);
+        for (int s = -1; s <= 1; s += 2) { Ball(f, {s * 0.05f, 0.14f, 0.12f}, {0.025f, 0.025f, 0.025f}, {220, 200, 80, 255}); Ball(f, {s * 0.1f, 0.03f, -0.04f}, {0.05f, 0.03f, 0.08f}, fr); }
+    }
+    for (int hn = 0; hn < 2; hn++) {   // a grey heron: long legs, an S neck, a dagger bill that now and then stabs down
+        float hx = hn ? 26.0f : -31.0f, hz = hn ? 76.0f : 60.0f, yaw = hn ? 2.4f : 0.7f;
+        float ph = fmodf(t * 0.13f + hn * 3.1f, 1.0f), stab = ph > 0.86f ? sinf((ph - 0.86f) / 0.14f * PI) : 0;
+        Matrix f = MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(hx, 0, hz));
+        Color g = night ? Color{50, 54, 60, 255} : Color{150, 156, 164, 255}, dk = night ? Color{30, 32, 36, 255} : Color{70, 74, 82, 255}, bill = {200, 170, 60, 255};
+        for (int s = -1; s <= 1; s += 2) rt::DrawStatic(Cyl(), MatrixMultiply(MatrixScale(0.03f, 0.9f, 0.03f), MatrixMultiply(MatrixTranslate(s * 0.08f, -0.2f, 0), f)), {190, 150, 80, 255});
+        Ball(f, {0, 0.9f, 0}, {0.22f, 0.24f, 0.4f}, g); Ball(f, {0, 0.95f, -0.3f}, {0.15f, 0.1f, 0.3f}, dk);   // body and folded wings
+        Vector3 n0{0, 1.05f, 0.25f}, n1{0, 1.3f - stab * 0.5f, 0.38f + stab * 0.25f}, hd{0, 1.5f - stab * 0.9f, 0.45f + stab * 0.45f};
+        rt::DrawStatic(Cyl(), MatrixMultiply(MatrixMultiply(MatrixScale(0.05f, Vector3Distance(n0, n1), 0.05f), MatrixRotateX(atan2f(n1.z - n0.z, n1.y - n0.y))), MatrixMultiply(MatrixTranslate(n0.x, n0.y, n0.z), f)), g);
+        rt::DrawStatic(Cyl(), MatrixMultiply(MatrixMultiply(MatrixScale(0.045f, Vector3Distance(n1, hd), 0.045f), MatrixRotateX(atan2f(hd.z - n1.z, hd.y - n1.y))), MatrixMultiply(MatrixTranslate(n1.x, n1.y, n1.z), f)), g);
+        Ball(f, hd, {0.07f, 0.07f, 0.09f}, g); Ball(f, {hd.x, hd.y + 0.04f, hd.z - 0.06f}, {0.02f, 0.02f, 0.12f}, dk);   // (the black crest)
+        rt::DrawStatic(Cone(), MatrixMultiply(MatrixMultiply(MatrixScale(0.025f, 0.3f, 0.025f), MatrixRotateX(PI / 2 + 0.3f + stab * 0.9f)), MatrixMultiply(MatrixTranslate(hd.x, hd.y, hd.z + 0.05f), f)), bill);
+    }
+    if (!night) for (int k = 0; k < 8; k++) {   // dragonflies: darting, hovering, darting
+        float seg = floorf(t * 0.7f + k * 0.37f), u = t * 0.7f + k * 0.37f - seg, e = u < 0.25f ? u / 0.25f : 1;
+        Vector3 a{-40 + Hf((uint32_t)(seg + k * 31)) * 80, 1.2f + Hf((uint32_t)(seg + k * 13)) * 1.2f, 8 + Hf((uint32_t)(seg + k * 7)) * 14};
+        Vector3 b{-40 + Hf((uint32_t)(seg + 1 + k * 31)) * 80, 1.2f + Hf((uint32_t)(seg + 1 + k * 13)) * 1.2f, 8 + Hf((uint32_t)(seg + 1 + k * 7)) * 14};
+        Vector3 p = Vector3Lerp(a, b, e * e * (3 - 2 * e)); p.y += 0.04f * sinf(t * 40 + k);
+        Ball(ID, p, {0.015f, 0.015f, 0.09f}, k % 2 ? Color{60, 160, 200, 255} : Color{200, 60, 50, 255});
+        for (int s = -1; s <= 1; s += 2) Glow(ID, {p.x + s * 0.07f, p.y + 0.01f, p.z}, {0.07f, 0.004f, 0.025f}, {220, 236, 255, 255}, 0.3f + 0.2f * sinf(t * 60 + k));
+    }
+    if (night) for (int k = 0; k < 50; k++) {   // fireflies over the reeds, blinking out of step
+        float bl = sinf(t * (1.3f + Hf(k) * 0.8f) + k * 2.1f); if (bl < 0.4f) continue;
+        Vector3 p{-60 + Hf(k + 300) * 120 + sinf(t * 0.3f + k) * 1.5f, 0.8f + Hf(k + 400) * 2.0f + sinf(t * 0.5f + k) * 0.3f, 7 + Hf(k + 500) * 18};
+        Ball(ID, p, {0.035f, 0.035f, 0.035f}, {220, 255, 120, 255}, 2.0f * (bl - 0.4f) / 0.6f);
+    }
     (void)flare;
 }
 
