@@ -101,6 +101,7 @@ bool TextField(Rectangle r, std::string& s, bool& focus, size_t maxLen, const ch
     DrawRectangleRoundedLinesEx(r, 0.2f, 6, 2, focus ? Pal::Brass : hover ? Pal::BrassDk : Color{40, 90, 90, 255});
     bool enter = false;
     if (focus) {
+        NoteTyping();
         for (int c = GetCharPressed(); c; c = GetCharPressed())
             if (c >= 32 && c < 127 && s.size() < maxLen) s += upper ? (char)toupper(c) : (char)c;
         if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) { if (!s.empty()) s.pop_back(); }
@@ -202,21 +203,63 @@ void DrawReels(Game& g) {
         {G_NIGHT_OFF, "1-6 players", "25-40 min", "One night ashore at the Sodden Gull: drink, play, flirt, fight, and make it to the morning with both kidneys."},
         {G_SCUFFLE, "2-8 players (solo with bots)", "10-20 min", "Stick figures, ragdolls, and whatever falls from the sky: the last stick standing wins the round."},
     };
-    gDrum += (gSel - gDrum) * std::min(1.0f, GetFrameTime() * 8);
+    // the games in five groups (the playtesters' call): a tab row, and the drum shows one group's reels
+    static const char* CATS[5] = {"Action", "Strategy", "Fighting", "Traditional", "Slop"};
+    static const int CAT_N[5] = {2, 2, 2, 2, 1};
+    static const int CAT_LIST[5][2] = {{1, 4}, {5, 3}, {6, 8}, {0, 2}, {7, -1}};   // (reel indices: the Trawl, Red Tide | the Flight, Fathoms | Mouthful, Scuffle | Flats Duel, Scuttle | A Night Off)
+    auto catOf = [&](int reel) { for (int k = 0; k < 5; k++) for (int j = 0; j < CAT_N[k]; j++) if (CAT_LIST[k][j] == reel) return k; return 0; };
+    auto posIn = [&](int reel) { int k = catOf(reel); for (int j = 0; j < CAT_N[k]; j++) if (CAT_LIST[k][j] == reel) return j; return 0; };
+    static int lastCat = -1;
+    int cat = catOf(gSel);
+    for (int k = 0; k < 5; k++) {   // the tabs
+        Rectangle tr{c.x - 235 + k * 94.0f, c.y - 216, 88, 26};
+        bool on = k == cat, hov = CheckCollisionPointRec(GetMousePosition(), tr);
+        DrawRectangleRounded(tr, 0.4f, 6, on ? Color{30, 120, 118, 255} : hov ? Color{22, 84, 86, 255} : Color{12, 44, 48, 255});
+        DrawRectangleRoundedLinesEx(tr, 0.4f, 6, 1.5f, on ? Pal::Brass : Pal::BrassDk);
+        DrawTextCenteredBold(CATS[k], tr.x + tr.width / 2, tr.y + 5, 14, on ? Color{220, 255, 244, 255} : SCREEN_DIM);
+        if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !on) { gSel = CAT_LIST[k][0]; PlayCue("ui.click"); }
+    }
+    cat = catOf(gSel);
+    if (cat != lastCat) { gDrum = (float)posIn(gSel); lastCat = cat; }
+    // the wheel and the arrows roll the drum; past a group's last reel the next group comes round
     float wheel = GetMouseWheelMove();
-    if (wheel < 0 || IsKeyPressed(KEY_DOWN)) gSel = std::min(NREELS - 1, gSel + 1);
-    if (wheel > 0 || IsKeyPressed(KEY_UP)) gSel = std::max(0, gSel - 1);
-    for (int i = 0; i < NREELS; i++) {
-        float off = (i - gDrum) * 92;
-        if (fabsf(off) > 120) continue;
-        float sc = 1 - fabsf(off) / 400;
-        Rectangle r{c.x - 230 * sc, c.y - 40 + off - 34 * sc, 460 * sc, 68 * sc};
-        bool on = i == gSel;
-        DrawRectangleRounded(r, 0.25f, 8, on ? Color{30, 120, 118, 255} : Color{16, 60, 64, 255});
-        DrawRectangleRoundedLinesEx(r, 0.25f, 8, 2, on ? Pal::Brass : Pal::BrassDk);
-        DrawTextCenteredBold(Info(reels[i].game).name, c.x, r.y + 8 * sc, (int)(26 * sc), on ? Color{220, 255, 244, 255} : SCREEN_DIM);
-        if (on) DrawTextCentered(TextFormat("%s   -   %s%s", reels[i].players, reels[i].length, Info(reels[i].game).built || reels[i].game == G_TRAWL || reels[i].game == G_RED_TIDE || reels[i].game == G_FLIGHT || reels[i].game == G_MOUTHFUL || reels[i].game == G_NIGHT_OFF || reels[i].game == G_SCUFFLE ? "": "   -   coming aboard later"), c.x, r.y + 40, 15, Color{180, 230, 220, 255});
-        if (CheckCollisionPointRec(GetMousePosition(), r) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gSel = i;
+    int pos = posIn(gSel);
+    if (wheel < 0 || IsKeyPressed(KEY_DOWN)) { if (pos + 1 < CAT_N[cat]) gSel = CAT_LIST[cat][pos + 1]; else { int k2 = (cat + 1) % 5; gSel = CAT_LIST[k2][0]; } }
+    if (wheel > 0 || IsKeyPressed(KEY_UP)) { if (pos > 0) gSel = CAT_LIST[cat][pos - 1]; else { int k2 = (cat + 4) % 5; gSel = CAT_LIST[k2][CAT_N[k2] - 1]; } }
+    cat = catOf(gSel); if (cat != lastCat) { gDrum = (float)posIn(gSel) + (wheel < 0 || IsKeyPressed(KEY_DOWN) ? -1.0f : 1.0f); lastCat = cat; }
+    pos = posIn(gSel);
+    gDrum += (pos - gDrum) * std::min(1.0f, GetFrameTime() * 8);
+    // the drum: a cylinder lying on its side. Each reel sits on its face at an angle; turning it brings the next round
+    // from behind (squashed, dim) to the front (full height, lit). Ribs turn with it, so the roll reads even between reels
+    {
+        const float R = 62, cy = c.y - 96, STEP = 0.85f;
+        Rectangle drum{c.x - 250, cy - R - 6, 500, 2 * R + 12};
+        DrawRectangleRounded(drum, 0.12f, 8, Color{8, 30, 34, 255});
+        for (int b = 0; b < 12; b++) { float u = b / 11.0f, a = (u - 0.5f) * PI; float sh = cosf(a); DrawRectangle((int)drum.x + 8, (int)(cy + sinf(a) * R - 6), (int)drum.width - 16, 12, Fade(Color{20, 90, 92, 255}, 0.25f * sh * sh)); }   // (the curve: lighter across the middle)
+        float frac = gDrum - floorf(gDrum);
+        for (int j = -6; j <= 6; j++) { float a = (j - frac * 2) * (STEP / 2); if (fabsf(a) > 1.45f) continue; float y = cy + sinf(a) * R, w = 236 * (0.9f + 0.1f * cosf(a)); DrawLineEx({c.x - w, y}, {c.x + w, y}, 1, Fade(Pal::BrassDk, 0.35f * cosf(a))); }
+        DrawRectangleRoundedLinesEx(drum, 0.12f, 8, 2, Pal::BrassDk);
+        struct Face { int reel; float a; };
+        std::vector<Face> faces;
+        for (int j = 0; j < CAT_N[cat]; j++) { float a = (j - gDrum) * STEP; if (fabsf(a) < 1.4f) faces.push_back({CAT_LIST[cat][j], a}); }
+        std::sort(faces.begin(), faces.end(), [](const Face& p, const Face& q) { return cosf(p.a) < cosf(q.a); });   // (back to front)
+        for (const Face& f : faces) {
+            int i = f.reel; float ca = cosf(f.a), y = cy + sinf(f.a) * R;
+            float h = 72 * ca, w = 460 * (0.88f + 0.12f * ca);
+            Rectangle r{c.x - w / 2, y - h / 2, w, h};
+            bool on = i == gSel;
+            Color face = on ? Color{30, 120, 118, 255} : Color{16, 60, 64, 255};
+            DrawRectangleRounded(r, 0.25f, 8, ColorLerp(Color{6, 20, 24, 255}, face, 0.35f + 0.65f * ca));
+            DrawRectangleRoundedLinesEx(r, 0.25f, 8, 2, ColorLerp(Color{6, 20, 24, 255}, on ? Pal::Brass : Pal::BrassDk, ca));
+            if (ca > 0.45f) {
+                DrawTextCenteredBold(Info(reels[i].game).name, c.x, r.y + 8 * ca, (int)(26 * ca), ColorLerp(Color{40, 70, 72, 255}, on ? Color{220, 255, 244, 255} : SCREEN_DIM, ca));
+                if (on && ca > 0.8f) DrawTextCentered(TextFormat("%s   -   %s%s", reels[i].players, reels[i].length, Info(reels[i].game).built || reels[i].game == G_TRAWL || reels[i].game == G_RED_TIDE || reels[i].game == G_FLIGHT || reels[i].game == G_MOUTHFUL || reels[i].game == G_NIGHT_OFF || reels[i].game == G_SCUFFLE ? "": "   -   coming aboard later"), c.x, r.y + 40 * ca, 15, Color{180, 230, 220, 255});
+            }
+            if (CheckCollisionPointRec(GetMousePosition(), r) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gSel = i;
+        }
+        // the cabinet's lip over the drum's top and bottom edges (it turns inside the machine)
+        DrawRectangleGradientV((int)drum.x, (int)drum.y, (int)drum.width, 26, Color{8, 30, 34, 255}, Fade(Color{8, 30, 34, 255}, 0));
+        DrawRectangleGradientV((int)drum.x, (int)(drum.y + drum.height - 26), (int)drum.width, 26, Fade(Color{8, 30, 34, 255}, 0), Color{8, 30, 34, 255});
     }
     DrawWrapped(reels[gSel].line, {c.x - 200, c.y + 100, 400, 50}, 17, Color{200, 240, 232, 255});
 
@@ -1238,6 +1281,7 @@ void DebugArcadeShot(int which) {
     }
     SetAudioSuppressed(false);
 }
+int ArcadeTableGame() { return gMode == MODE_ROOM ? (int)gSess.game : -1; }
 void DebugArcadeScuffleLocker(Game& g, int tab) { g.scene = Scene::Arcade; gSfLocker = true; DebugScuffleLocker(tab); }
 void DebugArcadeFlightWardrobe(Game& g, int tab, const char* pick, int galleryPage) {
     g.scene = Scene::Arcade; gFlGallery = galleryPage; gFlWardrobe = galleryPage < 0;

@@ -3,6 +3,7 @@
 //  drawers (Courses, Soundscape, Scene), focus mode, the chronometer, study_save.txt, and --study-motion-audit.
 //  No game economy: nothing here touches gold, XP, relics or tokens.
 // ============================================================================
+#include "input.h"
 #include "game.h"
 #include "sound.h"
 #include "study.h"
@@ -180,7 +181,7 @@ bool TextBox(Rectangle r, std::string& s, bool& focus, size_t maxLen, const char
     DrawRectangleRoundedLinesEx(r, 0.25f, 4, 1.2f, focus ? INK_ON : Tone(Pal::Brass, -0.4f));
     bool enter = false;
     if (focus) {
-        for (int c = GetCharPressed(); c; c = GetCharPressed()) if (c >= 32 && c < 127 && c != '|' && s.size() < maxLen) s += (char)c;
+        NoteTyping(); for (int c = GetCharPressed(); c; c = GetCharPressed()) if (c >= 32 && c < 127 && c != '|' && s.size() < maxLen) s += (char)c;
         if ((IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) && !s.empty()) s.pop_back();
         enter = IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER);
     }

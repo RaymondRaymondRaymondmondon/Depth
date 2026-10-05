@@ -12,6 +12,8 @@ const char* ActName(int a);
 int& ActKey(int a, int slot);            // slot 0 primary, 1 alternate (KEY_NULL = none)
 bool ActDown(int a);
 bool ActPressed(int a);
+void NoteTyping();      // a text box has the keyboard this frame (every typing site calls it)
+bool Typing();          // so hotkeys that are letters (P opens the menu) stand down
 const char* KeyLabel(int key);           // "Space", "Left shift", "A" ...
 void ResetBindings();
 

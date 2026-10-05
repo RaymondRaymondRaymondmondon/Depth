@@ -110,3 +110,7 @@ void LoadSettings() {
     }
     if (gSettings.brightness < 0.6f || gSettings.brightness > 1.6f) gSettings.brightness = 1.0f;
 }
+
+static double gTypingAt = -10;
+void NoteTyping() { gTypingAt = GetTime(); }
+bool Typing() { return GetTime() - gTypingAt < 0.15; }

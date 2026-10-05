@@ -10,7 +10,7 @@
 #include <cmath>
 
 namespace {
-enum Page { P_MAIN, P_SETTINGS, P_CONTROLS, P_GRAPHICS, P_VOICE };
+enum Page { P_MAIN, P_SETTINGS, P_CONTROLS, P_GRAPHICS, P_VOICE, P_HOWTO };
 bool gOpen = false, gQuit = false;
 Page gPage = P_MAIN;
 int gRebind = -1, gRebindSlot = 0;   // the action (and which of its two keys) waiting for a key press
@@ -66,6 +66,7 @@ void MainPage(Game& g, Rectangle p) {
     float y = p.y + 50, x = p.x + p.width / 2 - 150;
     auto item = [&](const char* label, bool enabled = true) { bool r = Button({x, y, 300, 44}, label, enabled, 19); y += 54; return r; };
     if (item("Resume")) { gOpen = false; PlayCue("ui.confirm"); }   // (a first-person scene takes the pointer back itself)
+    if (item("How to play")) { gPage = P_HOWTO; }
     if (item("Settings")) { gPage = P_SETTINGS; }
     if (item("Controls")) { gPage = P_CONTROLS; }
     if (g.scene == Scene::RedTide || g.scene == Scene::Trawl || g.scene == Scene::Flight || g.scene == Scene::Mouthful || g.scene == Scene::NightOff || g.scene == Scene::Arcade) { if (item("Graphics (3D)")) gPage = P_GRAPHICS; }
@@ -194,12 +195,41 @@ void VoicePage(Rectangle p) {
     y += 50;
     if (!VoiceMicError().empty()) Txt("The microphone: " + VoiceMicError() + " (check Windows' sound settings)", x, y, 14, Color{240, 140, 110, 255});
     else Txt(S.voiceOn ? "The microphone is only open at a table, or during the test. Push to talk is in Controls." : "Voice is off: you'll still hear the others.", x, y, 14, Color{170, 160, 140, 255});
-}void ControlsPage(Rectangle p) {
+}
+// a paragraph wrapped to a width; returns its height
+float Para(const std::string& text, float x, float y, float w, int size, Color c) {
+    std::string line, word; float yy = y; size_t i = 0;
+    auto flush = [&]() { if (!line.empty()) { Txt(line, x, yy, size, c); yy += size + 5; line.clear(); } };
+    while (i <= text.size()) {
+        char ch = i < text.size() ? text[i] : ' ';
+        if (ch == ' ') { std::string tryL = line.empty() ? word : line + " " + word; if (MeasureTxt(tryL, size, false) > w && !line.empty()) { flush(); line = word; } else line = tryL; word.clear(); }
+        else word += ch;
+        i++;
+    }
+    flush();
+    return yy - y;
+}
+// How to play: what this place is, how a round goes, and its keys (howto.cpp)
+void HowToPage(const Game& g, Rectangle p) {
+    const HowTo& h = HowToFor(g);
+    float x = p.x + 40, y = p.y + 34, w = p.width - 80;
+    TxtBold(h.title, x, y, 22, Pal::Brass); y += 34;
+    for (const auto& l : h.lines) y += Para(l, x, y, w, 15, Pal::Paper) + 8;
+    y += 2; TxtBold("Keys", x, y, 16, Pal::Brass); y += 24;
+    int n = (int)h.keys.size(), half = (n + 1) / 2;
+    for (int i = 0; i < n; i++) {
+        float cx = i < half ? x : x + w / 2, cy = y + (i < half ? i : i - half) * 20;
+        Txt(h.keys[i].first, cx, cy, 13, Pal::Brass);
+        Txt(h.keys[i].second, cx + 140, cy, 13, Pal::Paper);
+    }
+}
+void ControlsPage(const Game& g, Rectangle p) {
     float x = p.x + 40, y = p.y + 50;
-    TxtBold("Action", x, y - 26, 16, Pal::Brass);
+    TxtBold("Can be changed here", x, y - 26, 16, Pal::Brass);
     TxtBold("Key", x + 300, y - 26, 16, Pal::Brass);
     TxtBold("Alternate", x + 460, y - 26, 16, Pal::Brass);
     for (int a = 0; a < ACT_COUNT; a++) {
+        if (!ActUsedIn(g, a)) continue;
         Txt(ActName(a), x, y + 6, 17, Pal::Paper);
         for (int s = 0; s < 2; s++) {
             Rectangle b{x + 300 + s * 160.0f, y, 146, 32};
@@ -208,8 +238,14 @@ void VoicePage(Rectangle p) {
         }
         y += 40;
     }
-    Txt("Click a key, then press the new one (Backspace clears it). Double-tap a direction to dash.", x, y + 6, 13, Color{170, 160, 140, 255});
-    if (Button({p.x + p.width - 230, y + 30, 190, 34}, "Reset to defaults", true, 14)) ResetBindings();
+    Txt("Click a key, then press the new one (Backspace clears it).", x, y + 6, 13, Color{170, 160, 140, 255});
+    if (Button({p.x + p.width - 230, y, 190, 30}, "Reset to defaults", true, 14)) ResetBindings();
+    // this place's own keys (fixed for now: only the ones above can be changed)
+    y += 44;
+    const HowTo& h = HowToFor(g);
+    TxtBold(TextFormat("%s: its keys (fixed)", h.title.c_str()), x, y, 16, Pal::Brass); y += 24;
+    int n = (int)h.keys.size(), half = (n + 1) / 2; float w = p.width - 80;
+    for (int i = 0; i < n; i++) { float cx = i < half ? x : x + w / 2, cy = y + (i < half ? i : i - half) * 20; Txt(h.keys[i].first, cx, cy, 13, Pal::Brass); Txt(h.keys[i].second, cx + 140, cy, 13, Pal::Paper); }
     if (gRebind >= 0) {
         int k = GetKeyPressed();
         if (k == KEY_BACKSPACE) { ActKey(gRebind, gRebindSlot) = KEY_NULL; gRebind = -1; }
@@ -223,6 +259,9 @@ void VoicePage(Rectangle p) {
 }
 }  // namespace
 
+static bool gRequested = false;
+void GameMenuRequest() { gRequested = true; }
+bool GameMenuTakeRequest() { bool r = gRequested; gRequested = false; return r; }
 bool GameMenuActive() { return gOpen; }
 bool GameMenuWantsQuit() { return gQuit; }
 void GameMenuOpen() {
@@ -241,12 +280,13 @@ void GameMenuFrame(Game& g) {
     float a = std::min(1.0f, gOpenT / 0.18f);
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Color{4, 6, 8, 255}, 0.62f * a));
     float slide = (1 - a) * (1 - a) * 40;
-    Rectangle p = gPage == P_MAIN ? Rectangle{SCREEN_W / 2.0f - 220, 110 + slide, 440, 470} : Rectangle{SCREEN_W / 2.0f - 380, 90 + slide, 760, 540};
-    Frame(p, gPage == P_MAIN ? "Paused" : gPage == P_SETTINGS ? "Settings" : gPage == P_GRAPHICS ? "Graphics" : gPage == P_VOICE ? "Voice chat" : "Controls");
+    Rectangle p = gPage == P_MAIN ? Rectangle{SCREEN_W / 2.0f - 220, 70 + slide, 440, 580} : Rectangle{SCREEN_W / 2.0f - 380, 90 + slide, 760, 540};
+    Frame(p, gPage == P_MAIN ? "Paused" : gPage == P_SETTINGS ? "Settings" : gPage == P_GRAPHICS ? "Graphics" : gPage == P_VOICE ? "Voice chat" : gPage == P_HOWTO ? "How to play" : "Controls");
     switch (gPage) {
         case P_MAIN: MainPage(g, p); break;
         case P_SETTINGS: SettingsPage(p); break;
-        case P_CONTROLS: ControlsPage(p); break;
+        case P_CONTROLS: ControlsPage(g, p); break;
+        case P_HOWTO: HowToPage(g, p); break;
         case P_GRAPHICS: GraphicsPage(p); break;
         case P_VOICE: VoicePage(p); break;
     }

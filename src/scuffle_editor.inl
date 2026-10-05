@@ -154,7 +154,7 @@ static bool EditorFrame(Game& g) {
     // the top bar: the name, the world, the wrap
     DrawRectangle(0, 0, SCREEN_W, 62, ColorAlpha(Color{24, 18, 14, 255}, 0.9f));
     if (E.naming) {
-        int ch; while ((ch = GetCharPressed()) > 0) if (ch >= 32 && ch < 127 && E.nameBuf.size() < 40) E.nameBuf += (char)ch;
+        NoteTyping(); int ch; while ((ch = GetCharPressed()) > 0) if (ch >= 32 && ch < 127 && E.nameBuf.size() < 40) E.nameBuf += (char)ch;
         if (IsKeyPressed(KEY_BACKSPACE) && !E.nameBuf.empty()) E.nameBuf.pop_back();
         if (IsKeyPressed(KEY_ENTER)) { if (!E.nameBuf.empty()) E.st.name = E.nameBuf; E.naming = false; }
         TxtBold(("Name: " + E.nameBuf + "_").c_str(), 16, 10, 20, Color{255, 230, 170, 255});

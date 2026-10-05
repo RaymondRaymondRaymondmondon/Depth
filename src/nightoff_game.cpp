@@ -490,7 +490,7 @@ void Gather(float dt) {
     in.moveX = in.moveZ = 0; in.run = false; in.faceYaw = S.camYaw; in.cheat = IsKeyDown(KEY_V);
     if (S.chatting) { MouseLook(false); return; }   // (typing a line: the keys are words, not moves)
     if (S.dogNaming) {   // (typing the dog's name)
-        MouseLook(false); int ch; while ((ch = GetCharPressed()) > 0) if (ch >= 32 && ch < 127 && S.dogBuf.size() < 20) S.dogBuf += (char)ch;
+        MouseLook(false); NoteTyping(); int ch; while ((ch = GetCharPressed()) > 0) if (ch >= 32 && ch < 127 && S.dogBuf.size() < 20) S.dogBuf += (char)ch;
         if (IsKeyPressed(KEY_BACKSPACE) && !S.dogBuf.empty()) S.dogBuf.pop_back();
         if (IsKeyPressed(KEY_ENTER)) { if (!S.dogBuf.empty()) in.nameDog = S.dogBuf; S.dogNaming = false; S.dogBuf.clear(); }
         if (IsKeyPressed(KEY_ESCAPE)) { S.dogNaming = false; S.dogBuf.clear(); }
@@ -969,7 +969,7 @@ void SceneNightOff(Game& g) {
         if (n.players.empty() || S.me >= (int)n.players.size()) { ClearBackground(Color{20, 14, 10, 255}); DrawTextCenteredBold("Ashore, to the Sodden Gull...", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 24, Color{240, 210, 150, 255}); return; }
         if (!S.helloSent) { Writer o; no::OrderHello(o, S.netName, S.netCrew, no::ProfileSummary(S.prof)); N.Act(o); S.helloSent = true; S.camAt = {Me().pos.x, 1.55f, Me().pos.y}; }
         // the table talk: Enter to say something to everyone
-        if (S.chatting) { int ch; while ((ch = GetCharPressed()) > 0) if (ch >= 32 && ch < 127 && S.chatBuf.size() < 80) S.chatBuf += (char)ch; if (IsKeyPressed(KEY_BACKSPACE) && !S.chatBuf.empty()) S.chatBuf.pop_back();
+        if (S.chatting) { NoteTyping(); int ch; while ((ch = GetCharPressed()) > 0) if (ch >= 32 && ch < 127 && S.chatBuf.size() < 80) S.chatBuf += (char)ch; if (IsKeyPressed(KEY_BACKSPACE) && !S.chatBuf.empty()) S.chatBuf.pop_back();
             if (IsKeyPressed(KEY_ENTER)) { if (!S.chatBuf.empty()) N.Chat(S.chatBuf); S.chatBuf.clear(); S.chatting = false; } if (IsKeyPressed(KEY_ESCAPE)) { S.chatting = false; S.chatBuf.clear(); } }
         else if (IsKeyPressed(KEY_ENTER) && Me().talk.patron < 0 && Me().flirt.patron < 0 && !nog::Blocking(Me())) S.chatting = true;
         if (n.over) { if (!S.profSaved) { S.remembered = n.ProfileAfter(Me(), S.prof); no::SaveNightProfile(S.prof, "nightoff_profile.txt"); S.profSaved = true; } NightAudioFrame(n, dt); DrawMorning(g); return; }

@@ -2,6 +2,7 @@
 // thick coloured lines with round joints and one face (two dots and a line) on a parchment stage, stone blocks inked
 // and hatched, deaths as ink splashes. The camera frames the living sticks between a minimum and maximum zoom. All
 // play goes through sf::Input (Gather); the engine is scuffle.cpp.
+#include "input.h"
 #include "game.h"
 #include "scuffle.h"
 #include "scuffle_net.h"

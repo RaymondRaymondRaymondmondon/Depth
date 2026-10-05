@@ -1748,7 +1748,7 @@ static void SalonFrame(Game& g, bool live, int heldStation) {
     DrawSalonHud(g, hovered, hint, hovered >= 0 || hovPerson || hovCat);
 
     // the game menu, for the mouse (Esc opens it too; a new game is started from there)
-    if (Button({SCREEN_W - 170.0f, 8, 158, 30}, "Menu   (Esc)", true, 14)) GameMenuOpen();
+    if (Button({SCREEN_W - 170.0f, 8, 158, 30}, "Menu   (Esc)", true, 14)) GameMenuRequest();   // (opened between frames: grabbing the frame mid-draw broke the renderer on some PCs)
 
     // --- clicks
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && hovCat) {

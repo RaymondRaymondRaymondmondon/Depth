@@ -978,7 +978,14 @@ void SnapshotFrame();                 // render.cpp: hold the last finished fram
 void DrawSnapshot();
 void SetPostBypass(bool on);         // this frame skips the post pass (it's showing an already finished frame)
 bool GameMenuActive();               // menu.cpp: the game menu (Esc)
-void GameMenuOpen();
+// the game menu's "How to play" and per-game Controls (howto.cpp)
+struct HowTo { std::string title; std::vector<std::string> lines; std::vector<std::pair<std::string, std::string>> keys; };
+const HowTo& HowToFor(const Game& g);
+bool ActUsedIn(const Game& g, int a);   // (a rebindable action that means something in this place)
+int ArcadeTableGame();                  // (the arcade table's game when at one, else -1)
+void GameMenuOpen();                   // (between frames only: it grabs the finished frame)
+void GameMenuRequest();                // (a button mid-frame asks; the main loop opens it before the next frame)
+bool GameMenuTakeRequest();
 void GameMenuFrame(Game& g);
 bool GameMenuWantsQuit();
 void DebugMenuPage(int page);          // --shots: 0 main, 1 settings, 2 controls

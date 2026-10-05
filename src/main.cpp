@@ -488,7 +488,7 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"helm_quartermaster", [](Game& g) { g.scene = Scene::Helm; g.gold = 300; SuggestedKit(Location::Island, g.provision); }},
         {"menu_main", [](Game& g) { g.scene = Scene::Hub; }},
         {"menu_settings", [](Game& g) { g.scene = Scene::Hub; }},
-        {"menu_controls", [](Game& g) { g.scene = Scene::Hub; }},
+        {"menu_controls", [](Game& g) { g.scene = Scene::Hub; }}, {"menu_howto", [](Game& g) { g.scene = Scene::Hub; }},
         {"menu_voice", [](Game& g) { g.scene = Scene::Arcade; }},
         {"menu_graphics", [](Game& g) { DebugTrawlShot(g, 140); }},
         {"combat_walk", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::Walking; g.dungeon.walkT = 0.4f; }},
@@ -662,7 +662,7 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         for (int f = 0; f < nFrames; f++) {
             if (f == nFrames / 2) tFrames = GetTime();
             g.time += 1 / 60.0f;
-            if (f == 60 && strncmp(s.name, "menu_", 5) == 0) { SnapshotFrame(); DebugMenuPage(strstr(s.name, "settings") ? 1 : strstr(s.name, "controls") ? 2 : strstr(s.name, "graphics") ? 3 : strstr(s.name, "voice") ? 4 : 0); } // between frames, as in play
+            if (f == 60 && strncmp(s.name, "menu_", 5) == 0) { SnapshotFrame(); DebugMenuPage(strstr(s.name, "howto") ? 5 : strstr(s.name, "settings") ? 1 : strstr(s.name, "controls") ? 2 : strstr(s.name, "graphics") ? 3 : strstr(s.name, "voice") ? 4 : 0); } // between frames, as in play
             BeginFrame();
             if (GameMenuActive()) GameMenuFrame(g); else RunScene(g);
             EndFrame(g.time);
@@ -1036,7 +1036,8 @@ int main(int argc, char** argv) {
         while (!WindowShouldClose() && !GameMenuWantsQuit()) {
             if (IsKeyPressed(KEY_F11)) { ToggleBorderlessWindowed(); GameSettings().fullscreen = !GameSettings().fullscreen; SaveSettings(); } // F11: fill the screen (the frame is letterboxed to fit)
             // the game menu (Esc): the game is paused while it is open (the Periscope's dossier keeps Esc for closing itself)
-            if (!GameMenuActive() && ActPressed(A_MENU) && !(g.scene == Scene::Periscope && g.dossier >= 0) && !(g.scene == Scene::NightOff && NightOffOwnsEsc())) GameMenuOpen();
+            if (!GameMenuActive() && GameMenuTakeRequest()) GameMenuOpen();
+            if (!GameMenuActive() && ActPressed(A_MENU) && !(Typing() && !IsKeyPressed(KEY_ESCAPE)) && !(g.scene == Scene::Periscope && g.dossier >= 0) && !(g.scene == Scene::NightOff && NightOffOwnsEsc())) GameMenuOpen();
             if (GameMenuActive()) {
                 BeginFrame();
                 GameMenuFrame(g);
