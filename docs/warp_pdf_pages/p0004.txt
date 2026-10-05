@@ -1,0 +1,32 @@
+Warp Dodgeball — Game Design Spec
+Balls are picked up automatically by walking over a resting ball on your side. A player can
+hold one ball at a time.
+Throwing
+Throw power is set by how long the throw button is held: a tap lobs, a full charge fires a 26
+m/s fastball, and holding too long makes your aim shaky.
+Charge
+• Charge fills from O to 1 over 1.2 s. A meter around the crosshair shows it.
+• Release speed = 8 m/s + 18 m/s x charge2, so short holds stay gentle and the last part of
+the charge adds the most speed.
+• Weak throws loft upward so they arc: launch angle = camera pitch + 100 at zero charge,
+falling to +20 at full charge.
+• Overcharge: after 2.0 s held at full, aim spread grows by 20 per second (up to 60). This
+stops players camping on a loaded throw.
+Charging slows movement to 70%. The release animation takes 0.15 s; the ball leaves
+the hand at the end of it.
+Curve balls
+• Holding curve left/right (or flicking sideways) at the moment of release adds sidespin,
+scaled by charge, up to 30 rad/s.
+Spin bends the flight path through a Magnus force: F = k x (spin x velocity). Tune k so a
+full-curve fastball drifts about 3 m sideways over 20 m.
+Spin decays 15% per second and is cut in half by each bounce.
+Spin is kept when the ball passes through a portal (rotated with it), so curved portal
+shots are possible.
+Optional later: vertical flicks for topspin (dips) and backspin (floats).
+Practice aid: in practice mode only, show the predicted arc for the first 0.5 s of flight.
+Never in matches.
+Catching
+Catching is a timed button press: hit it inside the window and the thrower is out and a
+teammate comes back; miss the timing and you fumble and are out yourself.
+When the prompt appears
+Page 4 of 11

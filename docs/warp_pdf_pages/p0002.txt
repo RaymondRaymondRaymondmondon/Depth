@@ -1,0 +1,60 @@
+Warp Dodgeball — Game Design Spec
+Portal
+surfaces
+Balls in play
+Feel
+Classic
+Walls and ceiling
+6
+Pure reflex and aim
+Extreme
+Walls, ceiling, obstacle faces, marked floor
+pads
+8
+Hiding, flanking with portals, high ground
+Match structure (both modes)
+• Teams of 1 to 6 per side (default 4v4). Each team stays on its own half; feet crossing the
+center line is an out.
+Opening rush: balls start lined up on the center line. On the whistle, both teams sprint
+for them. A ball grabbed in the rush must be carried back behind your attack line (3 m
+from center) before it can be thrown.
+• Around ends when one team has no players left, or after 3 minutes. On timeout, the
+team with more players standing wins; a tie goes to sudden death (one ball, no portals).
+• A match is best of 5 rounds.
+• Eliminated players wait on their team's sideline in catch order: when a teammate
+makes a catch, the first player in line returns.
+Player movement and controls
+Every evasive move trades safety for something: lower hitbox for less speed, a long dive
+for a vulnerable recovery. The player is a capsule 1.8 m tall and 0.5 m wide; the hitbox
+shrinks with posture.
+Move
+Walk
+Sprint
+Jump
+Crouch
+Behavior
+Default movement
+Hold to run; drains nothing,
+but you can't charge a throw
+1.2 m apex; limited air control
+(30%)
+Hold to stay low; works with
+cover in Extreme
+Hitbox
+height
+1.8 m
+1.8 m
+1.8 m
+1.1 m
+Speed
+4.5 m/s
+6.5 m/s
+Keeps
+momentum
+2.0 m/s
+Can throw?
+Yes
+No
+Yes, mid-air
+Yes
+Page 2 of 11

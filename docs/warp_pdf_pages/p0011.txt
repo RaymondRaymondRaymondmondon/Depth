@@ -1,0 +1,27 @@
+Warp Dodgeball — Game Design Spec
+6. Catching. Prompt, speed-based windows, catch/fumble/block outcomes, teammate
+return.
+o Test: scripted balls at 10, 16, and 24 m/s produce windows of 0.35, 0.25, and 0.15 s.
+7. Portals. Placement rules, transit math, see-through rendering, rebound-out rule.
+o Test: a ball entering at 20 m/s exits at 20 m/s in the correct direction for floor, wall,
+and ceiling portal combinations; a hard throw into a portal facing a near wall gets the
+thrower out.
+8. Extreme arena. Model cover, pillars, nests, ladders, deflectors, floor pads in Blender;
+ladder climbing and mantling.
+o Test: every cover spot can be hit by at least one portal angle (automated sweep).
+9. Polish. Art pass on models and the player character in Blender, sounds, hit effects,
+menus, mode select, tuning pass.
+Open questions
+These have a working default in the spec; change them before Claude Code starts the
+matching milestone.
+Players: local vs. bots only, split-screen, or online multiplayer? Default: single player
+against bots first, networking later.
+Camera: first-person (best for aiming portals) or third-person (best for seeing dives)?
+Default: first-person.
+"Squat": spec treats it as a quick duck distinct from crouch. Confirm that's what you
+meant.
+Portal ownership: one pair per player (default) or one shared pair per team?
+Players through portals: off by default. Allowing it would need a rule for crossing the
+center line.
+Art style: low-poly stylized, or something closer to realistic?
+Page 11 of 11

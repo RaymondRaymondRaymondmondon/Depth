@@ -1,0 +1,33 @@
+Warp Dodgeball — Game Design Spec
+• Pressing portal A or B fires an instant ray from the camera. The portal is placed if the
+hit surface is portal-able and a 1.0 m x 1.6 m oval fits flat on it.
+• Portal-able surfaces are light gray panels; everything else is dark and rejects portals.
+This lets level design control which angles exist.
+• Portals can go anywhere valid, including the opponent's side of the arena.
+• Placing A again moves your existing A. Cooldown: 1.0 s per portal.
+• Your portals are tinted in your team color, light for A and dark for B, with your player
+number on the rim. Opponents see them too.
+When you are eliminated, your portals close. A ball in mid-transit finishes its trip.
+• Portals are only active when both ends of the pair exist.
+Transit (the math Claude Code needs)
+Trigger when the ball's center crosses the portal plane inside the oval.
+• New position = exit transform x 1800 turn about the portal's up axis x inverse of entry
+transform x old position.
+• Velocity and spin are rotated by the same rotation. Speed is unchanged.
+• For 0.1 s after exiting, the ball ignores collisions with the wall behind the exit portal.
+Anyone's ball can go through anyone's portals. That includes the enemy's, so a portal
+placed carelessly can be used against you.
+• Portal views are rendered so players can see through them (a second camera per
+portal rendering to a texture). Recursive views are capped at 1 level.
+Rebound out (the risk rule)
+A live ball that hits its own thrower after passing through any portal, or after bouncing off
+a wall, gets the thrower out. In practice this happens when a player throws too hard
+through a portal that faces a nearby wall: the ball keeps enough speed to bounce back
+through the portal pair toward them. Lighter throws lose more energy and die on the floor
+first, so power is a choice, not a default.
+To stop instant self-hits on release, the thrower is immune to their own ball for 0.3 s after
+release unless it has already been through a portal.
+Ball physics and elimination rules
+A ball is live from release until it touches the ground; walls, ceilings, and obstacles do not
+kill it, which is what makes bank shots and portal rebounds possible.
+Page 6 of 11

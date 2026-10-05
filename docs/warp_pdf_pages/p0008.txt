@@ -1,0 +1,69 @@
+Warp Dodgeball — Game Design Spec
+Arenas
+Both arenas are mirror-symmetric so neither team has an advantage, and both are
+enclosed so balls stay in play.
+Classic court
+• Floor: 18 m x 9 m, with a center line and an attack line 3 m back on each side. A2 m run-
+off strip surrounds the court.
+• Walls 6m high on all sides; flat ceiling at 8 m.
+• Portal-able panels: the full end wall behind each team, the upper half (3 to 6 m) of both
+side walls, and the whole ceiling. The floor is not portal-able in Classic.
+• Nothing else. The mode is about pure aim, timing, and portal angles.
+Extreme arena
+Floor 30 m x 16 m, walls 8 m, ceiling 10 m. Each half contains the same set of pieces,
+mirrored:
+Element
+Low cover block
+Tall pillar
+Raised platform
+(vantage nest)
+Ladder
+Angled deflector
+wall
+Floor portal pad
+Design notes:
+Count
+per side
+3
+2
+2
+2 (one
+per nest)
+2
+2
+Size
+2m wide x 1.0 m
+tall
+1.5m x 1.5m
+m
+3m x 3 m deck
+at 3.5 m, 1m
+railing
+3.5 m
+3 m wide x 2.5
+m tall, set at 300
+2 m circle
+Purpose
+Crouch behind for
+cover
+Full cover, blocks
+sight lines
+High ground, sees
+over cover
+Only way up to a
+nest
+Bank shots around
+cover
+Lets balls drop in
+and launch up from
+below
+Portal-able
+Back face only
+One side face
+each
+Railing faces no;
+wall behind yes
+No
+No
+Yes
+Page 8 of 11

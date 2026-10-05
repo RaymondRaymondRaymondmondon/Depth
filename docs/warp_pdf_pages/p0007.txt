@@ -1,0 +1,40 @@
+Warp Dodgeball — Game Design Spec
+Ball properties
+Property
+Diameter
+Mass
+Gravity
+Air drag
+Bounciness off floor
+Bounciness off walls and obstacles
+Surface friction
+Physics rate
+Ball states
+1. Held: in a player's hands.
+Value
+0.21 m (standard 8.25 in dodgeball)
+0.25 kg
+9.81 m/s2
+Quadratic, drag coefficient 0.47
+0.60
+0.70
+0.5, with rolling damping so balls come to rest
+120 Hz, with continuous collision detection (a 26
+m/s ball moves 0.2 m per tick)
+2. Live: thrown, and tagged with the thrower and team. Can get players out.
+3. Dead: harmless. A ball becomes dead when it touches the ground, hits a player, is
+caught, or is blocked. "Ground" means any walkable surface: the floor and the tops of
+platforms and cover blocks (any surface tilted less than 450). Entering a floor portal
+does not count as touching the ground.
+How a player gets out
+1. Hit by a live enemy ball anywhere on the body.
+2. Hit by their own live ball after it went through a portal or bounced off a wall (rebound
+out).
+3. Their throw is caught by an opponent.
+4. They fumble a catch.
+5. A hit knocks the ball out of their hands while blocking.
+6. Their feet cross the center line.
+A ball only gets one player out per flight; after the first hit it goes dead. Friendly fire is off
+by default (teammates' balls pass harmlessly), with a lobby setting to turn it on. A lobby
+setting can also make headshots not count.
+Page 7 of 11

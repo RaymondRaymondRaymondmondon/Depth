@@ -1,0 +1,34 @@
+Warp Dodgeball — Game Design Spec
+• Mark portal-able faces with a material named portal _ surface ; the game reads this
+material to allow placement.
+• Keep greybox and final art as separate files, so gameplay work never waits on art.
+Engine notes
+• Player: a CharacterBody3D with a capsule collider resized per posture.
+• Ball: a RigidBody3D with continuous collision on, with drag and Magnus force added
+each physics tick.
+• Portals: an Area3D trigger plus a SubViewport camera rendering the view through the
+portal.
+• Match flow: a state machine (warmup opening rush live round end match
+end),
+• Networking, if wanted later: server-authoritative, so the server decides every hit and
+catch.
+Build milestones for Claude Code
+Build in this order; portals come after the dodgeball itself feels good, because portal shots
+are only fun if the throwing underneath them is solid.
+1. Project setup and greybox. Godot project, folder layout, config file for all tuning
+numbers. Model the Classic court greybox in Blender and import it.
+o Test: the court loads, the player camera spawns on the correct half.
+2. Player controller. Walk, sprint, jump, crouch, squat, dive, with the hitbox sizes from the
+movement table.
+o Test: a debug overlay shows hitbox height changing for each posture; dive recovery
+locks input for 0.8 s.
+3. Ball physics and throwing. Pick-up, hold-to-charge, arc, drag, bounce, live/dead states,
+continuous collision.
+o Test: a zero-charge throw lands in a visible arc; a full throw at 26 m/s never tunnels
+through a wall in 1,000 automated throws.
+4. Curve balls. Spin input and Magnus force.
+o Test: a full-curve fastball drifts 2.5 to 3.5 m sideways over 20 m.
+5. Rules, match flow, and bots. Eliminations, center line, opening rush, rounds, sideline
+qi-Jeue, simple Al opponents (pick up, aim, throw, dodge randomly).
+o Test: a 4v4 bot-only match completes 5 rounds with no stuck states.
+Page IO of 11

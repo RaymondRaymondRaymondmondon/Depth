@@ -1,0 +1,35 @@
+Warp Dodgeball — Game Design Spec
+Warp Dodgeball — Game Design Spec
+Oct 5, 2026 • @PhilIip Argall
+Overview
+Warp Dodgeball is team dodgeball where every player carries a portal device: throw a ball
+into one of your portals and it flies out the other, aimed at an opponent from an angle they
+never saw coming. The catch is that the physics are honest, so a throw that is too hard can
+rebound off a wall, come back through your portal, and knock you out.
+Core loop: grab a ball place your two portals charge and release a throw (straight,
+curved, or through a portal) -Y dodge, duck, dive, or catch incoming balls -5 last team
+standing wins the round.
+Design pillars
+• Readable physics. Balls arc, bounce, and curve the same way every time, so players
+can learn bank shots and portal angles.
+• Skill in the release. Power (how long you hold), spin (curve), and portal placement are
+the three things a good player masters.
+• Risk and reward. Every powerful option has a cost: overcharged throws lose accuracy,
+portal shots can come back at you, and a fumbled catch gets you out.
+How to use this spec with Claude Code: build the milestones in order. Each one ends in a
+playable state with acceptance tests. Numbers in this doc (speeds, timings, sizes) are
+starting values meant to be tuned, and should live in one config file rather than scattered
+through code.
+Game modes
+There are two modes that share every rule and mechanic; they differ only in the arena.
+Arena
+Size
+Classic
+One flat floor, no
+obstacles
+18 m x 9 m court
+Extreme
+Cover blocks, pillars, ladders, raised
+platforms
+30 m x 16 m arena
+Page 1 of 11

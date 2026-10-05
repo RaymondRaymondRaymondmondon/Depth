@@ -29,6 +29,7 @@
 #include "nightoff_net.h"
 #include "scuffle.h"
 #include "scuffle_net.h"
+#include "warp.h"
 #include "flight_costumes.h"
 #include "study.h"
 #include "course.h"
@@ -819,6 +820,9 @@ int main(int argc, char** argv) {
     // A Night Off (arcade game 6)
     if (argc >= 2 && strcmp(argv[1], "--night-test") == 0) { SetTraceLogLevel(LOG_WARNING); return no::RunNightTest(); }
     if (argc >= 2 && strcmp(argv[1], "--scuffle-test") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleTest(); }
+    // Warp Dodgeball (arcade game 12)
+    if (argc >= 2 && strcmp(argv[1], "--warp-test") == 0) { SetTraceLogLevel(LOG_WARNING); return wd::RunWarpTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--warp-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return wd::RunWarpSim(argc >= 3 ? std::max(1, atoi(argv[2])) : 10, argc >= 4 ? std::max(1, atoi(argv[3])) : 4); }
     if (argc >= 2 && strcmp(argv[1], "--scuffle-arsenal") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleArsenal(argc >= 3 ? std::max(1, atoi(argv[2])) : 1); }
     if (argc >= 2 && strcmp(argv[1], "--scuffle-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleNetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--scuffle-build-packs") == 0) { SetTraceLogLevel(LOG_WARNING); return sf::RunScuffleBuildPacks(); }

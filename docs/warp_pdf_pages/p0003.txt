@@ -1,0 +1,73 @@
+Warp Dodgeball —
+Move
+Squat
+(quick
+duck)
+Dive
+Ladder
+climb
+Game Design Spec
+Behavior
+Tap for an instant full-depth
+drop lasting 0.4 s, then auto-
+stand; 0.6 s cooldown
+Lunge 3 m in the input
+direction (any of 8), land
+prone, 0.8 s to recover
+Snap to ladder on contact +
+forward input; mantle onto
+the platform at the top; jump
+to drop off
+Hitbox
+height
+0.9 m
+0.5 m
+(prone)
+1.8 m
+Speed
+Stationary
+Burst
+2.0 m/s
+Can throw?
+No
+No, until
+recovered
+No
+Input map
+Action
+Move / look
+Sprint
+Jump
+Crouch (hold)
+Squat (tap)
+Dive
+Throw (hold to charge,
+release to throw)
+Cancel throw
+Curve left / right
+Place portal A/ B
+Catch (quick-time prompt)
+Keyboard and mouse
+WASD / mouse
+Left Shift
+Space
+Left Ctrl
+c
+Q + direction
+Left mouse
+Right mouse
+Hold Z/ X at release, or flick
+mouse sideways
+EIR
+Gamepad
+Left stick / right stick
+L3 (click left stick)
+B (hold)
+R3 (click right stick)
+X + direction
+Right trigger
+D-pad down
+Right stick sideways at
+release
+Left trigger
+Page 3 of 11

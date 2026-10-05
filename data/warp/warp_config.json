@@ -1,0 +1,38 @@
+{
+  "_source": "Warp Dodgeball - Game Design Spec (Oct 5, 2026), every tuning number in one file as the spec asks. Metres, seconds, m/s.",
+  "physics_hz": 120,
+  "player": {
+    "height": 1.8, "radius": 0.25,
+    "walk": 4.5, "sprint": 6.5, "crouch_speed": 2.0, "ladder_speed": 2.0,
+    "jump_apex": 1.2, "air_control": 0.3, "gravity": 9.81,
+    "crouch_height": 1.1, "squat_height": 0.9, "squat_time": 0.4, "squat_cooldown": 0.6,
+    "dive_distance": 3.0, "dive_time": 0.3, "prone_height": 0.5, "dive_recover": 0.8,
+    "charge_slow": 0.7, "eye_from_top": 0.12
+  },
+  "throw": {
+    "charge_time": 1.2, "speed_min": 8.0, "speed_add": 18.0,
+    "loft_zero_deg": 10.0, "loft_full_deg": 2.0,
+    "overcharge_after": 2.0, "overcharge_rate_deg": 2.0, "overcharge_max_deg": 6.0,
+    "release_time": 0.15, "self_immunity": 0.3,
+    "spin_max": 30.0, "magnus_k": 0.0024, "spin_decay": 0.15, "spin_bounce": 0.5
+  },
+  "ball": {
+    "diameter": 0.21, "mass": 0.25, "drag_cd": 0.47, "air_density": 1.2,
+    "bounce_floor": 0.60, "bounce_wall": 0.70, "friction": 0.5, "rest_speed": 0.25
+  },
+  "catch": {
+    "lookahead": 0.6, "cone_deg": 100.0,
+    "slow_speed": 12.0, "fast_speed": 20.0,
+    "window_slow": 0.35, "window_mid": 0.25, "window_fast": 0.15
+  },
+  "portal": {
+    "width": 1.0, "height": 1.6, "cooldown": 1.0, "exit_ignore": 0.1
+  },
+  "match": {
+    "round_time": 180, "rounds_to_win": 3, "team_size": 4,
+    "attack_line": 3.0, "rush_whistle": 2.0, "round_end_pause": 3.0,
+    "friendly_fire": false, "headshots_count": true
+  },
+  "classic": { "length": 18, "width": 9, "runoff": 2, "wall": 6, "ceiling": 8, "balls": 6 },
+  "extreme": { "length": 30, "width": 16, "wall": 8, "ceiling": 10, "balls": 8 }
+}

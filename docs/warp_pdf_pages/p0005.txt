@@ -1,0 +1,33 @@
+Warp Dodgeball — Game Design Spec
+• Alive enemy ball is predicted to hit you within 0.6 s, and
+• it is coming from within 1000 of the direction you're facing, and
+• you are standing, crouching, or jumping (not diving, recovering, squatting, or on a
+ladder), and
+• your hands are empty. Holding a ball, you can block instead: the ball is deflected and
+goes dead. If the hit knocks your ball out of your hands, you are out.
+Only the most urgent threat gets a prompt. The prompt is a shrinking ring around the
+incoming ball with the catch button icon.
+The window
+Ball speed
+Under 12 m/s
+12 to 20 m/s
+Over 20 m/s
+Catch window
+0.35 s
+0.25 s
+0.15 s
+The window is centered on the predicted moment of contact.
+Outcomes
+• Pressed inside the window: catch. The thrower is out, your first eliminated teammate
+returns, and you now hold the ball.
+• Pressed outside the window (early or late): fumble. The ball pops off you and you are
+out.
+• Not pressed: an ordinary hit, so you are out unless you dodged.
+Because pressing early is as bad as getting hit, players must decide between catching and
+dodging, which is the core tension of dodgeball.
+Portal system
+Each player owns one linked pair of portals (A and B). A ball that enters one exits the
+other at the same speed, turned to match the exit portal's facing. Only balls travel through
+portals; players cannot, which keeps the center-line rule meaningful.
+Placement
+Page 5 of 11

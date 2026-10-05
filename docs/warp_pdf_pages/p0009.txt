@@ -1,0 +1,45 @@
+Warp Dodgeball — Game Design Spec
+• Nests are powerful (you can see over all cover), but climbing the ladder takes about 2 s
+during which you can't throw, catch, or dodge.
+• Cover is placed so that every hiding spot can be reached by at least one portal angle.
+Hiding is never fully safe.
+• Nest decks count as ground: a ball that lands on a deck goes dead.
+Technical architecture and Blender pipeline
+Blender is the asset tool and Godot 4 is the game engine. Blender no longer has a built-in
+game engine (it was removed in version 2.80), so Claude Code should model in Blender
+and run the game in Godot, which is free, text-based (easy for Claude Code to edit), and
+imports Blender files directly.
+Claude Code models assets in Blender; Godot runs the game
+Blender (Claude Code via MCP)
+Models arenas, cover, ladders
+Rigs and animates the player
+Exports .glb to res://assets
+.glb files
+Godot 4 game (GDScript)
+Player
+Movement and postures
+Ladders, hitbox sizes
+PortalManager
+Placement and transit
+Rebound-out rule
+MatchManager
+Rounds and timer
+Rules and sideline
+Ball
+Arc, drag, bounce
+Charge, spin, live/dead
+CatchQTE
+Threat prediction
+Catch windows
+Config and HUD
+All tuning numbers
+Charge meter, prompts
+build architecture • Blender assets into six Godot systems
+PortalManager is highlighted because it is the riskiest system: transit math and see-
+through rendering need the most testing.
+Blender conventions
+• Export each asset as .glb into the Godot project's assets folder; Godot re-imports on
+change.
+• Name collision meshes witha -col suffix so Godot builds collision shapes
+automatically.
+Page g of 11
