@@ -1212,7 +1212,8 @@ void DrawTownsfolk(const fl::Island& is, int idx, const Camera3D& cam) {
         fig::Pose P; P.breathe = S.t * 1.5f + wk.off; P.walk = stand ? 0.0f : 1.0f; P.walkPh = S.t * 4.2f * wk.speed + wk.off;
         fig::Build B; B.height = 0.94f + 0.12f * ((wk.look * 37) % 10) / 10.0f; B.build = 0.9f + 0.2f * ((wk.look * 53) % 10) / 10.0f;
         std::vector<Matrix> skin = fig::PoseFigure(*m, B, P, S.t);
-        std::vector<rt::Recolor> rc = {{"skin", SKIN[wk.look % 4]}, {"top", TOPS[wk.look % 6]}, {"trousers", TOPS[(wk.look + 3) % 6]}, {"hat", TOPS[(wk.look + 1) % 6]}};
+        static const Color HAIR[4] = {{40, 30, 24, 255}, {110, 70, 40, 255}, {170, 160, 150, 255}, {150, 104, 60, 255}};
+        std::vector<rt::Recolor> rc = {{"skin", SKIN[wk.look % 4]}, {"top", TOPS[wk.look % 6]}, {"trousers", TOPS[(wk.look + 3) % 6]}, {"hat", TOPS[(wk.look + 1) % 6]}, {"hair", HAIR[(wk.look * 3) % 4]}};
         rt::DrawPbrSkinned(*m, fig::Frame(p, -atan2f(dir.z, dir.x)), skin, rc, 0.35f, WHITE);
         drawn++;
     }

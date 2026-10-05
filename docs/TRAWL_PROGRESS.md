@@ -870,3 +870,7 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
 - The war canoe is the skiff drawn long with six paddlers rowing; the ghost ship is a drowned grey-green twin of the Gannet with tattered sails; the choir's singer is a pale drowned figure risen to the chest.
 - Shots `tvis_14_ground_<lagoon|weeds|grotto|atlantis>` look out over each ground from the bow.
 
+
+### The crew's faces, after the user's low-poly references (2026-10-05)
+- crew.py: a head in proportion (a little jaw and chin, not an egg), small dark eyes with a pin of light under brows, a modest nose, ears tucked in, a mouth line, and hair (a cap over the crown and the back with a hairline; under a cap or a sou'wester only the fringe shows). The body is one subdivision level with an auto-smooth crease, so its facets read like the references' low-poly people. `hair` is a recoloured material: the Trawl's sailors wear their own hair colour, A Night Off's people a natural one from their colours (`HairFor`), the Flight's townsfolk theirs. Heads are no longer oversized (`LookOf`: 0.98-1.05, was 1.08-1.2). Every game that uses the shared crew figure gets the new heads.
+

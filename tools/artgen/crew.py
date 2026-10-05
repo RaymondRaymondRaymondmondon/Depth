@@ -144,7 +144,7 @@ def body_mesh(J, build=1.0):
     for i, r in enumerate(rad):
         sv[i].radius = r
     sv[idx["pelvis"]].use_root = True
-    sub = ob.modifiers.new("sub", 'SUBSURF'); sub.levels = 2
+    sub = ob.modifiers.new("sub", 'SUBSURF'); sub.levels = 1   # (one level: rounded, but its facets still read - the reference's low-poly people)
     C.select_only([ob])
     bpy.ops.object.modifier_apply(modifier="skin")
     bpy.ops.object.modifier_apply(modifier="sub")
@@ -155,39 +155,67 @@ def body_mesh(J, build=1.0):
             v.co.x = x * 0.78 + 0.012 * max(0.0, 1 - abs(z - 1.28) / 0.12)
         if z < 0.03:
             v.co.z = 0.0
-    C.smooth(ob, 180)
+    C.smooth(ob, 38)   # (auto-smooth: soft over the curves, a crease at the sharper turns)
     return ob
 
 
 # ---------------------------------------------------------------- the head
-def head_parts(J, mats):
+def head_parts(J, mats, hat=False):
     parts = []
+    if "hair" not in mats:   # (rt_divers.py builds its own material set)
+        mats["hair"] = C.mat_flat("hair", (0.22, 0.14, 0.08), rough=0.85)
     def sphere(name, loc, scale, mat, segs=32, rings=20):
         bpy.ops.mesh.primitive_uv_sphere_add(segments=segs, ring_count=rings, radius=1.0, location=loc)
         o = bpy.context.active_object; o.name = name; o.scale = scale
         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
         C.assign(o, mats[mat]); C.smooth(o, 180)
         parts.append(o); return o
-    hd = sphere("skull", (0.0, 0, 1.655), (0.108, 0.098, 0.13), "skin", 48, 32)
-    # an egg: fuller at the crown and the back, the jaw tucked in toward the chin
+    # (the user, 2026-10-05: the crew were "uncanny and not fun to look at" beside the reference's low-poly people - an
+    # orange boiler suit holding a fish, a bucket hat and a life vest. So: a head in proportion with a little jaw, small
+    # dark eyes under brows, a modest nose, ears tucked in, hair, and a lightly faceted finish.)
+    hd = sphere("skull", (0.0, 0, 1.655), (0.104, 0.094, 0.125), "skin", 20, 12)
     for v in hd.data.vertices:
-        z = v.co.z / 0.13   # (the sphere's own coordinates: its centre is the object's location)
-        if z < 0:
-            v.co.y *= 1 - 0.18 * z * z
-            v.co.x = v.co.x * (1 - 0.08 * z * z) + 0.008 * (-z)
+        z = v.co.z / 0.125   # (the sphere's own coordinates: its centre is the object's location)
+        if z < 0:   # a jaw and chin, not an egg's point
+            v.co.y *= 1 - 0.12 * z * z
+            v.co.x = v.co.x * (1 - 0.04 * z * z) + 0.01 * (-z)
+            if z < -0.6:
+                v.co.z = -0.6 * 0.125 + (v.co.z + 0.6 * 0.125) * 0.7   # (a squarer chin)
         else:
-            v.co.x -= 0.01 * z
-    sphere("nose", (0.103, 0, 1.635), (0.019, 0.015, 0.021), "skin")
+            v.co.x -= 0.008 * z
+    C.smooth(hd, 40)
+    n = sphere("nose", (0.1, 0, 1.632), (0.013, 0.011, 0.018), "skin", 10, 6)
+    C.smooth(n, 40)
     for s in (1, -1):
-        e = sphere(f"ear{s}", (-0.004, s * 0.097, 1.645), (0.014, 0.012, 0.03), "skin", 20, 12)
+        e = sphere(f"ear{s}", (-0.004, s * 0.092, 1.643), (0.01, 0.008, 0.022), "skin", 10, 6)
+        C.smooth(e, 40)
     for s, sd in ((1, "L"), (-1, "R")):
         ex, ey, ez = J[f"eye.{sd}"]
-        w = sphere(f"eye_white.{sd}", (ex, ey, ez), (0.008, 0.019, 0.022), "eye_white", 24, 16)
-        p = sphere(f"eye_dark.{sd}", (ex + 0.0075, ey * 0.97, ez - 0.002), (0.004, 0.0095, 0.0105), "eye_dark", 16, 12)
+        # small dark eyes with a pin of light (the eye bones still scale them for a blink or a fright)
+        p = sphere(f"eye_dark.{sd}", (ex + 0.004, ey * 0.95, ez - 0.004), (0.006, 0.0095, 0.012), "eye_dark", 12, 8)
+        w = sphere(f"eye_white.{sd}", (ex + 0.0095, ey * 0.95 + s * 0.003, ez + 0.0005), (0.0015, 0.0025, 0.0025), "eye_white", 8, 6)
         w["bone"] = f"eye.{sd}"; p["bone"] = f"eye.{sd}"
+        b = sphere(f"brow.{sd}", (ex + 0.004, ey * 0.97, ez + 0.022), (0.006, 0.016, 0.0045), "hair", 10, 6)
+        b.rotation_euler = (s * math.radians(-8), 0, 0); C.select_only([b]); bpy.ops.object.transform_apply(rotation=True)
     # the mouth: a dark lozenge on its own bone, drawn as a thin line at rest and opened for a shout
-    mo = sphere("mouth", J["mouth"], (0.007, 0.022, 0.01), "eye_dark", 20, 12)
+    mo = sphere("mouth", J["mouth"], (0.006, 0.018, 0.0075), "eye_dark", 12, 8)
     mo["bone"] = "mouth"
+    # hair: a cap over the crown and the back of the head down to the nape, a hairline over the brow and the temples
+    # (each person's hair colour at runtime; a hat sits over it)
+    hair = sphere("hair", (-0.004, 0, 1.662), (0.11, 0.1, 0.13), "hair", 20, 12)
+    bm = bmesh.new(); bm.from_mesh(hair.data)
+    cut = []
+    for v in bm.verts:
+        x, y, z = v.co   # (relative to the centre)
+        front = x > 0.035
+        if (front and z < 0.07 - 0.25 * abs(y)) or (not front and z < -0.035 + 0.35 * max(0.0, x)) or z < -0.075:
+            cut.append(v)
+        elif hat and z > 0.04:   # (under a hat only the fringe at the back and sides shows)
+            cut.append(v)
+    bmesh.ops.delete(bm, geom=cut, context='VERTS'); bm.to_mesh(hair.data); bm.free()
+    sol = hair.modifiers.new("t", 'SOLIDIFY'); sol.thickness = 0.008; sol.offset = 1
+    C.select_only([hair]); bpy.ops.object.modifier_apply(modifier="t")
+    C.smooth(hair, 40)
     for o in parts:
         if "bone" not in o:
             o["bone"] = "head"
@@ -341,6 +369,7 @@ def paint_body(body, J, role, mats):
 STYLE = {   # flat colours (linear-ish sRGB) and roughness; the game recolours skin, top, trousers and hat per sailor
     "skin": ((0.78, 0.55, 0.42), 0.6), "boots": ((0.06, 0.055, 0.05), 0.45), "leather": ((0.33, 0.2, 0.11), 0.6),
     "metal": ((0.62, 0.48, 0.25), 0.35), "eye_white": ((0.92, 0.91, 0.88), 0.2), "eye_dark": ((0.03, 0.03, 0.035), 0.15),
+    "hair": ((0.22, 0.14, 0.08), 0.85),
 }
 ROLE_COLOURS = {
     "bosun": {"top": ((0.11, 0.15, 0.27), 0.9), "trousers": ((0.42, 0.37, 0.27), 0.85), "hat": ((0.09, 0.11, 0.18), 0.8), "accent": ((0.5, 0.12, 0.08), 0.7)},
@@ -360,7 +389,7 @@ def build(role, out):
     rig = make_armature(J)
     body = body_mesh(J, 1.08 if role == "bosun" else 1.0)
     paint_body(body, J, role, mats)
-    meshes = [body] + head_parts(J, mats) + role_pieces(role, J, mats)
+    meshes = [body] + head_parts(J, mats, hat=role in ("bosun", "angler")) + role_pieces(role, J, mats)
     for o in meshes:   # (built at the old head height: the eyes and mouth already sit on their lowered joints)
         if o.get("bone") == "head":
             o.location.z += HEAD_DZ

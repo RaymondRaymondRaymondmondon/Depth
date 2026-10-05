@@ -1283,7 +1283,7 @@ static SailorLook LookOf(const Crew& c) {
         default: L.top = shade({86, 74, 50, 255}, 0.85f + 0.3f * R()); L.trousers = {58, 54, 48, 255}; L.hat = L.top; break;
     }
     L.build = 0.92f + 0.2f * R(); L.height = 0.95f + 0.1f * R();
-    L.headW = 1.08f + 0.12f * R(); L.headH = 1.08f + 0.12f * R();   // (a big head reads at a distance: the user's reference)
+    L.headW = 0.98f + 0.07f * R(); L.headH = 0.98f + 0.07f * R();   // (heads in proportion: the user found the oversized ones uncanny, 2026-10-05)
     static const Color HAIR[5] = {{40, 30, 24, 255}, {84, 56, 34, 255}, {150, 104, 60, 255}, {170, 160, 150, 255}, {120, 52, 30, 255}};
     L.hair = HAIR[(int)(R() * 4.99f)];
     float bd = R(); L.beard = bd < 0.35f ? 0 : bd < 0.6f ? 1 : bd < 0.82f ? 2 : 3;
@@ -1500,7 +1500,7 @@ static void DrawSailor(const SailorLook& L, const SailorPose& P, Matrix frame, f
     if (!m) return;
     std::vector<Matrix> skin = PoseSailor(*m, L, P, t);
     auto soak = [&](Color c) { float k = 1 - 0.38f * L.wet; c = {(unsigned char)(c.r * k), (unsigned char)(c.g * k), (unsigned char)(c.b * k), c.a}; return ColorLerp(c, Color{104, 18, 14, 255}, L.blood * 0.42f); };
-    std::vector<rt::Recolor> rc = {{"skin", ColorLerp(L.skin, Color{150, 40, 30, 255}, L.blood * 0.12f)}, {"top", soak(L.top)}, {"trousers", soak(L.trousers)}, {"hat", soak(L.hat)}};
+    std::vector<rt::Recolor> rc = {{"skin", ColorLerp(L.skin, Color{150, 40, 30, 255}, L.blood * 0.12f)}, {"top", soak(L.top)}, {"trousers", soak(L.trousers)}, {"hat", soak(L.hat)}, {"hair", soak(L.hair.a ? L.hair : Color{60, 40, 28, 255})}};
     rt::DrawPbrSkinned(*m, frame, skin, rc, 0.35f, tint);
     if (L.costume && !P.fp) fig::DrawCostume(L.costume, *m, skin, frame, tint);   // (in first person only its sleeves' colour)
     if (L.beard > 0 && !P.fp) {   // facial hair rides the head bone, in the sailor's hair colour

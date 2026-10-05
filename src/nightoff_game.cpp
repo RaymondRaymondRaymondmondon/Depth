@@ -52,7 +52,12 @@ const Model* CrewModel(int crew) {
     static const char* F[6] = {"shared/crew/crew_diver.glb", "shared/crew/crew_bosun.glb", "shared/crew/crew_angler.glb", "shared/crew/crew_bosun.glb", "shared/crew/crew_medic.glb", "shared/crew/crew_medic.glb"};
     return rt::LoadAsset(F[std::clamp(crew, 0, 5)]);
 }
-struct Clothes { Color top, trousers, hat, skin; float build; };
+struct Clothes { Color top, trousers, hat, skin; float build; Color hair{0, 0, 0, 0}; };   // (hair: alpha 0 picks one from the skin)
+Color HairFor(Color skin, int seed) {   // a natural hair colour, darker with darker skin, greying with the seed now and then
+    static const Color H[6] = {{40, 30, 24, 255}, {84, 56, 34, 255}, {150, 104, 60, 255}, {120, 52, 30, 255}, {170, 160, 150, 255}, {26, 22, 20, 255}};
+    int i = (seed * 7 + skin.r) % 6; if (skin.r < 150 && (i == 2 || i == 3)) i = 5;
+    return H[i];
+}
 // a patron actually sat down (stools, the snug, the card and dining tables; at the games, the dance floor and the corner they stand)
 bool Seated(const no::Patron& c) { return c.sitting && (c.seatKind == "stool" || c.seatKind == "snug" || c.seatKind == "cards" || c.seatKind == "tables"); }
 Clothes ShoreClothes(int crew) {
@@ -76,7 +81,8 @@ void DrawPerson(const Model* m, const Clothes& c, Vector3 feet, float yaw, fig::
     // the frame: feet on the floor facing yaw, leaning (the drunk sway) about its forward axis and pitched by a lurch
     Matrix frame = MatrixMultiply(MatrixMultiply(MatrixRotateX(lean), MatrixRotateZ(-lurch)), fig::Frame(feet, -yaw));
     if (lying) frame = MatrixMultiply(MatrixMultiply(MatrixRotateZ(PI * 0.5f), MatrixTranslate(0, 0.18f, 0)), fig::Frame(feet, -yaw));
-    std::vector<rt::Recolor> rc = {{"top", c.top}, {"trousers", c.trousers}, {"hat", c.hat}, {"skin", c.skin}};
+    Color hair = c.hair.a ? c.hair : HairFor(c.skin, c.top.r * 3 + c.top.g * 5 + c.top.b + c.hat.g);   // (stable per person: from their own colours)
+    std::vector<rt::Recolor> rc = {{"top", c.top}, {"trousers", c.trousers}, {"hat", c.hat}, {"skin", c.skin}, {"hair", hair}};
     rt::DrawPbrSkinned(*m, frame, skin, rc, 0.35f, WHITE);
 }
 
