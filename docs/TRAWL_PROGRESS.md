@@ -863,3 +863,10 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
 - The Gannet's deck carries them against the bulwarks and in the corners (`DrawDeckClutter`, also in the boat studio shots), the quay between the shop doors and along its edge; nothing collides with them. `DEPTH_NOCLUTTER=1` hides them.
 - Landings: the seals, the bull, the crabs, the caches (sea chests), the beach junk (crates) and the fish on the fire and the sand are models now (the fish are the baked species, browning on the stick); each beach has driftwood, and the lived-in ones a lobster pot, a bucket and a net pile by the hut. The keepers (elder, Old Hoskins, the foreman, ...) are the shared sailor rig in their colours with beards, idling and gesturing. The fire's flames and smoke are in the world (glowing tongues; a plume of dark low-poly puffs, greyer to black as the fish burns) instead of 2D circles drawn over everything.
 
+
+### The grounds' scenery (2026-10-05)
+- Nine scenery props (props.py: bush, shorerock, reeds, kelpfloat, sargassum, wreckribs, column, archruin, stalagmite) placed by `EnsureLand` from the chart (one cell in four, a hash per cell so every client builds the same): bushes in the jungle, rocks and reeds along the shore, kelp and sargassum riding the swell (`PropAt::floats`: up and down with the sea, tipped by its slope), a wreck's ribs over the Grotto's wrecks, Atlantis's broken columns and arches over its reef, stalagmites under the Grotto's walls.
+- A clear night has a faint moonlight (by the moon's phase), a sky ambient and a moonlit-blue haze, so the land and ruins stand dark against it instead of vanishing.
+- The war canoe is the skiff drawn long with six paddlers rowing; the ghost ship is a drowned grey-green twin of the Gannet with tattered sails; the choir's singer is a pale drowned figure risen to the chest.
+- Shots `tvis_14_ground_<lagoon|weeds|grotto|atlantis>` look out over each ground from the bow.
+

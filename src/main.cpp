@@ -375,7 +375,7 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
     {"tvis_10_boat_deck", [](Game& g) { DebugTrawlShot(g, 154); }},
     {"tvis_11_fish", [](Game& g) { DebugTrawlShot(g, 155); }},
     {"tvis_12_six_rain", [](Game& g) { DebugTrawlShot(g, 142); }},
-    {"tvis_13_expressions", [](Game& g) { DebugTrawlShot(g, 160); }},
+    {"tvis_13_expressions", [](Game& g) { DebugTrawlShot(g, 160); }}, {"tvis_14_ground_lagoon", [](Game& g) { DebugTrawlShot(g, 161); }}, {"tvis_14_ground_weeds", [](Game& g) { DebugTrawlShot(g, 162); }}, {"tvis_14_ground_grotto", [](Game& g) { DebugTrawlShot(g, 163); }}, {"tvis_14_ground_atlantis", [](Game& g) { DebugTrawlShot(g, 164); }},
     {"tvis_11_deck_catch", [](Game& g) { DebugTrawlShot(g, 156); }},
         {"tvis_4_sidearm_rain", [](Game& g) { DebugTrawlShot(g, 144); }},
         {"trawl3d_fishon", [](Game& g) { DebugTrawlShot(g, 104); }},

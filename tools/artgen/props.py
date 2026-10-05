@@ -536,6 +536,142 @@ def driftwood():
     rod([(-0.5, 0.1, 0.05), (-0.65, 0.3, -0.25)], 0.03, "drift", 6)
 
 
+# ---------------------------------------------------------------- the grounds' scenery (the user: "improve the graphics,
+# the locations as well"): what grows and stands on and in the water round the fishing grounds
+def scenery_mats():
+    for k, rgb, r, m in (("leaf", (0.07, 0.2, 0.06), 0.6, 0.0), ("leaf2", (0.12, 0.26, 0.05), 0.6, 0.0), ("flower", (0.6, 0.1, 0.12), 0.5, 0.0),
+                         ("kelp", (0.3, 0.22, 0.06), 0.45, 0.0), ("bulb", (0.42, 0.32, 0.1), 0.35, 0.0), ("sarg", (0.45, 0.33, 0.08), 0.6, 0.0),
+                         ("reed", (0.36, 0.34, 0.14), 0.8, 0.0), ("wetrock", (0.16, 0.16, 0.15), 0.35, 0.0), ("weed", (0.08, 0.16, 0.08), 0.5, 0.0),
+                         ("rotwood", (0.13, 0.11, 0.08), 0.9, 0.0), ("barnacle", (0.55, 0.53, 0.48), 0.8, 0.0)):
+        if k not in B.MATS:
+            B.MATS[k] = B.flat(k, rgb, r, m)
+
+
+def bush():
+    # a jungle shrub: a clump of leafy lobes, a few broad leaves fanning out, a red flower or two
+    rng = np.random.default_rng(3)
+    for k in range(7):
+        a = k * 0.9
+        blob((math.cos(a) * 0.4 * rng.random(), 0.35 + 0.35 * rng.random(), math.sin(a) * 0.4 * rng.random()), (0.38, 0.3, 0.38), "leaf" if k % 2 else "leaf2", 30 + k, 0.18, 14)
+    for k in range(8):
+        a = k * 2 * math.pi / 8 + 0.2
+        ca, sa = math.cos(a), math.sin(a)
+        spine = [(ca * 0.9 * s, 0.25 + 0.5 * s - 0.55 * s * s, sa * 0.9 * s) for s in np.linspace(0, 1, 6)]
+        vs, fs = [], []
+        for i, (x, y, z) in enumerate(spine):
+            w = 0.2 * math.sin(math.pi * min(1, i / 5 * 1.1))
+            vs += [(x - sa * w, y, z + ca * w), (x, y + 0.03, z), (x + sa * w, y, z - ca * w)]
+        for i in range(len(spine) - 1):
+            fs += [(3 * i, 3 * i + 1, 3 * i + 4, 3 * i + 3), (3 * i + 1, 3 * i + 2, 3 * i + 5, 3 * i + 4)]
+        quads(vs, fs, "leaf2", "leaf")
+    for k in range(2):
+        blob((0.25 - 0.5 * k, 0.78, 0.2 * k - 0.1), (0.07, 0.05, 0.07), "flower", 40 + k, 0.2, 10)
+
+
+def shorerock():
+    # a cluster of wet rocks at the waterline, weed and barnacles on their feet
+    for k, (x, z, r) in enumerate(((0, 0, 0.9), (0.9, 0.4, 0.55), (-0.7, 0.6, 0.45), (0.3, -0.8, 0.5))):
+        o = boulder_mesh("rock", r, "wetrock", 60 + k, 0.75)
+        o.location = G(x, -0.25, z)
+    for k in range(10):
+        a = k * 0.63
+        blob((math.cos(a) * 0.95, -0.05, math.sin(a) * 0.85), (0.22, 0.06, 0.16), "weed", 70 + k, 0.3, 10)
+        blob((math.cos(a + 0.3) * 0.75, 0.15, math.sin(a + 0.3) * 0.7), (0.05, 0.03, 0.05), "barnacle", 80 + k, 0.1, 8)
+
+
+def reeds():
+    rng = np.random.default_rng(9)
+    for k in range(26):
+        x, z = (rng.random() - 0.5) * 1.4, (rng.random() - 0.5) * 1.4
+        h = 1.0 + rng.random() * 0.9
+        lean = (rng.random() - 0.5) * 0.4
+        rod([(x, -0.3, z), (x + lean * 0.4, h * 0.6, z), (x + lean, h, z + lean * 0.3)], 0.012, "reed", 4)
+        if k % 4 == 0:
+            cyl((x + lean, h - 0.05, z + lean * 0.3), (x + lean, h + 0.18, z + lean * 0.3), 0.03, "rotwood", 6)   # (a bulrush head)
+
+
+def kelpfloat():
+    # the Weeds' canopy where it breaks the surface: a tangle of brown blades and gas bladders riding the swell (y 0 is
+    # the water)
+    rng = np.random.default_rng(13)
+    for k in range(9):
+        a = rng.random() * 2 * math.pi
+        L = 1.2 + rng.random() * 1.4
+        ca, sa = math.cos(a), math.sin(a)
+        spine = [(ca * L * s + 0.15 * math.sin(s * 6 + k), 0.02 + 0.04 * math.sin(s * 9), sa * L * s + 0.15 * math.cos(s * 5 + k)) for s in np.linspace(0, 1, 8)]
+        vs, fs = [], []
+        for i, (x, y, z) in enumerate(spine):
+            w = 0.16 * (0.4 + 0.6 * math.sin(math.pi * min(1, i / 7 * 1.05)))
+            vs += [(x - sa * w, y, z + ca * w), (x + sa * w, y, z - ca * w)]
+        for i in range(len(spine) - 1):
+            fs.append((2 * i, 2 * i + 1, 2 * i + 3, 2 * i + 2))
+        quads(vs, fs, "kelp", "blade")
+        blob((ca * 0.3, 0.05, sa * 0.3), (0.07, 0.06, 0.07), "bulb", 90 + k, 0.05, 10)
+    blob((0, 0.04, 0), (0.35, 0.08, 0.3), "kelp", 99, 0.3, 14)
+
+
+def sargassum():
+    rng = np.random.default_rng(17)
+    for k in range(16):
+        blob(((rng.random() - 0.5) * 3.0, 0.02, (rng.random() - 0.5) * 2.0), (0.4 + 0.3 * rng.random(), 0.05, 0.3 + 0.2 * rng.random()), "sarg", 100 + k, 0.35, 10)
+    for k in range(20):
+        blob(((rng.random() - 0.5) * 3.0, 0.07, (rng.random() - 0.5) * 2.0), (0.035, 0.035, 0.035), "bulb", 140 + k, 0.0, 8)
+
+
+def wreckribs():
+    # an old hull's ribs standing out of the water, the keel and a stub of mast, weed at the waterline
+    for k in range(9):
+        x = -3.2 + k * 0.8
+        hgt = 1.6 + 0.9 * math.sin(k * 1.3) ** 2 - 0.15 * k
+        for s in (-1, 1):
+            pts = [(x, -1.5, 0.0), (x, -0.6, s * 1.5), (x, 0.4, s * 1.85), (x, hgt * 0.8, s * (1.9 - 0.2 * hgt))]
+            if (k + (s > 0)) % 3 != 0:
+                rod(pts, 0.09, "rotwood", 6)
+    rod([(-3.4, -0.3, 0.0), (3.4, 0.1, 0.0)], 0.16, "rotwood", 8)
+    rod([(0.5, -0.2, 0.0), (0.9, 2.6, 0.3)], 0.14, "rotwood", 8)
+    rod([(-2.0, 0.45, -1.7), (1.5, 0.35, -1.75)], 0.07, "rotwood", 6)   # (a stringer still on)
+    for k in range(12):
+        blob((-3.0 + k * 0.55, 0.0, (1 if k % 2 else -1) * 1.8), (0.25, 0.06, 0.12), "weed", 160 + k, 0.3, 10)
+
+
+def column():
+    # a fluted marble column broken off, its drum fallen beside it, the base standing in the water (y 0 the surface)
+    segs = 16
+    lathe((0, 0, 0), [(0.62, -2.0), (0.62, -0.2), (0.55, 0.0), (0.48, 0.15)] + [(0.45, 0.15 + t * 3.6) for t in np.linspace(0, 1, 5)], "marble", 20)
+    for k in range(12):   # the flutes
+        a = k * 2 * math.pi / 12
+        rod([(math.cos(a) * 0.45, 0.2, math.sin(a) * 0.45), (math.cos(a) * 0.45, 3.7, math.sin(a) * 0.45)], 0.035, "marble", 4)
+    vs = []
+    for k in range(segs):   # the broken top, jagged
+        a = k * 2 * math.pi / segs
+        vs.append((math.cos(a) * 0.46, 3.75 + 0.35 * abs(math.sin(k * 1.7)), math.sin(a) * 0.46))
+    quads(vs + [(0, 3.95, 0)], [(i, (i + 1) % segs, segs) for i in range(segs)], "marble", "break")
+    o = boulder_mesh("drum", 0.5, "marble", 3, 0.9)
+    o.scale = (1.0, 1.0, 1.3); o.rotation_euler = (0, math.radians(84), 0.4); o.location = G(1.3, -0.1, 0.6)
+    for k in range(6):
+        blob((math.cos(k) * 0.66, 0.0, math.sin(k) * 0.66), (0.18, 0.08, 0.12), "weed", 180 + k, 0.3, 10)
+
+
+def archruin():
+    # two piers and the arch between them, half fallen: Atlantis showing above the water
+    for s in (-1, 1):
+        box((s * 2.2, 0.5, 0), (0.55, 2.5, 0.55), "marble", 0.05)
+        box((s * 2.2, 3.05, 0), (0.7, 0.12, 0.7), "marble", 0.03)
+    pts = []
+    for k in range(9):
+        a = math.pi - k / 8 * math.pi * 0.62   # (only part of the arch still stands)
+        pts.append((math.cos(a) * 2.2, 3.1 + math.sin(a) * 1.8, 0))
+    rod(pts, 0.42, "marble", 8)
+    o = boulder_mesh("fallen", 0.6, "marble", 8, 0.7); o.location = G(1.4, -0.2, 1.1)
+    for k in range(8):
+        blob((math.cos(k * 0.8) * 2.5, 0.0, math.sin(k * 0.8) * 0.8), (0.2, 0.07, 0.14), "weed", 200 + k, 0.3, 10)
+
+
+def stalagmite():
+    prof = [(0.5 * (1 - t) ** 1.2 + 0.03, t * 3.2) for t in np.linspace(0, 1, 9)]
+    lathe((0, 0, 0), [(0.62, -1.0)] + prof, "caverock", 12)
+
+
 def terrain_mats():
     # the ground's tiling sets, each on a token quad, for the game to put on the land it builds
     if "deck" not in B.MATS:
@@ -548,6 +684,7 @@ def build(name, fn, out):
     reset()
     land_mats()
     clutter_mats()
+    scenery_mats()
     fn()
     B.finish(out, name + ".glb", lambda x, y, z, k: k)
 
@@ -562,7 +699,9 @@ def main():
                      ("stalactite", stalactite), ("mould", mould), ("terrain_mats", terrain_mats),
                      ("bucket", bucket), ("fishbox", fishbox), ("crate", crate), ("lobsterpot", lobsterpot), ("ropecoil", ropecoil),
                      ("tacklebox", tacklebox), ("oilcan", oilcan), ("mop", mop), ("netpile", netpile), ("tarp", tarp),
-                     ("oilskin", oilskin), ("seal", seal), ("crab", crab), ("seachest", seachest), ("driftwood", driftwood)):
+                     ("oilskin", oilskin), ("seal", seal), ("crab", crab), ("seachest", seachest), ("driftwood", driftwood),
+                     ("bush", bush), ("shorerock", shorerock), ("reeds", reeds), ("kelpfloat", kelpfloat), ("sargassum", sargassum),
+                     ("wreckribs", wreckribs), ("column", column), ("archruin", archruin), ("stalagmite", stalagmite)):
         a = C.args()
         if "--only" in a and name not in a[a.index("--only") + 1].split(","):
             continue

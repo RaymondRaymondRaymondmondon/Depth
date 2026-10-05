@@ -528,7 +528,7 @@ static void UnloadTerrain(Model& m) {   // (its meshes only: the materials belon
     m = Model{};
 }
 // where the baked props stand on the land (palms on the chart's land, stalactites and mould in the Grotto)
-struct PropAt { const char* asset; Matrix m; float glow; };
+struct PropAt { const char* asset; Matrix m; float glow; bool floats = false; float far = 0; };   // floats: rides the swell (m's y is its height over the water); far: its draw distance (0 the default)
 static std::vector<PropAt> gLandProps;
 static Model gTerrain{};
 
@@ -606,6 +606,49 @@ static void EnsureLand(const Eco* e) {
                 gLandProps.push_back({"trawl/props/palm.glb", MatrixMultiply(MatrixMultiply(MatrixScale(0.9f + 0.1f * (x % 4), 0.9f + 0.1f * (x % 4), 0.9f + 0.1f * (x % 4)), MatrixRotateY(x * 1.3f + y * 0.7f)), MatrixTranslate(wc.x, H[i] - 0.05f, wc.y)), 0});
             if (grotto && e->depth[i] > 0.01f && e->hab[i] == H_WALL && ((x + y) % 2 == 0))
                 gLandProps.push_back({"trawl/props/mould.glb", MatrixMultiply(MatrixRotateY(x * 2.1f + y), MatrixTranslate(wc.x, 0.6f + 0.5f * sinf(x * 2.1f + y), wc.y)), 0.6f});
+        }
+        // the grounds' scenery (tools/artgen/props.py): bushes in the jungle, rocks and reeds on the shore, kelp and
+        // sargassum riding the swell, a wreck's ribs over the smugglers' wrecks, Atlantis's columns and arches over its
+        // reef, stalagmites under the Grotto's walls. A hash per cell decides, so every client builds the same ground.
+        {
+            auto hsh = [](int x, int y, int salt) { uint32_t h = (uint32_t)x * 73856093u ^ (uint32_t)y * 19349663u ^ (uint32_t)salt * 83492791u; h ^= h >> 13; h *= 0x5bd1e995u; h ^= h >> 15; return (h & 0xffff) / 65535.0f; };
+            auto place = [&](const char* asset, Vector2 w, float y, float s, float yaw, bool floats, float far) {
+                PropAt p{asset, MatrixMultiply(MatrixMultiply(MatrixScale(s, s, s), MatrixRotateY(yaw)), MatrixTranslate(w.x, y, w.y)), 0};
+                p.floats = floats; p.far = far; gLandProps.push_back(p);
+            };
+            bool atl = e->ground == "atlantis", weeds = e->ground == "weeds";
+            int wreckCells = 0;
+            for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
+                size_t i = (size_t)y * n + x;
+                Vector2 wc{(x + 0.5f) * C, (y + 0.5f) * C};
+                if (inLanding(wc)) continue;
+                if ((x & 1) || (y & 1)) continue;   // (one cell in four: 8 m apart at most, so a few hundred near the boat, not thousands)
+                Vector2 jit{(hsh(x, y, 1) - 0.5f) * C * 1.2f, (hsh(x, y, 2) - 0.5f) * C * 1.2f};
+                Vector2 w = Vector2Add(wc, jit);
+                float r = hsh(x, y, 3), yaw = hsh(x, y, 4) * 6.283f, sc = 0.8f + 0.5f * hsh(x, y, 5);
+                int hab = e->hab[i]; float d = e->depth[i];
+                bool shore = false; for (int dy = -1; dy <= 1 && !shore; dy++) for (int dx = -1; dx <= 1; dx++) { int xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < n && yy < n && (e->depth[(size_t)yy * n + xx] > 0.01f) != (d > 0.01f)) { shore = true; break; } }
+                if (cave[i]) {
+                    if (grotto && shore && d <= 0.01f && r < 0.35f) place("trawl/props/stalagmite.glb", w, 0, 1.2f + sc, yaw, false, 90);
+                    continue;
+                }
+                if (d <= 0.01f) {   // the land
+                    float mean = H[i];
+                    bool inner = true; for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) if (cellH(x + dx, y + dy) < 0) inner = false;
+                    if (inner && mean > 0.5f && r < 0.45f) place("trawl/props/bush.glb", w, mean - 0.05f, sc * 1.3f, yaw, false, 110);
+                    else if (shore && r < 0.22f) place("trawl/props/shorerock.glb", w, 0.0f, sc * 1.2f, yaw, false, 140);
+                    else if (shore && r < 0.34f && !atl) place("trawl/props/reeds.glb", w, 0.1f, sc, yaw, false, 70);
+                    continue;
+                }
+                // the water
+                if (hab == H_KELP && r < 0.4f) place("trawl/props/kelpfloat.glb", w, 0, sc * 1.4f, yaw, true, 90);
+                else if (hab == H_SARGASSUM && r < 0.45f) place("trawl/props/sargassum.glb", w, 0, sc * 1.5f, yaw, true, 90);
+                else if (hab == H_WRECK && (wreckCells++ % 3) == 0) place("trawl/props/wreckribs.glb", w, -0.2f, 1.4f, yaw, false, 200);
+                else if (atl && (hab == H_REEF || hab == H_CREST) && r < 0.12f) place(r < 0.04f ? "trawl/props/archruin.glb" : "trawl/props/column.glb", w, -0.3f, sc * 1.4f, yaw, false, 220);
+                else if (!weeds && !atl && hab == H_CREST && r < 0.1f) place("trawl/props/shorerock.glb", w, -0.1f, sc, yaw, false, 140);
+                else if (weeds && hab == H_BARREN && r < 0.05f) place("trawl/props/shorerock.glb", w, -0.35f, sc * 0.9f, yaw, false, 140);
+                else if (shore && r < 0.25f && !atl && !grotto) place("trawl/props/shorerock.glb", w, -0.3f, sc * 0.8f, yaw, false, 140);
+            }
         }
         // (the Grotto) the cave's roof over its black water, its dripstones
         if (grotto) for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
@@ -1958,7 +2001,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     // ---- the lights: the lantern mast is the key (a downward pool, or the searchlight's cone); deck lamps, the
     // fire below, flares and the quay's lamps are points, the nearest eight
     rt::SceneLight L;
-    L.fog = g.sea.weather == Weather::Fog ? Color{34, 38, 42, 255} : Color{5, 8, 13, 255};
+    L.fog = g.sea.weather == Weather::Fog ? Color{34, 38, 42, 255} : g.sea.weather == Weather::Calm || g.sea.weather == Weather::Glass ? Color{13, 18, 28, 255} : Color{5, 8, 13, 255};   // (a clear night's haze is moonlit blue: the land and the ruins stand dark against it)
     L.fogDensity = g.sea.weather == Weather::Fog ? 0.09f : g.sea.weather == Weather::Rain || g.sea.weather == Weather::Squall ? 0.05f : 0.028f;
     L.fill = {34, 40, 58, 255}; L.rim = {70, 90, 112, 255}; L.key = {255, 226, 170, 255};
     L.surfaceY = 1e5f; L.time = t;
@@ -1993,6 +2036,17 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     if (g.sea.weather == Weather::Fog) { L.gradeLo = {112, 124, 132, 255}; L.gradeHi = {140, 130, 116, 255}; }
     L.keyShadow = true;
     L.moonDir = Vector3Negate(Vector3Normalize({cosf(0.45f) * cosf(2.2f), sinf(0.45f), cosf(0.45f) * sinf(2.2f)}));   // (the way the moonlight travels: from the moon in the sky dome)
+    {   // a faint moonlight and night-sky ambient, so the land, the ruins and the kelp read as shapes beyond the lamps
+        // (brighter at the full, dimmed under cloud and fog, none below decks or under the Grotto's roof)
+        Weather wxm = g.sea.weather;
+        bool cloud = wxm == Weather::Fog || wxm == Weather::Rain || wxm == Weather::Squall || wxm == Weather::Storm;
+        bool roofed = (g.eco && g.eco->ground == "grotto" && g.boat.pos.x > g.eco->archX0) || (me.deck == 1 && !me.overboard);
+        float full = 1 - fabsf(sess.moon - 0.5f) * 2;   // (sess.moon 0 new .. 0.5 full .. 1 new again)
+        if (sess.moon > 1.0f || sess.moon < 0.0f) full = 0.5f;
+        L.moonK = roofed ? 0.0f : (cloud ? 0.06f : 0.1f + 0.2f * full);
+        L.moon = {120, 140, 180, 255};
+        L.ambK = roofed ? 0.0f : 0.35f; L.skyAmb = {26, 34, 52, 255}; L.seaAmb = {6, 10, 16, 255};
+    }
     float lantern = LanternRadius(b.lantern) * (g.sea.weather == Weather::Fog ? 0.6f : 1.0f);
     L.lampPos = BoatPoint(b, {0.2f, DECK_Y + 5.45f, 0});
     if (below) {
@@ -2143,11 +2197,16 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         for (const auto& pa : gLandProps) {
             if (getenv("DEPTH_NOLANDPROPS")) break;
             Vector3 at{pa.m.m12, pa.m.m13, pa.m.m14};
-            float far = pa.glow > 0 ? 60.0f : strstr(pa.asset, "palm") ? 140.0f : 90.0f;
+            float far = pa.far > 0 ? pa.far : pa.glow > 0 ? 60.0f : strstr(pa.asset, "palm") ? 140.0f : 90.0f;
             if (Vector3Distance(at, cam.position) > far) continue;
             const Model* pm = rt::LoadAsset(pa.asset);
             if (!pm) continue;
             if (pa.glow > 0) rt::DrawPbrParts(*pm, pa.m, {}, WHITE, pa.glow * (0.9f + 0.25f * sinf(t * 0.6f + at.x)));   // (the mould is the cave's own light)
+            else if (pa.floats) {   // (kelp and weed riding the swell: up and down with the sea, tipped by its slope)
+                float h = g.sea.Height(at.x, at.z), hx = g.sea.Height(at.x + 1, at.z) - h, hz = g.sea.Height(at.x, at.z + 1) - h;
+                Matrix m = pa.m; m.m12 = m.m13 = m.m14 = 0;
+                rt::DrawPbr(*pm, MatrixMultiply(MatrixMultiply(m, MatrixMultiply(MatrixRotateZ(hx * 0.8f), MatrixRotateX(-hz * 0.8f))), MatrixTranslate(at.x, h + at.y, at.z)));
+            }
             else rt::DrawPbr(*pm, pa.m);
         }
     } else {
@@ -2355,22 +2414,55 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         Glow(W3(g.eco->eyeP, -40), 22 * open, Color{200, 214, 220, 255}, (g.eyeLooked ? 1.2f : 0.7f) * (0.85f + 0.15f * sinf(t * 0.7f)));
         Glow(W3(g.eco->eyeP, -38), 6 * open, Color{20, 24, 30, 255}, 0.0f);
     }
+    const bool newArt = !getenv("DEPTH_OLDBOAT") && SailorsReady();
     if (g.choir.on && g.choir.surfaced) {
         float h = g.sea.Height(g.choir.singer.x, g.choir.singer.y);
-        Seg(W3(g.choir.singer, h - 0.4f), W3(g.choir.singer, h + 0.9f), 0.3f, Color{214, 222, 226, 255});
+        if (newArt) {   // a pale, drowned figure risen to the chest out of the water, singing, its arms half raised
+            SailorLook Ls; Ls.role = Role::Medic; Ls.skin = {196, 212, 214, 255}; Ls.top = {150, 170, 172, 255}; Ls.trousers = Ls.top; Ls.hat = Ls.top; Ls.hair = {60, 80, 80, 255}; Ls.wet = 1;
+            SailorPose P; P.breathe = t * 0.8f; P.reach = 0.35f + 0.1f * sinf(t * 0.5f); P.elbow = 0.3f; P.nod = -0.2f;
+            Vector2 to = Vector2Subtract(g.boat.pos, g.choir.singer);
+            DrawSailor(Ls, P, Frame(W3(g.choir.singer, h - 1.1f), atan2f(-to.y, to.x)), t, Item::None, WHITE);
+        } else Seg(W3(g.choir.singer, h - 0.4f), W3(g.choir.singer, h + 0.9f), 0.3f, Color{214, 222, 226, 255});
         Glow(W3(g.choir.singer, h + 1.1f), 0.2f, Color{230, 236, 240, 255}, 0.7f);
     }
     if (g.longboat.on) {
         float h = g.sea.Height(g.longboat.p.x, g.longboat.p.y), a = g.longboat.ang + PI / 2;
         Vector2 dir{cosf(a), sinf(a)};
-        Seg(W3(Vector2Add(g.longboat.p, Vector2Scale(dir, 5)), h + 0.2f), W3(Vector2Subtract(g.longboat.p, Vector2Scale(dir, 5)), h + 0.2f), 1.2f, Color{40, 30, 24, 255});
+        const Model* sk = newArt ? rt::LoadAsset("trawl/props/skiff.glb") : nullptr;
+        if (sk) {   // the war canoe: the skiff's lines drawn out long, six paddlers dark against the torches
+            float yaw = atan2f(-dir.y, dir.x), roll = 0.04f * sinf(t * 1.1f);
+            Matrix F = MatrixMultiply(MatrixMultiply(MatrixScale(2.2f, 1.0f, 0.9f), MatrixRotateX(roll)), MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(g.longboat.p.x, h + 0.15f, g.longboat.p.y)));
+            rt::DrawPbr(*sk, F, Color{110, 84, 64, 255});
+            for (int k = 0; k < 6; k++) {
+                SailorLook Lr; Lr.role = Role::Diver; Lr.skin = {96, 64, 44, 255}; Lr.top = {70, 40, 30, 255}; Lr.trousers = {60, 44, 30, 255}; Lr.hat = Lr.top;
+                SailorPose P; P.crouch = 0.65f; float st = t * 2.4f + (k % 2) * 0.2f; P.reach = 0.6f + 0.35f * sinf(st); P.elbow = 0.3f + 0.2f * cosf(st); P.grip = 0.9f;
+                float along = -3.0f + k * 1.2f, side = k % 2 ? 0.35f : -0.35f;
+                Vector3 at = Vector3Transform({along / 2.2f, 0.05f, side / 0.9f}, F);
+                DrawSailor(Lr, P, Frame(at, yaw), t + k, Item::None, WHITE);
+            }
+        } else Seg(W3(Vector2Add(g.longboat.p, Vector2Scale(dir, 5)), h + 0.2f), W3(Vector2Subtract(g.longboat.p, Vector2Scale(dir, 5)), h + 0.2f), 1.2f, Color{40, 30, 24, 255});
         for (int k = -1; k <= 1; k += 2) Glow(W3(Vector2Add(g.longboat.p, Vector2Scale(dir, k * 3.5f)), h + 1.8f + 0.1f * sinf(t * 9 + k)), 0.25f, Color{255, 170, 60, 255}, 3.0f);
     }
     if (g.ghost.state > 0) {
         float h = g.sea.Height(g.ghost.p.x, g.ghost.p.y);
         Vector2 f = g.boat.Forward();
-        Seg(W3(Vector2Add(g.ghost.p, Vector2Scale(f, 16)), h + 1.5f), W3(Vector2Subtract(g.ghost.p, Vector2Scale(f, 16)), h + 1.5f), 5.0f, Color{56, 64, 60, g.ghost.state == 1 ? (unsigned char)120 : (unsigned char)255});
-        for (int m = -1; m <= 1; m++) Seg(W3(Vector2Add(g.ghost.p, Vector2Scale(f, m * 8.0f)), h + 3), W3(Vector2Add(g.ghost.p, Vector2Scale(f, m * 8.0f)), h + 14), 0.3f, Color{50, 56, 52, 255});   // her masts
+        const Model* gb = newArt ? rt::LoadAsset("trawl/boat.glb") : nullptr;
+        if (gb) {   // a drowned twin of the Gannet, half again her size, grey-green and rotten, riding too still
+            float yaw = atan2f(-f.y, f.x);
+            Matrix F = MatrixMultiply(MatrixMultiply(MatrixScale(1.5f, 1.5f, 1.5f), MatrixRotateZ(0.06f)), MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(g.ghost.p.x, h - 0.6f, g.ghost.p.y)));
+            rt::DrawPbr(*gb, F, g.ghost.state == 1 ? Color{60, 80, 72, 255} : Color{104, 132, 118, 255});
+            for (int m = -1; m <= 1; m++) {   // her masts and their tattered sails
+                Vector3 base = Vector3Transform({m * 5.0f, 1.0f, 0}, F), top = Vector3Transform({m * 5.0f, 9.0f, 0}, F);
+                Seg(base, top, 0.25f, Color{50, 56, 52, 255});
+                for (int r = 0; r < 3; r++) {
+                    Vector3 a0 = Vector3Transform({m * 5.0f, 3.5f + r * 1.8f, -2.2f + r * 0.3f}, F), a1 = Vector3Transform({m * 5.0f + 0.4f * sinf(t + r + m), 2.6f + r * 1.8f, 2.0f - r * 0.4f}, F);
+                    Seg(a0, a1, 0.9f - r * 0.2f, Color{70, 84, 78, 255});   // (a rag of sail hanging off its yard)
+                }
+            }
+        } else {
+            Seg(W3(Vector2Add(g.ghost.p, Vector2Scale(f, 16)), h + 1.5f), W3(Vector2Subtract(g.ghost.p, Vector2Scale(f, 16)), h + 1.5f), 5.0f, Color{56, 64, 60, g.ghost.state == 1 ? (unsigned char)120 : (unsigned char)255});
+            for (int m = -1; m <= 1; m++) Seg(W3(Vector2Add(g.ghost.p, Vector2Scale(f, m * 8.0f)), h + 3), W3(Vector2Add(g.ghost.p, Vector2Scale(f, m * 8.0f)), h + 14), 0.3f, Color{50, 56, 52, 255});   // her masts
+        }
         Glow(W3(g.ghost.p, h + 6), 0.4f, Color{150, 230, 190, 255}, 3.0f);   // a cold green lantern
     }
     if (g.kraken.state == 2) for (int arm = 0; arm < 3; arm++) {

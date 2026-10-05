@@ -1781,6 +1781,36 @@ bool TrawlBetWinners(std::vector<int>& seats) {
         if (which == 41 || which == 43 || which == 44) G.sea.weather = Weather::Rain;
         return;
     }
+    if (which >= 61 && which <= 64) {
+        // the grounds' scenery: on calm water 30 m off the ground's most characteristic water (the Lagoon's shore, the
+        // Weeds' kelp, the Grotto's walls, Atlantis's reef), the hand on the foredeck looking out over the bow
+        static const char* GR[4] = {"lagoon", "weeds", "grotto", "atlantis"};
+        Gannet& G = S.W->G;
+        G.Init(4, 11, Weather::Calm);
+        Eco& E = S.W->eco; E.Init(GR[which - 61], 11); G.eco = &E;
+        G.moored = false;
+        auto want = [&](int i) { int h = E.hab[i]; float d = E.depth[i];
+            switch (which) { case 61: return d <= 0.01f; case 62: return h == H_KELP; case 63: return h == H_WALL; default: return h == H_REEF || h == H_CREST; } };
+        Vector2 target{-1, -1}, boatAt{};
+        for (int k = 0; k < E.n * E.n && target.x < 0; k++) {
+            int i = (k * 7919) % (E.n * E.n);   // (a scatter through the chart, not its corner)
+            if (!want(i)) continue;
+            Vector2 c{(i % E.n + 0.5f) * E.cell, (i / E.n + 0.5f) * E.cell};
+            for (int a = 0; a < 16; a++) {
+                Vector2 b = Vector2Add(c, {cosf(a * PI / 8) * 32, sinf(a * PI / 8) * 32});
+                if (b.x < 20 || b.y < 20 || b.x > E.n * E.cell - 20 || b.y > E.n * E.cell - 20) continue;
+                if (E.depth[E.CellIdx(b)] > 4) { target = c; boatAt = b; break; }
+            }
+        }
+        if (target.x < 0) { target = {E.n * E.cell * 0.5f, E.n * E.cell * 0.5f}; boatAt = Vector2Add(target, {-30, 0}); }
+        G.boat.pos = boatAt; G.boat.heading = atan2f(target.y - boatAt.y, target.x - boatAt.x);
+        G.boat.telegraph = 0; G.boat.lantern = 2;
+        for (int i = 0; i < 60 * 2; i++) G.Step(1 / 60.0f);
+        G.boat.pos = boatAt;
+        Crew& c = G.crew[0]; c.p = {8.0f, 0.0f}; c.station = -1;
+        S.eye.yaw = 0; S.eye.pitch = -0.06f;
+        return;
+    }
     if (which == 42) {
         // the spec's performance case: six hands on deck in rain (the fog thickened to the Lagoon's), seen from the
         // stern gantry looking forward over all of them, a catch on the planks, the lamps lit
