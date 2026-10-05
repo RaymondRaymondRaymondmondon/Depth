@@ -87,6 +87,7 @@ Level& World::L(int level) {
     auto it = levels.find(level);
     if (it != levels.end()) return it->second;
     Level& lv = levels[level] = Generate(level, daySeed);
+    if (mirror) return lv;
     // the day's loot: rolled from the level's band (and now and then an anomalous object)
     int band = D().levels[level].lootBand; std::vector<int> pool; for (int i = 0; i < (int)D().loot.size(); i++) if (D().loot[i].level == band) pool.push_back(i);
     std::vector<int> anom; for (int i = 0; i < (int)D().loot.size(); i++) if (D().loot[i].anomalous) anom.push_back(i);

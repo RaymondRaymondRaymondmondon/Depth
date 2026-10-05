@@ -225,3 +225,12 @@ void AudioFowl(const FpAudio& a);
 enum FpCue { FPC_ZAP, FPC_BOOM, FPC_RATTLE, FPC_CRACK, FPC_POP, FPC_RAY, FPC_QUACK, FPC_HONK, FPC_HISS, FPC_SHRIEK, FPC_HUM, FPC_BARK, FPC_LAUGH,
              FPC_SQUEAK, FPC_PING, FPC_SPLASH, FPC_DING, FPC_FANFARE, FPC_SCRATCH, FPC_CRANK, FPC_BELL, FPC_BOO, FPC_CHEER, FPC_RELOAD, FPC_COUNT };
 void FowlCue(int kind, float vol, float pan, float pitch = 1);
+
+// NOCLIP (the Deep Arcade's Backrooms): the hum per level, the levels' beds, the portal's rising hum, entities' tells.
+struct NcAudio {
+    bool on = false, surface = true, overtime = false, lightsOut = false, inLab = false, dead = false;
+    int level = 0; float sanity = 100, charge = 0;
+};
+void AudioNoclip(const NcAudio& a);
+enum NcCue { NCC_TELL, NCC_HOWL, NCC_HURT, NCC_DEATH, NCC_NOCLIP, NCC_DOOR, NCC_PORTAL, NCC_OVERTIME, NCC_BELL, NCC_CLICK, NCC_PICKUP, NCC_STEPS, NCC_COUNT };
+void NoclipCue(int kind, float vol, float pan, float pitch = 1);

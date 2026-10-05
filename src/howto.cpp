@@ -100,6 +100,13 @@ const HowTo& Get(int key) {
                     "Each round opens with the rush: the balls sit on the centre line, and a ball grabbed there must be carried behind your attack line before it can be thrown. Never step over the centre line.",
                     "Everyone carries a portal pair. Shoot A and B onto the light grey panels and throw through one to come out of the other at the same speed. Careful: your own ball, off a wall or out of a portal, gets YOU out if it hits you.",
                     "Hold the throw to charge (a tap lobs, a full charge fires flat and fast; held too long, your aim shakes). Z or X, or a sideways flick of the mouse as you let go, curves it. Holding a ball blocks a soft throw, but a hard one knocks it out of your hands."};
+        auto& nc = H[17];
+        nc.title = "NOCLIP";
+        nc.lines = {"You're salvagers for the Liminal Recovery Bureau in the Backrooms. Each day you land at a Threshold Lab, find things worth money, carry them back to a Lab's crate, signal the portal at the desk (a 30-second charge that every entity on the level can hear), and stand in the ring when it opens.",
+                    "On the Surface, sell to the Bureau (quota credit; it keeps the campaign alive) or the Fence (cash for gear). Meet the week's quota by the end of day 3 or the Bureau stops maintaining your portals.",
+                    "Watch three meters: health, sanity (the Backrooms change what you see when it's low: almond water, company and Lab lights restore it) and stamina. Entities each hunt by one sense and have a tell and a counter: never run from a Smiler, walk past Hounds. Restart dormant Labs (a breaker, then a fuel canister) to build the network you can jump across.",
+                    "After 24:00 it's Overtime: the portals shut until 06:00 and only a lit Lab is safe."};
+        nc.keys = {{"WASD / mouse", "walk / look"}, {"Shift", "sprint"}, {"Ctrl", "crouch"}, {"E", "use, pick up, doors, a Lab's fittings, revive"}, {"G / T", "drop / throw"}, {"F", "headlamp"}, {"1-5, wheel", "a tool"}, {"Left mouse", "use the tool"}, {"M", "the field map"}, {"Y", "accept a Partygoer's invitation (don't)"}, {"Caps Lock", "talk (nearby only)"}};
         auto& fw = H[16];
         fw.title = "Fowl Play";
         fw.lines = {"Six stalls on the gun club's porch, one sky over the marsh. Each round is a 60-second hunt: birds flush from the reeds in waves, and whoever fires the killing shot gets the bird (a goose softened by one player is stolen by another). Most birds after 15 rounds wins.",
@@ -129,6 +136,7 @@ const HowTo& HowToFor(const Game& g) {
         case Scene::Periscope: return Get(14);
         case Scene::Warp: return Get(15);
         case Scene::Fowl: return Get(16);
+        case Scene::Noclip: return Get(17);
         default: return Get(0);
     }
 }
@@ -138,7 +146,7 @@ bool ActUsedIn(const Game& g, int a) {
     switch (g.scene) {
         case Scene::Platformer: case Scene::Abyss: return a <= A_MOD;
         case Scene::Dungeon: return a == A_SCOPE;
-        case Scene::Arcade: case Scene::RedTide: case Scene::Trawl: case Scene::Flight: case Scene::Mouthful: case Scene::NightOff: case Scene::Scuffle: case Scene::Warp: case Scene::Fowl: return a == A_TALK;
+        case Scene::Arcade: case Scene::RedTide: case Scene::Trawl: case Scene::Flight: case Scene::Mouthful: case Scene::NightOff: case Scene::Scuffle: case Scene::Warp: case Scene::Fowl: case Scene::Noclip: return a == A_TALK;
         default: return false;
     }
 }

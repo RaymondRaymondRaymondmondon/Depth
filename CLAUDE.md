@@ -561,3 +561,18 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   - `sound_fowl.inl`.
 - **All play is an `fp::Input` or an `fp::Command`.** The snapshot Visit is in fowl_net.cpp: any new field a screen draws goes there.
 - **Checks:** `--fowl-test`, `--fowl-sim`, `--fowl-gamble-sim`, `--fowl-net-test`, `--net-loop fowl [lagMs] [mem]`. Shots: `fowl_*`, `arcade_fowl`. Tokens and the locker are saved in `fowl_profile.txt`.
+
+## NOCLIP (arcade game 10, Action; build log in docs/NOCLIP_PROGRESS.md)
+- **Design:** `Reference_For_Future_MP_Games/NOCLIP — Arcade Game 10 Design Document.pdf` (OCR in `docs/noclip_pdf_pages/`). Co-op Backrooms scavenging for 1-6 players (bots fill). There are 20 generated levels, Threshold Labs with portals, three meters, and weekly quotas.
+- **It has its own renderer** (`noclip_render.*`: raylib 3D into `Mode3DRT`, a level shader with a per-cell light grid, then a VHS pass). It does **not** use Depth's ink, per the spec.
+  - The light grid is passed as the `MATERIAL_MAP_EMISSION` map, because `DrawMesh` only binds material maps. `SetShaderValueTexture` doesn't reach mesh draws.
+- **Code (namespace `nc`):**
+  - `noclip.h/.cpp`: the core at 30 Hz. Data is in `data/noclip/*.json`.
+  - `noclip_gen.cpp`: the level kits, `CheckReachable`.
+  - `noclip_ents.cpp`.
+  - `noclip_bots.cpp`.
+  - `noclip_net.*`: per-viewer snapshots; guests regenerate levels from `daySeed`, and `World::mirror` rolls no loot.
+  - `noclip_game.cpp`: `Scene::Noclip`.
+  - `sound_noclip.inl`.
+- **All play is an `nc::Input` or an `nc::Command`.** Any new field a screen draws goes in the Visit in noclip_net.cpp.
+- **Checks:** `--noclip-test`, `--noclip-gen <lvl> <seed>`, `--noclip-sim`, `--noclip-net-test`, `--net-loop noclip [lagMs] [mem]`. Shots: `noclip_*`, `arcade_noclip`.

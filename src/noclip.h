@@ -141,6 +141,7 @@ struct World {
     bool inDay = false; float clock = 360; bool overtime = false; float hourT = 0; int insertion = 0; uint32_t daySeed = 1;
     float lightsOutT = 0; float lockdownT = 0, lockdownNext = 0;   // (Level 1's lights-out; Level 16's lockdowns)
     std::string memo;
+    bool mirror = false;              // a guest's copy: levels are generated for drawing, but no loot is rolled (the host's comes in the snapshot)
     // setup and the clock
     void Init(int humans, int bots, int mode, uint32_t seed);
     void Step();
