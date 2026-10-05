@@ -238,15 +238,43 @@ void DrawRoom(const World& w, float t) {
     rt::DrawWorldCube({s0.x, 2.2f, s0.z - 1.5f}, {5, 1.6f, 0.06f}, {200, 180, 140, 255});
     for (int i = 0; i < 24; i++) rt::DrawWorldCube({s0.x - 2.2f + (i % 8) * 0.62f, 1.7f + (i / 8) * 0.45f, s0.z - 1.45f}, {0.18f, 0.14f, 0.06f}, i % 3 == 0 ? Color{200, 50, 50, 255} : Color{120, 120, 128, 255});
     DrawRobot({s0.x, 0, s0.z - 0.95f}, t);
-    // 1 the mystery-gun machine: a big red crank gumball machine
+    // 1 the mystery-gun machine: a big carnival gumball machine (tools/artgen/fowl_props.py), its crank turning
     Vector3 s1 = World::Station(1);
+    const Model* gm = rt::LoadAsset("fowl/gumball.glb"); const Model* gc = rt::LoadAsset("fowl/gumball_crank.glb");
+    if (gm && gc) {
+        rt::DrawPbr(*gm, MatrixTranslate(s1.x, 0, s1.z), WHITE, 0.2f);
+        bool turning = false; for (const auto& p : w.players) if (p.pendingCapsule >= 0) turning = true;
+        float ang = turning ? t * 5.0f : 0.15f * sinf(t * 0.6f);
+        rt::DrawPbr(*gc, MatrixMultiply(MatrixRotateZ(-ang), MatrixTranslate(s1.x, 1.38f, s1.z + 0.47f)), WHITE, 0.2f);
+    } else {
     rt::DrawWorldCube({s1.x, 0.6f, s1.z}, {1.1f, 1.2f, 1.1f}, {200, 40, 40, 255});
     rt::DrawStaticGlow(Sphere(), MatrixMultiply(MatrixScale(0.75f, 0.75f, 0.75f), MatrixTranslate(s1.x, 1.85f, s1.z)), {220, 230, 240, 255}, 0.1f);
     for (int k = 0; k < 9; k++) rt::DrawStatic(Sphere(), MatrixMultiply(MatrixScale(0.16f, 0.16f, 0.16f), MatrixTranslate(s1.x - 0.35f + (k % 3) * 0.33f, 1.55f + (k / 3) * 0.25f, s1.z - 0.2f + (k % 2) * 0.3f)), k % 3 == 0 ? Color{240, 200, 60, 255} : k % 3 == 1 ? Color{70, 170, 230, 255} : Color{240, 120, 160, 255});
     rt::DrawStatic(Sphere(), MatrixMultiply(MatrixScale(0.22f, 0.22f, 0.22f), MatrixTranslate(s1.x, 2.62f, s1.z)), {200, 40, 40, 255});
     rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.06f, 0.5f, 0.06f), MatrixRotateX(t * 0.4f)), MatrixTranslate(s1.x + 0.6f, 0.9f, s1.z + 0.2f)), {220, 180, 70, 255});
-    // 2 the slot row: six machines along the back wall
-    for (int k = 0; k < 6; k++) {
+    }
+    // 2 the slot row: six one-armed bandits along the back wall, one a stall; the reels behind the glass are each
+    // player's own, the arm drops on a pull, the crown's lamps chase
+    const Model* sm = rt::LoadAsset("fowl/slot.glb"); const Model* sh = rt::LoadAsset("fowl/slot_handle.glb");
+    static const Color SYM[5] = {{230, 210, 60, 255}, {150, 100, 60, 255}, {120, 124, 134, 255}, {240, 180, 40, 255}, {220, 40, 40, 255}};   // duck, dog, gun, bell, Zappa
+    for (int k = 0; k < 6 && sm && sh; k++) {
+        float x = -3 + k * 2.0f, z = -16.4f;
+        const Player* pl = k < (int)w.players.size() ? &w.players[k] : nullptr; bool spin = pl && pl->slotT > 0;
+        rt::DrawPbr(*sm, MatrixTranslate(x, 0, z), WHITE, 0.2f);
+        float pull = spin ? std::max(0.0f, 1 - fabsf(pl->slotT - (D().slotPull - 0.25f)) * 3) : 0;
+        rt::DrawPbr(*sh, MatrixMultiply(MatrixRotateX(pull * 1.1f), MatrixTranslate(x + 0.36f, 1.15f, z)), WHITE, 0.2f);
+        for (int r = 0; r < 3; r++) {
+            bool rolling = spin && pl->slotT > 0.4f + r * 0.5f;
+            int sym = rolling ? (int)(t * 14 + r * 3 + k) % 5 : pl ? std::clamp(pl->reels[r], 0, 4) : (k + r * 2) % 5;
+            float bob = rolling ? fmodf(t * 14, 1.0f) * 0.12f - 0.06f : 0;
+            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.13f, 0.19f, 0.004f), MatrixTranslate(x + (r - 1) * 0.17f, 1.2f, z + 0.288f)), {245, 240, 228, 255}, 0.35f);
+            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.08f, 0.004f), MatrixTranslate(x + (r - 1) * 0.17f, 1.2f + bob, z + 0.2895f)), SYM[sym], 0.6f);
+        }
+        for (int q = 0; q < 7; q++) { float a = PI * (q + 0.5f) / 7; bool on = ((int)(t * 6) + q + k) % 3 == 0 || (pl && pl->slotWin > 0 && pl->slotT <= 0 && fmodf(t, 0.4f) < 0.2f);
+            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.035f, 0.035f, 0.02f), MatrixTranslate(x + cosf(a) * 0.29f, 1.5f + sinf(a) * 0.29f, z + 0.275f)), on ? Color{255, 230, 140, 255} : Color{120, 90, 40, 255}, on ? 1.6f : 0.1f); }
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.48f, 0.18f, 0.004f), MatrixTranslate(x, 1.62f, z + 0.272f)), Color{255, 236, 190, 255}, 0.5f + 0.15f * sinf(t * 3 + k));
+    }
+    for (int k = 0; k < 6 && !(sm && sh); k++) {
         float x = -3 + k * 2.0f, z = -16.4f;
         rt::DrawWorldCube({x, 0.95f, z}, {1.3f, 1.9f, 0.9f}, {170, 30, 40, 255});
         rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.0f, 0.4f, 0.05f), MatrixTranslate(x, 1.25f, z + 0.46f)), {255, 240, 200, 255}, 0.5f);

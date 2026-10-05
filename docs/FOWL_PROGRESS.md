@@ -82,3 +82,17 @@ Arcade Game 11, on the Deep Arcade's **Slop** shelf. The design document is `Ref
 - The Duck-call underbarrel and Laser pointer are passive stat attachments; the duck call's "call ducks to you" button isn't wired.
 - Gamepad.
 - Practice mode is the normal rounds with free guns, not a bird picker.
+
+## Playtest fix (2026-10-05): the machines
+The user said the gumball and slot machines didn't look like well-made machines. They're now modelled in Blender (`tools/artgen/fowl_props.py`, output in `assets/fowl/`) and drawn with the PBR path.
+- **The gumball machine** (the mystery-gun machine, 2.7 m):
+  - a fluted cast-iron pedestal on a flared foot;
+  - a red body with chrome bands, a coin plate and a price plate, and a chute with a flap;
+  - a glass globe packed with 170 gumballs, and a red cap with a knob.
+  - The crank (`gumball_crank.glb`) turns while a capsule is coming.
+- **The slot row:** six vintage one-armed bandits on wooden stands.
+  - The cabinets have chrome side rails, gold pinstripes, a rounded crown with a marquee and a ridge of lamps, a chrome bezel round three reel windows under glass, a jackpot window, a coin slot and a payout tray.
+  - The arm (`slot_handle.glb`) drops on a pull.
+  - Machine k shows player k's own reels: they roll in turn and stop on the result.
+  - The crown's lamps chase, and flash on a win.
+- **New shots:** `fowl_gumball`, `fowl_slots`.

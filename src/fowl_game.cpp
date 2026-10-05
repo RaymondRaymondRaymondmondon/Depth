@@ -539,6 +539,8 @@ void DebugFowlShot(Game& g, int which) {
     if (which == 6) { w.players[0].birds = 141; w.players[2].birds = 133; w.EndMatch(); S.tokensEarned = 47; }
     if (which == 7) { toRound(13, PH_HUNT, 20); S.camYaw = -0.15f; S.camPitch = 0.25f; me.guns[1] = MakeGun(GunIndex("lightning")); me.hand = 1; }
     if (which == 8) { toRound(3, PH_BONUS, 4.5f); S.camYaw = 0.3f; S.camPitch = 0.3f; }
+    if (which == 10) { toRound(2, PH_INTER, 3); me.room = 1; me.pos = Vector3Add(World::Station(1), {2.6f, 0, 0.5f}); S.camYaw = -PI / 2 + 0.2f; S.camPitch = 0.12f; }   // (the gumball machine close up)
+    if (which == 11) { toRound(2, PH_INTER, 3); me.room = 1; me.pos = {1.0f, 0, -13.4f}; S.camYaw = -PI / 2 - 0.25f; S.camPitch = -0.12f; w.players[1].slotT = 1.2f; w.players[1].slotBet = 5; }   // (the slot row)
     S.lastPhase = w.phase;
     StepCamera(1 / 60.0f);
 }
