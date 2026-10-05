@@ -70,6 +70,7 @@ void DrawArena() {
     line(0, -a.halfW, 0, a.halfW, {250, 210, 80, 255});
     for (int s = -1; s <= 1; s += 2) { line(s * Cfg().attackLine, -a.halfW, s * Cfg().attackLine, a.halfW, W); line(s * a.halfL, -a.halfW, s * a.halfL, a.halfW, W); }
     line(-a.halfL, -a.halfW, a.halfL, -a.halfW, W); line(-a.halfL, a.halfW, a.halfL, a.halfW, W);
+    if (!Behind({0, 0, 0})) { rt::DrawStatic(DiscModel(), MatrixMultiply(MatrixScale(1.5f, 0.004f, 1.5f), MatrixTranslate(0, 0.016f, 0)), {250, 210, 80, 255}); rt::DrawStatic(DiscModel(), MatrixMultiply(MatrixScale(1.38f, 0.004f, 1.38f), MatrixTranslate(0, 0.02f, 0)), {176, 132, 88, 255}); }   // the centre circle
     // the walls (dark) and the ceiling
     Color wall{48, 54, 66, 255};
     cube({-X - 0.15f, a.ceil / 2, 0}, {0.3f, a.ceil, Z * 2}, wall); cube({X + 0.15f, a.ceil / 2, 0}, {0.3f, a.ceil, Z * 2}, wall);
@@ -82,12 +83,24 @@ void DrawArena() {
         Vector3 c{(b.lo.x + b.hi.x) / 2, (b.lo.y + b.hi.y) / 2, (b.lo.z + b.hi.z) / 2}, s{b.hi.x - b.lo.x, b.hi.y - b.lo.y, b.hi.z - b.lo.z};
         Color col = b.kind == 1 ? Color{96, 100, 110, 255} : b.kind == 2 ? Color{60, 64, 76, 255} : b.kind == 3 ? Color{130, 96, 62, 255} : Color{150, 160, 172, 255};
         cube(c, s, col);
+        if (b.kind == 4 && s.y > 2 && s.x < s.z) if (const Model* ft = rt::LoadAsset("warp/boardfoot.glb")) for (int k = -1; k <= 1; k += 2) { Vector3 p{c.x, 0, c.z + k * (s.z / 2 - 0.25f)}; if (!Behind(p)) rt::DrawPbr(*ft, MatrixTranslate(p.x, 0, p.z), WHITE, 0.2f); }   // (a mobile board's feet)
         if (b.kind == 3) for (int k = -1; k <= 1; k += 2) for (int j = -1; j <= 1; j += 2) cube({c.x + k * (s.x / 2 - 0.08f), b.lo.y / 2, c.z + j * (s.z / 2 - 0.08f)}, {0.12f, b.lo.y, 0.12f}, {80, 70, 60, 255});   // (the nest's legs)
     }
     for (const auto& l : a.ladders) for (int r = 0; r < 8; r++) {
         cube({l.base.x, (r + 0.5f) * l.top / 8, l.base.z}, {0.06f, 0.06f, 0.6f}, {200, 170, 80, 255});
         if (!r) for (int k = -1; k <= 1; k += 2) cube({l.base.x, l.top / 2, l.base.z + k * 0.3f}, {0.07f, l.top, 0.07f}, {170, 140, 60, 255});
     }
+    // the band over the panels: high wire-glass windows on the long walls with daylight in them, lights in the ceiling
+    if (a.ceil - a.wall > 1.2f) for (int sz = -1; sz <= 1; sz += 2) for (int k = -3; k <= 3; k++) {
+        Vector3 c{k * X * 0.27f, a.wall + (a.ceil - a.wall) * 0.5f, sz * (Z - 0.01f)};
+        if (Behind(c)) continue;
+        float h = (a.ceil - a.wall) * 0.55f;
+        rt::DrawWorldCube(c, {1.7f, h + 0.16f, 0.06f}, {30, 32, 38, 255});
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.55f, h, 0.02f), MatrixTranslate(c.x, c.y, c.z - sz * 0.035f)), {190, 214, 236, 255}, 0.55f);
+        for (int g = -2; g <= 2; g++) rt::DrawWorldCube({c.x + g * 0.3f, c.y, c.z - sz * 0.05f}, {0.02f, h, 0.02f}, {40, 44, 50, 255});
+        rt::DrawWorldCube({c.x, c.y, c.z - sz * 0.05f}, {1.55f, 0.02f, 0.02f}, {40, 44, 50, 255});
+    }
+    for (int i = -2; i <= 2; i++) for (int j = -1; j <= 1; j++) { Vector3 c{i * X * 0.38f, a.ceil - 0.012f, j * Z * 0.55f}; if (!Behind(c) && !OnClip(c, {0, -1, 0})) rt::DrawStaticGlow(DiscModel(), MatrixMultiply(MatrixScale(0.32f, 0.01f, 0.32f), MatrixTranslate(c.x, c.y, c.z)), {255, 246, 226, 255}, 1.3f); }
     // banners over each end in the team's colour
     for (int s = 0; s < 2; s++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.1f, 0.5f, a.halfW * 1.4f), MatrixTranslate((s ? 1 : -1) * (X - 0.05f), a.wall + (a.ceil - a.wall) * 0.5f, 0)), TEAM[s], 0.25f);
 }
@@ -169,6 +182,29 @@ void DrawDressing() {
     // the benches (where the out players sit), a towel, bottles and a kit bag at each
     bool classic = a.kind == AR_CLASSIC; float bz = classic ? a.halfW + 1.2f + 0.22f : Z - 0.28f;
     auto cube = [&](Vector3 c, Vector3 s, Color col) { if (!Behind(c)) rt::DrawWorldCube(c, s, col); };
+    const Model* mBench = rt::LoadAsset("warp/bench.glb"); const Model* mBag = rt::LoadAsset("warp/kitbag.glb"); const Model* mBottle = rt::LoadAsset("warp/bottle.glb"); const Model* mTowel = rt::LoadAsset("warp/towel.glb");
+    if (mBench && mBag && mBottle && mTowel) {   // the gym's own props (tools/artgen/warp_props.py)
+        auto at = [&](const Model* m, Vector3 p, float yaw, Color tint) { if (!Behind(p)) rt::DrawPbr(*m, MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(p.x, p.y, p.z)), tint, 0.25f); };
+        for (int t = 0; t < 2; t++) {
+            float s = t == 0 ? -1.0f : 1.0f, x0 = s * 1.5f, x1 = s * 5.5f, cx = (x0 + x1) / 2;
+            for (float zz : {bz, -bz}) {
+                at(mBench, {cx, 0, zz}, 0, WHITE);
+                if (zz > 0) {
+                    at(mTowel, {x0 + (x1 - x0) * 0.75f, 0.46f, zz}, 0.2f * s, Mix(TEAM[t], WHITE, 0.55f));
+                    for (int b = 0; b < 2; b++) at(mBottle, {x0 + (x1 - x0) * (0.86f + b * 0.05f), 0.46f, zz - 0.05f + b * 0.06f}, b * 1.3f, Mix(TEAM[t], WHITE, 0.3f));
+                    at(mBag, {x0 - s * 0.6f, 0, zz + 0.05f}, 0.3f * s, TEAM_DARK[t]);
+                } else at(mBag, {x1 + s * 0.4f, 0, zz - 0.05f}, -0.4f * s, TEAM[t]);
+            }
+        }
+        // the scorer's table at the centre line, a water cooler and a ball cart by each team's end
+        if (const Model* st = rt::LoadAsset("warp/scoretable.glb")) at(st, {0, 0, bz + 0.1f}, PI, WHITE);
+        if (const Model* wc = rt::LoadAsset("warp/cooler.glb")) for (int s = -1; s <= 1; s += 2) at(wc, {s * 7.2f, 0, bz + 0.05f}, PI, WHITE);
+        if (const Model* bc = rt::LoadAsset("warp/ballcart.glb")) for (int s = -1; s <= 1; s += 2) {
+            Vector3 p{s * 7.4f, 0, -bz - 0.05f}; at(bc, p, 0.2f * s, WHITE);
+            for (int k = 0; k < 3; k++) { Vector3 q{p.x - 0.2f + k * 0.2f, 0.28f + (k % 2) * 0.04f, p.z + (k % 2 ? 0.1f : -0.08f)}; if (const Model* bm = rt::LoadAsset("warp/ball.glb")) { float r = Cfg().ballR; rt::DrawPbr(*bm, MatrixMultiply(MatrixScale(r, r, r), MatrixTranslate(q.x, q.y, q.z)), Color{214, 80, 66, 255}, 0.2f); } }
+        }
+        return;
+    }
     for (int t = 0; t < 2; t++) {
         float s = t == 0 ? -1.0f : 1.0f, x0 = s * 1.5f, x1 = s * 5.5f, cx = (x0 + x1) / 2, len = fabsf(x1 - x0);
         for (float zz : {bz, -bz}) {
@@ -242,7 +278,12 @@ void DrawBalls() {
         float glow = b.st == BS_LIVE ? 0.5f : 0.0f;
         if (b.st == BS_REST && b.mustCarry) glow = 0.25f + 0.2f * sinf(S.t * 4);
         Matrix m = MatrixMultiply(MatrixScale(C.ballR, C.ballR, C.ballR), MatrixTranslate(b.p.x, b.p.y, b.p.z));
-        if (glow > 0) rt::DrawStaticGlow(SphereModel(), m, c, glow); else rt::DrawStatic(SphereModel(), m, c);
+        const Model* bm = rt::LoadAsset("warp/ball.glb");   // (a seamed rubber ball; a live one glows through its skin)
+        if (bm) { Vector3 ax = Vector3Length(b.v) > 0.1f ? Vector3Normalize(Vector3CrossProduct({0, 1, 0}, b.v)) : Vector3{1, 0, 0}; if (Vector3Length(ax) < 0.1f) ax = {1, 0, 0};
+            float spin = (b.p.x + b.p.z) / std::max(0.05f, C.ballR);   // (rolls with the distance it has travelled)
+            rt::DrawPbr(*bm, MatrixMultiply(MatrixMultiply(MatrixScale(C.ballR, C.ballR, C.ballR), MatrixRotate(ax, spin)), MatrixTranslate(b.p.x, b.p.y, b.p.z)), Color{(unsigned char)(c.r * 0.85f), (unsigned char)(c.g * 0.65f), (unsigned char)(c.b * 0.65f), 255}, 0.2f);
+            if (glow > 0) rt::DrawStaticGlow(SphereModel(), MatrixMultiply(MatrixScale(C.ballR * 1.06f, C.ballR * 1.06f, C.ballR * 1.06f), MatrixTranslate(b.p.x, b.p.y, b.p.z)), c, glow * 0.4f); }
+        else if (glow > 0) rt::DrawStaticGlow(SphereModel(), m, c, glow); else rt::DrawStatic(SphereModel(), m, c);
         if (b.st == BS_LIVE) for (int k = 1; k <= 4; k++) {   // (a short trail)
             Vector3 q = Vector3Subtract(b.p, Vector3Scale(b.v, 0.012f * k)); float r = C.ballR * (1 - 0.18f * k);
             rt::DrawStaticGlow(SphereModel(), MatrixMultiply(MatrixScale(r, r, r), MatrixTranslate(q.x, q.y, q.z)), Mix(c, WHITE, 0.3f), 0.5f - 0.1f * k);
@@ -257,7 +298,8 @@ void DrawViewmodel() {
     float shiver = p.overT > Cfg().overAfter ? 0.006f * sinf(S.t * 60) : 0;
     Vector3 at = Vector3Add(S.cam.position, Vector3Add(Vector3Scale(f, 0.62f - back + fling), Vector3Add(Vector3Scale(r, 0.19f + shiver + S.flickX * 0.002f), Vector3Scale(u, -0.2f + back * 0.4f))));
     float R = Cfg().ballR * 0.8f;
-    rt::DrawStatic(SphereModel(), MatrixMultiply(MatrixScale(R, R, R), MatrixTranslate(at.x, at.y, at.z)), {214, 80, 66, 255});
+    if (const Model* bm = rt::LoadAsset("warp/ball.glb")) rt::DrawPbr(*bm, MatrixMultiply(MatrixMultiply(MatrixScale(R, R, R), MatrixRotateY(0.6f + back * 2)), MatrixTranslate(at.x, at.y, at.z)), {186, 52, 42, 255}, 0.2f);
+    else rt::DrawStatic(SphereModel(), MatrixMultiply(MatrixScale(R, R, R), MatrixTranslate(at.x, at.y, at.z)), {214, 80, 66, 255});
 }
 
 // ---------------------------------------------------------------- events: pops, the feed, sound
