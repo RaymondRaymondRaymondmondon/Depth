@@ -1231,6 +1231,12 @@ void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
             const Vector3& p = is.palms[k];
             float h = k < is.palmH.size() ? is.palmH[k] : 7;
             float sway = 0.03f * sinf(S.t * 0.8f + k);
+            static const Model* baked = rt::LoadAsset("trawl/props/palm.glb");   // (the Trawl's palm: a ringed, leaning trunk, split drooping fronds, coconuts; 5 m at scale 1)
+            if (baked && Vector3Distance(p, cam.position) < 260) {
+                Matrix bm = MatrixMultiply(MatrixMultiply(MatrixScale(h / 5, h / 5, h / 5), MatrixRotateY(Hash(p.z, p.x) * 6.28f)), MatrixRotateZ(sway));
+                rt::DrawPbr(*baked, MatrixMultiply(bm, MatrixTranslate(p.x, p.y - 0.2f, p.z)));
+                continue;
+            }
             Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(h, h, h), MatrixRotateY(Hash(p.z, p.x) * 6.28f)), MatrixRotateZ(sway));
             rt::DrawStatic(S.palm, MatrixMultiply(m, MatrixTranslate(p.x, p.y - 0.2f, p.z)));
         }
