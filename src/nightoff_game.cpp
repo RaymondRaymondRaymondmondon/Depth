@@ -86,6 +86,22 @@ void DrawPerson(const Model* m, const Clothes& c, Vector3 feet, float yaw, fig::
     rt::DrawPbrSkinned(*m, frame, skin, rc, 0.35f, WHITE);
 }
 
+// A Night Off's full-body skins as the shared costume models (tools/artgen/costumes.py); hats and clothes stay skins
+const char* CostumeOfShape(const std::string& s) {
+    static const std::pair<const char*, const char*> M[] = {{"fish", "fish"}, {"sack", "sack"}, {"claws", "lobster"}, {"crab", "crab"}, {"sheet", "ghost"},
+        {"tail", "mermaid"}, {"pirate", "pirate"}, {"gullsuit", "gull"}, {"board", "sandwich"}, {"ring", "lifebuoy"}, {"straw", "scarecrow"},
+        {"barnacles", "barnacle"}, {"lure", "angler"}, {"tentacles", "octopus"}, {"bell", "divingbell"}};
+    for (const auto& m : M) if (s == m.first) return m.second;
+    return nullptr;
+}
+bool DrawPersonCostume(const Model* m, Vector3 feet, float yaw, fig::Pose P, float lean, float lurch, const char* costume) {
+    if (!m || !rt::LoadAsset(std::string("shared/costumes/costume_") + costume + ".glb")) return false;
+    fig::Build B;
+    std::vector<Matrix> skin = fig::PoseFigure(*m, B, P, S.t);
+    Matrix frame = MatrixMultiply(MatrixMultiply(MatrixRotateX(lean), MatrixRotateZ(-lurch)), fig::Frame(feet, -yaw));
+    return fig::DrawCostume(costume, *m, skin, frame);
+}
+
 // ---------------------------------------------------------------- the bar
 Color FloorOf(const std::string& k) {
     for (const auto& f : no::D().bar.floors) if (f.first == k) return f.second;   // (the bar's own floors: the Monkey's marble, carpet and roof tiles)
@@ -262,13 +278,13 @@ void DrawSkin(const no::Player& p, float lean) {
     float t = S.t;
     if (k == "bowler") { B(0, 1.86f, 0, 0.3f, 0.13f, 0.3f, hat); B(0, 1.8f, 0, 0.42f, 0.03f, 0.42f, hat); }
     else if (k == "cap") { B(0, 1.83f, 0, 0.3f, 0.08f, 0.3f, hat); B(0.2f, 1.8f, 0, 0.18f, 0.03f, 0.26f, hat); }
-    else if (k == "cardigan") { B(0, 1.2f, 0, 0.44f, 0.5f, 0.52f, top); for (int i = 0; i < 4; i++) B(0.22f, 1.0f + i * 0.12f, 0, 0.02f, 0.04f, 0.04f, gold); }
+    else if (k == "cardigan") { for (int i = 0; i < 4; i++) B(0.2f, 1.0f + i * 0.12f, 0, 0.02f, 0.035f, 0.035f, gold); }   // (the cardigan is the figure's own top in its colour: only the buttons)
     else if (k == "bowtie") { B(0.17f, 1.48f, 0, 0.04f, 0.07f, 0.18f, Color{150, 20, 30, 255}); for (float sd : {-1.0f, 1.0f}) B(0, 1.22f, sd * 0.27f, 0.16f, 0.05f, 0.06f, Color{180, 40, 40, 255}); }
     else if (k == "hooks") { B(0, 1.84f, 0, 0.36f, 0.12f, 0.36f, hat); B(0, 1.79f, 0, 0.5f, 0.03f, 0.5f, hat); for (int i = 0; i < 6; i++) { float a = i * 1.05f; B(cosf(a) * 0.2f, 1.86f, sinf(a) * 0.2f, 0.02f, 0.08f, 0.02f, Color{190, 190, 200, 255}); } B(0, 0.45f, 0, 0.36f, 0.9f, 0.44f, Color{40, 60, 40, 255}); }
     else if (k == "veil") { B(-0.12f, 1.5f, 0, 0.03f, 0.55f, 0.38f, white); B(0.17f, 1.15f, 0, 0.03f, 0.09f, 0.5f, Color{230, 120, 160, 255}, 0.6f); }
     else if (k == "helmet") { B(0, 1.9f, 0, 0.3f, 0.24f, 0.28f, hat); B(0, 2.04f, 0, 0.16f, 0.06f, 0.16f, hat); G(0.15f, 1.9f, 0, 0.05f, gold, 1.2f); }
     else if (k == "apron") { B(0.15f, 1.0f, 0, 0.04f, 0.7f, 0.4f, Color{236, 230, 214, 255}); B(0, 1.5f, -0.2f, 0.3f, 0.04f, 0.12f, white); }
-    else if (k == "coat") { B(0, 0.75f, 0, 0.42f, 0.62f, 0.5f, top); for (float sd : {-1.0f, 1.0f}) B(0, 1.5f, sd * 0.26f, 0.2f, 0.04f, 0.12f, gold); B(0, 1.88f, 0, 0.36f, 0.1f, 0.3f, hat); }
+    else if (k == "coat") { for (float sd : {-1.0f, 1.0f}) B(0, 1.42f, sd * 0.2f, 0.16f, 0.03f, 0.08f, gold); B(0, 1.88f, 0, 0.36f, 0.1f, 0.3f, hat); }   // (epaulettes and the hat; the coat is the figure's top)
     else if (k == "glass") { float fill = std::clamp(p.drunk / 100, 0.0f, 1.0f) * 1.5f; G(0, 0.06f + fill / 2, 0, 0.0f, Color{0, 0, 0, 0}, 0); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.62f, std::max(0.02f, fill), 0.62f), MatrixTranslate(p.pos.x, 0.05f + fill / 2, p.pos.y)), Color{230, 170, 60, 255}, 0.35f); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.66f, 0.1f, 0.66f), MatrixTranslate(p.pos.x, 0.08f + fill, p.pos.y)), white, 0.6f); for (float sd : {-1.0f, 1.0f}) { B(0, 0.85f, sd * 0.33f, 0.62f, 1.7f, 0.02f, Color{200, 220, 230, 255}); B(sd * 0.32f, 0.85f, 0, 0.02f, 1.7f, 0.62f, Color{200, 220, 230, 255}); } }
     else if (k == "claws" || k == "crab") { for (float sd : {-1.0f, 1.0f}) { B(0.3f, 1.05f, sd * 0.38f, 0.32f, 0.18f, 0.14f, top); B(0.45f, 1.12f, sd * 0.38f, 0.14f, 0.08f, 0.12f, top); B(0.18f, 1.95f, sd * 0.08f, 0.02f, 0.25f, 0.02f, top); } if (k == "crab") for (float sd : {-1.0f, 1.0f}) G(0.18f, 2.08f, sd * 0.08f, 0.05f, dark, 0.2f); }
     else if (k == "pig") { B(0.21f, 1.6f, 0, 0.1f, 0.1f, 0.14f, Color{240, 150, 160, 255}); for (float sd : {-1.0f, 1.0f}) B(0, 1.8f, sd * 0.12f, 0.08f, 0.1f, 0.06f, Color{230, 140, 150, 255}); }
@@ -278,7 +294,7 @@ void DrawSkin(const no::Player& p, float lean) {
     else if (k == "fish") { B(0, 1.65f, 0, 0.52f, 0.42f, 0.38f, top); B(-0.36f, 1.68f, 0, 0.2f, 0.34f, 0.04f, top); for (float sd : {-1.0f, 1.0f}) G(0.12f, 1.75f, sd * 0.19f, 0.06f, white, 0.5f); }
     else if (k == "sack") { B(0, 0.95f, 0, 0.56f, 1.55f, 0.56f, top); for (float sd : {-1.0f, 1.0f}) B(0.29f, 1.6f, sd * 0.09f, 0.02f, 0.06f, 0.06f, dark); }
     else if (k == "straw") { B(0, 1.84f, 0, 0.5f, 0.05f, 0.5f, hat); B(0, 1.9f, 0, 0.28f, 0.12f, 0.28f, hat); for (int i = 0; i < 6; i++) B(0.1f, 0.95f + (i % 2) * 0.06f, (i < 3 ? -0.33f : 0.33f), 0.04f, 0.12f, 0.03f, Color{220, 190, 80, 255}, 0.4f * (i - 3)); }
-    else if (k == "stripes") { for (int i = 0; i < 5; i++) B(0, 0.95f + i * 0.12f, 0, 0.3f, 0.035f, 0.4f, Color{60, 80, 160, 255}); B(0, 1.88f, 0, 0.24f, 0.18f, 0.24f, hat); B(-0.1f, 1.96f, 0.08f, 0.1f, 0.1f, 0.1f, white); }
+    else if (k == "stripes") { B(0, 1.86f, 0, 0.24f, 0.1f, 0.24f, hat); B(-0.06f, 1.93f, 0.06f, 0.08f, 0.08f, 0.08f, white); }   // (the sailor's cap and its bobble; the shirt is the figure's top)
     else if (k == "ring") { for (int i = 0; i < 10; i++) { float a = i * PI / 5; B(cosf(a) * 0.25f, 1.0f + sinf(a) * 0.25f, 0.36f, 0.1f, 0.1f, 0.08f, (i % 2) ? white : Color{220, 50, 40, 255}); } }
     else if (k == "bell") { B(0, 1.68f, 0, 0.56f, 0.56f, 0.56f, hat); G(0.29f, 1.68f, 0, 0.14f, Color{120, 180, 200, 255}, 0.4f); for (float sd : {-1.0f, 1.0f}) G(0.0f, 1.68f, sd * 0.29f, 0.1f, Color{120, 180, 200, 255}, 0.3f); }
     else if (k == "gullsuit") { B(0.22f, 1.62f, 0, 0.18f, 0.06f, 0.08f, Color{240, 170, 40, 255}); for (float sd : {-1.0f, 1.0f}) B(-0.05f, 1.2f, sd * 0.4f, 0.3f, 0.5f, 0.06f, white, sd * 0.3f); }
@@ -287,7 +303,7 @@ void DrawSkin(const no::Player& p, float lean) {
     else if (k == "horns") { for (float sd : {-1.0f, 1.0f}) { B(-0.04f, 1.92f, sd * 0.1f, 0.06f, 0.24f, 0.06f, hat, -0.5f); B(-0.14f, 2.02f, sd * 0.12f, 0.12f, 0.06f, 0.06f, hat); } B(0.18f, 1.42f, 0, 0.06f, 0.16f, 0.08f, white); }
     else if (k == "tentacles") { for (int i = 0; i < 6; i++) { float a = i * PI / 3 + 0.3f * sinf(t * 2 + i); for (int j = 0; j < 3; j++) B(cosf(a) * (0.25f + j * 0.14f), 1.0f - j * 0.12f + 0.06f * sinf(t * 3 + i + j), sinf(a) * (0.25f + j * 0.14f), 0.1f, 0.06f, 0.1f, top); } }
     else if (k == "robes") { B(0, 0.6f, 0, 0.5f, 1.2f, 0.56f, top); for (int i = 0; i < 6; i++) G(0.26f, 0.2f + i * 0.14f, -0.2f + (i % 3) * 0.2f, 0.04f, gold, 1.0f); B(0, 1.86f, 0, 0.32f, 0.12f, 0.32f, hat); }
-    else if (k == "jacket") { B(0, 1.2f, 0, 0.44f, 0.56f, 0.52f, top); B(-0.23f, 1.25f, 0, 0.01f, 0.2f, 0.3f, Color{200, 190, 160, 255}); }
+    else if (k == "jacket") {}   // (the jacket is the figure's top in its colour)
     else if (k == "kidney" || k == "goldkidney") { Color kc = k == "goldkidney" ? gold : top; if (k == "goldkidney") { Vector3 w = at(0, 1.05f, 0); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.74f, 1.3f, 0.6f), MatrixTranslate(w.x, w.y, w.z)), kc, 0.5f); } else B(0, 1.05f, 0, 0.72f, 1.3f, 0.6f, kc); B(0.1f, 1.05f, 0.32f, 0.6f, 0.5f, 0.1f, kc); for (float sd : {-1.0f, 1.0f}) G(0.36f, 1.4f, sd * 0.12f, 0.07f, white, 0.6f); B(0.37f, 1.2f, 0, 0.02f, 0.03f, 0.16f, dark); }
     else if (k == "tail") { B(0, 0.45f, 0, 0.4f, 0.9f, 0.4f, top); B(0.1f, 0.06f, 0, 0.36f, 0.06f, 0.5f, s.trousers); }
     else if (k == "sheet") { B(0, 0.95f, 0, 0.6f, 1.75f, 0.6f, Color{236, 236, 240, 255}); for (float sd : {-1.0f, 1.0f}) B(0.31f, 1.6f, sd * 0.1f, 0.02f, 0.08f, 0.07f, dark); }
@@ -468,8 +484,15 @@ void DrawPeople(const no::Night& n) {
         Clothes cl = ShoreClothes(p.crew);
         if (p.skin >= 0 && p.skin < (int)no::Skins().size()) { const no::SkinDef& sk = no::Skins()[p.skin]; cl.top = sk.top; cl.trousers = sk.trousers; cl.hat = sk.hat; }
         bool hidden = p.skin >= 0 && p.skin < (int)no::Skins().size() && (no::Skins()[p.skin].shape == "sack" || no::Skins()[p.skin].shape == "sheet" || no::Skins()[p.skin].shape == "bottle");
-        if (!hidden || p.st == no::State::PassedOut || p.st == no::State::Down || p.fight.fallT > 0) DrawPerson(CrewModel(p.crew), cl, {p.pos.x, 0, p.pos.y}, p.yaw, P, lean, pitch, p.st == no::State::PassedOut || p.st == no::State::Down || p.fight.fallT > 0);
-        DrawSkin(p, lean);
+        bool lying = p.st == no::State::PassedOut || p.st == no::State::Down || p.fight.fallT > 0;
+        // the full-body costumes are the shared costume models (the user: costumes made of boxes, the wearer showing
+        // through): the costume drawn instead of the person, posed by the person's skeleton
+        const char* cos = p.skin >= 0 && p.skin < (int)no::Skins().size() ? CostumeOfShape(no::Skins()[p.skin].shape) : nullptr;
+        if (cos && !lying && DrawPersonCostume(CrewModel(p.crew), {p.pos.x, 0, p.pos.y}, p.yaw, P, lean, pitch, cos)) {}
+        else {
+            if (!hidden || lying) DrawPerson(CrewModel(p.crew), cl, {p.pos.x, 0, p.pos.y}, p.yaw, P, lean, pitch, lying);
+            DrawSkin(p, lean);
+        }
         // a glass in the hand while drinking
         if (p.st == no::State::Drinking) { Vector3 h{p.pos.x + cosf(p.yaw) * 0.3f, 1.2f + 0.3f * std::clamp((1 - p.actT / 2.5f) * 3, 0.0f, 1.0f), p.pos.y + sinf(p.yaw) * 0.3f}; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.14f, 0.08f), MatrixTranslate(h.x, h.y, h.z)), {230, 170, 60, 255}, 0.5f); }
     }
