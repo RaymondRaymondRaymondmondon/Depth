@@ -20,7 +20,7 @@
     {"id": "scarecrow_hat", "name": "Scarecrow hat", "kind": "hat", "tier": 2}, {"id": "glass_suit", "name": "Vitrum suit", "kind": "suit", "tier": 2},
     {"id": "wallpaper_suit", "name": "The Yellow Wallpaper suit", "kind": "suit", "tier": 3}, {"id": "director_coat", "name": "The Bureau Director's coat", "kind": "suit", "tier": 3},
     {"id": "exit_hat", "name": "The Exit Sign hat", "kind": "hat", "tier": 3, "glow": true}, {"id": "almond_costume", "name": "The Almond Water Bottle costume", "kind": "costume", "tier": 3},
-    {"id": "lava_lamp", "name": "A working lava lamp (hard hat)", "kind": "hat", "tier": 3, "glow": true}, {"id": "lamp_uv", "name": "Ultraviolet headlamp", "kind": "lamp", "tier": 2}
+    {"id": "lava_lamp", "name": "A working lava lamp (hard hat)", "kind": "hat", "tier": 3, "glow": true}, {"id": "bureau_orange", "name": "The Orange (a flight suit and a visor helmet)", "kind": "costume", "tier": 3}, {"id": "lamp_uv", "name": "Ultraviolet headlamp", "kind": "lamp", "tier": 2}
   ],
   "prices": [15, 30, 60, 0], "crate": 1, "crateWeights": [60, 28, 10, 2]
 }

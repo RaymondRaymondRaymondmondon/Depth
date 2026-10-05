@@ -2,6 +2,8 @@
 #include "noclip_render.h"
 #include "game.h"
 #include "rlgl.h"
+#include "figure3d.h"
+#include "redtide_render.h"
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -15,11 +17,17 @@ namespace {
 
 // ---------------------------------------------------------------- shaders
 const char* LEVEL_VS = R"(#version 330
-in vec3 vertexPosition; in vec2 vertexTexCoord; in vec3 vertexNormal; in vec4 vertexColor;
-uniform mat4 mvp; uniform mat4 matModel; uniform float uTime; uniform float uBreath;
+in vec3 vertexPosition; in vec2 vertexTexCoord; in vec3 vertexNormal; in vec4 vertexColor; in vec4 vertexBoneIds; in vec4 vertexBoneWeights;
+uniform mat4 mvp; uniform mat4 matModel; uniform float uTime; uniform float uBreath; uniform mat4 boneMatrices[64]; uniform int uSkinned;
 out vec2 fragTexCoord; out vec3 fragPos; out vec3 fragNormal; out vec4 fragColor;
 void main() {
     vec3 p = vertexPosition; vec3 n = vertexNormal;
+    if (uSkinned == 1) {   // (the crew rig's figures: GPU skinning, as raylib uploads mesh.boneMatrices)
+        mat4 s = boneMatrices[int(vertexBoneIds.x)] * vertexBoneWeights.x + boneMatrices[int(vertexBoneIds.y)] * vertexBoneWeights.y
+               + boneMatrices[int(vertexBoneIds.z)] * vertexBoneWeights.z + boneMatrices[int(vertexBoneIds.w)] * vertexBoneWeights.w;
+        p = (s * vec4(p, 1.0)).xyz; n = normalize(mat3(s) * n);
+        gl_Position = mvp * vec4(p, 1.0); vec4 wq = matModel * vec4(p, 1.0); fragPos = wq.xyz; fragNormal = normalize(mat3(matModel) * n); fragTexCoord = vertexTexCoord; fragColor = vertexColor; return;
+    }
     float wall = abs(n.y) < 0.5 ? 1.0 : 0.0;
     p += n * wall * uBreath * sin(uTime * 1.3 + p.x * 0.7 + p.z * 0.5 + p.y) * 0.07;   // the walls breathe at the edge of sanity
     vec4 wp = matModel * vec4(p, 1.0);
@@ -75,7 +83,7 @@ void main() {
     finalColor = vec4(c, 1.0);
 })";
 
-struct Shader3D { Shader sh{}; int time, breath, light, levelSize, lightColor, ambient, ceil, lampPos, lampDir, lampOn, lampRange, lampCone, fog, fogDensity, cam, emissive, point, pointCol, points; bool ok = false; };
+struct Shader3D { Shader sh{}; int skinned = -1; int time, breath, light, levelSize, lightColor, ambient, ceil, lampPos, lampDir, lampOn, lampRange, lampCone, fog, fogDensity, cam, emissive, point, pointCol, points; bool ok = false; };
 Shader3D S3; Shader gVhs{}; int gVhsTime, gVhsNoise, gVhsRes, gVhsBlack; bool gVhsOk = false;
 void EnsureShaders() {
     if (S3.ok) return;
@@ -83,7 +91,7 @@ void EnsureShaders() {
     auto loc = [&](const char* n) { return GetShaderLocation(S3.sh, n); };
     S3.time = loc("uTime"); S3.breath = loc("uBreath"); S3.light = loc("uLight"); S3.levelSize = loc("uLevelSize"); S3.lightColor = loc("uLightColor"); S3.ambient = loc("uAmbient"); S3.ceil = loc("uCeil");
     S3.lampPos = loc("uLampPos"); S3.lampDir = loc("uLampDir"); S3.lampOn = loc("uLampOn"); S3.lampRange = loc("uLampRange"); S3.lampCone = loc("uLampCone"); S3.fog = loc("uFog"); S3.fogDensity = loc("uFogDensity"); S3.cam = loc("uCam"); S3.emissive = loc("uEmissive");
-    S3.point = loc("uPoint"); S3.pointCol = loc("uPointCol"); S3.points = loc("uPoints");
+    S3.point = loc("uPoint"); S3.pointCol = loc("uPointCol"); S3.points = loc("uPoints"); S3.skinned = loc("uSkinned");
     S3.sh.locs[SHADER_LOC_MATRIX_MODEL] = loc("matModel");
     S3.sh.locs[SHADER_LOC_MAP_EMISSION] = loc("uLight");   // (the light grid rides along as a material map: DrawMesh binds those)
     gVhs = LoadShaderFromMemory(nullptr, VHS_FS); gVhsTime = GetShaderLocation(gVhs, "uTime"); gVhsNoise = GetShaderLocation(gVhs, "uNoise"); gVhsRes = GetShaderLocation(gVhs, "uRes"); gVhsBlack = GetShaderLocation(gVhs, "uBlack"); gVhsOk = true;
@@ -160,7 +168,7 @@ LevelGfx& Gfx(const Level& L) {
     for (Model* m : {&G.walls, &G.floors, &G.ceils, &G.low, &G.glass, &G.water, &G.lab, &G.wheat}) if (m->meshCount) { UnloadModel(*m); *m = Model{}; }
     if (G.lightTex.id) UnloadTexture(G.lightTex);
     G.seed = L.seed; G.id = L.id; G.sky = Outdoor(L.id);
-    const LevelDef& def = D().levels[L.id]; float C = CELL, ceil = def.ceil;
+    const LevelDef& def = D().levels[L.id]; float C = CELL, ceil = def.ceil, labCeil = std::max(ceil, 4.2f);   // (the Labs are tall rooms: the portal ring stands 3.3 m)
     MeshB walls, floors, ceils, low, glass, water, lab, wheat;
     auto solidish = [&](int x, int z) { uint8_t t = L.At(x, z); return t == T_WALL || t == T_VOID || t == T_LABWALL || t == T_GLASS; };
     for (int z = 0; z < L.h; z++) for (int x = 0; x < L.w; x++) {
@@ -172,7 +180,16 @@ LevelGfx& Gfx(const Level& L) {
             MeshB& fm = t == T_LABFLOOR ? lab : floors;
             if (t != T_PIT) fm.Quad({x0, fy, z0}, {x0, fy, z1}, {x1, fy, z1}, {x1, fy, z0}, {0, 1, 0}, {x0 / C, z0 / C}, {x0 / C, z1 / C}, {x1 / C, z1 / C}, {x1 / C, z0 / C}, fc);
             if (t == T_WATER || t == T_DEEP) water.Quad({x0, -0.05f, z0}, {x0, -0.05f, z1}, {x1, -0.05f, z1}, {x1, -0.05f, z0}, {0, 1, 0}, {x0 / 4, z0 / 4}, {x0 / 4, z1 / 4}, {x1 / 4, z1 / 4}, {x1 / 4, z0 / 4});
-            if (roomRoof && t != T_PIT && !(L.id == 7 && t == T_DEEP)) { float cy = ceil; (t == T_LABFLOOR ? lab : ceils).Quad({x0, cy, z0}, {x1, cy, z0}, {x1, cy, z1}, {x0, cy, z1}, {0, -1, 0}, {x0 / C, z0 / C}, {x1 / C, z0 / C}, {x1 / C, z1 / C}, {x0 / C, z1 / C}); }
+            if (roomRoof && t != T_PIT && !(L.id == 7 && t == T_DEEP)) { float cy = t == T_LABFLOOR ? labCeil : ceil; (t == T_LABFLOOR ? lab : ceils).Quad({x0, cy, z0}, {x1, cy, z0}, {x1, cy, z1}, {x0, cy, z1}, {0, -1, 0}, {x0 / C, z0 / C}, {x1 / C, z0 / C}, {x1 / C, z1 / C}, {x0 / C, z1 / C}); }
+            if (t == T_LABFLOOR && labCeil > ceil) {   // where a lower corridor or wall meets the Lab: close the gap above it
+                const int D4[4][2] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
+                for (auto& d : D4) { int nx = x + d[0], nz = z + d[1]; uint8_t nt = L.At(nx, nz); if (nt == T_LABFLOOR || nt == T_LABWALL) continue;
+                    float lo = solidish(nx, nz) ? WallH(L, nx, nz) : ceil; if (lo >= labCeil) continue; float v0 = lo / C, v1 = labCeil / C;
+                    if (d[1] == -1) lab.Quad({x0, lo, z0}, {x1, lo, z0}, {x1, labCeil, z0}, {x0, labCeil, z0}, {0, 0, 1}, {0, v0}, {1, v0}, {1, v1}, {0, v1});
+                    if (d[1] == 1) lab.Quad({x1, lo, z1}, {x0, lo, z1}, {x0, labCeil, z1}, {x1, labCeil, z1}, {0, 0, -1}, {0, v0}, {1, v0}, {1, v1}, {0, v1});
+                    if (d[0] == -1) lab.Quad({x0, lo, z1}, {x0, lo, z0}, {x0, labCeil, z0}, {x0, labCeil, z1}, {1, 0, 0}, {0, v0}, {1, v0}, {1, v1}, {0, v1});
+                    if (d[0] == 1) lab.Quad({x1, lo, z0}, {x1, lo, z1}, {x1, labCeil, z1}, {x1, labCeil, z0}, {-1, 0, 0}, {0, v0}, {1, v0}, {1, v1}, {0, v1}); }
+            }
             if (t == T_WHEAT) { float h = 1.5f; for (int s = 0; s < 2; s++) { float o = (s + 0.5f) * C / 2; wheat.Quad({x0, 0, z0 + o}, {x1, 0, z0 + o}, {x1, h, z0 + o}, {x0, h, z0 + o}, {0, 0, 1}, {0, 1}, {1, 1}, {1, 0}, {0, 0}); wheat.Quad({x0 + o, 0, z0}, {x0 + o, 0, z1}, {x0 + o, h, z1}, {x0 + o, h, z0}, {1, 0, 0}, {0, 1}, {1, 1}, {1, 0}, {0, 0}); } }
             if (t == T_LOW) {   // a low partition / rack / pole: a box 1.3 m tall
                 float h = L.id == 10 ? 3.0f : 1.3f; Color lc = L.id == 1 ? Color{170, 150, 110, 255} : WHITE;
@@ -186,7 +203,7 @@ LevelGfx& Gfx(const Level& L) {
         }
         if (!solidish(x, z) || t == T_VOID) continue;
         // a wall cell: its faces toward open cells
-        float h = WallH(L, x, z); if (h <= 0) continue;
+        float h = WallH(L, x, z); if (h <= 0) continue; if (t == T_LABWALL) h = std::max(h, labCeil);
         MeshB& wm = t == T_GLASS ? glass : t == T_LABWALL ? lab : walls;
         Color wc = (L.Flags(x, z) & CF_MANILA) ? Color{250, 236, 190, 255} : (L.Flags(x, z) & CF_MIRROR) ? Color{220, 230, 240, 255} : WHITE;
         auto open = [&](int nx, int nz) { return !solidish(nx, nz); };
@@ -235,6 +252,66 @@ void Box(Vector3 c, Vector3 s, Color col, float yaw = 0, float emis = 0) { DrawM
 void BoxM(Matrix frame, Vector3 at, Vector3 s, Color col, float emis = 0) { DrawM(gCube, MatrixMultiply(MatrixMultiply(MatrixScale(s.x, s.y, s.z), MatrixTranslate(at.x, at.y, at.z)), frame), col, emis); }
 void BallM(Matrix frame, Vector3 at, Vector3 s, Color col, float emis = 0) { DrawM(gSphere, MatrixMultiply(MatrixMultiply(MatrixScale(s.x, s.y, s.z), MatrixTranslate(at.x, at.y, at.z)), frame), col, emis); }
 Matrix Frame(Vector3 at, float yaw) { return MatrixMultiply(MatrixRotateY(-yaw + PI / 2), MatrixTranslate(at.x, at.y, at.z)); }   // (local +z faces along yaw)
+
+// ---------------------------------------------------------------- people on the shared crew rig (tools/artgen/noclip_crew.py)
+// The Bureau's yellow hazmat suit (and the orange costume) as skinned figures, posed by fig::PoseFigure and drawn
+// through the level shader (lit by the light grid and the lamps, fogged); the Backrooms' human-shaped cast wear the
+// same suit recoloured (a Faceling's mask is skin: no face).
+Texture2D gCurLight{};
+struct Rc { const char* mat; Color c; };
+struct SuitLook { int model = 0; std::vector<Rc> rc; float height = 1, build = 1, emis = 0; float walkMul = 1; bool crawl = false; float tread = 0; };
+bool DrawSuit(const SuitLook& L, Vector3 at, float yaw, float t, float walk, float walkPh, Matrix pre = MatrixIdentity(), Vector3* headOut = nullptr) {
+    const Model* m = rt::LoadAsset(L.model == 1 ? "noclip/crew_orange.glb" : "noclip/crew_hazmat.glb");
+    if (!m || !S3.ok) return false;
+    static std::map<const Model*, std::vector<Color>> orig; static std::map<const Model*, std::map<std::string, int>> byName;
+    if (!orig.count(m)) {
+        std::vector<Color> o; for (int i = 0; i < m->materialCount; i++) o.push_back(m->materials[i].maps[MATERIAL_MAP_DIFFUSE].color); orig[m] = o;
+        for (const char* n : {"suit", "trim", "glove", "boot", "sole", "mask", "lens", "patch", "badge", "metal", "skin", "seal", "stripe"}) { Material mt; if (rt::AssetMaterial(m, n, &mt)) for (int i = 0; i < m->materialCount; i++) if (m->materials[i].maps == mt.maps) byName[m][n] = i; }
+    }
+    fig::Pose P; P.walk = walk; P.walkPh = walkPh * L.walkMul; P.breathe = t * 1.6f; P.grip = 0.55f; P.blink = 0;
+    P.tread = L.tread;
+    if (L.crawl) { P.crouch = 0.75f; P.reach = 1; P.elbow = 0.1f + 0.25f * (0.5f + 0.5f * sinf(walkPh * L.walkMul)) * walk; P.grip = 0.9f; P.nod = -0.9f;   // (on all fours: the body pitched forward, arms down to the floor as forelegs, the head up)
+        pre = MatrixMultiply(MatrixMultiply(MatrixRotateZ(-1.05f), MatrixTranslate(-0.35f, 0.42f, 0)), pre); }
+    fig::Build B; B.height = L.height; B.build = L.build;
+    std::vector<Matrix> skin = fig::PoseFigure(*m, B, P, t);
+    Matrix frame = MatrixMultiply(pre, fig::Frame(at, -yaw));
+    std::vector<Color> col = orig[m]; for (const auto& r : L.rc) { auto it = byName[m].find(r.mat); if (it != byName[m].end()) col[it->second] = r.c; }
+    int one = 1, zero = 0; SetShaderValue(S3.sh, S3.skinned, &one, SHADER_UNIFORM_INT);
+    if (L.emis != gEmissive) Emis(L.emis);
+    for (int i = 0; i < m->meshCount; i++) {
+        Mesh& mesh = m->meshes[i];
+        if (mesh.boneMatrices && mesh.boneCount > 0) memcpy(mesh.boneMatrices, skin.data(), sizeof(Matrix) * std::min((int)skin.size(), mesh.boneCount));
+        Material mat = m->materials[m->meshMaterial[i]]; mat.shader = S3.sh;
+        Material copy = mat; MaterialMap maps[12]; memcpy(maps, mat.maps, sizeof(maps)); copy.maps = maps;   // (12: raylib's MAX_MATERIAL_MAPS)
+        maps[MATERIAL_MAP_DIFFUSE].color = col[m->meshMaterial[i]];
+        maps[MATERIAL_MAP_DIFFUSE].texture = White(); maps[MATERIAL_MAP_EMISSION].texture = gCurLight;
+        DrawMesh(mesh, copy, frame);
+    }
+    SetShaderValue(S3.sh, S3.skinned, &zero, SHADER_UNIFORM_INT);
+    if (headOut) { const rt::RigInfo& rig = rt::RigOf(*m); int hb = rig.Find("head"); Matrix hw = hb >= 0 ? rt::BoneWorld(rig, skin, hb, frame) : frame; *headOut = {hw.m12, hw.m13, hw.m14}; }
+    return true;
+}
+SuitLook SuitOf(const std::string& id) {   // the Backrooms' human-shaped cast in the suit's shape
+    SuitLook s; Color skin{214, 180, 150, 255};
+    auto rc = [&](std::initializer_list<Rc> l) { s.rc.assign(l.begin(), l.end()); };
+    if (id == "hound") { rc({{"suit", {150, 140, 132, 255}}, {"trim", {140, 128, 120, 255}}, {"mask", {170, 160, 150, 255}}, {"lens", {30, 10, 10, 255}}, {"patch", {110, 100, 96, 255}}, {"glove", {160, 150, 140, 255}}, {"boot", {150, 140, 132, 255}}, {"sole", {150, 140, 132, 255}}, {"metal", {60, 20, 20, 255}}}); s.crawl = true; s.build = 0.85f; s.walkMul = 1.6f; }
+    else if (id == "scarecrow") { rc({{"suit", {150, 120, 70, 255}}, {"trim", {120, 90, 50, 255}}, {"mask", {200, 170, 110, 255}}, {"lens", {20, 16, 10, 255}}, {"patch", {90, 70, 40, 255}}, {"glove", {200, 180, 110, 255}}, {"boot", {120, 90, 50, 255}}, {"sole", {120, 90, 50, 255}}, {"metal", {90, 70, 40, 255}}}); s.tread = 1; }
+    else if (id == "faceling") rc({{"suit", {58, 66, 86, 255}}, {"trim", {48, 54, 70, 255}}, {"mask", skin}, {"lens", skin}, {"patch", {58, 66, 86, 255}}, {"glove", skin}, {"boot", {40, 40, 46, 255}}, {"sole", {40, 40, 46, 255}}, {"metal", skin}});
+    else if (id == "duller") rc({{"suit", {120, 120, 120, 255}}, {"trim", {110, 110, 110, 255}}, {"mask", {130, 130, 130, 255}}, {"lens", {130, 130, 130, 255}}, {"patch", {110, 110, 110, 255}}, {"glove", {120, 120, 120, 255}}, {"boot", {100, 100, 100, 255}}, {"sole", {100, 100, 100, 255}}, {"metal", {130, 130, 130, 255}}});
+    else if (id == "wretch") { rc({{"suit", {92, 98, 84, 255}}, {"trim", {80, 84, 70, 255}}, {"mask", {120, 112, 96, 255}}, {"lens", {200, 40, 30, 255}}, {"patch", {60, 40, 30, 255}}, {"glove", {120, 112, 96, 255}}}); s.height = 0.85f; s.build = 0.9f; s.walkMul = 1.4f; }
+    else if (id == "survivor") rc({{"suit", {170, 140, 60, 255}}, {"trim", {140, 110, 40, 255}}, {"patch", {60, 40, 20, 255}}});
+    else if (id == "partygoer") rc({{"suit", {250, 214, 70, 255}}, {"trim", {240, 120, 180, 255}}, {"mask", {255, 250, 230, 255}}, {"lens", {20, 20, 20, 255}}, {"patch", {240, 80, 160, 255}}});
+    else if (id == "neighbor") { rc({{"suit", {18, 18, 22, 255}}, {"trim", {18, 18, 22, 255}}, {"mask", {18, 18, 22, 255}}, {"lens", {18, 18, 22, 255}}, {"patch", {18, 18, 22, 255}}, {"glove", {18, 18, 22, 255}}, {"boot", {18, 18, 22, 255}}, {"sole", {18, 18, 22, 255}}, {"metal", {18, 18, 22, 255}}}); s.height = 1.06f; }
+    else if (id == "orderly") { rc({{"suit", {120, 170, 160, 255}}, {"trim", {100, 150, 140, 255}}, {"mask", {230, 230, 225, 255}}, {"lens", {30, 30, 30, 255}}, {"patch", {200, 200, 196, 255}}}); s.height = 1.3f; s.build = 0.9f; }
+    else if (id == "patient") rc({{"suit", {200, 210, 220, 255}}, {"trim", {180, 190, 200, 255}}, {"mask", skin}, {"lens", {40, 40, 40, 255}}, {"glove", skin}, {"boot", skin}, {"sole", skin}, {"patch", {170, 180, 190, 255}}});
+    else if (id == "warden") { rc({{"suit", {40, 40, 50, 255}}, {"trim", {30, 30, 40, 255}}, {"mask", {200, 180, 170, 255}}, {"lens", {20, 20, 20, 255}}, {"patch", {200, 170, 60, 255}}}); s.height = 1.12f; s.build = 1.15f; }
+    else if (id == "friend") { rc({{"suit", {240, 120, 120, 255}}, {"trim", {60, 80, 160, 255}}, {"mask", {240, 210, 190, 255}}, {"lens", {20, 20, 20, 255}}}); s.height = 0.62f; }
+    else if (id == "innkeeper") { rc({{"suit", {80, 40, 30, 255}}, {"trim", {60, 30, 24, 255}}, {"mask", {220, 200, 180, 255}}, {"lens", {20, 20, 20, 255}}}); s.height = 1.15f; s.build = 1.2f; }
+    else if (id == "mirrorthing") { rc({{"suit", {200, 230, 240, 255}}, {"trim", {200, 230, 240, 255}}, {"mask", {220, 240, 250, 255}}, {"lens", {255, 255, 255, 255}}, {"glove", {200, 230, 240, 255}}, {"boot", {200, 230, 240, 255}}}); s.emis = 0.25f; }
+    else if (id == "skinstealer" || id == "crew") { rc({{"suit", {230, 225, 220, 255}}, {"trim", {230, 225, 220, 255}}, {"mask", {240, 236, 230, 255}}, {"lens", {240, 236, 230, 255}}, {"glove", {240, 236, 230, 255}}, {"boot", {230, 225, 220, 255}}, {"patch", {230, 225, 220, 255}}}); s.height = 1.22f; s.build = 0.85f; }
+    else s.model = -1;   // (not human-shaped: the boxes)
+    return s;
+}
 
 // a humanoid of boxes: the Backrooms' cast and the crew. phase: the walk; crawl: on all fours (the Hound)
 struct Look { float height = 1.8f, width = 0.45f; Color body{}, head{}, legs{}; bool face = true, crawl = false, gown = false, hat = false, vest = false, lamp = false, party = false; Color hatC{250, 210, 40, 255}, vestC{240, 200, 30, 255}; };
@@ -327,7 +404,8 @@ Look LookOf(const std::string& id) {
 void DrawEntity(const World& w, const Entity& e, float t, int me) {
     const EntityDef& ed = D().entities[e.def]; const std::string& id = ed.id; float ph = t * 6 + e.uid;
     // a Skin-Stealer wearing someone: their look
-    if ((id == "skinstealer" || id == "crew") && e.mimicOf >= 0 && e.mimicOf < (int)w.crew.size()) { Look k; k.body = {60, 70, 80, 255}; k.head = {220, 190, 160, 255}; k.legs = {50, 50, 60, 255}; k.hat = k.vest = k.lamp = true; Figure(e.p, e.yaw, k, ph * 0.9f); return; }
+    float spd = Vector2Length({e.v.x, e.v.z});
+    if ((id == "skinstealer" || id == "crew") && e.mimicOf >= 0 && e.mimicOf < (int)w.crew.size()) { SuitLook s; s.height = 1.04f; s.walkMul = 0.85f; if (DrawSuit(s, e.p, e.yaw, t, std::clamp(spd / 3, 0.0f, 1.0f), ph * 0.9f)) return; }   // (a friend's suit, a little too tall, walking a little wrong)
     if (id == "smiler") {   // only a face of glowing eyes and teeth in the dark
         Matrix f = Frame(Vector3Add(e.p, {0, 1.6f, 0}), e.yaw);
         for (int s = -1; s <= 1; s += 2) BallM(f, {s * 0.18f, 0.12f, 0}, {0.13f, 0.08f, 0.04f}, {255, 255, 230, 255}, 3.0f);
@@ -340,8 +418,14 @@ void DrawEntity(const World& w, const Entity& e, float t, int me) {
     if (id == "leviathan") { if (fmodf(t, 40) < 6) { float k = fmodf(t, 40) / 6; Box({e.p.x + 30, -3 - 2 * sinf(k * PI), e.p.z}, {40, 6, 12}, {10, 16, 20, 255}); } return; }
     if (id == "seer") { Matrix f = Frame(Vector3Add(e.p, {0, 1.5f, 0}), e.yaw); bool open = fmodf(t + e.uid, 7) > 1.5f; BallM(f, {0, 0, 0}, {0.3f, open ? 0.22f : 0.03f, 0.1f}, {240, 230, 220, 255}); if (open) BallM(f, {0, 0, 0.05f}, {0.1f, 0.1f, 0.05f}, {40, 20, 20, 255}); return; }
     if (id == "sentry") { Matrix f = Frame(Vector3Add(e.p, {0, 0, 0}), e.yaw); BoxM(f, {0, 0.6f, 0}, {0.6f, 0.9f, 0.6f}, {220, 224, 230, 255}); BallM(f, {0, 1.2f, 0}, {0.4f, 0.3f, 0.4f}, {200, 204, 210, 255}); BoxM(f, {0, 1.2f, 0.2f}, {0.25f, 0.06f, 0.05f}, {255, 40, 40, 255}, 3.0f); return; }
+    { SuitLook s = SuitOf(id); if (s.model >= 0) { Vector3 head{}; bool pole = id == "scarecrow"; if (pole) Box({e.p.x, 1.5f, e.p.z - 0.15f}, {0.12f, 3.0f, 0.12f}, {100, 80, 50, 255}); if (DrawSuit(s, pole ? Vector3Add(e.p, {0, 0.9f, 0}) : e.p, e.yaw, t, pole ? 0 : std::clamp(spd / 3, 0.0f, 1.0f), ph, MatrixIdentity(), &head)) {
+        if (pole) { Matrix f = Frame(Vector3Add(head, {0, 0.16f, 0}), e.yaw); BoxM(f, {0, 0, 0}, {0.32f, 0.12f, 0.32f}, {120, 90, 50, 255}); BoxM(f, {0, -0.05f, 0}, {0.56f, 0.02f, 0.56f}, {120, 90, 50, 255}); }
+        if (id == "partygoer") { DrawM(gCyl, MatrixMultiply(MatrixScale(0.14f, 0.26f, 0.14f), MatrixTranslate(head.x, head.y + 0.16f, head.z)), Color{230, 60, 160, 255}); BallM(Frame(Vector3Add(e.p, {0.5f, 2.6f + sinf(t * 1.5f) * 0.1f, 0}), 0), {0, 0, 0}, {0.35f, 0.42f, 0.35f}, {240, 60, 90, 255}); Box({e.p.x + 0.5f, 1.9f, e.p.z}, {0.01f, 1.2f, 0.01f}, WHITE); }
+        if (id == "warden") { Matrix f = Frame(Vector3Add(head, {0, 0.17f, 0}), e.yaw); BoxM(f, {0, 0, 0}, {0.36f, 0.07f, 0.36f}, Color{30, 30, 40, 255}); BoxM(f, {0, -0.03f, 0.06f}, {0.4f, 0.015f, 0.42f}, Color{30, 30, 40, 255}); }
+        if (id == "survivor") { Matrix f = Frame(Vector3Add(head, {0, 0.15f, 0}), e.yaw); BoxM(f, {0, 0, 0}, {0.34f, 0.08f, 0.34f}, Color{240, 200, 40, 255}); }
+        return; } } }
     Look k = LookOf(id);
-    if (id == "scarecrow") { Box({e.p.x, 1.5f, e.p.z}, {0.12f, 3.0f, 0.12f}, {100, 80, 50, 255}); Figure(Vector3Add(e.p, {0, 1.0f, 0}), e.yaw, k, 0); return; }
+    if (id == "scarecrow") { Box({e.p.x, 1.5f, e.p.z}, {0.12f, 3.0f, 0.12f}, {100, 80, 50, 255}); Figure(Vector3Add(e.p, {0, 1.0f, 0}), e.yaw, k, 0); return; }   // (only without the art on disk)
     Figure(e.p, e.yaw, k, Vector2Length({e.v.x, e.v.z}) > 0.2f ? ph : 0);
     if (id == "partygoer") { BallM(Frame(Vector3Add(e.p, {0.5f, 2.6f + sinf(t * 1.5f) * 0.1f, 0}), 0), {0, 0, 0}, {0.35f, 0.42f, 0.35f}, {240, 60, 90, 255}); Box({e.p.x + 0.5f, 1.9f, e.p.z}, {0.01f, 1.2f, 0.01f}, WHITE); }
     (void)me;
@@ -349,31 +433,52 @@ void DrawEntity(const World& w, const Entity& e, float t, int me) {
 void DrawCrewMember(const World& w, const Player& p, float t, bool asFaceling) {
     if (p.st == PS_SURFACE || p.st == PS_TAKEN) return;
     if (p.st == PS_DEAD) return;   // (Wanderers are invisible to the living)
-    Look k; k.body = {70, 80, 100, 255}; k.head = {220, 186, 156, 255}; k.legs = {50, 56, 70, 255}; k.hat = k.vest = true; k.lamp = p.lamp && p.battery > 0;
-    if (p.vest >= 0) { const std::string& id = D().cosmetics[p.vest].id; k.vestC = id == "vest_orange" ? Color{255, 120, 30, 255} : id == "vest_lime" ? Color{170, 240, 40, 255} : id == "vest_pink" ? Color{255, 120, 200, 255} : id == "vest_blue" ? Color{60, 120, 255, 255} : id == "vest_black" ? Color{30, 30, 34, 255} : k.vestC; }
-    if (p.suitCos >= 0) { const std::string& id = D().cosmetics[p.suitCos].id; k.body = id == "suit_navy" ? Color{30, 40, 80, 255} : id == "suit_olive" ? Color{80, 90, 50, 255} : id == "wallpaper_suit" ? Color{200, 180, 90, 255} : id == "director_coat" ? Color{20, 20, 24, 255} : id == "suit_hivis" ? Color{250, 200, 30, 255} : k.body; }
-    if (asFaceling) { k = LookOf("faceling"); }
-    Vector3 at = p.p; if (p.st == PS_DOWNED) { Box(Vector3Add(at, {0, 0.25f, 0}), {0.5f, 0.3f, 1.6f}, k.body, p.yaw); Box(Vector3Add(at, {0, 0.25f, 0.9f}), {0.35f, 0.3f, 0.3f}, k.head, p.yaw); return; }
-    if (!asFaceling && p.hat >= 0) { const std::string& id = D().cosmetics[p.hat].id; k.hatC = id == "st_smiley" ? Color{250, 220, 40, 255} : id == "st_bureau" ? Color{60, 80, 160, 255} : id == "st_hazard" ? Color{250, 140, 20, 255} : id == "st_stars" ? Color{200, 200, 230, 255} : id == "pipe_hat" ? Color{120, 124, 130, 255} : id == "scarecrow_hat" ? Color{120, 90, 50, 255} : id == "exit_hat" ? Color{40, 200, 80, 255} : k.hatC; }
-    Figure(at, p.yaw, k, Vector2Length({p.vel.x, p.vel.z}) > 0.3f ? t * 8 + p.id : 0);
-    if (!asFaceling) {   // toppers and costumes over the figure
-        Matrix f = Frame(at, p.yaw); float H = k.height, hy = H * 0.86f;
-        auto cid = [&](int i) { return i >= 0 && i < (int)D().cosmetics.size() ? D().cosmetics[i].id : std::string(); };
-        std::string h = cid(p.hat), c = cid(p.costume);
-        if (h == "party_hat") BallM(f, {0, hy + H * 0.22f, 0}, {0.12f, 0.22f, 0.12f}, {240, 60, 160, 255});
-        if (h == "faceling_mask") BallM(f, {0, hy, 0.13f}, {0.2f, 0.24f, 0.06f}, {235, 230, 225, 255});
-        if (h == "smiler_grin") BoxM(f, {0, hy - 0.04f, 0.16f}, {0.2f, 0.04f, 0.02f}, {255, 255, 255, 255}, 2.0f);
-        if (h == "lava_lamp") BallM(f, {0, hy + H * 0.2f, 0}, {0.09f, 0.18f + 0.03f * sinf(t * 2), 0.09f}, {255, 90, 40, 255}, 2.5f);
-        if (h == "exit_hat") BoxM(f, {0, hy + H * 0.19f, 0.16f}, {0.2f, 0.07f, 0.02f}, {40, 255, 90, 255}, 3.0f);
-        if (c == "moth_wings") { float fl = 0.25f * sinf(t * 6); BoxM(f, {-0.35f, H * 0.62f, -0.15f}, {0.5f, 0.6f + fl, 0.02f}, {200, 190, 160, 255}); BoxM(f, {0.35f, H * 0.62f, -0.15f}, {0.5f, 0.6f - fl, 0.02f}, {200, 190, 160, 255}); }
-        if (c == "balloon") { BallM(Frame(Vector3Add(at, {0.4f, H + 0.6f + sinf(t * 1.5f + p.id) * 0.08f, 0}), 0), {0, 0, 0}, {0.3f, 0.36f, 0.3f}, {90, 200, 255, 255}); Box({at.x + 0.4f, H * 0.5f + 0.6f, at.z}, {0.01f, H, 0.01f}, WHITE); }
-        if (c == "hound_costume") { BoxM(f, {-0.1f, hy + 0.12f, 0}, {0.06f, 0.16f, 0.1f}, {60, 50, 40, 255}); BoxM(f, {0.1f, hy + 0.12f, 0}, {0.06f, 0.16f, 0.1f}, {60, 50, 40, 255}); BoxM(f, {0, H * 0.45f, -0.3f}, {0.06f, 0.06f, 0.35f}, {60, 50, 40, 255}); }
-        if (c == "almond_costume") BallM(f, {0, H * 0.55f, 0}, {0.42f, 0.6f, 0.38f}, {220, 200, 160, 255});
+    auto cid = [&](int i) { return i >= 0 && i < (int)D().cosmetics.size() ? D().cosmetics[i].id : std::string(); };
+    std::string h = cid(p.hat), c = cid(p.costume), su = cid(p.suitCos), ve = cid(p.vest), la = cid(p.lamp_c);
+    SuitLook s;
+    if (asFaceling) s = SuitOf("faceling");
+    else {
+        if (c == "bureau_orange") s.model = 1;   // (the unique costume: the orange suit and the visor helmet)
+        // the coverall's colour (suits), the tape and the hood's rim (vests and stickers)
+        Color suitC = su == "suit_navy" ? Color{40, 54, 100, 255} : su == "suit_olive" ? Color{96, 106, 60, 255} : su == "suit_grey" ? Color{140, 140, 136, 255} : su == "wallpaper_suit" ? Color{214, 196, 110, 255} : su == "director_coat" ? Color{26, 26, 30, 255} : su == "suit_hivis" ? Color{250, 200, 30, 255} : su == "carpet_suit" ? Color{150, 120, 80, 255} : su == "concrete_suit" ? Color{150, 150, 146, 255} : su == "glass_suit" ? Color{190, 220, 230, 255} : Color{0, 0, 0, 0};
+        if (suitC.a) { s.rc.push_back({"suit", suitC}); s.rc.push_back({"trim", Mx(suitC, BLACK, 0.18f)}); }
+        Color tape = ve == "vest_orange" ? Color{255, 120, 30, 255} : ve == "vest_lime" ? Color{170, 240, 40, 255} : ve == "vest_pink" ? Color{255, 120, 200, 255} : ve == "vest_blue" ? Color{60, 120, 255, 255} : ve == "vest_black" ? Color{20, 20, 22, 255} : ve == "wallpaper_vest" ? Color{214, 196, 110, 255} : Color{0, 0, 0, 0};
+        if (tape.a) s.rc.push_back({"patch", tape});
+        Color rim = h == "st_smiley" ? Color{250, 220, 40, 255} : h == "st_bureau" ? Color{60, 80, 160, 255} : h == "st_hazard" ? Color{250, 140, 20, 255} : h == "st_stars" ? Color{200, 200, 230, 255} : Color{0, 0, 0, 0};
+        if (rim.a) s.rc.push_back({"trim", rim});
+        Color lens = la == "lamp_warm" ? Color{120, 90, 40, 255} : la == "lamp_cold" ? Color{60, 90, 130, 255} : la == "lamp_green" ? Color{40, 120, 60, 255} : la == "lamp_red" ? Color{140, 30, 30, 255} : la == "lamp_purple" ? Color{90, 40, 130, 255} : la == "lamp_uv" ? Color{70, 30, 160, 255} : la == "lamp_rainbow" ? ColorFromHSV(fmodf(t * 60, 360), 0.8f, 0.7f) : Color{0, 0, 0, 0};
+        if (lens.a) s.rc.push_back({"lens", lens});
     }
+    Vector3 at = p.p; float spd = Vector2Length({p.vel.x, p.vel.z});
+    Matrix pre = MatrixIdentity();
+    if (p.st == PS_DOWNED) { pre = MatrixMultiply(MatrixRotateZ(PI / 2), MatrixTranslate(0, 0.18f, 0)); spd = 0; }   // (on their back)
+    Vector3 head{};
+    if (!DrawSuit(s, at, p.yaw, t + p.id * 1.7f, std::clamp(spd / 3.0f, 0.0f, 1.0f), t * 8 + p.id, pre, &head)) {   // (no art on disk: the old boxes)
+        Look k; k.body = {200, 160, 30, 255}; k.head = {30, 30, 30, 255}; k.legs = k.body; k.lamp = p.lamp && p.battery > 0;
+        Figure(at, p.yaw, k, spd > 0.3f ? t * 8 + p.id : 0); return;
+    }
+    if (p.st == PS_DOWNED) return;
+    // the headlamp on the hood's brow, toppers and costumes over the figure
+    Vector3 fw{cosf(p.yaw), 0, sinf(p.yaw)};
+    if (p.lamp && p.battery > 0) BallM(Frame(Vector3Add(head, Vector3Add(Vector3Scale(fw, 0.13f), {0, 0.12f, 0})), p.yaw), {0, 0, 0}, {0.05f, 0.05f, 0.035f}, Color{255, 250, 220, 255}, 2.0f);
+    if (asFaceling) return;
+    Matrix f = Frame(at, p.yaw); float hy = head.y - at.y + 0.08f, H = 1.8f;
+    Matrix hf = Frame(Vector3Add(head, {0, 0.08f, 0}), p.yaw);
+    if (h == "party_hat") BallM(hf, {0, 0.18f, 0}, {0.11f, 0.2f, 0.11f}, {240, 60, 160, 255});
+    if (h == "pipe_hat") DrawM(gCyl, MatrixMultiply(MatrixScale(0.12f, 0.28f, 0.12f), MatrixTranslate(head.x, head.y + 0.14f, head.z)), {120, 124, 130, 255});
+    if (h == "scarecrow_hat") { BoxM(hf, {0, 0.12f, 0}, {0.32f, 0.12f, 0.32f}, {120, 90, 50, 255}); BoxM(hf, {0, 0.07f, 0}, {0.52f, 0.02f, 0.52f}, {120, 90, 50, 255}); }
+    if (h == "faceling_mask") BallM(hf, {0, -0.08f, 0.15f}, {0.13f, 0.16f, 0.05f}, {235, 230, 225, 255});
+    if (h == "smiler_grin") BoxM(hf, {0, -0.12f, 0.17f}, {0.18f, 0.04f, 0.02f}, {255, 255, 255, 255}, 2.0f);
+    if (h == "lava_lamp") BallM(hf, {0, 0.2f, 0}, {0.08f, 0.16f + 0.03f * sinf(t * 2), 0.08f}, {255, 90, 40, 255}, 2.5f);
+    if (h == "exit_hat") BoxM(hf, {0, 0.16f, 0.06f}, {0.2f, 0.07f, 0.02f}, {40, 255, 90, 255}, 3.0f);
+    if (c == "moth_wings") { float fl = 0.25f * sinf(t * 6); BoxM(f, {-0.35f, H * 0.62f, -0.18f}, {0.5f, 0.6f + fl, 0.02f}, {200, 190, 160, 255}); BoxM(f, {0.35f, H * 0.62f, -0.18f}, {0.5f, 0.6f - fl, 0.02f}, {200, 190, 160, 255}); }
+    if (c == "balloon") { BallM(Frame(Vector3Add(at, {0.4f, H + 0.6f + sinf(t * 1.5f + p.id) * 0.08f, 0}), 0), {0, 0, 0}, {0.3f, 0.36f, 0.3f}, {90, 200, 255, 255}); Box({at.x + 0.4f, H * 0.5f + 0.6f, at.z}, {0.01f, H, 0.01f}, WHITE); }
+    if (c == "hound_costume") { BoxM(hf, {-0.1f, 0.1f, 0}, {0.06f, 0.16f, 0.1f}, {60, 50, 40, 255}); BoxM(hf, {0.1f, 0.1f, 0}, {0.06f, 0.16f, 0.1f}, {60, 50, 40, 255}); BoxM(f, {0, H * 0.45f, -0.3f}, {0.06f, 0.06f, 0.35f}, {60, 50, 40, 255}); }
+    if (c == "almond_costume") BallM(f, {0, H * 0.55f, 0}, {0.42f, 0.6f, 0.38f}, {220, 200, 160, 255});
+    (void)hy;
     if (p.hands.def >= 0) DrawLoot(p.hands, Vector3Add(at, {cosf(p.yaw) * 0.5f, 0.9f, sinf(p.yaw) * 0.5f}), t, p.yaw);
     (void)w;
 }
-
 }  // namespace
 
 // ---------------------------------------------------------------- the frame
@@ -399,7 +504,7 @@ static void SetCommon(const World& w, const View& v, const Level* L, LevelGfx* G
     for (const auto& p : w.crew) if (n < 8 && p.level == v.level && p.Alive() && p.id != v.me && p.lamp && p.battery > 0) { pts[n] = {p.p.x + cosf(p.yaw) * 2, 1.0f, p.p.z + sinf(p.yaw) * 2, 6}; cols[n] = {1, 0.95f, 0.8f, 0.6f}; n++; }
     SetShaderValueV(S3.sh, S3.point, pts, SHADER_UNIFORM_VEC4, std::max(1, n)); SetShaderValueV(S3.sh, S3.pointCol, cols, SHADER_UNIFORM_VEC4, std::max(1, n)); SetShaderValue(S3.sh, S3.points, &n, SHADER_UNIFORM_INT);
     static Texture2D dark{}; if (!dark.id) { Image i = GenImageColor(2, 2, BLACK); dark = LoadTextureFromImage(i); UnloadImage(i); }
-    Texture2D lt = G ? G->lightTex : dark;
+    Texture2D lt = G ? G->lightTex : dark; gCurLight = lt;
     for (Model* m : {&gCube, &gSphere, &gCyl}) if (m->meshCount) m->materials[0].maps[MATERIAL_MAP_EMISSION].texture = lt;
     if (G) for (Model* m : {&G->walls, &G->floors, &G->ceils, &G->low, &G->glass, &G->water, &G->lab, &G->wheat}) if (m->meshCount) m->materials[0].maps[MATERIAL_MAP_EMISSION].texture = lt;
     Emis(0);

@@ -131,7 +131,7 @@ int RunNoclipGen(int level, uint32_t seed) {
 
 int RunNoclipTest() {
     gFails = 0; std::printf("NOCLIP tests\n"); const Data& d = D();
-    Check(d.levels.size() == 20 && d.entities.size() >= 20 && d.items.size() >= 22 && d.suits.size() == 6 && d.labUps.size() == 7 && d.contracts.size() == 8 && d.cosmetics.size() == 40, "the data: 20 levels, the entities, 22 items, 6 suits, 7 Lab upgrades, 8 contracts, 40 cosmetics", Fm("%.0f levels, %.0f entities, %.0f items", d.levels.size(), d.entities.size(), d.items.size()));
+    Check(d.levels.size() == 20 && d.entities.size() >= 20 && d.items.size() >= 22 && d.suits.size() == 6 && d.labUps.size() == 7 && d.contracts.size() == 8 && d.cosmetics.size() == 41, "the data: 20 levels, the entities, 22 items, 6 suits, 7 Lab upgrades, 8 contracts, 41 cosmetics (40 and the Orange)", Fm("%.0f levels, %.0f entities, %.0f items", d.levels.size(), d.entities.size(), d.items.size()));
     // every level generates and every Lab reaches every exit, over several days' seeds
     { int bad = 0; std::string first; int labs = 0, exits = 0; for (int lv = 0; lv < 20; lv++) for (uint32_t s = 1; s <= 4; s++) { Level L = Generate(lv, s * 977); std::string why; if (!CheckReachable(L, &why)) { bad++; if (first.empty()) first = "level " + std::to_string(lv) + ": " + why; } labs += (int)L.labs.size(); exits += (int)L.exits.size(); }
       Check(bad == 0, "all twenty levels generate with every Lab reaching every exit (4 seeds each)", bad ? first : Fm("%.0f Labs, %.0f exits", labs, exits)); }

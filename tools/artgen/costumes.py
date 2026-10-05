@@ -621,10 +621,11 @@ def build(name, out):
     print("artgen: wrote", path)
 
 
-a = C.args()
-only = a[a.index("--only") + 1].split(",") if "--only" in a else None
-out = C.out_dir()
-for n in COSTUMES:
-    if only and n not in only:
-        continue
-    build(n, out)
+if not os.environ.get("ARTGEN_IMPORT"):   # (noclip_crew.py imports the kit without building every costume)
+    a = C.args()
+    only = a[a.index("--only") + 1].split(",") if "--only" in a else None
+    out = C.out_dir()
+    for n in COSTUMES:
+        if only and n not in only:
+            continue
+        build(n, out)

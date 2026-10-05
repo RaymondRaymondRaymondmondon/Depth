@@ -476,8 +476,14 @@ void DebugNoclipShot(Game& g, int which) {
     if (which == 4) { Level& lv = w.L(6); Vector3 at = open(lv); put(6, at, 0, 0); Entity e; e.def = EntityIndex("smiler"); e.level = 6; e.p = Vector3Add(at, {6, 0, 0}); e.uid = 5; w.ents.push_back(e); }
     if (which == 5) { put(0, l0.start, 0, 0); for (int k = 0; k < 30; k++) { p.p = Vector3Add(l0.start, {(float)(k % 6) * 6, 0, (float)(k / 6) * 6}); w.SeeMap(p); } p.p = l0.start; S.map = true; }
     if (which == 6) { put(0, lp.spots[LP_DESK].at, 0, 0); w.Lab(0, 0)->charging = true; w.Lab(0, 0)->charge = 0.55f; S.panel = 0; }
-    if (which == 7) { Level& lv = w.L(1); Vector3 at = open(lv); put(1, at, 0, 0); Entity e; e.def = EntityIndex("hound"); e.level = 1; e.p = Vector3Add(at, {5, 0, 0.5f}); e.uid = 6; e.yaw = PI; w.ents.push_back(e); }
+    if (which == 7) { Level& lv = w.L(1); Vector3 at = open(lv); put(1, at, 0, 0); Entity e; e.def = EntityIndex("hound"); e.level = 1; e.p = Vector3Add(at, {4, 0, 0.5f}); e.uid = 6; e.yaw = PI * 0.62f; e.v = {-1.5f, 0, 0.8f}; w.ents.push_back(e); }
     if (which == 8) { Vector3 at = open(l0); put(0, at, 0, 0); p.sanity = 22; S.fakeT = 0; Hallucinate(0.1f); Entity e; e.hallucination = true; e.def = EntityIndex("faceling"); e.level = 0; e.p = Vector3Add(at, {5, 0, 0}); S.fakes.push_back(e); }
     if (which == 9) { Level& lv = w.L(9); Vector3 at = lv.start; for (int i = 0; i < lv.w * lv.h; i++) if (lv.flags[i] & CF_STREETLIGHT) { at = lv.Center(i % lv.w, i / lv.w); break; } put(9, Vector3Add(at, {1, 0, 1}), 0.4f, 0.05f); }
+    if (which == 10 || which == 11) {   // the crew and the cast, close up (the hazmat suits; the Orange costume)
+        Vector3 at = open(l0); put(0, at, 0, 0.02f);
+        for (int k = 1; k <= 2; k++) { Player& q = w.crew[k]; q.level = 0; q.st = PS_ALIVE; q.p = Vector3Add(at, {3.2f, 0, k == 1 ? -0.75f : 0.75f}); q.yaw = PI + (k == 1 ? 0.3f : -0.3f); q.vel = which == 11 ? Vector3{-2.5f, 0, 0} : Vector3{}; }
+        for (int i = 0; i < (int)D().cosmetics.size(); i++) if (D().cosmetics[i].id == "bureau_orange") w.crew[2].costume = i;
+        if (which == 11) for (const char* id : {"faceling", "partygoer", "patient", "warden"}) { static int n = 0; Entity e; e.def = EntityIndex(id); e.level = 0; e.uid = 900 + n; e.p = Vector3Add(at, {5.5f, 0, -2.4f + (n % 4) * 1.6f}); e.yaw = PI; e.st = ES_IDLE; w.ents.push_back(e); n++; }
+    }
     S.lastDay = w.day; ReadEvents(); StepCamera(1 / 60.0f);
 }
