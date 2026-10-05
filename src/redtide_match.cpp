@@ -1223,6 +1223,18 @@ void Match::SteerDiver(int di, Vector3 wish, float vert, bool sprint, bool ads, 
     if (d.drumUses > 0 && map->extra["quest_altar"].IsObj()) speed *= map->extra["quest_altar"]["carry_speed"].F(0.8f);   // (the drum's weight)
     Vector3 want = moving ? Vector3Scale(Vector3Normalize(wish), speed) : Vector3{0, 0, 0};
     want.y = std::clamp(vert, -1.0f, 1.0f) * e.M("vertical_speed", 1.4f) * (d.downed ? 0.4f : 1.0f);
+    // a player swims where they look (the user: the swimming didn't feel good): swimming forward while looking up or
+    // down climbs or dives along the look, as well as the up/down keys; the horizontal pace eases off to match
+    if (!d.bot && moving && !air && !d.downed) {
+        Vector3 fwd{sinf(d.yaw), 0, cosf(d.yaw)};
+        float along = Vector3DotProduct(Vector3Normalize(wish), fwd);   // (1 swimming ahead, -1 backing off, 0 strafing)
+        float p = std::clamp(d.pitch, -1.2f, 1.2f);
+        if (fabsf(along) > 0.2f && fabsf(p) > 0.12f) {
+            float k = along * sinf(p);
+            want.y = std::clamp(want.y + k * speed * 0.85f, -speed, speed);
+            want.x *= 0.75f + 0.25f * cosf(p); want.z *= 0.75f + 0.25f * cosf(p);
+        }
+    }
     if (air) want.y = -4.0f;                                    // on foot in an air chamber: gravity, no swimming up
     if (sprinting) d.stamina = std::max(0.0f, d.stamina - dt / (e.M("sprint_stamina_s", 6) * (kick ? e.M("kick_brine_stamina_mult", 1.5f) : 1.0f)));
     else d.stamina = std::min(1.0f, d.stamina + dt / e.M("stamina_regen_s", 8));

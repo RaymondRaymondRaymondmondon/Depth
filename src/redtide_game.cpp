@@ -1412,9 +1412,29 @@ static Camera3D MakeCamera(SceneLight& L) {
     cam.position = M().Eye(d);
     if (d.downed || d.dead) cam.position.y -= 0.35f;
     if (gFreeCam && M().mode == RM_AQUARIUM) cam.position = gFreePos;
+    // the swim's rhythm (the user: the swimming didn't feel good): each kick lifts the view a little and settles, the head
+    // leans into a turn or a sideways drift, and a sprint opens the view; gentle, and off with the sway comfort setting
+    static float strokePh = 0, lean = 0, fovK = 0;
+    float sw = GameSettings().rtSway ? 1.0f : 0.0f;
+    {
+        float dt = std::min(GetFrameTime(), 0.05f);
+        Vector3 hv{d.vel.x, 0, d.vel.z};
+        float spd = Vector3Length(hv);
+        strokePh += dt * (1.6f + spd * 1.5f);
+        Vector3 rgt{cosf(d.yaw), 0, -sinf(d.yaw)};
+        float side = Vector3DotProduct(hv, rgt);
+        lean += (std::clamp(-side * 0.035f, -0.06f, 0.06f) - lean) * std::min(1.0f, dt * 4);
+        bool sprinting = spd > Engine().M("swim_speed", 2) * 1.15f;
+        fovK += ((sprinting ? 1.0f : 0.0f) - fovK) * std::min(1.0f, dt * 3);
+        float amp = std::min(1.0f, spd / 2.5f);
+        if (!d.downed && !d.dead && !(gFreeCam && M().mode == RM_AQUARIUM)) {
+            cam.position.y += sw * (0.03f * amp * sinf(strokePh * 2) + 0.012f * sinf(strokePh * 0.5f));   // (a kick, and the slow drift of the water)
+            cam.position = Vector3Add(cam.position, Vector3Scale(rgt, sw * 0.015f * amp * sinf(strokePh)));
+        }
+    }
     cam.target = Vector3Add(cam.position, f);
-    cam.up = {0, 1, 0};
-    cam.fovy = d.ads ? 55.0f : 72.0f;
+    cam.up = Vector3Normalize(Vector3Add({0, 1, 0}, Vector3Scale({cosf(d.yaw), 0, -sinf(d.yaw)}, lean * sw)));
+    cam.fovy = (d.ads ? 55.0f : 72.0f) + (d.ads ? 0.0f : 5.0f * fovK * sw);
     cam.projection = CAMERA_PERSPECTIVE;
     L.lampPos = cam.position;
     L.lampDir = f;
@@ -2330,6 +2350,12 @@ static void DrawHud() {
     DrawDial({52, SCREEN_H - 172.0f}, 26, scent, "SCENT", BloodCol(Color{150, 26, 20, 255}), 0.7f);
     DrawDial({52, SCREEN_H - 238.0f}, 26, pulse + tremble, "PULSE", Color{40, 34, 28, 255}, 0.75f);
     DrawDial({52, SCREEN_H - 304.0f}, 26, d.stamina, "AIR", Color{40, 70, 110, 255}, 0.2f, true);
+    // the floor gauge (the user: your height was hard to judge): how far below you the floor is, 0 to 8 m, and the
+    // metres written under it
+    if (d.zone >= 0 && d.zone < (int)m.map->zones.size() && !m.map->zones[d.zone].air) {
+        float hf = std::max(0.0f, m.Eye(d).y - m.map->zones[d.zone].y0 - 0.3f);
+        DrawDial({52, SCREEN_H - 370.0f}, 26, std::clamp(hf / 8.0f, 0.0f, 1.0f), "FLOOR", Color{70, 60, 40, 255}, 2, false, TextFormat("%.1f", hf));
+    }
     DrawPortCracks(d.downed ? 1.0f : (0.3f - frac) / 0.3f);
     // where the last hit came from: a red arc at the screen's edge
     if (d.hurtT > 0) {
