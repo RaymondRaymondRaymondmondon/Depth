@@ -162,3 +162,16 @@ Arcade Game 10, on the Deep Arcade's **Action** reel. The user moved it there; t
   - Hounds crawl on all fours, pale.
 - **Still boxes:** the old box figures remain only as a fallback when the art is missing.
 - **New shots:** `noclip_crew`, `noclip_cast`. `noclip_hound` is now a three-quarter view.
+## The look, the third pass (2026-10-05, the playtest: "the VHS filter is a little sickening", "the trash you pick up is just blocks", "you should be able to see in your inventory what items you picked up", "the enemies are blockier than they should be")
+- **The tape effect is gentler and the player's choice.** The VHS pass has a strength (`View::tape`): wobble, tear, colour fringe, smear, scanlines and grain all scale with it. F8 cycles off / light (the default) / full, saved in `noclip_profile.txt`. Fear still adds its noise.
+- **Loot is real things:** 57 archetype models (`tools/artgen/noclip_props.py` -> `assets/noclip/props/`: wallet, VHS tape, keys, office chair, desk lamp, toolbox, jerrycan, gramophone, grandfather clock, diving helmet, ship's bell, piano, TV, cake...).
+  - Each of the 117 loot names maps to one by its words (`PropArchOf`).
+  - They're drawn through the level shader in their own colours (`DrawPropModel`).
+  - Anomalous things hover and turn.
+- **The pack:** two pocket slots and the hands, each with a lit picture of the thing (`ncr::LootIcon`, rendered once into a small target), its name and its value; G drops, T throws.
+- **The Lab and the creatures** (`tools/artgen/noclip_world.py` -> `assets/noclip/world/`):
+  - The Lab: the portal ring (it turns as it charges), the console with three CRTs and levers, the drop-off bin, a vending machine, bunks, the generator (it shakes when running), the monitor wall, the archive shelves, the blast door, the breaker.
+  - The exits are doors in frames under a green EXIT sign.
+  - The creatures: the Smiler's face (glowing eyes and teeth), the Clump (on the ceiling until it drops), the Deathmoth (a body and two flapping wings), the giant spider, the Sentry robot, the Seer's eye (it blinks), the Leviathan's shadow.
+  - The old boxes remain only as a fallback.
+- **New shot:** `noclip_beasts`. `noclip_lab` now shows the pack with three items and loot on the floor.

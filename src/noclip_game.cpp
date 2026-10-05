@@ -42,9 +42,9 @@ const Color INK{235, 232, 220, 255}, DIM{170, 166, 150, 255}, WARN{255, 160, 110
 void Say(const std::string& s, Color c = INK) { S.subs.push_back({s, S.t, c}); while (S.subs.size() > 6) S.subs.pop_front(); }
 
 // the profile: arcade tokens (10 a day survived, 50 a quota, 25 a new entity photographed)
-struct NcProfile { int career = 0; std::vector<std::string> owned; std::string eq[5]; } gNcProf;
-void LoadTokens() { if (S.profLoaded) return; S.profLoaded = true; std::ifstream f("noclip_profile.txt"); std::string k; while (f >> k) { if (k == "tokens") f >> S.tokens; else if (k == "career") f >> gNcProf.career; else if (k == "own") { std::string s; f >> s; gNcProf.owned.push_back(s); } else if (k == "eq") { int slot; std::string s; f >> slot >> s; if (slot >= 0 && slot < 5) gNcProf.eq[slot] = s; } } }
-void SaveTokens() { std::ofstream f("noclip_profile.txt"); f << "tokens " << S.tokens << "\ncareer " << gNcProf.career << "\n"; for (auto& s : gNcProf.owned) f << "own " << s << "\n"; for (int k = 0; k < 5; k++) if (!gNcProf.eq[k].empty()) f << "eq " << k << " " << gNcProf.eq[k] << "\n"; }
+struct NcProfile { int career = 0; std::vector<std::string> owned; std::string eq[5]; int tape = 1; } gNcProf;   // (tape: the VHS look, 0 off, 1 light, 2 full)
+void LoadTokens() { if (S.profLoaded) return; S.profLoaded = true; std::ifstream f("noclip_profile.txt"); std::string k; while (f >> k) { if (k == "tokens") f >> S.tokens; else if (k == "career") f >> gNcProf.career; else if (k == "tape") f >> gNcProf.tape; else if (k == "own") { std::string s; f >> s; gNcProf.owned.push_back(s); } else if (k == "eq") { int slot; std::string s; f >> slot >> s; if (slot >= 0 && slot < 5) gNcProf.eq[slot] = s; } } }
+void SaveTokens() { std::ofstream f("noclip_profile.txt"); f << "tokens " << S.tokens << "\ncareer " << gNcProf.career << "\ntape " << gNcProf.tape << "\n"; for (auto& s : gNcProf.owned) f << "own " << s << "\n"; for (int k = 0; k < 5; k++) if (!gNcProf.eq[k].empty()) f << "eq " << k << " " << gNcProf.eq[k] << "\n"; }
 int CosIdx(const std::string& id) { for (int i = 0; i < (int)D().cosmetics.size(); i++) if (D().cosmetics[i].id == id) return i; return -1; }
 int SlotOf(const std::string& kind) { return kind == "hat" ? 0 : kind == "vest" ? 1 : kind == "lamp" ? 2 : kind == "suit" ? 3 : 4; }
 std::string RankName() { std::string r = "Intern"; for (const auto& x : D().ranks) if (gNcProf.career >= x.second) r = x.first; return r; }
@@ -220,10 +220,25 @@ void DrawHud(Game& g) {
         Txt(TextFormat("%d", k + 1), s.x + 3, s.y + 2, 11, DIM);
         if (p.tools[k].item >= 0) { const ItemDef& it = D().items[p.tools[k].item]; std::string nm = it.name.substr(0, 9); DrawTextCentered(nm, s.x + 24, s.y + 18, 11, INK); if (p.tools[k].charges > 1) Txt(TextFormat("x%d", p.tools[k].charges), s.x + 30, s.y + 34, 11, DIM); }
     }
-    float hy = SCREEN_H - 96.0f;
     auto lootLine = [&](const Loot& l) { const LootDef& d = D().loot[l.def]; return d.name + "  ~$" + std::to_string((int)(l.value * S.valueLie)) + (l.damaged ? " (damaged)" : ""); };
-    if (p.hands.def >= 0) DrawTextCentered("In your hands: " + lootLine(p.hands) + (p.carryWith >= 0 ? "  (two of you)" : ""), cx, hy, 15, INK);
-    for (int k = 0; k < 2; k++) if (p.pocket[k].def >= 0) DrawTextCentered("Pocket: " + lootLine(p.pocket[k]), cx, hy - 18 - k * 18, 13, DIM);
+    // what you're carrying (the playtest: "you should be able to see in your inventory what items you picked up"): two
+    // pockets and your hands, each with a picture of the thing, its name and what it'll fetch; G drops, T throws
+    {
+        float x0 = cx + p.toolSlots * 52 / 2.0f + 18;
+        auto slot = [&](Rectangle r, const Loot& l, const char* label) {
+            DrawRectangleRec(r, Color{20, 20, 18, 210}); DrawRectangleLinesEx(r, 1, l.def >= 0 ? Color{200, 180, 110, 255} : Color{70, 70, 64, 255});
+            Txt(label, r.x + 4, r.y + 2, 10, DIM);
+            if (l.def < 0) { DrawTextCentered("empty", r.x + r.width / 2, r.y + r.height / 2 - 6, 11, Color{90, 90, 84, 255}); return; }
+            Texture2D ic = ncr::LootIcon(l.def); float s = std::min(r.width - 8, r.height - 26);
+            DrawTexturePro(ic, {0, 0, (float)ic.width, -(float)ic.height}, {r.x + (r.width - s) / 2, r.y + 10, s, s}, {0, 0}, 0, WHITE);
+            const LootDef& d = D().loot[l.def]; std::string nm = d.name.size() > 16 ? d.name.substr(0, 15) + "." : d.name;
+            DrawTextCentered(nm, r.x + r.width / 2, r.y + r.height - 26, 10, INK);
+            DrawTextCentered(TextFormat("~$%d%s", (int)(l.value * S.valueLie), l.damaged ? " dmg" : ""), r.x + r.width / 2, r.y + r.height - 14, 10, l.damaged ? WARN : Color{200, 230, 160, 255});
+        };
+        slot({x0, SCREEN_H - 92.0f, 70, 70}, p.pocket[0], "pocket"); slot({x0 + 74, SCREEN_H - 92.0f, 70, 70}, p.pocket[1], "pocket");
+        slot({x0 + 148, SCREEN_H - 112.0f, 92, 90}, p.hands, p.carryWith >= 0 ? "hands (two of you)" : "hands");
+        if (p.hands.def >= 0 || p.pocket[0].def >= 0 || p.pocket[1].def >= 0) Txt("G drop  T throw", x0, SCREEN_H - 18.0f, 10, DIM);
+    }
     // what's in front of you
     DrawCircle((int)cx, (int)cy, 2, Fade(INK, 0.7f));
     {
@@ -416,10 +431,12 @@ void SceneNoclip(Game& g) {
     if (w.day != S.lastDay) { if (w.day > S.lastDay && !S.shot) { S.tokens += D().tokDay; SaveTokens(); } S.lastDay = w.day; }
     ReadEvents();
     Player& p = Me();
+    static const float TAPE[3] = {0.0f, 0.35f, 1.0f}; static const char* TAPE_N[3] = {"off", "light", "full"};
+    if (IsKeyPressed(KEY_F8) && !S.shot) { LoadTokens(); gNcProf.tape = (gNcProf.tape + 1) % 3; SaveTokens(); Say(TextFormat("The tape effect: %s (F8)", TAPE_N[gNcProf.tape]), INK); }
     // the frame: the Surface between days; the level otherwise (a Wanderer sees through the dark)
     { NcAudio a; a.on = !S.shot; a.surface = !w.inDay || p.st == PS_SURFACE; a.level = p.level; a.overtime = w.overtime; a.lightsOut = p.level == 1 && w.lightsOutT > 0; a.sanity = p.sanity; LabState* lab = w.inDay ? w.LabAt(p.level, p.p) : nullptr; a.inLab = lab != nullptr; for (const auto& l : w.labs) if (l.level == p.level && l.charging) a.charge = std::max(a.charge, l.charge); a.dead = p.st == PS_DEAD; AudioNoclip(a); }
     if (!w.inDay || p.st == PS_SURFACE) {
-        ncr::View v; v.surface = true; v.t = S.t; v.lamp = false; v.cam.position = {16 + sinf(S.t * 0.05f) * 3, 2.2f, 17}; v.cam.target = {16, 1.6f, 5}; v.cam.up = {0, 1, 0}; v.cam.fovy = 65; v.cam.projection = CAMERA_PERSPECTIVE; v.me = S.me;
+        ncr::View v; v.surface = true; v.t = S.t; v.lamp = false; v.cam.position = {16 + sinf(S.t * 0.05f) * 3, 2.2f, 17}; v.cam.target = {16, 1.6f, 5}; v.cam.up = {0, 1, 0}; v.cam.fovy = 65; v.cam.projection = CAMERA_PERSPECTIVE; v.me = S.me; v.tape = TAPE[std::clamp(gNcProf.tape, 0, 2)];
         ncr::RenderSurface(w, v); DrawSurface(g);
         if (p.st == PS_SURFACE && w.inDay) DrawTextCentered("You're up. The rest of the crew is still down there.", SCREEN_W / 2.0f, 46, 15, WARN);
         return;
@@ -430,7 +447,7 @@ void SceneNoclip(Game& g) {
     if (p.lampFlicker > 0) { p.lampFlicker -= dt; if (sinf(S.t * 40) > 0.3f) v.lamp = false; }
     v.flashlight = p.tools[std::clamp(p.sel, 0, 4)].item == ItemIndex("flashlight") && p.in.primaryHeld;
     v.noise = std::clamp((60 - p.sanity) / 60.0f, 0.0f, 1.0f) * 0.7f + (w.overtime ? 0.2f : 0); v.blackout = std::max(S.blackout * 0.5f, p.blackoutT > 0 ? 1.0f : 0.0f);
-    v.fakes = S.fakes; v.teammatesAsFacelings = p.sanity < 30 && fmodf(S.t, 20) < 6;
+    v.fakes = S.fakes; v.teammatesAsFacelings = p.sanity < 30 && fmodf(S.t, 20) < 6; v.tape = TAPE[std::clamp(gNcProf.tape, 0, 2)];
     ncr::Render(w, v);
     DrawHud(g);
 }
@@ -470,7 +487,11 @@ void DebugNoclipShot(Game& g, int which) {
     auto put = [&](int level, Vector3 at, float yaw, float pitch) { if (p.level != level) w.Transit(p, level, false, "shot"); p.p = at; p.yaw = yaw; S.camYaw = yaw; S.camPitch = pitch; for (auto& q : w.crew) w.SeeMap(q); };
     auto open = [&](const Level& lv) { for (int i = 0; i < 4000; i++) { int x = 4 + (i * 37) % (lv.w - 8), z = 4 + (i * 53) % (lv.h - 8); if (lv.At(x, z) == T_FLOOR && lv.At(x + 1, z) == T_FLOOR && lv.At(x + 2, z) == T_FLOOR && lv.At(x + 3, z) == T_FLOOR) return lv.Center(x, z); } return lv.start; };
     if (which == 0) { Vector3 d = l0.Center(lp.doorX, lp.doorZ + (lp.doorZ > lp.z1 ? 2 : -2)); put(0, d, lp.doorZ > lp.z1 ? PI / 2 : -PI / 2, 0); w.crew[1].p = Vector3Add(d, {2, 0, 2}); w.crew[1].level = 0; }
-    if (which == 1) { put(0, lp.spots[LP_CRATE].at, 0.6f, -0.1f); w.crew[1].p = lp.spots[LP_DESK].at; }
+    if (which == 1) { put(0, lp.spots[LP_CRATE].at, 0.6f, -0.1f); w.crew[1].p = lp.spots[LP_DESK].at;
+        auto give = [&](const char* name, Loot& slot) { for (int i = 0; i < (int)D().loot.size(); i++) if (D().loot[i].name == name) { slot.def = i; slot.value = (D().loot[i].min + D().loot[i].max) / 2; } };
+        give("Wallet", p.pocket[0]); give("VHS tape", p.pocket[1]); give("Gramophone", p.hands);
+        for (const char* nm : {"Office chair", "Toolbox", "Desk plant", "Computer tower", "Grandfather clock", "Diving helmet"}) { static int n = 0; for (int i = 0; i < (int)D().loot.size(); i++) if (D().loot[i].name == nm) { WorldItem wi; wi.level = 0; wi.loot.def = i; wi.loot.value = 30; wi.p = Vector3Add(lp.spots[LP_CRATE].at, {2.0f + (n % 3) * 1.1f, 0, -1.0f + (n / 3) * 1.4f}); w.items.push_back(wi); break; } n++; }
+    }
     if (which == 2) { w.EndDay(true); WorldItem wi; for (int k = 0; k < 6; k++) { Loot l; l.def = k; l.value = 20 + k * 10; l.foundOn = 0; w.bay.push_back(l); } }
     if (which == 3) { Level& lv = w.L(2); put(2, open(lv), 0, 0); }
     if (which == 4) { Level& lv = w.L(6); Vector3 at = open(lv); put(6, at, 0, 0); Entity e; e.def = EntityIndex("smiler"); e.level = 6; e.p = Vector3Add(at, {6, 0, 0}); e.uid = 5; w.ents.push_back(e); }
@@ -479,6 +500,10 @@ void DebugNoclipShot(Game& g, int which) {
     if (which == 7) { Level& lv = w.L(1); Vector3 at = open(lv); put(1, at, 0, 0); Entity e; e.def = EntityIndex("hound"); e.level = 1; e.p = Vector3Add(at, {4, 0, 0.5f}); e.uid = 6; e.yaw = PI * 0.62f; e.v = {-1.5f, 0, 0.8f}; w.ents.push_back(e); }
     if (which == 8) { Vector3 at = open(l0); put(0, at, 0, 0); p.sanity = 22; S.fakeT = 0; Hallucinate(0.1f); Entity e; e.hallucination = true; e.def = EntityIndex("faceling"); e.level = 0; e.p = Vector3Add(at, {5, 0, 0}); S.fakes.push_back(e); }
     if (which == 9) { Level& lv = w.L(9); Vector3 at = lv.start; for (int i = 0; i < lv.w * lv.h; i++) if (lv.flags[i] & CF_STREETLIGHT) { at = lv.Center(i % lv.w, i / lv.w); break; } put(9, Vector3Add(at, {1, 0, 1}), 0.4f, 0.05f); }
+    if (which == 12) {   // the creatures that aren't people, in a row
+        Vector3 at = open(l0); put(0, at, 0, 0.12f); int n = 0;
+        for (const char* id : {"smiler", "clump", "deathmoth", "spider", "sentry", "seer"}) { Entity e; e.def = EntityIndex(id); if (e.def < 0) { n++; continue; } e.level = 0; e.uid = 700 + n; e.p = Vector3Add(at, {6.0f, 0, -4.5f + n * 1.8f}); e.yaw = PI; e.st = id == std::string("clump") ? ES_ATTACK : ES_IDLE; w.ents.push_back(e); n++; }
+    }
     if (which == 10 || which == 11) {   // the crew and the cast, close up (the hazmat suits; the Orange costume)
         Vector3 at = open(l0); put(0, at, 0, 0.02f);
         for (int k = 1; k <= 2; k++) { Player& q = w.crew[k]; q.level = 0; q.st = PS_ALIVE; q.p = Vector3Add(at, {3.2f, 0, k == 1 ? -0.75f : 0.75f}); q.yaw = PI + (k == 1 ? 0.3f : -0.3f); q.vel = which == 11 ? Vector3{-2.5f, 0, 0} : Vector3{}; }

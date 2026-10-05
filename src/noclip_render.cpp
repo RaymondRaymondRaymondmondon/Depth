@@ -63,20 +63,23 @@ void main() {
 })";
 const char* VHS_FS = R"(#version 330
 in vec2 fragTexCoord; in vec4 fragColor;
-uniform sampler2D texture0; uniform float uTime; uniform float uNoise; uniform vec2 uRes; uniform float uBlack;
+uniform sampler2D texture0; uniform float uTime; uniform float uNoise; uniform vec2 uRes; uniform float uBlack; uniform float uTape;
 out vec4 finalColor;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 void main() {
     vec2 uv = fragTexCoord;
-    float wob = sin(uv.y * 220.0 + uTime * 3.0) * 0.0007 * (1.0 + uNoise * 5.0);
-    float band = fract(uv.y * 0.6 - uTime * 0.07); float tear = smoothstep(0.0, 0.015, band) * smoothstep(0.03, 0.015, band);
+    // (the playtest: "a little sickening": uTape scales the tape's wobble, tear, colour fringe, smear and grain; 0 a clean picture,
+    // 0.35 the default light touch, 1 the full camcorder. Fear still adds its noise.)
+    float k = uTape;
+    float wob = sin(uv.y * 220.0 + uTime * 3.0) * 0.0007 * (k + uNoise * 4.0);
+    float band = fract(uv.y * 0.6 - uTime * 0.07); float tear = smoothstep(0.0, 0.015, band) * smoothstep(0.03, 0.015, band) * min(1.0, k + uNoise);
     uv.x += wob + tear * 0.004 * (1.0 + uNoise * 3.0);
-    float ca = 0.0022 * (1.0 + uNoise * 2.0);
+    float ca = 0.0022 * (k + uNoise * 1.5);
     vec3 c = vec3(texture(texture0, uv + vec2(ca, 0.0)).r, texture(texture0, uv).g, texture(texture0, uv - vec2(ca, 0.0)).b);
-    c = mix(c, (texture(texture0, uv + vec2(0.003, 0.0)).rgb + texture(texture0, uv - vec2(0.003, 0.0)).rgb) * 0.5, 0.25);   // the smear
-    float scan = 0.9 + 0.1 * sin(uv.y * uRes.y * 3.14159);
+    c = mix(c, (texture(texture0, uv + vec2(0.003, 0.0)).rgb + texture(texture0, uv - vec2(0.003, 0.0)).rgb) * 0.5, 0.25 * k);   // the smear
+    float scan = 1.0 - 0.1 * k + 0.1 * k * sin(uv.y * uRes.y * 3.14159);
     float n = hash(uv * uRes + floor(uTime * 30.0));
-    c = c * scan + (n - 0.5) * (0.05 + uNoise * 0.12) + tear * 0.06;
+    c = c * scan + (n - 0.5) * (0.05 * k + uNoise * 0.12) + tear * 0.06;
     vec2 v = uv - 0.5; c *= 1.0 - dot(v, v) * 0.75;
     float g = dot(c, vec3(0.3, 0.59, 0.11)); c = mix(c, vec3(g), 0.12); c = pow(max(c, 0.0), vec3(0.95));
     c *= 1.0 - uBlack;
@@ -84,7 +87,7 @@ void main() {
 })";
 
 struct Shader3D { Shader sh{}; int skinned = -1; int time, breath, light, levelSize, lightColor, ambient, ceil, lampPos, lampDir, lampOn, lampRange, lampCone, fog, fogDensity, cam, emissive, point, pointCol, points; bool ok = false; };
-Shader3D S3; Shader gVhs{}; int gVhsTime, gVhsNoise, gVhsRes, gVhsBlack; bool gVhsOk = false;
+Shader3D S3; Shader gVhs{}; int gVhsTime, gVhsNoise, gVhsRes, gVhsBlack, gVhsTape; bool gVhsOk = false;
 void EnsureShaders() {
     if (S3.ok) return;
     S3.sh = LoadShaderFromMemory(LEVEL_VS, LEVEL_FS); S3.ok = true;
@@ -94,7 +97,7 @@ void EnsureShaders() {
     S3.point = loc("uPoint"); S3.pointCol = loc("uPointCol"); S3.points = loc("uPoints"); S3.skinned = loc("uSkinned");
     S3.sh.locs[SHADER_LOC_MATRIX_MODEL] = loc("matModel");
     S3.sh.locs[SHADER_LOC_MAP_EMISSION] = loc("uLight");   // (the light grid rides along as a material map: DrawMesh binds those)
-    gVhs = LoadShaderFromMemory(nullptr, VHS_FS); gVhsTime = GetShaderLocation(gVhs, "uTime"); gVhsNoise = GetShaderLocation(gVhs, "uNoise"); gVhsRes = GetShaderLocation(gVhs, "uRes"); gVhsBlack = GetShaderLocation(gVhs, "uBlack"); gVhsOk = true;
+    gVhs = LoadShaderFromMemory(nullptr, VHS_FS); gVhsTime = GetShaderLocation(gVhs, "uTime"); gVhsNoise = GetShaderLocation(gVhs, "uNoise"); gVhsRes = GetShaderLocation(gVhs, "uRes"); gVhsBlack = GetShaderLocation(gVhs, "uBlack"); gVhsTape = GetShaderLocation(gVhs, "uTape"); gVhsOk = true;
 }
 
 // ---------------------------------------------------------------- the procedural textures (flat and overlit)
@@ -339,10 +342,61 @@ void Figure(Vector3 at, float yaw, const Look& L, float phase) {
 }
 
 // ---------------------------------------------------------------- the things in a level
+// the loot as real things (tools/artgen/noclip_props.py): each name to an archetype model by its words
+const char* PropArchOf(const std::string& nameIn) {
+    std::string n = nameIn; for (auto& ch : n) ch = (char)tolower(ch);
+    auto has = [&](const char* s) { return n.find(s) != std::string::npos; };
+    static const std::pair<const char*, const char*> MAP[] = {
+        {"battery box", "batterybox"}, {"car battery", "batterybox"}, {"tractor battery", "batterybox"}, {"batteries", "batteries"},
+        {"wallet", "wallet"}, {"vhs", "tape"}, {"keys on", "keys"}, {"lanyard", "keys"}, {"flashlight", "flashlight"}, {"backpack", "backpack"},
+        {"office chair", "chair"}, {"desk lamp", "lamp"}, {"pallet", "pallet"}, {"can of food", "can"}, {"badge", "badge"}, {"key card", "badge"},
+        {"usb", "badge"}, {"data drive", "badge"}, {"crate", "crate"}, {"chest", "crate"}, {"toolbox", "toolbox"}, {"lunchbox", "toolbox"},
+        {"jeweler", "toolbox"}, {"register drawer", "toolbox"}, {"jerrycan", "jerrycan"}, {"mask", "mask"}, {"gauge", "gauge"}, {"valve", "valve"},
+        {"jar", "jar"}, {"egg", "jar"}, {"copper pipe", "pipe"}, {"fuse", "fuse"}, {"radio tube", "fuse"}, {"radio", "radio"}, {"coil", "coil"},
+        {"transformer", "coil"}, {"stapler", "stapler"}, {"album", "book"}, {"photo", "photo"}, {"ledger", "book"}, {"journal", "book"},
+        {"yearbook", "book"}, {"log", "book"}, {"files", "book"}, {"computer", "tower"}, {"server", "tower"}, {"console", "tower"},
+        {"coffee", "coffee"}, {"plant", "plant"}, {"filing cabinet", "cabinet"}, {"jewelry", "jewelry"}, {"cufflink", "jewelry"},
+        {"pocket watch", "jewelry"}, {"gramophone", "gramophone"}, {"champagne", "bottle"}, {"almond water", "bottle"}, {"tray", "tray"},
+        {"silver", "tray"}, {"clock", "clock"}, {"camera", "camera"}, {"lantern", "lantern"}, {"diving helmet", "helmet"}, {"bell", "bell"},
+        {"crystal", "crystal"}, {"ore", "crystal"}, {"lens", "crystal"}, {"glassware", "crystal"}, {"sculpture", "crystal"}, {"tooth", "skull_tooth"},
+        {"toy", "toy"}, {"remote", "remote"}, {"tv", "tv"}, {"piano", "piano"}, {"grain", "sack"}, {"quilt", "quilt"}, {"art", "frame"},
+        {"mirror", "frame"}, {"furniture", "chair"}, {"cake", "cake"}, {"instruments", "instruments"}, {"equipment", "instruments"},
+        {"black box", "instruments"}, {"stock", "instruments"}, {"lucky die", "die"}, {"compass", "compass"}, {"exit sign", "exitsign"},
+        {"key", "key"}, {"luggage", "luggage"}, {"effects", "luggage"}, {"safe", "safe"}, {"generator", "machine"}, {"machine", "machine"},
+        {"mining", "machine"}, {"farm tools", "machine"}, {"prototype", "machine"}, {"robot", "machine"}, {"projector", "machine"},
+        {"tack", "machine"}, {"restraints", "machine"}, {"wrench", "toolbox"}, {"heart", "jar"},
+    };
+    for (const auto& m : MAP) if (has(m.first)) return m.second;
+    return "crate";
+}
+const Model* PropModel(int def) {
+    static std::map<int, const Model*> cache; auto it = cache.find(def); if (it != cache.end()) return it->second;
+    const Model* m = def >= 0 && def < (int)D().loot.size() ? rt::LoadAsset(std::string("noclip/props/") + PropArchOf(D().loot[def].name) + ".glb") : nullptr;
+    cache[def] = m; return m;
+}
+void DrawPropModel(const Model& m, Matrix world, float emis) {   // a baked prop through the level shader (its own colours)
+    if (emis != gEmissive) Emis(emis);
+    for (int i = 0; i < m.meshCount; i++) {
+        Material mat = m.materials[m.meshMaterial[i]]; MaterialMap maps[12]; memcpy(maps, mat.maps, sizeof(maps)); mat.maps = maps; mat.shader = S3.sh;
+        maps[MATERIAL_MAP_DIFFUSE].texture = White(); maps[MATERIAL_MAP_EMISSION].texture = gCurLight;
+        DrawMesh(m.meshes[i], mat, MatrixMultiply(m.transform, world));
+    }
+}
+const Model* WorldModel(const char* name) { return rt::LoadAsset(std::string("noclip/world/") + name + ".glb"); }
+// a fitting or a creature at a place, turned to a yaw (its front along the yaw), with an extra local transform first
+bool DrawWorld(const char* name, Vector3 at, float yaw, float emis = 0, Matrix local = MatrixIdentity()) {
+    const Model* m = WorldModel(name); if (!m) return false;
+    DrawPropModel(*m, MatrixMultiply(local, Frame(at, yaw)), emis); return true;
+}
 Color LootColor(int def) { uint32_t h = Hh((uint32_t)def * 2654435761u); return {(unsigned char)(90 + (h & 0x7F)), (unsigned char)(80 + ((h >> 8) & 0x7F)), (unsigned char)(70 + ((h >> 16) & 0x7F)), 255}; }
 void DrawLoot(const Loot& l, Vector3 at, float t, float yaw) {
     if (l.def < 0) return; const LootDef& ld = D().loot[l.def]; Color c = LootColor(l.def); float emis = ld.props.find("glowing") != std::string::npos ? 1.4f : 0;
     float bob = ld.anomalous ? sinf(t * 2) * 0.05f + 0.1f : 0;
+    if (const Model* pm = PropModel(l.def)) {   // (the real thing; an anomalous one hovers and turns)
+        float spin = ld.anomalous ? t * 0.8f : 0;
+        DrawPropModel(*pm, MatrixMultiply(MatrixRotateY(-yaw + PI / 2 + spin), MatrixTranslate(at.x, at.y + bob, at.z)), emis + (ld.anomalous ? 0.25f : 0));
+        return;
+    }
     if (ld.size == "s") Box({at.x, 0.08f + bob, at.z}, {0.22f, 0.12f, 0.16f}, c, yaw, emis);
     else if (ld.size == "m") Box({at.x, 0.25f + bob, at.z}, {0.5f, 0.5f, 0.4f}, c, yaw, emis);
     else if (ld.size == "l") Box({at.x, 0.45f, at.z}, {0.9f, 0.9f, 0.6f}, c, yaw, emis);
@@ -357,28 +411,29 @@ void DrawLabFittings(const World& w, const Level& L, float t) {
             switch (sp.part) {
                 case LP_RING: {   // the ring of machinery round the portal
                     float spin = s && s->charging ? t * (2 + s->charge * 6) : 0; float glow = s ? (s->openT > 0 ? 3.0f : s->charging ? 0.5f + s->charge * 1.5f : 0) : 0;
-                    for (int q = 0; q < 16; q++) { float an = q * PI / 8 + spin; Box({a.x + cosf(an) * 1.6f, 1.5f + sinf(an) * 1.4f, a.z}, {0.35f, 0.35f, 0.5f}, q % 2 ? brass : steel, an, glow * 0.3f); }
+                    if (WorldModel("ring")) { DrawWorld("ring", a, PI / 2, glow * 0.12f, MatrixMultiply(MatrixMultiply(MatrixTranslate(0, -1.5f, 0), MatrixRotateZ(spin)), MatrixTranslate(0, 1.5f, 0))); }
+                    else for (int q = 0; q < 16; q++) { float an = q * PI / 8 + spin; Box({a.x + cosf(an) * 1.6f, 1.5f + sinf(an) * 1.4f, a.z}, {0.35f, 0.35f, 0.5f}, q % 2 ? brass : steel, an, glow * 0.3f); }
                     if (glow > 0) Box({a.x, 1.5f, a.z}, {2.4f, 2.4f, 0.05f}, s && s->openT > 0 ? Color{200, 230, 255, 255} : Color{120, 160, 255, 255}, 0, glow);
                     Box({a.x, 0.05f, a.z}, {3.4f, 0.1f, 1.4f}, steel); break;
                 }
-                case LP_DESK: Box({a.x, 0.5f, a.z}, {1.8f, 1.0f, 0.7f}, steel); for (int q = 0; q < 3; q++) Box({a.x - 0.6f + q * 0.6f, 1.25f, a.z}, {0.45f, 0.4f, 0.4f}, Color{50, 50, 54, 255}, 0, on ? 0.2f : 0); break;
-                case LP_CRATE: Box({a.x, 0.6f, a.z}, {1.3f, 1.2f, 1.0f}, Color{90, 110, 80, 255}); Box({a.x, 0.2f, a.z + 0.9f}, {1.2f, 0.12f, 0.8f}, Color{40, 40, 44, 255}); if (s) for (int q = 0; q < std::min(6, (int)s->crate.size()); q++) Box({a.x - 0.4f + (q % 3) * 0.4f, 1.3f + (q / 3) * 0.25f, a.z}, {0.3f, 0.2f, 0.3f}, LootColor(s->crate[q].def)); break;
-                case LP_SHOP: Box({a.x, 0.95f, a.z}, {0.9f, 1.9f, 0.8f}, Color{150, 40, 40, 255}); Box({a.x, 1.4f, a.z - 0.41f}, {0.6f, 0.4f, 0.02f}, Color{200, 230, 255, 255}, 0, on ? 0.8f : 0); break;
-                case LP_BUNK: Box({a.x, 0.4f, a.z}, {0.9f, 0.3f, 2.0f}, Color{90, 90, 70, 255}); Box({a.x, 1.3f, a.z}, {0.9f, 0.1f, 2.0f}, Color{90, 90, 70, 255}); break;
-                case LP_GEN: Box({a.x, 0.7f, a.z}, {1.3f, 1.4f, 1.0f}, Color{170, 120, 40, 255}, 0, on ? 0.1f + 0.05f * sinf(t * 30) : 0); break;
-                case LP_MONITORS: for (int q = 0; q < 6; q++) Box({a.x, 0.9f + (q / 3) * 0.55f, a.z - 0.6f + (q % 3) * 0.6f}, {0.3f, 0.45f, 0.55f}, Color{40, 44, 40, 255}, 0, on ? 0.6f : 0); break;
-                case LP_ARCHIVE: for (int q = 0; q < 3; q++) Box({a.x, 0.7f, a.z - 0.6f + q * 0.6f}, {0.6f, 1.4f, 0.5f}, Color{110, 110, 100, 255}); break;
+                case LP_DESK: if (DrawWorld("desk", a, PI / 2, on ? 0.04f : 0)) break; Box({a.x, 0.5f, a.z}, {1.8f, 1.0f, 0.7f}, steel); for (int q = 0; q < 3; q++) Box({a.x - 0.6f + q * 0.6f, 1.25f, a.z}, {0.45f, 0.4f, 0.4f}, Color{50, 50, 54, 255}, 0, on ? 0.2f : 0); break;
+                case LP_CRATE: if (!DrawWorld("bin", a, PI / 2)) { Box({a.x, 0.6f, a.z}, {1.3f, 1.2f, 1.0f}, Color{90, 110, 80, 255}); Box({a.x, 0.2f, a.z + 0.9f}, {1.2f, 0.12f, 0.8f}, Color{40, 40, 44, 255}); } if (s) for (int q = 0; q < std::min(6, (int)s->crate.size()); q++) Box({a.x - 0.4f + (q % 3) * 0.4f, 1.3f + (q / 3) * 0.25f, a.z}, {0.3f, 0.2f, 0.3f}, LootColor(s->crate[q].def)); break;
+                case LP_SHOP: if (DrawWorld("vending", a, -PI / 2, on ? 0.12f : 0)) break; Box({a.x, 0.95f, a.z}, {0.9f, 1.9f, 0.8f}, Color{150, 40, 40, 255}); Box({a.x, 1.4f, a.z - 0.41f}, {0.6f, 0.4f, 0.02f}, Color{200, 230, 255, 255}, 0, on ? 0.8f : 0); break;
+                case LP_BUNK: if (DrawWorld("bunk", a, PI / 2)) break; Box({a.x, 0.4f, a.z}, {0.9f, 0.3f, 2.0f}, Color{90, 90, 70, 255}); Box({a.x, 1.3f, a.z}, {0.9f, 0.1f, 2.0f}, Color{90, 90, 70, 255}); break;
+                case LP_GEN: if (DrawWorld("generator", a, PI / 2, on ? 0.04f + 0.03f * sinf(t * 30) : 0, on ? MatrixTranslate(0.004f * sinf(t * 70), 0, 0) : MatrixIdentity())) break; Box({a.x, 0.7f, a.z}, {1.3f, 1.4f, 1.0f}, Color{170, 120, 40, 255}, 0, on ? 0.1f + 0.05f * sinf(t * 30) : 0); break;
+                case LP_MONITORS: if (DrawWorld("monitors", a, PI / 2, on ? 0.35f : 0)) break; for (int q = 0; q < 6; q++) Box({a.x, 0.9f + (q / 3) * 0.55f, a.z - 0.6f + (q % 3) * 0.6f}, {0.3f, 0.45f, 0.55f}, Color{40, 44, 40, 255}, 0, on ? 0.6f : 0); break;
+                case LP_ARCHIVE: if (DrawWorld("archive", a, PI / 2)) break; for (int q = 0; q < 3; q++) Box({a.x, 0.7f, a.z - 0.6f + q * 0.6f}, {0.6f, 1.4f, 0.5f}, Color{110, 110, 100, 255}); break;
             }
         }
         // the blast door, shut or open
         Vector3 d = L.Center(lp.doorX, lp.doorZ); bool open = s && s->doorOpen;
-        Box({d.x + (open ? 1.0f : 0), 1.3f, d.z}, {CELL * 0.95f, 2.6f, 0.3f}, Color{90, 92, 96, 255}); Box({d.x + (open ? 1.0f : 0), 2.0f, d.z}, {1.2f, 0.2f, 0.32f}, Color{240, 200, 40, 255});
-        Vector3 br = L.Center(lp.breakerX, lp.breakerZ); Box({br.x, 1.2f, br.z}, {0.4f, 0.6f, 0.2f}, Color{60, 66, 60, 255}); Box({br.x, 1.25f, br.z - 0.12f}, {0.08f, 0.2f, 0.08f}, open ? Color{60, 200, 80, 255} : Color{220, 50, 40, 255}, 0, 0.8f);
+        if (!DrawWorld("blastdoor", {d.x + (open ? 1.0f : 0), 0, d.z}, PI / 2)) { Box({d.x + (open ? 1.0f : 0), 1.3f, d.z}, {CELL * 0.95f, 2.6f, 0.3f}, Color{90, 92, 96, 255}); Box({d.x + (open ? 1.0f : 0), 2.0f, d.z}, {1.2f, 0.2f, 0.32f}, Color{240, 200, 40, 255}); }
+        Vector3 br = L.Center(lp.breakerX, lp.breakerZ); if (!DrawWorld("breaker", {br.x, 0, br.z}, PI / 2)) Box({br.x, 1.2f, br.z}, {0.4f, 0.6f, 0.2f}, Color{60, 66, 60, 255}); Box({br.x, 1.25f, br.z - 0.12f}, {0.08f, 0.2f, 0.08f}, open ? Color{60, 200, 80, 255} : Color{220, 50, 40, 255}, 0, 0.8f);
     }
     // the exits: doors in frames, stairwells, ladders; noclip spots are just a little wrong
     for (const auto& e : L.exits) {
         Vector3 c = L.Center(e.cx, e.cz);
-        if (!e.noclip) { Box({c.x, 1.1f, c.z}, {1.0f, 2.2f, 0.2f}, Color{140, 100, 60, 255}); Box({c.x, 2.3f, c.z}, {0.5f, 0.18f, 0.06f}, Color{40, 200, 80, 255}, 0, 1.2f); }
+        if (!e.noclip) { if (!DrawWorld("exitdoor", c, PI / 2)) Box({c.x, 1.1f, c.z}, {1.0f, 2.2f, 0.2f}, Color{140, 100, 60, 255}); Box({c.x, 2.45f, c.z - 0.11f}, {0.42f, 0.12f, 0.02f}, Color{40, 200, 80, 255}, 0, 1.4f); }
         else if (e.kind == "noclip") Box({c.x, 0.02f, c.z}, {CELL * 0.8f, 0.02f, CELL * 0.8f}, Color{250, 236, 200, 255}, 0, 0.1f + 0.1f * sinf(t * 1.7f));
     }
 }
@@ -406,6 +461,19 @@ void DrawEntity(const World& w, const Entity& e, float t, int me) {
     // a Skin-Stealer wearing someone: their look
     float spd = Vector2Length({e.v.x, e.v.z});
     if ((id == "skinstealer" || id == "crew") && e.mimicOf >= 0 && e.mimicOf < (int)w.crew.size()) { SuitLook s; s.height = 1.04f; s.walkMul = 0.85f; if (DrawSuit(s, e.p, e.yaw, t, std::clamp(spd / 3, 0.0f, 1.0f), ph * 0.9f)) return; }   // (a friend's suit, a little too tall, walking a little wrong)
+    if (id == "smiler" && DrawWorld("smiler", e.p, e.yaw, 2.6f)) return;
+    if (id == "clump" && WorldModel("clump")) { bool down = e.st == ES_ATTACK; DrawWorld("clump", Vector3Add(e.p, {0, down ? 0 : 2.4f, 0}), e.yaw + t * 0.2f, 0, down ? MatrixIdentity() : MatrixRotateX(PI)); return; }   // (it clings to the ceiling and drops)
+    if (id == "deathmoth" && WorldModel("moth_body")) {
+        Vector3 at = Vector3Add(e.p, {0, 1.8f + sinf(t * 5 + e.uid) * 0.3f, 0}); float fl = sinf(t * 18 + e.uid) * 0.7f;
+        DrawWorld("moth_body", at, e.yaw);
+        DrawWorld("moth_wing", at, e.yaw, 0, MatrixMultiply(MatrixRotateZ(fl), MatrixTranslate(0.15f, 0.05f, 0)));
+        DrawWorld("moth_wing", at, e.yaw, 0, MatrixMultiply(MatrixRotateZ(PI - fl), MatrixTranslate(-0.15f, 0.05f, 0)));
+        return;
+    }
+    if (id == "spider" && DrawWorld("spider", Vector3Add(e.p, {0, sinf(ph * 2) * 0.03f, 0}), e.yaw, 0, MatrixScale(1.2f, 1.2f, 1.2f))) return;
+    if (id == "sentry" && DrawWorld("sentry", e.p, e.yaw, e.stunT > 0 ? 0 : 0.15f)) return;
+    if (id == "seer" && WorldModel("seer")) { bool open = fmodf(t + e.uid, 7) > 1.5f; DrawWorld("seer", Vector3Add(e.p, {0, 1.5f, 0}), e.yaw, 0.1f, MatrixScale(1, open ? 1.0f : 0.15f, 1)); return; }
+    if (id == "leviathan" && WorldModel("leviathan")) { if (fmodf(t, 40) < 6) { float k = fmodf(t, 40) / 6; DrawWorld("leviathan", {e.p.x + 30, -3 - 2 * sinf(k * PI), e.p.z}, 0); } return; }
     if (id == "smiler") {   // only a face of glowing eyes and teeth in the dark
         Matrix f = Frame(Vector3Add(e.p, {0, 1.6f, 0}), e.yaw);
         for (int s = -1; s <= 1; s += 2) BallM(f, {s * 0.18f, 0.12f, 0}, {0.13f, 0.08f, 0.04f}, {255, 255, 230, 255}, 3.0f);
@@ -479,7 +547,31 @@ void DrawCrewMember(const World& w, const Player& p, float t, bool asFaceling) {
     if (p.hands.def >= 0) DrawLoot(p.hands, Vector3Add(at, {cosf(p.yaw) * 0.5f, 0.9f, sinf(p.yaw) * 0.5f}), t, p.yaw);
     (void)w;
 }
+// a loot item's picture for the pack: its model in a small target, lit from the upper left (a tiny shader of its own)
+Texture2D LootIconImpl(int def) {
+    static std::map<int, RenderTexture2D> icons; auto it = icons.find(def); if (it != icons.end()) return it->second.texture;
+    static Shader ish{}; static int lLight = -1;
+    if (!ish.id) {
+        ish = LoadShaderFromMemory("#version 330\nin vec3 vertexPosition; in vec3 vertexNormal; uniform mat4 mvp; uniform mat4 matModel; out vec3 n;\nvoid main(){ n = normalize(mat3(matModel) * vertexNormal); gl_Position = mvp * vec4(vertexPosition, 1.0); }\n",
+                                   "#version 330\nin vec3 n; uniform vec4 colDiffuse; uniform vec3 uL; out vec4 finalColor;\nvoid main(){ float d = max(dot(normalize(n), normalize(uL)), 0.0); finalColor = vec4(colDiffuse.rgb * (0.35 + 0.75 * d), 1.0); }\n");
+        lLight = GetShaderLocation(ish, "uL"); ish.locs[SHADER_LOC_MATRIX_MODEL] = GetShaderLocation(ish, "matModel");
+    }
+    RenderTexture2D rt = LoadRenderTexture(96, 96);
+    const Model* m = PropModel(def);
+    BeginLayer(rt); ClearBackground(BLANK);
+    if (m) {
+        BoundingBox bb = GetModelBoundingBox(*m); Vector3 c = Vector3Scale(Vector3Add(bb.min, bb.max), 0.5f); float r = std::max(0.05f, Vector3Distance(bb.min, bb.max) * 0.5f);
+        Camera3D cam{}; cam.target = c; cam.position = Vector3Add(c, Vector3Scale(Vector3Normalize({0.9f, 0.7f, 1.4f}), r * 2.6f)); cam.up = {0, 1, 0}; cam.fovy = 40; cam.projection = CAMERA_PERSPECTIVE;
+        Vector3 Ld{-0.4f, 1.0f, 0.7f}; SetShaderValue(ish, lLight, &Ld, SHADER_UNIFORM_VEC3);
+        BeginMode3D(cam);
+        for (int i = 0; i < m->meshCount; i++) { Material mat = m->materials[m->meshMaterial[i]]; mat.shader = ish; DrawMesh(m->meshes[i], mat, m->transform); }
+        EndMode3D();
+    }
+    EndLayer();
+    icons[def] = rt; return rt.texture;
+}
 }  // namespace
+Texture2D LootIcon(int def) { return LootIconImpl(def); }
 
 // ---------------------------------------------------------------- the frame
 static void SetCommon(const World& w, const View& v, const Level* L, LevelGfx* G) {
@@ -512,7 +604,7 @@ static void SetCommon(const World& w, const View& v, const Level* L, LevelGfx* G
 static void VhsBlit(const View& v) {
     RenderTexture2D& rt3d = Mode3DRT();
     float t = v.t; float noise = std::clamp(v.noise, 0.0f, 1.0f); Vector2 res{(float)SCREEN_W, (float)SCREEN_H}; float black = std::clamp(v.blackout, 0.0f, 1.0f);
-    SetShaderValue(gVhs, gVhsTime, &t, SHADER_UNIFORM_FLOAT); SetShaderValue(gVhs, gVhsNoise, &noise, SHADER_UNIFORM_FLOAT); SetShaderValue(gVhs, gVhsRes, &res, SHADER_UNIFORM_VEC2); SetShaderValue(gVhs, gVhsBlack, &black, SHADER_UNIFORM_FLOAT);
+    { float tape = v.tape; SetShaderValue(gVhs, gVhsTape, &tape, SHADER_UNIFORM_FLOAT); } SetShaderValue(gVhs, gVhsTime, &t, SHADER_UNIFORM_FLOAT); SetShaderValue(gVhs, gVhsNoise, &noise, SHADER_UNIFORM_FLOAT); SetShaderValue(gVhs, gVhsRes, &res, SHADER_UNIFORM_VEC2); SetShaderValue(gVhs, gVhsBlack, &black, SHADER_UNIFORM_FLOAT);
     BeginShaderMode(gVhs);
     DrawTexturePro(rt3d.texture, {0, 0, (float)rt3d.texture.width, -(float)rt3d.texture.height}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE);
     EndShaderMode();

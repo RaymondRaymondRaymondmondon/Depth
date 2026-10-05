@@ -29,6 +29,8 @@ $jobs = @(
     @{ script = "costumes.py";     out = "assets\shared\costumes" },
     @{ script = "noclip_crew.py";  out = "assets\noclip" },
     @{ script = "fowl_props.py";   out = "assets\fowl" },
+    @{ script = "noclip_props.py"; out = "assets\noclip\props" },
+    @{ script = "noclip_world.py"; out = "assets\noclip\world" },
     @{ script = "weapons_rt.py";   out = "assets\redtide\weapons" },
     @{ script = "creatures_rt.py"; out = "assets\redtide\creatures" },
     @{ script = "flora_rt.py";     out = "assets\redtide\flora" },

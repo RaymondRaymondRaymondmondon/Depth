@@ -11,9 +11,11 @@ struct View {
     bool surface = false; float noise = 0; float blackout = 0; int me = -1; bool ghost = false; bool scanner = false;
     std::vector<nc::Entity> fakes;   // this player's hallucinations
     bool teammatesAsFacelings = false;
+    float tape = 0.35f;              // the VHS look's strength (0 off, 0.35 light, 1 full: the player's choice, F8)
 };
 void Render(const nc::World& w, const View& v);                   // the 3D frame into Mode3DRT, then the VHS pass onto the screen
 void RenderSurface(const nc::World& w, const View& v);            // the Bureau's warehouse at night (sodium light)
 void Stamp(const std::string& left, const std::string& right, float t);   // the camcorder's overlay: REC, the date and the clock
 void Unload();
+Texture2D LootIcon(int lootDef);                                   // a little picture of a loot item (its model, lit), for the pack
 }

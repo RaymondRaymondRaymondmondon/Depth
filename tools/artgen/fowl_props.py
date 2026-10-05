@@ -192,10 +192,11 @@ def build(name, out):
     C.export_glb(PARTS, os.path.join(out, f"{name}.glb"))
 
 
-a = C.args()
-only = a[a.index("--only") + 1].split(",") if "--only" in a else None
-out = C.out_dir()
-for n in BUILDS:
-    if only and n not in only:
-        continue
-    build(n, out)
+if not os.environ.get("ARTGEN_IMPORT"):   # (noclip_props.py imports the helpers)
+    a = C.args()
+    only = a[a.index("--only") + 1].split(",") if "--only" in a else None
+    out = C.out_dir()
+    for n in BUILDS:
+        if only and n not in only:
+            continue
+        build(n, out)
