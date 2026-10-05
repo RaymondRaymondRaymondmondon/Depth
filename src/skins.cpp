@@ -164,10 +164,10 @@ int RunSkinsTest() {
     w = Wardrobe{};
     w.tokens = 1000;
     std::string why;
-    check(BuySkin(TRAWL, "t_harbour_blue", &why) && w.Owns("t_harbour_blue") && w.tokens == 800 && w.worn == "t_harbour_blue", "a store skin bought for 200 tokens and worn");
+    check(BuySkin(TRAWL, "t_harbour_blue", &why) && w.Owns("t_harbour_blue") && w.tokens == 1000 - Find(TRAWL, "t_harbour_blue")->price && w.worn == "t_harbour_blue", TextFormat("a store skin bought for %d tokens and worn", Find(TRAWL, "t_harbour_blue")->price));
     check(!BuySkin(TRAWL, "t_harbour_blue", &why) && why == "already yours", "it can't be bought twice");
     check(!BuySkin(TRAWL, "t_glimmer", &why), "crate skins aren't for sale");
-    check(BuyCrate(TRAWL, &why) && w.crates == 1 && w.tokens == 800 - CRATE_PRICE, TextFormat("a crate bought for %d tokens", CRATE_PRICE));
+    check(BuyCrate(TRAWL, &why) && w.crates == 1 && w.tokens == 1000 - Find(TRAWL, "t_harbour_blue")->price - CRATE_PRICE, TextFormat("a crate bought for %d tokens", CRATE_PRICE));
     Roll r = OpenCrate(TRAWL, 7);
     check(r.ok && !r.duplicate && w.Owns(r.id) && w.crates == 0 && Find(TRAWL, r.id)->rarity == r.rarity, TextFormat("opened: %s %s", RarityName(r.rarity), r.id.c_str()));
     // force a duplicate: own everything of the rolled rarity, then roll until that rarity comes up
@@ -197,9 +197,10 @@ int RunSkinsTest() {
         check(std::adjacent_find(ids.begin(), ids.end()) == ids.end() && models, "costume ids unique, every model built");
     }
     {
-        Wardrobe& w = Get(TRAWL); w.tokens = 400; w.costume = "";
+        int fish = FindCostume(TRAWL, "tc_fish")->price, shark = FindCostume(TRAWL, "tc_shark")->price;
+        Wardrobe& w = Get(TRAWL); w.tokens = std::min(fish + 50, shark - 1); w.costume = ""; int had = w.tokens;
         check(!BuyCostume(TRAWL, "tc_shark") && !WearCostume(TRAWL, "tc_fish"), "a costume can't be bought short of tokens, or worn unowned");
-        check(BuyCostume(TRAWL, "tc_fish") && w.tokens == 50 && WornCostume(TRAWL) && WornCostume(TRAWL)->model == std::string("fish"), "buying one spends its price and wears it");
+        check(BuyCostume(TRAWL, "tc_fish") && w.tokens == had - fish && WornCostume(TRAWL) && WornCostume(TRAWL)->model == std::string("fish"), "buying one spends its price and wears it");
         check(!BuyCostume(TRAWL, "tc_fish") && WearCostume(TRAWL, "") && !WornCostume(TRAWL), "it can't be bought twice; it comes off");
     }
     printf(fails ? "skins-test: %d check(s) failed\n" : "skins-test: all checks passed\n", fails);

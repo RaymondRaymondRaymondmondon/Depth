@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 // Skins for the Trawl's crew and Red Tide's divers (the user's call, 2026-10-02): characters only, the silhouette never
 // changes (a skin is a recolour of the figure's own materials: top, trousers, hat or helmet, trim). Per game: 15 bought
 // outright with tokens, and 65 from crates (25 common, 20 rare, 15 super rare, 5 legendary). Crates are earned at play
@@ -26,7 +26,7 @@ struct Skin {
 const std::vector<Skin>& Catalogue(int game);
 const Skin* Find(int game, const std::string& id);
 
-const int CRATE_PRICE = 150;            // tokens for a crate
+const int CRATE_PRICE = 75;             // tokens for a crate
 const int RARITY_WEIGHT[RARITY_COUNT] = {0, 60, 27, 10, 3};   // percent: common, rare, super rare, legendary
 
 // Costumes (the user, 2026-10-02, after A Night Off's examples): whole outfits worn over the figure that change how it

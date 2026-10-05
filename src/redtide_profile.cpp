@@ -38,7 +38,8 @@ const std::vector<Cosmetic>& Cosmetics() {
         {"h_verdigris", "helmet", "Verdigris helmet", 200}, {"h_redtide", "helmet", "Red Tide helmet", 200}, {"h_bone", "helmet", "Bone helmet", 200},
         {"h_pearl", "helmet", "Pearl helmet", 200}, {"h_atlantean", "helmet", "Atlantean helmet", 200},
     };
-    return c;
+    static const std::vector<Cosmetic> half = [] { auto v = c; for (auto& x : v) x.cost = std::max(1, (x.cost + 1) / 2); return v; }();   // (the playtest: half price across the board)
+    return half;
 }
 
 static std::vector<std::pair<int, std::string>>& RankTable() {

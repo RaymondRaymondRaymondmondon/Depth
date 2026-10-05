@@ -87,8 +87,8 @@ int NightSkinChecks() {
       check(tot / 200 > 250 && tot / 200 < 500, TextFormat("about %.0f spins to own all forty (the doc's odds; its own estimate of 290 is low)", tot / 200)); }
     NightProfile pr; pr.tokens = 60; std::string why;
     int shore = SkinIndex("shoreleave"), cap = SkinIndex("captain");
-    check(BuySkin(pr, shore, &why) && pr.tokens == 10 && OwnsSkin(pr, shore), "Shore Leave bought for 50");
-    check(!BuySkin(pr, cap, &why), "the Captain is 250: not yet");
+    check(BuySkin(pr, shore, &why) && pr.tokens == 35 && OwnsSkin(pr, shore), "Shore Leave bought for 25");
+    check(!BuySkin(pr, cap, &why), "the Captain is 125: not yet");
     check(!BuySkin(pr, SkinIndex("goat"), &why), "the Goat only comes from the wheel");
     { int before = pr.tokens; bool dup = false; int s = SpinWheel(pr, 99, &dup); check(s >= 0 && Skins()[s].tier != "store" && pr.tokens == before - 1 && OwnsSkin(pr, s), "a spin: one token, one skin from the wheel");
       bool dup2 = false; NightProfile q = pr; q.tokens = 1; int s2 = SpinWheel(q, 99, &dup2); check(s2 == s && dup2 && q.tokens == 0, "a duplicate is a duplicate (nothing refunded)"); }

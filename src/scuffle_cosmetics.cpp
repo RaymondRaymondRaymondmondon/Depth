@@ -151,9 +151,9 @@ int ScuffleCosmeticChecks() {
     CC(shopS == 10 && shopH == 10 && tier[1] == 15 && tier[2] == 10 && tier[3] == 10 && tier[4] == 5, TextFormat("the shop's 10 skins and 10 hats, the crate's 40 (%d/%d/%d/%d)", tier[1], tier[2], tier[3], tier[4]));
     // the locker without touching the player's file
     bool was = gLockerNoSave; gLockerNoSave = true; Locker saved = MyLocker(); Locker& L = MyLocker();
-    L = Locker{}; L.tokens = 120; std::string why;
+    L = Locker{}; L.tokens = 60; std::string why;
     bool bought = BuyCosmetic("brass", &why), again = BuyCosmetic("brass", &why), dear = BuyCosmetic("golden", &why);
-    CC(bought && !again && !dear && L.tokens == 40 && L.Owns("brass") && WearCosmetic("brass") && L.skin == "brass", "the shop: bought once, worn; too dear is refused");
+    CC(bought && !again && !dear && L.tokens == 20 && L.Owns("brass") && WearCosmetic("brass") && L.skin == "brass", "the shop: bought once, worn; too dear is refused");
     // the crate's odds over many: commons about 60%, specials about 3%; every duplicate a banana
     int n = 20000, got[5] = {}, bananas = 0; L.tokens = n * CratePrice(); L.owned.clear();
     for (int i = 0; i < n; i++) { BuyCrate(&why); CrateRoll r = OpenCrate((uint32_t)i * 7919u + 3); if (r.ok && r.tier > 0) got[r.tier]++; bananas += r.banana; }

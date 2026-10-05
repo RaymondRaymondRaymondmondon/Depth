@@ -188,7 +188,10 @@ static const std::vector<Skin> REDTIDE_SKINS = {
 
 #undef S
 
-const std::vector<Skin>& Catalogue(int game) { return game == REDTIDE ? REDTIDE_SKINS : TRAWL_SKINS; }
+// (the playtest, 2026-10-05: everything costs half what it did)
+static std::vector<Skin> HalfSkins(std::vector<Skin> v) { for (auto& s : v) if (s.price > 0) s.price = std::max(1, (s.price + 1) / 2); return v; }
+static std::vector<Costume> HalfCostumes(std::vector<Costume> v) { for (auto& s : v) if (s.price > 0) s.price = std::max(1, (s.price + 1) / 2); return v; }
+const std::vector<Skin>& Catalogue(int game) { static const std::vector<Skin> T = HalfSkins(TRAWL_SKINS), R = HalfSkins(REDTIDE_SKINS); return game == REDTIDE ? R : T; }
 
 // ---------------------------------------------------------------- costumes (20 a game: 8 common, 6 rare, 4 super rare,
 // 2 special; prices by tier, the Trawl's in its own larger tokens)
@@ -239,6 +242,6 @@ static const std::vector<Costume> TRAWL_COSTUMES = {
     K("tc_matriarch", "orca", "The Matriarch", LEGEND, 1500, 0x101012, "An orca suit, and a pod of three balloon orcas"),
 };
 #undef K
-const std::vector<Costume>& Costumes(int game) { return game == REDTIDE ? REDTIDE_COSTUMES : TRAWL_COSTUMES; }
+const std::vector<Costume>& Costumes(int game) { static const std::vector<Costume> T = HalfCostumes(TRAWL_COSTUMES), R = HalfCostumes(REDTIDE_COSTUMES); return game == REDTIDE ? R : T; }
 
 } // namespace skins

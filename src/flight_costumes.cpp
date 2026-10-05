@@ -205,9 +205,9 @@ int RunFlightCostumeTest() {
     check(n[CT_COMMON] == 15 && n[CT_RARE] == 11 && n[CT_SUPER] == 10 && n[CT_SPECIAL] == 6, TextFormat("the crate holds 15 common, 11 rare, 10 super rare and 6 special (%d, %d, %d, %d)", n[CT_COMMON], n[CT_RARE], n[CT_SUPER], n[CT_SPECIAL]));
     std::map<std::string, int> ids; bool unique = true; for (const auto& c : D.costumes) unique &= ++ids[c.id] == 1;
     check(unique, "every costume has its own id");
-    bool prices = true; for (const auto& c : D.costumes) if (c.tier == CT_SHOP) prices &= c.price >= 50 && c.price <= 250;
-    check(prices && FindCostume("captain_nemo") && FindCostume("captain_nemo")->price == 250 && FindCostume("sea_legs")->price == 50, "shop prices run 50 (Sea Legs) to 250 (Captain Nemo)");
-    check(D.colours.size() == 6 && D.hats.size() == 6 && D.colours[0].price == 60 && D.hats[0].price == 80, TextFormat("six livery colours at 60 and six colony hats at 80 (%d, %d)", (int)D.colours.size(), (int)D.hats.size()));
+    bool prices = true; for (const auto& c : D.costumes) if (c.tier == CT_SHOP) prices &= c.price >= 25 && c.price <= 125;
+    check(prices && FindCostume("captain_nemo") && FindCostume("captain_nemo")->price == 125 && FindCostume("sea_legs")->price == 25, "shop prices run 25 (Sea Legs) to 125 (Captain Nemo)");
+    check(D.colours.size() == 6 && D.hats.size() == 6 && D.colours[0].price == 30 && D.hats[0].price == 40, TextFormat("six livery colours at 30 and six colony hats at 40 (%d, %d)", (int)D.colours.size(), (int)D.hats.size()));
     check(D.odds[CT_COMMON] + D.odds[CT_RARE] + D.odds[CT_SUPER] + D.odds[CT_SPECIAL] == 100, "the crate's odds sum to 100%");
     // the odds over many eggs (the wardrobe reset each time, so nothing is a duplicate)
     {
@@ -229,11 +229,11 @@ int RunFlightCostumeTest() {
         std::string why;
         bool duck = BuyCostume("rubber_duck", &why);
         check(!duck && why.find("egg") != std::string::npos, "crate costumes can't be bought: " + why);
-        check(BuyCostume("admiral") && gW.tokens == 30 && gW.Owns("admiral"), "the Admiral for 100 tokens");
+        check(BuyCostume("admiral") && gW.tokens == 80 && gW.Owns("admiral"), "the Admiral for 50 tokens");
         bool twice = BuyCostume("admiral", &why);
         check(!twice, "not twice: " + why);
         bool nemo = BuyCostume("captain_nemo", &why);
-        check(!nemo && gW.tokens == 30, "not without the tokens: " + why);
+        check(!nemo && gW.tokens == 80, "not without the tokens: " + why);
         check(WearCostume("admiral") && gW.costume == "admiral" && !WearCostume("pirate"), "worn only when owned");
         gW.tokens = 200; BuyCostume("lagoon"); BuyCostume("top_hats");
         check(WearCostume("lagoon") && WearCostume("top_hats") && gW.liveryColour == "lagoon" && gW.liveryHat == "top_hats" && gW.costume == "admiral", "a colony livery (lagoon, tiny top hats) worn beside the costume");

@@ -4,16 +4,16 @@
   "crate_price": 1,
   "odds": {"common": 60, "rare": 25, "super": 12, "special": 3},
   "costumes": [
-    {"id": "sea_legs", "name": "Sea Legs", "tier": "shop", "price": 50, "note": "A sailor's cap and a neckerchief", "look": {"hat": "sailor_cap", "hat_c": [240, 240, 236], "extras": ["neckerchief"], "extra_c": [40, 70, 150]}},
-    {"id": "lighthouse_keeper", "name": "The Lighthouse Keeper", "tier": "shop", "price": 80, "note": "A lantern on a chain; glows at night (and is seen at night)", "look": {"hat": "beanie", "hat_c": [160, 40, 40], "extras": ["lantern"], "glow": true}},
-    {"id": "admiral", "name": "The Admiral", "tier": "shop", "price": 100, "note": "A bicorne and epaulettes", "look": {"hat": "bicorne", "hat_c": [30, 34, 50], "extras": ["epaulettes"], "extra_c": [230, 190, 70]}},
-    {"id": "pearl_diver", "name": "The Pearl Diver", "tier": "shop", "price": 100, "note": "Goggles and a shell necklace", "look": {"extras": ["goggles", "shell_necklace"], "extra_c": [236, 226, 210]}},
-    {"id": "fisherman", "name": "The Fisherman", "tier": "shop", "price": 120, "note": "A hat of hooks; wild gulls follow you", "look": {"hat": "hook_hat", "hat_c": [120, 110, 60], "follow": "gulls"}},
-    {"id": "scarecrow", "name": "The Scarecrow", "tier": "shop", "price": 120, "note": "Straw and a burlap head; crows won't steal from you (a joke; they will)", "look": {"hat": "straw_hat", "hat_c": [220, 190, 110], "tint": [196, 170, 120], "extras": ["straw"]}},
-    {"id": "pirate", "name": "The Pirate", "tier": "shop", "price": 150, "note": "An eyepatch, a bandana, a wooden leg", "look": {"hat": "bandana", "hat_c": [180, 30, 36], "extras": ["eyepatch", "wooden_leg"]}},
-    {"id": "monk", "name": "The Monk", "tier": "shop", "price": 150, "note": "A cowl; your shrine's bells ring when you land", "look": {"hat": "cowl", "hat_c": [110, 80, 54]}},
-    {"id": "krakens_friend", "name": "The Kraken's Friend", "tier": "shop", "price": 200, "note": "A tentacle scarf; the kraken makes a sound when you fly over the cove", "look": {"extras": ["tentacle_scarf"], "extra_c": [150, 46, 50]}},
-    {"id": "captain_nemo", "name": "The Captain Nemo", "tier": "shop", "price": 250, "note": "The coat, the beard, a tiny periscope hat", "look": {"hat": "periscope_cap", "hat_c": [40, 44, 56], "extras": ["coat", "beard"], "extra_c": [40, 44, 56]}},
+    {"id": "sea_legs", "name": "Sea Legs", "tier": "shop", "price": 25, "note": "A sailor's cap and a neckerchief", "look": {"hat": "sailor_cap", "hat_c": [240, 240, 236], "extras": ["neckerchief"], "extra_c": [40, 70, 150]}},
+    {"id": "lighthouse_keeper", "name": "The Lighthouse Keeper", "tier": "shop", "price": 40, "note": "A lantern on a chain; glows at night (and is seen at night)", "look": {"hat": "beanie", "hat_c": [160, 40, 40], "extras": ["lantern"], "glow": true}},
+    {"id": "admiral", "name": "The Admiral", "tier": "shop", "price": 50, "note": "A bicorne and epaulettes", "look": {"hat": "bicorne", "hat_c": [30, 34, 50], "extras": ["epaulettes"], "extra_c": [230, 190, 70]}},
+    {"id": "pearl_diver", "name": "The Pearl Diver", "tier": "shop", "price": 50, "note": "Goggles and a shell necklace", "look": {"extras": ["goggles", "shell_necklace"], "extra_c": [236, 226, 210]}},
+    {"id": "fisherman", "name": "The Fisherman", "tier": "shop", "price": 60, "note": "A hat of hooks; wild gulls follow you", "look": {"hat": "hook_hat", "hat_c": [120, 110, 60], "follow": "gulls"}},
+    {"id": "scarecrow", "name": "The Scarecrow", "tier": "shop", "price": 60, "note": "Straw and a burlap head; crows won't steal from you (a joke; they will)", "look": {"hat": "straw_hat", "hat_c": [220, 190, 110], "tint": [196, 170, 120], "extras": ["straw"]}},
+    {"id": "pirate", "name": "The Pirate", "tier": "shop", "price": 75, "note": "An eyepatch, a bandana, a wooden leg", "look": {"hat": "bandana", "hat_c": [180, 30, 36], "extras": ["eyepatch", "wooden_leg"]}},
+    {"id": "monk", "name": "The Monk", "tier": "shop", "price": 75, "note": "A cowl; your shrine's bells ring when you land", "look": {"hat": "cowl", "hat_c": [110, 80, 54]}},
+    {"id": "krakens_friend", "name": "The Kraken's Friend", "tier": "shop", "price": 100, "note": "A tentacle scarf; the kraken makes a sound when you fly over the cove", "look": {"extras": ["tentacle_scarf"], "extra_c": [150, 46, 50]}},
+    {"id": "captain_nemo", "name": "The Captain Nemo", "tier": "shop", "price": 125, "note": "The coat, the beard, a tiny periscope hat", "look": {"hat": "periscope_cap", "hat_c": [40, 44, 56], "extras": ["coat", "beard"], "extra_c": [40, 44, 56]}},
 
     {"id": "rubber_duck", "name": "The Rubber Duck", "tier": "common", "note": "Squeaks on landing", "look": {"tint": [255, 226, 60], "beak_c": [255, 140, 30], "beak": 1.4}},
     {"id": "chicken", "name": "The Chicken", "tier": "common", "note": "A red comb and wattle", "look": {"tint": [250, 246, 236], "hat": "comb", "hat_c": [210, 40, 40], "beak_c": [240, 190, 60]}},
@@ -63,20 +63,20 @@
   ],
   "liveries": {
     "colours": [
-      {"id": "storm_grey", "name": "Storm grey", "price": 60, "c": [120, 128, 140]},
-      {"id": "sunset", "name": "Sunset", "price": 60, "c": [250, 150, 90]},
-      {"id": "lagoon", "name": "Lagoon", "price": 60, "c": [80, 200, 200]},
-      {"id": "ash", "name": "Ash", "price": 60, "c": [90, 86, 84]},
-      {"id": "gold", "name": "Gold", "price": 60, "c": [240, 200, 80]},
-      {"id": "red_tide", "name": "Red tide", "price": 60, "c": [200, 50, 50]}
+      {"id": "storm_grey", "name": "Storm grey", "price": 30, "c": [120, 128, 140]},
+      {"id": "sunset", "name": "Sunset", "price": 30, "c": [250, 150, 90]},
+      {"id": "lagoon", "name": "Lagoon", "price": 30, "c": [80, 200, 200]},
+      {"id": "ash", "name": "Ash", "price": 30, "c": [90, 86, 84]},
+      {"id": "gold", "name": "Gold", "price": 30, "c": [240, 200, 80]},
+      {"id": "red_tide", "name": "Red tide", "price": 30, "c": [200, 50, 50]}
     ],
     "hats": [
-      {"id": "caps", "name": "Caps", "price": 80, "hat": "sailor_cap", "c": [240, 240, 236]},
-      {"id": "helmets", "name": "Helmets", "price": 80, "hat": "brass_helmet", "c": [150, 156, 160]},
-      {"id": "crowns", "name": "Crowns", "price": 80, "hat": "crown", "c": [240, 200, 60]},
-      {"id": "bandanas", "name": "Bandanas", "price": 80, "hat": "bandana", "c": [180, 30, 36]},
-      {"id": "top_hats", "name": "Tiny top hats", "price": 80, "hat": "top_hat", "c": [30, 30, 34]},
-      {"id": "shells", "name": "Shells", "price": 80, "hat": "shell", "c": [240, 210, 196]}
+      {"id": "caps", "name": "Caps", "price": 40, "hat": "sailor_cap", "c": [240, 240, 236]},
+      {"id": "helmets", "name": "Helmets", "price": 40, "hat": "brass_helmet", "c": [150, 156, 160]},
+      {"id": "crowns", "name": "Crowns", "price": 40, "hat": "crown", "c": [240, 200, 60]},
+      {"id": "bandanas", "name": "Bandanas", "price": 40, "hat": "bandana", "c": [180, 30, 36]},
+      {"id": "top_hats", "name": "Tiny top hats", "price": 40, "hat": "top_hat", "c": [30, 30, 34]},
+      {"id": "shells", "name": "Shells", "price": 40, "hat": "shell", "c": [240, 210, 196]}
     ]
   }
 }
