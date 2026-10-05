@@ -399,7 +399,18 @@ static void ShipDressing(); void BuildLevelModel() {
                 for (int j = 0; j < 6; j++) mb.Box({c.x + (rnd() - 0.5f) * h.x * 2, c.y + h.y / 2, c.z + (rnd() - 0.5f) * h.z * 2}, {0.03f, h.y / 2, 0.12f}, Color{96, 150, 80, 255}); break;
             case PropKind::Mangrove: if (!getenv("DEPTH_OLDSTATIONS") && LoadAsset("redtide/flora/cr_fl_roots.glb")) break;
                 for (int j = 0; j < 5; j++) { Vector3 top{c.x + (rnd() - 0.5f), c.y, c.z + (rnd() - 0.5f)}; mb.Cone(top, {top.x + (rnd() - 0.5f) * 2.5f, z.y0, top.z + (rnd() - 0.5f) * 2.5f}, 0.12f, 4, Color{100, 80, 58, 255}); } break;
-            case PropKind::Mound: mb.Lathe(h.x * 2, 5, 10, [&](float u) { return h.x * sinf(u * 3.14159f) + 0.1f; }, [&](float u) { return h.y * 1.4f * sinf(u * 3.14159f) + 0.1f; }, Color{200, 150, 120, 255}, Color{150, 120, 100, 255}, c); break;
+            case PropKind::Mound: {   // a coral bommie: a lumpy encrusted dome in the reef's colours with coral heads on its crown
+                static const Color MC[] = {{196, 150, 120, 255}, {170, 130, 150, 255}, {150, 160, 120, 255}, {200, 170, 110, 255}};
+                Color mc = MC[pr.seed % 4];
+                LumpyRock(mb, c, {h.x, h.y * 1.1f, h.z > 0 ? h.z : h.x}, mc, pr.seed, 0.4f);
+                for (int j = 0; j < 4; j++) {
+                    float a = rnd() * 6.28f, rr = rnd() * 0.6f;
+                    Vector3 q{c.x + cosf(a) * h.x * rr, c.y + h.y * 0.95f, c.z + sinf(a) * (h.z > 0 ? h.z : h.x) * rr};
+                    static const char* KC[] = {"brain", "staghorn", "fan", "brain"};
+                    if (!kit(KC[j], q, 0.7f + rnd() * 0.6f, rnd() * 6.28f)) LumpyRock(mb, q, {0.4f, 0.3f, 0.4f}, Color{(unsigned char)(mc.r + 20 > 255 ? 255 : mc.r + 20), mc.g, mc.b, 255}, pr.seed + j, 0.3f);
+                }
+                break;
+            }
             case PropKind::Building: {
                 // a drowned house of marble: walls, a roof slab, a dark doorway, a pair of columns at its front, weed
                 Color marble{(unsigned char)(rock.r - 10 + rnd() * 20), (unsigned char)(rock.g - 10 + rnd() * 18), (unsigned char)(rock.b - 10 + rnd() * 16), 255};

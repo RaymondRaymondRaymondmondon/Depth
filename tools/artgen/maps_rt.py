@@ -32,10 +32,16 @@ def build_crystal(W):
 
 
 def build_brain(W):
-    W.add(W.sphere("dome", (0, 0, 0.3), (0.5, 0.5, 0.36), 32), "coral")
-    for k in range(10):
-        a = k * 0.62
-        W.add(W.tube(f"groove{k}", [(0.42 * math.cos(a), 0.42 * math.sin(a), 0.16), (0.2 * math.cos(a + 0.6), 0.2 * math.sin(a + 0.6), 0.55), (0.0, 0.0, 0.66)], 0.025), "bone")
+    # a brain coral: a low dome sitting flat on the sea floor (not an egg), its surface folded into meandering ridges
+    o = W.sphere("dome", (0, 0, 0.05), (0.5, 0.5, 0.42), 64)
+    for v in o.data.vertices:
+        x, y, z = v.co
+        if z < -0.12:
+            z = -0.12                                   # (the flat base it sits on)
+        a = math.atan2(y, x)
+        k = 1 + 0.09 * math.sin(22 * a + 9 * z + 2.5 * math.sin(11 * z + 3 * a)) * max(0.0, z + 0.1)
+        v.co = (x * k, y * k, z * (1 + 0.5 * (k - 1)))
+    W.add(o, "coral")
 
 
 def build_table(W):

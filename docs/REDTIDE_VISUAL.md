@@ -412,3 +412,4 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
 
 
 - Dressing pass (2026-10-05): pools sit in a rim of wet stones; terraces have courses, a coping and weed; bone stakes are sharpened shafts with lashed crossbones and a skull; hanging roots twist and taper; stalactites have a smaller twin; free-standing pillars off the ship are round shafts on a plinth under a capital; Atlantis's drowned houses have round columns and a pediment over the door; the salon's pillars are brass-collared columns; the engine room has a riveted boiler drum on cradles with its uptake and a pump flywheel; the moray pipes are flanged pipe mouths; the mast and the crane are round spars.
+- The reef's brain corals are low folded domes sitting flat on the floor (`build_brain` in maps_rt.py), not eggs; mounds are lumpy coral bommies crowned with coral heads.
