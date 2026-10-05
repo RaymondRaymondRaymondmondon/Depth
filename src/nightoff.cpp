@@ -324,7 +324,8 @@ void Night::StepPlayer(Player& p, float dt) {
     float wl = Vector2Length(wish); if (wl > 1) wish = Vector2Scale(wish, 1 / wl);
     float k = std::clamp(p.drunk / 100, 0.0f, 1.0f);
     p.swayPh += dt * (1.3f + 0.8f * k);
-    float speed = (in.run && p.drunk < 60 ? 5.0f : 3.0f) * (1 - 0.25f * k);
+    p.squat = in.squat && !p.fight.Busy(); p.squatK += ((p.squat ? 1.0f : 0.0f) - p.squatK) * std::min(1.0f, dt * 9);
+    float speed = (in.run && p.drunk < 60 && !p.squat ? 5.0f : 3.0f) * (1 - 0.25f * k) * (p.squat ? 0.45f : 1.0f);
     if (p.fight.Busy()) speed = 0;                                   // (stunned, fallen over, held, smashing a bottle)
     if (p.fight.grabbing.Valid()) speed *= 0.4f;
     if (p.fight.windT > 0) speed *= 0.35f;

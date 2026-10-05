@@ -30,7 +30,7 @@ struct TrawlWorld {
 // ---------------------------------------------------------------- a hand's input
 enum : uint16_t {
     HI_LMB = 1, HI_LMB_P = 2, HI_RMB = 4, HI_RMB_P = 8, HI_SPACE_P = 16, HI_SHIFT = 32, HI_E_P = 64, HI_X_P = 128,
-    HI_R_P = 256, HI_T_P = 512, HI_W_P = 1024, HI_S_P = 2048, HI_ORDER = 4096, HI_FOLLOW_P = 8192,
+    HI_R_P = 256, HI_T_P = 512, HI_W_P = 1024, HI_S_P = 2048, HI_ORDER = 4096, HI_FOLLOW_P = 8192, HI_CROUCH = 16384,
     HI_PRESSES = HI_LMB_P | HI_RMB_P | HI_SPACE_P | HI_E_P | HI_X_P | HI_R_P | HI_T_P | HI_W_P | HI_S_P | HI_ORDER | HI_FOLLOW_P,
 };
 struct HandInput {

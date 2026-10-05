@@ -104,6 +104,7 @@ struct Input {
     float moveX = 0, moveZ = 0;                       // the wished direction in the world (-1..1), from the camera
     float faceYaw = -100;                             // where a person is looking (the camera): a swing goes that way (-100: not set; the bots turn themselves)
     bool run = false, use = false;                    // use: E (order at the bar, eat at the hatch, leave at the door)
+    bool squat = false;                               // C or Ctrl held: squat (slow, low)
     int order = -1;                                   // a drink or dish picked from the menu (an index into D().drinks)
     int talkTo = -1;                                  // start a conversation with a patron
     int say = -1;                                     // a conversation's option: 0 ask, 1 agree, 2 joke, 3 challenge, 4 listen, 5 buy them a drink, 6 walk away
@@ -145,6 +146,7 @@ struct Player {
     bool hiccup = false;
     float swayPh = 0, stumbleT = 0, stumbleDir = 0, vomitT = 0, lurch = 0;   // the drunk walk: a curve, stumbles, a lurch
     int drinks = 0; float peakDrunk = 0, spent = 0;
+    bool squat = false; float squatK = 0;            // (squatting, and how far down: the figure and the camera follow)
     Talk talk; GameSeat game; Combat fight; Flirt flirt; bool barred = false; std::vector<std::string> items, known;
     int gamesWon = 0, fightsWon = 0, fightsWonSober = 0, eventsSurvived = 0;   // (the morning's scoreboard)
     std::string homeWith, homeKind, card; bool homeBad = false; float leavingT = 0; int leavingWith = -1;   // going home: with whom, how it went; a bad night's 30 s at the door

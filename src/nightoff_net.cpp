@@ -18,7 +18,7 @@ void WriteInput(const Input& in, Writer& w) {
     w.U8(NA_INPUT);
     w.F32(in.moveX); w.F32(in.moveZ); w.F32(in.faceYaw);
     uint32_t bits = (in.run ? 1u : 0) | (in.use ? 2u : 0) | (in.leave ? 4u : 0) | (in.block ? 8u : 0) | (in.dodge ? 16u : 0) | (in.pickUp ? 32u : 0) | (in.smash ? 64u : 0) | (in.feedDog ? 128u : 0)
-                  | (in.grabGun ? 256u : 0) | (in.askTrouble ? 512u : 0) | (in.fortuneYes ? 1024u : 0) | (in.buyRound ? 2048u : 0) | (in.carry ? 4096u : 0) | (in.drawFace ? 8192u : 0) | (in.cheat ? 16384u : 0);
+                  | (in.grabGun ? 256u : 0) | (in.askTrouble ? 512u : 0) | (in.fortuneYes ? 1024u : 0) | (in.buyRound ? 2048u : 0) | (in.carry ? 4096u : 0) | (in.drawFace ? 8192u : 0) | (in.cheat ? 16384u : 0) | (in.squat ? 32768u : 0);
     w.VarU(bits);
     auto I = [&](int v) { w.VarU(((uint32_t)v << 1) ^ (uint32_t)(v >> 31)); };
     I(in.order); I(in.talkTo); I(in.say); I(in.startGame); I(in.gameMachine); I(in.gameOpp); I(in.gameStake); I(in.gameAct);
@@ -30,7 +30,7 @@ bool ReadInput(Reader& r, Input& in) {
     in.moveX = r.F32(); in.moveZ = r.F32(); in.faceYaw = r.F32();
     uint32_t b = r.VarU();
     in.run = b & 1; in.use = b & 2; in.leave = b & 4; in.block = b & 8; in.dodge = b & 16; in.pickUp = b & 32; in.smash = b & 64; in.feedDog = b & 128;
-    in.grabGun = b & 256; in.askTrouble = b & 512; in.fortuneYes = b & 1024; in.buyRound = b & 2048; in.carry = b & 4096; in.drawFace = b & 8192; in.cheat = b & 16384;
+    in.grabGun = b & 256; in.askTrouble = b & 512; in.fortuneYes = b & 1024; in.buyRound = b & 2048; in.carry = b & 4096; in.drawFace = b & 8192; in.cheat = b & 16384; in.squat = b & 32768;
     auto I = [&]() { uint32_t z = r.VarU(); return (int)((z >> 1) ^ (0u - (z & 1))); };
     in.order = I(); in.talkTo = I(); in.say = I(); in.startGame = I(); in.gameMachine = I(); in.gameOpp = I(); in.gameStake = I(); in.gameAct = I();
     in.gameAim.x = r.F32(); in.gameAim.y = r.F32(); in.gamePower = r.F32(); in.gameEnglish = r.F32();
@@ -128,7 +128,7 @@ template <class A> void VisitPlayer(A& a, Player& p, bool own, bool over) {
     a.i(p.ending); a.s(p.wokeAt); P2(a, p.pos); F2(a, p.vel); a.f(p.yaw);
     a.f(p.drunk); a.f(p.money); a.f(p.tab); a.i(p.kidneys); a.f(p.actT); a.i(p.acting);
     a.f(p.charBuffT); a.f(p.charBuff); a.f(p.toughBuffT); a.f(p.toughBuff); a.f(p.honestT); a.f(p.visionsT); a.f(p.shakesT);
-    a.f(p.swayPh); a.f(p.stumbleT); a.f(p.stumbleDir); a.f(p.vomitT); a.f(p.lurch); a.i(p.drinks); a.f(p.peakDrunk); a.b(p.barred);
+    a.f(p.swayPh); a.f(p.stumbleT); a.f(p.stumbleDir); a.f(p.vomitT); a.f(p.lurch); a.i(p.drinks); a.f(p.peakDrunk); a.b(p.barred); a.b(p.squat); a.f(p.squatK);
     VisitCombat(a, p.fight);
     a.f(p.leavingT); a.i(p.leavingWith); a.i(p.carrying); a.i(p.carriedBy); a.b(p.faceDrawn);
     a.s(p.toast); a.f(p.toastT); { int wv = p.wares; a.i(wv); p.wares = (uint16_t)wv; } for (int w = 0; w < W_COUNT; w++) { a.f(p.wareT[w]); a.f(p.wareAfterT[w]); } a.i(p.cocktail); a.f(p.skipT); a.f(p.barkeepT); a.b(p.sureHome); a.u(p.hallucSeed);

@@ -292,6 +292,7 @@ struct Crew {
     int deck = 0;                                         // 0 main deck, 1 engine room
     int station = -1;                                     // manned station index, -1 none
     bool braced = false, fallen = false, overboard = false;
+    bool crouch = false; float crouchK = 0;            // (C or Ctrl held on deck: low, slow, braced; the eye and the figure follow)
     float fallT = 0, strokeT = 0, patchT = 0; int patchSec = -1;
     int patchKits = 0;
     float carryKg = 0;

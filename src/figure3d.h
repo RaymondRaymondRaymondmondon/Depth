@@ -18,6 +18,7 @@ struct Pose {
     float elbow = 0;                    // forearms raised (0..1)
     float grip = 0.3f;                  // fingers curled (0 open, 1 a fist)
     float sit = 0, tread = 0;           // seated on a thwart; treading water (arms out, working)
+    float crouch = 0;                   // 0..1 a squat: knees deep, heels down, the body leaned over them
     float swim = 0, kickPh = 0;         // swimming (0..1: legs straight back in a flutter kick, arms in a slow stroke)
     float breathe = 0, look = 0, nod = 0;   // breathing phase; head turned (rad), tipped (rad)
     float blink = 0;                    // 0 open, 1 shut

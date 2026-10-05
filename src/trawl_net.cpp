@@ -73,6 +73,7 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
     else if (in.wheel != 0) g.Scroll(ci, in.wheel);
     // ---- the held controls (every step)
     bool lmb = on(HI_LMB), rmb = on(HI_RMB);
+    c.crouch = on(HI_CROUCH) && c.deck == 0 && !c.overboard && !c.dead && !c.fallen; c.crouchK += ((c.crouch ? 1.0f : 0.0f) - c.crouchK) * std::min(1.0f, dt * 9);   // (C or Ctrl: a crouch)
     if (c.overboard || c.dead) {
         // in the water you swim; dead, you walk the deck as a ghost (and can only ring the bell)
         g.Move(ci, in.wish, false, dt);
@@ -172,7 +173,7 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
         return;
     }
     if (c.station < 0 && on(HI_SPACE_P)) g.Jump(ci);   // Space off a station: a hop (the rail is only a hop away)
-    g.Move(ci, wish, on(HI_SHIFT), dt);
+    g.Move(ci, c.crouch ? Vector2Scale(wish, 0.5f) : wish, on(HI_SHIFT) || c.crouch, dt);   // (a crouch is braced, and slow)
     if (c.station < 0) g.UseItem(ci, in.aim, on(HI_LMB_P), lmb, rmb, dt);
     g.Primary(ci, lmb, dt);
     g.Secondary(ci, rmb, dt);
@@ -411,7 +412,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     // ---- the crew
     a.vec(g.crew, [&](Crew& c) {
         a.i(c.slot); a.b(c.bot); a.e(c.role); a.v2(c.p); a.v2(c.v); a.i(c.deck); a.i(c.station); a.f(c.z); a.f(c.vz);
-        a.b(c.braced); a.b(c.fallen); a.b(c.overboard); a.f(c.fallT); a.f(c.strokeT); a.f(c.patchT); a.i(c.patchSec); a.i(c.patchKits);
+        a.b(c.braced); a.b(c.fallen); a.b(c.overboard); a.b(c.crouch); a.f(c.crouchK); a.f(c.fallT); a.f(c.strokeT); a.f(c.patchT); a.i(c.patchSec); a.i(c.patchKits);
         a.f(c.carryKg); a.v2(c.facing); a.s(c.skin); a.s(c.costume);
         for (Slot& sl : c.slots) VisitSlot(a, sl);
         a.i(c.sel); a.f(c.cool); a.f(c.reloadT); a.i(c.injuries); a.i(c.serious);

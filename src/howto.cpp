@@ -79,7 +79,7 @@ const HowTo& Get(int key) {
         no.lines = {"One night ashore at the Sodden Gull. Drink, play the bar's games, flirt, fight, and make it to the morning with both kidneys.",
                     "Every drink lowers charisma and raises toughness. Games at the tables win or lose your wages. Walk out the door to end your night.",
                     "Bullshit (at the card table): play cards face down, claiming the rank that's called. Anyone may call \"Bullshit!\": a liar picks up the pile, a wrong accuser does. Empty your hand to win."};
-        no.keys = {{"WASD", "walk"}, {"Shift", "hurry"}, {"C or Ctrl", "squat"}, {"Mouse", "look"}, {"E", "the bar, the hatch, a game, a patron; the door: home"}, {"Enter", "talk to the table"}, {"F5-F10", "toast, point, laugh, shrug, fists up, fall over"}, {"Left / right mouse", "jab / haymaker (in a fight)"}, {"F / G / Q", "grab or throw / shove / block"}, {"Space", "dodge"}, {"R / X", "pick up / throw"}};
+        no.keys = {{"WASD", "walk"}, {"Shift", "hurry"}, {"Ctrl", "squat"}, {"Mouse", "look"}, {"E", "the bar, the hatch, a game, a patron; the door: home"}, {"Enter", "talk to the table"}, {"F5-F10", "toast, point, laugh, shrug, fists up, fall over"}, {"Left / right mouse", "jab / haymaker (in a fight)"}, {"F / G / Q", "grab or throw / shove / block"}, {"Space", "dodge"}, {"R / X", "pick up / throw"}, {"C", "smash a bottle on the bar"}};
         auto& sf = H[12];
         sf.title = "Scuffle";
         sf.lines = {"A stick fight: the last stick standing wins the round; first to the target wins the match. Crates fall from the sky with weapons and gear, and the stage's hazards kill anyone.",

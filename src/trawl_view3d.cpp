@@ -111,7 +111,7 @@ Camera3D EyeCamera(const Gannet& g, int you, const Eye3D& e) {
     }
     float floorY = c.deck == 1 ? ENGINE_Y : DECK_Y;
     Vector2 sp = StandSpot(c);
-    cam.position = BoatPoint(g.boat, {sp.x, floorY + c.z + (c.fallen ? 0.42f : EYE_H), sp.y});
+    cam.position = BoatPoint(g.boat, {sp.x, floorY + c.z + (c.fallen ? 0.42f : EYE_H - 0.55f * c.crouchK), sp.y});
     cam.target = Vector3Add(cam.position, BoatDir(g.boat, dl));
     // your eyes keep half of her roll: enough to feel the deck go, not enough to make the horizon a seesaw
     cam.up = Vector3Normalize(Vector3Lerp({0, 1, 0}, BoatDir(g.boat, {0, 1, 0}), 0.5f));
@@ -1523,7 +1523,7 @@ static void DrawHandSailor(const Gannet& g, const Crew& c, float t) {
         }
         if (c.dead) frame = MatrixMultiply(MatrixTranslate(0, 0.08f + 0.05f * sinf(t * 2 + c.slot), 0), frame);
         if (c.fallen) frame = MatrixMultiply(MatrixMultiply(MatrixRotateZ(1.5f), MatrixTranslate(0, 0.2f, 0)), frame);
-        P.walk = c.station < 0 && Vector2Length(c.v) > 0.3f && !c.fallen ? 1.0f : 0.0f;
+        P.walk = c.station < 0 && Vector2Length(c.v) > 0.3f && !c.fallen ? 1.0f : 0.0f; P.crouch = c.crouchK;
         if (c.station >= 0) { P.reach = 0.7f + 0.15f * sinf(t * 5 + c.slot); P.elbow = 0.3f; P.grip = 0.85f; P.nod = 0.25f; }
         if (!c.dead && c.station < 0) { held = DrawItemOf(c.slots[c.sel]); if (held != Item::None) P.grip = 0.85f; }
     }

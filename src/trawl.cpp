@@ -128,6 +128,7 @@ HandInput Gather() {
     if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) in.btn |= HI_RMB_P;
     if (IsKeyPressed(KEY_SPACE)) in.btn |= HI_SPACE_P;
     if (IsKeyDown(KEY_LEFT_SHIFT)) in.btn |= HI_SHIFT;
+    if (IsKeyDown(KEY_C) || IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) in.btn |= HI_CROUCH;
     if (IsKeyPressed(KEY_R)) in.btn |= HI_R_P;
     if (IsKeyPressed(KEY_T)) in.btn |= HI_T_P;
     if (IsKeyPressed(KEY_X)) in.btn |= HI_X_P;

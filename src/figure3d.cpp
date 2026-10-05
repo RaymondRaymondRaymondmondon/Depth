@@ -66,13 +66,15 @@ std::vector<Matrix> PoseFigure(const Model& m, const Build& L, const Pose& P, fl
     float s1 = sinf(P.walkPh), stride = 0.55f * P.walk;
     // swimming: a flutter kick from the hips, knees soft, the legs trailing straight behind the line of the body
     float k1 = sinf(P.kickPh) * 0.32f * P.swim;
-    rot(B("thigh.L"), Z, s1 * stride + 1.45f * P.sit + k1); rot(B("thigh.R"), Z, -s1 * stride + 1.45f * P.sit - k1);
+    rot(B("thigh.L"), Z, s1 * stride + 1.45f * P.sit + k1 + 1.25f * P.crouch); rot(B("thigh.R"), Z, -s1 * stride + 1.45f * P.sit - k1 + 1.25f * P.crouch);
+    rot(B("shin.L"), Z, -2.1f * P.crouch); rot(B("shin.R"), Z, -2.1f * P.crouch);
+    for (const char* f : {"foot.L", "foot.R"}) rot(B(f), Z, 0.85f * P.crouch);   // (a squat: the heels stay down)
     rot(B("shin.L"), Z, -std::max(0.0f, -s1) * 0.7f * P.walk - 1.5f * P.sit - (0.25f + 0.2f * std::max(0.0f, sinf(P.kickPh + 1.2f))) * P.swim);
     rot(B("shin.R"), Z, -std::max(0.0f, s1) * 0.7f * P.walk - 1.5f * P.sit - (0.25f + 0.2f * std::max(0.0f, -sinf(P.kickPh + 1.2f))) * P.swim);
     for (const char* f : {"foot.L", "foot.R"}) rot(B(f), Z, -0.9f * P.swim);   // (the boots pointed back, toes trailing)
     rot(B("spine"), Y, s1 * 0.08f * P.walk);
-    rot(B("spine"), Z, -0.05f * P.walk - 0.06f * P.reach);   // a lean into the stride and the work
-    pose.offset.y = -fabsf(cosf(P.walkPh)) * 0.025f * P.walk - 0.42f * P.sit * L.height;
+    rot(B("spine"), Z, -0.05f * P.walk - 0.06f * P.reach - 0.45f * P.crouch);   // a lean into the stride and the work (and over the knees in a squat)
+    pose.offset.y = -fabsf(cosf(P.walkPh)) * 0.025f * P.walk - 0.42f * P.sit * L.height - 0.44f * P.crouch * L.height;
     // the arms: down out of the A-pose, then forward to the work or swinging with the stride; treading water: out and paddling
     float reachL = P.reachL < 0 ? P.reach : P.reachL;
     for (int side = 0; side < 2; side++) {

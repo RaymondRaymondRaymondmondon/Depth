@@ -29,6 +29,10 @@ struct NightScene {
     bool dogNaming = false; std::string dogBuf;   // (naming the alley dog)
     int me = 0;
     float camYaw = PI * 0.5f, camPitch = -0.28f, camDist = 3.2f;
+    // a guest's smoothing (the playtest: the night felt laggy): your own sailor walks at once (predicted here, eased
+    // toward the host's word), everyone else glides between the host's 20 snapshots a second
+    Vector2 predPos{}, predVel{}; bool predOn = false; double snapAt = 0;
+    std::vector<Vector2> authP, authC, visP, visC;
     Vector3 camAt{};          // the camera's lagging focus
     float t = 0, rollK = 0;
     bool menu = false, help = true;
@@ -380,7 +384,7 @@ void DrawPeople(const no::Night& n) {
         float spd = Vector2Length(p.vel), k = std::clamp(p.drunk / 100, 0.0f, 1.0f);
         S.walkPh[p.id] += spd * GetFrameTime() * 1.6f;
         fig::Pose P;
-        P.walk = std::clamp(spd / 3.0f, 0.0f, 1.0f); P.walkPh = S.walkPh[p.id];
+        P.walk = std::clamp(spd / 3.0f, 0.0f, 1.0f) * (1 - 0.6f * p.squatK); P.walkPh = S.walkPh[p.id]; P.crouch = p.squatK;
         P.breathe = S.t * (1.3f + k);
         P.blink = fmodf(S.t + p.id, 3.0f + 2 * k) < 0.12f + 0.25f * k ? 1.0f : 0.0f;   // (a slower blink)
         P.nod = 0.25f * k * k + 0.05f * sinf(p.swayPh * 0.7f) * k;   // (the head droops)
@@ -427,7 +431,7 @@ bool WallBetween(Vector2 a, Vector2 b, Vector2* hit) {
 void StepCamera(float dt) {
     no::Player& p = Me();
     float k = std::clamp(p.drunk / 100, 0.0f, 1.0f);
-    Vector3 head{p.pos.x, p.st == no::State::PassedOut ? 0.4f : 1.55f, p.pos.y};
+    Vector3 head{p.pos.x, p.st == no::State::PassedOut ? 0.4f : 1.55f - 0.62f * p.squatK, p.pos.y};
     // in a conversation the camera swings round to frame you both (from the side, looking at the pair's middle)
     int partner = p.talk.patron >= 0 ? p.talk.patron : p.flirt.patron;
     if (partner >= 0 && partner < (int)NW().patrons.size()) {
@@ -509,7 +513,7 @@ void Gather(float dt) {
         Vector2 w{0, 0};
         if (IsKeyDown(KEY_W)) w = Vector2Add(w, f); if (IsKeyDown(KEY_S)) w = Vector2Subtract(w, f);
         if (IsKeyDown(KEY_D)) w = Vector2Add(w, r); if (IsKeyDown(KEY_A)) w = Vector2Subtract(w, r);
-        in.moveX = w.x; in.moveZ = w.y; in.run = IsKeyDown(KEY_LEFT_SHIFT);
+        in.moveX = w.x; in.moveZ = w.y; in.run = IsKeyDown(KEY_LEFT_SHIFT); in.squat = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
     }
     // E: the menu at the bar or the hatch; walk home at the door
     if (canMove) {   // fighting (doc p. 15): LMB jab, RMB haymaker, F grab (again: throw), G shove, Q block, Space dodge, R pick up / put down, X throw it, C smash a bottle on the bar
@@ -951,6 +955,43 @@ void LeaveNightOff(Game& g) {
     S.net = nullptr; S.live = nullptr;
     S.active = false; g.scene = Scene::Arcade;
 }
+// the guest's smoothing: prediction for your own sailor (the same walk as the host's StepPlayer, without the drunk
+// weave and stumbles, which the host's word brings in), and a glide for everyone else
+static void GuestSmooth(arcade::Session& N, float dt) {
+    no::Night& n = S.N; if (S.me < 0 || S.me >= (int)n.players.size()) return;
+    no::Player& me = n.players[S.me];
+    float since = (float)std::min(0.15, GetTime() - S.snapAt);
+    int seat = N.mySeat; float rtt = seat >= 0 && seat < arcade::MAX_PLAYERS ? N.seats[seat].ping / 1000.0f : 0.1f;
+    float lead = std::clamp(rtt + 0.05f, 0.05f, 0.5f);
+    Vector2 auth = S.me < (int)S.authP.size() ? S.authP[S.me] : me.pos;
+    bool free = me.st == no::State::Active && !me.fight.Busy() && me.talk.patron < 0 && me.flirt.patron < 0;
+    if (!S.predOn || !free) { S.predPos = auth; S.predVel = me.vel; S.predOn = true; }
+    if (free) {
+        Vector2 wish{me.in.moveX, me.in.moveZ}; float wl = Vector2Length(wish); if (wl > 1) wish = Vector2Scale(wish, 1 / wl);
+        float k = std::clamp(me.drunk / 100, 0.0f, 1.0f), speed = (me.in.run && me.drunk < 60 ? 5.0f : 3.0f) * (1 - 0.25f * k) * (me.in.squat ? 0.45f : 1.0f);
+        me.squatK += ((me.in.squat ? 1.0f : 0.0f) - me.squatK) * std::min(1.0f, dt * 9);   // (your own squat shows at once)
+        S.predVel = Vector2Lerp(S.predVel, Vector2Scale(wish, speed), std::min(1.0f, dt * 10 * (1 - 0.6f * k)));
+        S.predPos = Vector2Add(S.predPos, Vector2Scale(S.predVel, dt)); n.Collide(S.predPos, 0.32f);
+        // the host's word, carried forward by the round trip: ease toward it; a big gap (thrown, carried, a door) snaps
+        Vector2 target = Vector2Add(auth, Vector2Scale(me.vel, lead + since));
+        float gap = Vector2Distance(target, S.predPos);
+        if (gap > 2.0f) S.predPos = auth; else S.predPos = Vector2Lerp(S.predPos, target, std::min(1.0f, dt * 3));
+        me.pos = S.predPos; me.vel = S.predVel;
+        if (Vector2Length(S.predVel) > 0.2f) { float ty = atan2f(S.predVel.y, S.predVel.x); me.yaw += atan2f(sinf(ty - me.yaw), cosf(ty - me.yaw)) * std::min(1.0f, dt * 8); }
+    }
+    // everyone else: glide toward the latest word, carried forward by their own motion since it came
+    auto glide = [&](std::vector<Vector2>& vis, const std::vector<Vector2>& au, auto& list, int skip) {
+        if (vis.size() != list.size()) vis.assign(au.begin(), au.end()), vis.resize(list.size());
+        for (int i = 0; i < (int)list.size() && i < (int)au.size(); i++) {
+            if (i == skip) continue;
+            Vector2 want = Vector2Add(au[i], Vector2Scale(list[i].vel, since));
+            vis[i] = Vector2Distance(vis[i], want) > 2.0f ? want : Vector2Lerp(vis[i], want, std::min(1.0f, dt * 14));
+            list[i].pos = vis[i];
+        }
+    };
+    glide(S.visP, S.authP, n.players, S.me);
+    glide(S.visC, S.authC, n.patrons, -1);
+}
 std::string NightOffOpts(int mode, int crowd, bool pvp, int bar, int season) { return no::NightHostOpts(mode, crowd, pvp, 0, bar, season); }
 void SceneNightOff(Game& g) {
     if (!S.active) { StartNightOff(g, 0); if (!S.active) return; }
@@ -964,6 +1005,9 @@ void SceneNightOff(Game& g) {
         else if (N.stateVersion != S.seenVersion && !N.Snapshot().empty()) {
             S.seenVersion = N.stateVersion;
             Reader r(N.Snapshot()); no::ReadNight(r, S.N);
+            S.snapAt = GetTime();
+            S.authP.clear(); for (const auto& p : S.N.players) S.authP.push_back(p.pos);
+            S.authC.clear(); for (const auto& p : S.N.patrons) S.authC.push_back(p.pos);
         }
         no::Night& n = NW();
         if (n.players.empty() || S.me >= (int)n.players.size()) { ClearBackground(Color{20, 14, 10, 255}); DrawTextCenteredBold("Ashore, to the Sodden Gull...", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 24, Color{240, 210, 150, 255}); return; }
@@ -974,6 +1018,7 @@ void SceneNightOff(Game& g) {
         else if (IsKeyPressed(KEY_ENTER) && Me().talk.patron < 0 && Me().flirt.patron < 0 && !nog::Blocking(Me())) S.chatting = true;
         if (n.over) { if (!S.profSaved) { S.remembered = n.ProfileAfter(Me(), S.prof); no::SaveNightProfile(S.prof, "nightoff_profile.txt"); S.profSaved = true; } NightAudioFrame(n, dt); DrawMorning(g); return; }
         Gather(dt);
+        if (N.role != arcade::R_HOST) GuestSmooth(N, dt);
         S.t += dt;
         Render(dt);
         DrawHud();
@@ -990,6 +1035,7 @@ void SceneNightOff(Game& g) {
     }
     if (NW().over) { if (!S.shot && !S.profSaved) { S.remembered = NW().ProfileAfter(Me(), S.prof); no::SaveNightProfile(S.prof, "nightoff_profile.txt"); S.profSaved = true; } if (!S.shot) NightAudioFrame(NW(), dt); DrawMorning(g); return; }
     Gather(dt);
+    if (S.shot && getenv("DEPTH_SQUAT")) for (auto& p : NW().players) { p.squat = true; p.squatK = 1; }   // (--shots: the squat pose)
     if (!S.shot) {   // (solo: the bots of an empty seat, none; the night steps here)
         NW().Step(dt);
     }
