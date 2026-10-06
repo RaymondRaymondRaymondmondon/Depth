@@ -143,11 +143,12 @@ void PanelFrame(const char* title, const char* sub) {
     if (sub) DrawTextCentered(sub, r.x + r.width / 2, r.y + 44, 14, Color{210, 200, 180, 255});
     DrawTextCentered(TextFormat("You have %s   -   %d s left   -   E or Esc closes", Money(Me().money).c_str(), (int)std::max(0.0f, W().interLen - W().phaseT)), r.x + r.width / 2, r.y + r.height - 26, 14, Color{200, 190, 170, 255});
 }
-bool Row(Rectangle r, const std::string& left, const std::string& right, bool enabled, bool highlight = false) {
+bool Row(Rectangle r, const std::string& left, const std::string& right, bool enabled, bool highlight = false, float textY = -1) {
     bool hov = CheckCollisionPointRec(GetMousePosition(), r);
     DrawRectangleRec(r, highlight ? Color{90, 60, 30, 230} : hov && enabled ? Color{70, 54, 40, 230} : Color{40, 32, 26, 200});
-    Txt(left, r.x + 8, r.y + (r.height - 15) / 2, 15, enabled ? Color{240, 230, 210, 255} : Color{130, 120, 110, 255});
-    Txt(right, r.x + r.width - 8 - MeasureTxt(right, 15), r.y + (r.height - 15) / 2, 15, enabled ? Color{255, 220, 120, 255} : Color{130, 120, 110, 255});
+    float ty = textY >= 0 ? r.y + textY : r.y + (r.height - 15) / 2;   // (a row with a description under it puts its name at the top)
+    Txt(left, r.x + 8, ty, 15, enabled ? Color{240, 230, 210, 255} : Color{130, 120, 110, 255});
+    Txt(right, r.x + r.width - 8 - MeasureTxt(right, 15), ty, 15, enabled ? Color{255, 220, 120, 255} : Color{130, 120, 110, 255});
     return hov && enabled && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
 }
 std::string GunStats(const GunDef& g) {
@@ -235,7 +236,7 @@ void PanelSlop() {
         DrawTextCentered("Match-only: tokens buy the permanent ones in the arcade.", r.x + r.width / 2, r.y + r.height - 60, 14, Color{210, 200, 180, 255});
     } else if (S.slopTab == 1) {
         if (S.sabPick < 0) {
-            for (int i = 0; i < (int)D().sabotage.size(); i++) { const SlopItem& it = D().sabotage[i]; float x = r.x + 20 + (i / 7) * 365, y = y0 + (i % 7) * 52; if (Row({x, y, 350, 46}, it.name, Money(it.price) + "+", !w.M().practice)) S.sabPick = i; DrawWrapped(it.effect.c_str(), {x + 8, y + 26, 300, 20}, 12, Color{200, 190, 170, 255}); }
+            for (int i = 0; i < (int)D().sabotage.size(); i++) { const SlopItem& it = D().sabotage[i]; float x = r.x + 20 + (i / 7) * 365, y = y0 + (i % 7) * 54; if (Row({x, y, 350, 50}, it.name, Money(it.price) + "+", !w.M().practice, false, 5)) S.sabPick = i; DrawWrapped(it.effect.c_str(), {x + 8, y + 23, 334, 26}, 12, Color{200, 190, 170, 255}); }
             DrawTextCentered("It lands on their next hunt. Everyone sees who did it, and every one has a counter.", r.x + r.width / 2, r.y + r.height - 60, 14, Color{210, 200, 180, 255});
         } else {
             const SlopItem& it = D().sabotage[S.sabPick];
@@ -545,6 +546,8 @@ void DebugFowlShot(Game& g, int which) {
     if (which == 8) { toRound(3, PH_BONUS, 4.5f); S.camYaw = 0.3f; S.camPitch = 0.3f; }
     if (which == 10) { toRound(2, PH_INTER, 3); me.room = 1; me.pos = Vector3Add(World::Station(1), {2.6f, 0, 0.5f}); S.camYaw = -PI / 2 + 0.2f; S.camPitch = 0.12f; }   // (the gumball machine close up)
     if (which == 11) { toRound(2, PH_INTER, 3); me.room = 1; me.pos = {1.0f, 0, -13.4f}; S.camYaw = -PI / 2 - 0.25f; S.camPitch = -0.12f; w.players[1].slotT = 1.2f; w.players[1].slotBet = 5; }   // (the slot row)
+    if (which == 12) { toRound(2, PH_INTER, 3); me.room = 1; me.pos = Vector3Add(World::Station(0), {0.6f, 0, 3.2f}); S.camYaw = PI - 0.15f; S.camPitch = 0.02f; }   // (the gun counter, no panel)
+    if (which == 13) { toRound(2, PH_INTER, 3); me.room = 1; me.pos = Vector3Add(World::Station(4), {-3.4f, 0, 0.6f}); S.camYaw = PI / 2 + 0.15f; S.camPitch = 0.04f; }   // (the Slop Shop, no panel)
     S.lastPhase = w.phase;
     StepCamera(1 / 60.0f);
 }

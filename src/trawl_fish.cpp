@@ -615,13 +615,21 @@ void Gannet::StepRods(float dt) {
                         }
                     }
                 }
+                // (the playtest, 2026-10-06 again: a fish lying beside the hull still wouldn't gaff. A gaff now reaches
+                // anything within a few metres of the rod tip near the surface; a fish that's still fresh is harder to hold)
+                float freshK = 1;
+                if (r.gaffQ && !f.alongside && f.end == FightEnd::None) {
+                    float d = Vector2Distance({f.p.x, f.p.y}, {f.tip.x, f.tip.y});
+                    if (d < 5.5f && f.p.z < 4.5f && (f.L < 8 || f.S < 0.7f * f.S0)) { f.alongside = true; freshK = 0.55f + 0.45f * (1 - f.S / std::max(0.01f, f.S0)); }
+                    else Say(TextFormat("Too far to gaff (%.0f m): reel it in to the rod", d));
+                }
                 if (f.alongside) {
                     r.alongT += dt;
                     bool tryLand = r.gaffQ || (r.botAngler && r.alongT > 1.5f);
                     if (tryLand) {
                         float skill = f.spec.kg < 5 ? 0.97f : (role == Role::Bosun ? 0.85f : 0.8f);
                         if (r.botAngler && botsOn) skill = f.spec.kg < 5 ? 0.97f : SkillOf(botSkill).gaff;   // a bot crew's gaff (design doc, "Bot crew")
-                        if (!f.Land(skill)) Say("Missed with the gaff: it runs again");
+                        if (!f.Land(skill * freshK)) Say("Missed with the gaff: it runs again");
                         r.alongT = 0;
                     }
                 }

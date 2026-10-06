@@ -114,7 +114,7 @@ def grip_hand(mat):
         pts += [(0.004, -0.024, z), (0.01, -0.042, z * 0.95)]
     pts += [(-0.03, -0.006, 0.026), (-0.036, 0.006, 0.012), (-0.037, 0.0, -0.03), (-0.03, -0.014, -0.048),
             (-0.046, -0.036, 0.022), (-0.05, -0.036, -0.03)]
-    pts += ring_pts(WRIST_R, (1, 0.15, 0), 0.024, 6)
+    pts += ring_pts(WRIST_R, (1, 0.15, 0), 0.024, 16)
     parts.append(hull("palm", pts))
     for o in parts:
         C.assign(o, mat); C.smooth(o, 50)
@@ -137,7 +137,7 @@ def support_hand(mat):
     for x in (0.046, 0.024, 0.0, -0.022, -0.042):
         pts += [around(-95, 0.012, x), around(-90, 0.03, x)]
     pts += [(-0.03, 0.03, -0.02), (-0.006, 0.03, -0.012), (0.03, 0.03, -0.012), (0.03, 0.012, -0.05), (-0.03, 0.012, -0.055)]
-    pts += ring_pts(WRIST_L, (-0.4, 0.5, -0.75), 0.024, 6)
+    pts += ring_pts(WRIST_L, (-0.4, 0.5, -0.75), 0.024, 16)
     parts.append(hull("palm", pts))
     for o in parts:
         C.assign(o, mat); C.smooth(o, 50)
@@ -172,6 +172,22 @@ def sleeve(mats):
     return [o]
 
 
+def fuse(objs, mat, voxel=0.0011, iters=10, faces=2400):
+    """Join a hand's capsules and palm into one organic surface (no facets, no seams): a voxel remesh, a smoothing
+    pass that rounds the knuckles and the palm, then a decimate back to a viewmodel's budget."""
+    C.select_only(objs); bpy.ops.object.join(); o = bpy.context.active_object
+    m = o.modifiers.new("vox", 'REMESH'); m.mode = 'VOXEL'; m.voxel_size = voxel; m.use_smooth_shade = True
+    bpy.ops.object.modifier_apply(modifier=m.name)
+    s = o.modifiers.new("sm", 'SMOOTH'); s.factor = 0.75; s.iterations = iters
+    bpy.ops.object.modifier_apply(modifier=s.name)
+    if len(o.data.polygons) > faces:
+        d = o.modifiers.new("dec", 'DECIMATE'); d.ratio = faces / len(o.data.polygons)
+        bpy.ops.object.modifier_apply(modifier=d.name)
+    o.data.materials.clear(); o.data.materials.append(mat)
+    for p in o.data.polygons: p.use_smooth = True
+    return [o]
+
+
 def mirror_y(objs):
     for o in objs:
         for v in o.data.vertices:
@@ -187,7 +203,8 @@ def build(who, out):
     for name, (c, r) in cols.items():
         mats[name] = C.mat_flat(name, c, rough=r, metal=0.9 if name in METALLIC else 0.0)
     glove = GLOVE[who]
-    groups = {"hand.R": grip_hand(mats[glove]), "grip.L": mirror_y(grip_hand(mats[glove])), "hand.L": support_hand(mats[glove]),
+    g = mats[glove]
+    groups = {"hand.R": fuse(grip_hand(g), g), "grip.L": mirror_y(fuse(grip_hand(g), g)), "hand.L": fuse(support_hand(g), g),
               "cuff.R": cuff(mats, glove, who == "sailor"), "cuff.L": cuff(mats, glove, who == "sailor"), "arm.R": sleeve(mats), "arm.L": sleeve(mats)}
     arm = bpy.data.armatures.new("vm"); rig = C.link(bpy.data.objects.new("vm", arm))
     C.select_only([rig]); bpy.ops.object.mode_set(mode='EDIT')

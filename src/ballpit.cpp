@@ -440,6 +440,7 @@ void World::StepPlayer(Player& p) {
     if (p.carry >= 0) spd *= C.flagSpeed;
     if (p.wield == 1 && p.gun == G_BELT) spd *= Cfg().guns[G_BELT].slow;
     if (p.fingerT > 0) spd *= 1.0f;
+    { int mob = 0; for (const auto& e : ents) if (!e.dead && e.kind == E_KID && e.team != p.team && e.team != -1 - p.id && Vector3Distance(e.p, p.pos) < 1.1f) mob++; if (mob) spd *= std::max(0.45f, 1 - 0.12f * mob); }   // (a swarm of kids hanging on you)
     Vector3 wantV = Vector3Scale(wish, spd);
     float k = p.grounded ? 1.0f : C.airControl;
     p.vel.x += (wantV.x - p.vel.x) * std::min(1.0f, dt * 14 * k); p.vel.z += (wantV.z - p.vel.z) * std::min(1.0f, dt * 14 * k);
@@ -807,11 +808,13 @@ void World::StepRewards(Player& p) {
                 for (auto& q : players) if (q.alive && (q.id == p.id || (mode != MD_FFA && q.team == p.team && Vector3Distance(q.pos, p.pos) <= 10))) { q.reserve = C.dartMax; q.mag[0] = 1; if (q.gun < G_COUNT) q.mag[1] = C.guns[q.gun].mag; }
                 break; }
             case 1: { Ent e; e.kind = E_HEALTHBOX; e.owner = p.id; e.team = mode == MD_FFA ? -1 - p.id : p.team; e.p = Vector3Add(p.pos, Vector3Scale(fwd, 0.9f)); e.p.y = GroundAt(e.p, 0.2f, 0.6f); e.hp = 3; e.life = C.rewards[1].time; ents.push_back(e); break; }
-            case 2: {   // the kids flood the enemy half (free for all: everywhere but near you)
+            case 2: {   // a swarm of kids hunts the enemy: each picks an enemy, comes at them from nearby and mobs them
+                std::vector<int> foes; for (auto& q : players) if (q.alive && q.id != p.id && (mode == MD_FFA || q.team != p.team)) foes.push_back(q.id);
                 for (int k = 0; k < 8; k++) {
-                    Ent e; e.kind = E_KID; e.owner = p.id; e.team = mode == MD_FFA ? -1 - p.id : p.team; e.life = C.rewards[2].time;
-                    float side = mode == MD_FFA ? (p.pos.x > 0 ? -1.0f : 1.0f) : (p.team == 0 ? 1.0f : -1.0f);
-                    e.p = {side * (2 + Rand() * 4), 0, (Rand() - 0.5f) * 20}; e.goal = e.p; e.t = Rand() * 3; ents.push_back(e);
+                    Ent e; e.kind = E_KID; e.owner = p.id; e.team = mode == MD_FFA ? -1 - p.id : p.team; e.life = C.rewards[2].time; e.uses = foes.empty() ? -1 : foes[k % foes.size()];
+                    if (e.uses >= 0) { const Player& q = players[e.uses]; float an = Rand() * 2 * PI, rr = 4 + Rand() * 3; e.p = {q.pos.x + cosf(an) * rr, q.pos.y + 0.5f, q.pos.z + sinf(an) * rr}; e.p.y = GroundAt(e.p, 0.25f, 1.5f); }
+                    else { float side = mode == MD_FFA ? (p.pos.x > 0 ? -1.0f : 1.0f) : (p.team == 0 ? 1.0f : -1.0f); e.p = {side * (2 + Rand() * 4), 0, (Rand() - 0.5f) * 20}; }
+                    e.goal = e.p; e.t = Rand() * 0.4f; e.yaw = k * 0.785f; ents.push_back(e);
                 }
                 break; }
             case 3: { Ent e; e.kind = E_RCCAR; e.owner = p.id; e.team = mode == MD_FFA ? -1 - p.id : p.team; e.p = Vector3Add(p.pos, Vector3Scale(fwd, 0.8f)); e.p.y = GroundAt(e.p, 0.2f, 0.6f); e.yaw = p.yaw; e.hp = 50; e.life = C.rewards[3].time; ents.push_back(e); p.drive = (int)ents.size() - 1; p.po = PO_DRIVE; break; }
@@ -854,22 +857,25 @@ void World::StepEnts() {
                 if (e.hp <= 0) { e.dead = true; break; }
                 for (auto& q : players) if (q.alive && (q.id == e.owner || (mode != MD_FFA && q.team == e.team)) && q.hp < C.health && Vector3Distance(q.pos, e.p) < 0.9f) { q.hp = std::min(C.health, q.hp + 50); e.uses++; Emit(EV_REWARD, e.p, q.id, e.owner, 11); if (e.uses >= 5) { e.dead = true; break; } }
                 break; }
-            case E_KID: {   // run about the enemy half: ladders, slide exits, pits, in front of enemies
-                if (e.t > 2.5f || Vector2Distance({e.p.x, e.p.z}, {e.goal.x, e.goal.z}) < 0.5f) {
-                    e.t = 0; float side = e.p.x >= 0 ? 1.0f : -1.0f; int pick = (int)(Rand() * 4);
-                    if (pick == 0 && !arena.climbs.empty()) { const Climb& c = arena.climbs[(int)(Rand() * arena.climbs.size()) % arena.climbs.size()]; if (c.lo.y < 0.1f) e.goal = {(c.lo.x + c.hi.x) / 2 - c.into.x * 0.4f, 0, (c.lo.z + c.hi.z) / 2 - c.into.z * 0.4f}; }
-                    else if (pick == 1) { int best = -1; float bd = 1e9f; for (auto& q : players) if (q.alive && (mode == MD_FFA ? q.id != e.owner : q.team != e.team) && q.pos.y < 0.6f) { float d = Vector3Distance(q.pos, e.p) + Rand() * 4; if (d < bd) { bd = d; best = q.id; } } if (best >= 0) { Vector3 q = players[best].pos; e.goal = {q.x + cosf(players[best].yaw) * 1.2f, 0, q.z + sinf(players[best].yaw) * 1.2f}; } }
-                    else if (pick == 2 && !arena.pits.empty()) { const Pit& pt = arena.pits[(int)(Rand() * arena.pits.size()) % arena.pits.size()]; e.goal = {pt.lo.x + Rand() * (pt.hi.x - pt.lo.x), 0, pt.lo.z + Rand() * (pt.hi.z - pt.lo.z)}; }
-                    else e.goal = {side * (3 + Rand() * 15), 0, (Rand() - 0.5f) * 24};
-                    if (mode != MD_FFA) { float half = e.team == 0 ? 1.0f : -1.0f; if (e.goal.x * half < 1) e.goal.x = half * (2 + Rand() * 14); }
+            case E_KID: {   // the swarm: chase the target, ring round them (each kid its own spot), hop up decks after them
+                auto foe = [&](const Player& q) { return q.alive && q.id != e.owner && (mode == MD_FFA ? true : q.team != e.team); };
+                if (e.uses < 0 || e.uses >= (int)players.size() || !foe(players[e.uses])) { int best = -1; float bd = 1e9f; for (auto& q : players) if (foe(q)) { float d = Vector3Distance(q.pos, e.p); if (d < bd) { bd = d; best = q.id; } } e.uses = best; }
+                if (e.t > 0.35f) {
+                    e.t = 0;
+                    if (e.uses >= 0) { const Player& q = players[e.uses]; float an = e.yaw * 0 + (float)((i * 2654435761u) % 628) / 100.0f + e.life * 0.6f; e.goal = {q.pos.x + cosf(an) * 0.55f, q.pos.y, q.pos.z + sinf(an) * 0.55f}; }
+                    else e.goal = {(Rand() - 0.5f) * 40, 0, (Rand() - 0.5f) * 24};
                 }
-                Vector3 to = Vector3Subtract(e.goal, e.p); to.y = 0; float L = Vector3Length(to);
-                Vector3 want = L > 0.1f ? Vector3Scale(to, 3.4f / L) : Vector3{0, 0, 0};
-                e.v.x += (want.x - e.v.x) * std::min(1.0f, dt * 6); e.v.z += (want.z - e.v.z) * std::min(1.0f, dt * 6);
-                bool g = true; MoveBody(*this, e.p, e.v, g, 0.25f, 1.1f, dt); e.yaw = atan2f(e.v.z, e.v.x);
-                if (Rand() < dt * 0.4f) Emit(EV_REWARD, e.p, -1, e.owner, 12);   // (a shriek)
-                break; }
-            case E_RCCAR: {
+                Vector3 to = Vector3Subtract(e.goal, e.p); float up = to.y; to.y = 0; float L = Vector3Length(to);
+                Vector3 want = L > 0.1f ? Vector3Scale(to, 4.6f / L) : Vector3{0, 0, 0};   // (a little slower than a running player: you can outrun them)
+                e.v.x += (want.x - e.v.x) * std::min(1.0f, dt * 7); e.v.z += (want.z - e.v.z) * std::min(1.0f, dt * 7);
+                bool g = e.cool <= 0.0f && e.v.y <= 0.01f;
+                if (up > 0.8f && L < 3.5f && e.cool <= 0) { e.v.y = 8.5f; e.cool = 1.4f; g = false; }   // (a cartoon hop up onto the deck you're on)
+                e.v.y -= C.gravity * dt;
+                bool grounded = false; MoveBody(*this, e.p, e.v, grounded, 0.25f, 1.1f, dt); if (grounded && e.v.y < 0) e.v.y = 0; (void)g;
+                if (e.p.y < -2) { e.p.y = 0; e.v.y = 0; }
+                if (L > 0.2f) e.yaw = atan2f(e.v.z, e.v.x);
+                if (Rand() < dt * 0.5f) Emit(EV_REWARD, e.p, -1, e.owner, 12);   // (a shriek)
+                break; }            case E_RCCAR: {
                 if (!own || !own->alive || own->drive != (int)i) { e.dead = true; break; }
                 if (e.hp <= 0) { e.dead = true; own->drive = -1; own->po = PO_STAND; break; }
                 const Input& in = own->in; e.yaw = in.yaw;

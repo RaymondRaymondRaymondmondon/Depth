@@ -41,6 +41,7 @@ struct Pop { std::string text; Color col; float t; };
 struct Feed { std::string text; float t; Color c; };
 struct Fx { int kind; Vector3 p, v; float t, life; Color c; };   // particles: confetti, dart puffs, splashes
 struct BPScene {
+    int pendingBuy = -1;
     bool active = false, shot = false, help = true;
     World Wm; World* hostW = nullptr; arcade::Session* net = nullptr; uint32_t evTotal = 0; int seenVersion = -1; bool helloSent = false; std::string netName; std::vector<Vector3> smooth;
     int me = 0, mode = MD_TDM, players = 8, skill = 1;
@@ -215,14 +216,24 @@ Model& HallModel() {
     for (const auto& c : a.climbs) BuildClimb(mb, c);
     for (size_t i = 0; i < a.slides.size(); i++) BuildSlide(mb, a.slides[i], (int)i);
     // the tunnels' portholes and the pits' rims are the pads already; the stores get an awning and shelves
-    for (const auto& st : a.stores) {
-        float s = st.p.x > 0 ? 1.0f : -1.0f; Vector3 b{st.p.x, st.p.y, -13.6f};
-        for (int k = 0; k < 6; k++) BoxC(mb, {b.x - 0.7f + k * 0.24f, b.y + 2.0f, -14.0f}, {b.x - 0.48f + k * 0.24f, b.y + 2.1f, -13.0f}, k % 2 ? Color{240, 60, 50, 255} : Color{250, 250, 240, 255}, k % 2 ? Color{220, 50, 40, 255} : Color{230, 230, 220, 255}, {200, 200, 200, 255});
-        BoxC(mb, {b.x - 0.75f, b.y, -14.0f}, {b.x - 0.68f, b.y + 2.1f, -13.95f}, {120, 120, 130, 255}, {120, 120, 130, 255}, {100, 100, 110, 255}); BoxC(mb, {b.x + 0.68f, b.y, -14.0f}, {b.x + 0.75f, b.y + 2.1f, -13.95f}, {120, 120, 130, 255}, {120, 120, 130, 255}, {100, 100, 110, 255});
-        for (int sh = 0; sh < 2; sh++) BoxC(mb, {b.x - 0.66f, b.y + 1.3f + sh * 0.35f, -14.0f}, {b.x + 0.66f, b.y + 1.33f + sh * 0.35f, -13.75f}, {210, 210, 200, 255}, {190, 190, 180, 255}, {170, 170, 160, 255});
-        (void)s;
-    }
-    for (const auto& f : a.flags) { Cyl(mb, {f.p.x, f.p.y, f.p.z}, {f.p.x, f.p.y + 0.18f, f.p.z}, 0.5f, {230, 230, 226, 255}, 16); }
+    for (const auto& st : a.stores) {   // a real shop front: counter, pegboard of guns (drawn live), awning, posts, price board
+        float x = st.p.x, y = st.p.y;
+        Color stripeA{240, 60, 50, 255}, stripeB{250, 250, 240, 255};
+        // the counter: candy front panels, a yellow top, a kick plate
+        BoxC(mb, {x - 1.45f, y, -13.5f}, {x + 1.45f, y + 1.0f, -13.08f}, {250, 206, 42, 255}, {150, 70, 200, 255}, {90, 40, 120, 255});
+        for (int k = 0; k < 5; k++) BoxC(mb, {x - 1.3f + k * 0.56f, y + 0.25f, -13.075f}, {x - 0.95f + k * 0.56f, y + 0.75f, -13.06f}, k % 2 ? stripeA : Color{60, 160, 240, 255}, k % 2 ? stripeA : Color{60, 160, 240, 255}, {40, 40, 40, 255});
+        BoxC(mb, {x - 1.48f, y + 1.0f, -13.55f}, {x + 1.48f, y + 1.06f, -13.0f}, {255, 226, 90, 255}, {230, 180, 30, 255}, {200, 150, 20, 255});
+        // the pegboard behind, with hooks in rows
+        BoxC(mb, {x - 1.5f, y, -14.0f}, {x + 1.5f, y + 2.5f, -13.93f}, {225, 200, 160, 255}, {215, 190, 150, 255}, {200, 175, 140, 255});
+        for (int r = 0; r < 6; r++) for (int c = 0; c < 14; c++) BoxC(mb, {x - 1.35f + c * 0.2f, y + 1.15f + r * 0.2f, -13.93f}, {x - 1.33f + c * 0.2f, y + 1.17f + r * 0.2f, -13.91f}, {150, 120, 90, 255}, {150, 120, 90, 255}, {150, 120, 90, 255});
+        // posts and a striped awning sloping out over the counter
+        for (int sx = -1; sx <= 1; sx += 2) BoxC(mb, {x + sx * 1.55f - 0.05f, y, -13.0f}, {x + sx * 1.55f + 0.05f, y + 2.75f, -12.9f}, {250, 250, 250, 255}, {230, 60, 50, 255}, {200, 50, 40, 255});
+        for (int k = 0; k < 8; k++) { float x0 = x - 1.65f + k * 0.4125f, x1 = x0 + 0.4125f; Color c = k % 2 ? stripeA : stripeB;
+            mb.Quad({x0, y + 2.95f, -14.0f}, {x1, y + 2.95f, -14.0f}, {x1, y + 2.6f, -12.7f}, {x0, y + 2.6f, -12.7f}, c); mb.Quad({x0, y + 2.95f, -14.0f}, {x0, y + 2.6f, -12.7f}, {x1, y + 2.6f, -12.7f}, {x1, y + 2.95f, -14.0f}, c);
+            mb.Quad({x0, y + 2.6f, -12.7f}, {x1, y + 2.6f, -12.7f}, {(x0 + x1) / 2, y + 2.42f, -12.68f}, {(x0 + x1) / 2, y + 2.42f, -12.68f}, c); mb.Quad({x0, y + 2.6f, -12.7f}, {(x0 + x1) / 2, y + 2.42f, -12.68f}, {(x0 + x1) / 2, y + 2.42f, -12.68f}, {x1, y + 2.6f, -12.7f}, c); }
+        // a floor mat in front of the counter (the safe zone)
+        BoxC(mb, {x - 1.4f, y + 0.005f, -13.0f}, {x + 1.4f, y + 0.02f, -11.6f}, {90, 200, 120, 255}, {80, 180, 110, 255}, {70, 160, 100, 255});
+    }    for (const auto& f : a.flags) { Cyl(mb, {f.p.x, f.p.y, f.p.z}, {f.p.x, f.p.y + 0.18f, f.p.z}, 0.5f, {230, 230, 226, 255}, 16); }
     for (const auto& bs : a.bombSites) { for (int k = 0; k < 4; k++) { float an = k * PI / 2; Vector3 c{bs.p.x + cosf(an) * 1.2f, bs.p.y + 0.003f, bs.p.z + sinf(an) * 1.2f}; mb.Quad({c.x - 0.25f, c.y, c.z - 0.25f}, {c.x - 0.25f, c.y, c.z + 0.25f}, {c.x + 0.25f, c.y, c.z + 0.25f}, {c.x + 0.25f, c.y, c.z - 0.25f}, {250, 200, 40, 255}); } }
     m = Upload(mb); made = true; return m;
 }
@@ -380,7 +391,7 @@ void DrawSign(int k, Vector3 c, Vector3 n, float w, float h) {
 void DrawSigns() {
     const Arena& a = W().arena; float X = a.halfX - 0.04f, Z = a.halfZ - 0.04f;
     for (int s = -1; s <= 1; s += 2) DrawSign(0, {0, a.ceil - 4.6f, s * Z}, {0, 0, (float)-s}, 9.0f, 4.5f);   // the big banners on the long walls
-    for (const auto& st : a.stores) DrawSign(1, {st.p.x, st.p.y + 2.45f, -14.02f + 0.06f}, {0, 0, 1}, 1.8f, 0.9f);
+    for (const auto& st : a.stores) DrawSign(1, {st.p.x, st.p.y + 3.55f, -14.02f + 0.06f}, {0, 0, 1}, 1.8f, 0.9f);
     int k = 2; for (int s = -1; s <= 1; s += 2) for (int j = -2; j <= 2; j++) { if (j == 0) continue; DrawSign(2 + (k++ % (SIGN_N - 2)), {j * 6.5f + s * 1.2f, 1.4f + (j & 1) * 0.2f, s * Z}, {0, 0, (float)-s}, 0.9f, 1.26f); }
     for (int s = -1; s <= 1; s += 2) DrawSign(2 + (k++ % (SIGN_N - 2)), {s * X, 1.6f, s * 10.5f}, {(float)-s, 0, 0}, 0.9f, 1.26f);
 }
@@ -415,6 +426,18 @@ void DrawPerson(const Player& p, Vector3 feet, float scale, Color top, bool kid,
     if (p.beanie) { rt::DrawStatic(SphereM(), MatrixMultiply(MatrixScale(0.13f, 0.07f, 0.13f), MatrixTranslate(head.x, head.y, head.z)), {228, 58, 48, 255}); float spin = S.t * (4 + spd * 6); for (int k = 0; k < 2; k++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.22f, 0.01f, 0.04f), MatrixRotateY(spin + k * PI / 2)), MatrixTranslate(head.x, head.y + 0.1f, head.z)), k ? Color{250, 206, 42, 255} : Color{44, 128, 228, 255}); }
     if (p.carry >= 0) { Color c = TEAM[p.carry & 1]; rt::DrawCubeM(MatrixMultiply(MatrixScale(0.03f, 1.2f, 0.03f), MatrixTranslate(feet.x - cosf(p.yaw) * 0.25f, feet.y + 1.4f, feet.z - sinf(p.yaw) * 0.25f)), {230, 230, 230, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.5f, 0.32f, 0.02f), MatrixTranslate(feet.x - cosf(p.yaw) * 0.25f, feet.y + 1.85f, feet.z - sinf(p.yaw) * 0.25f + 0.25f)), c, 0.4f); }
     if (p.bomb && PropAsset("bomb")) rt::DrawPbr(*PropAsset("bomb"), MatrixMultiply(MatrixScale(0.7f, 0.7f, 0.7f), MatrixTranslate(feet.x - cosf(p.yaw) * 0.32f, feet.y + 0.95f, feet.z - sinf(p.yaw) * 0.32f)), WHITE, 0.2f); else if (p.bomb) rt::DrawStatic(SphereM(), MatrixMultiply(MatrixScale(0.25f, 0.25f, 0.25f), MatrixTranslate(feet.x - cosf(p.yaw) * 0.32f, feet.y + 1.2f, feet.z - sinf(p.yaw) * 0.32f)), {40, 40, 46, 255});
+}
+void DrawStores() {
+    const Arena& a = W().arena;
+    for (size_t si = 0; si < a.stores.size(); si++) {
+        const auto& st = a.stores[si]; float x = st.p.x, y = st.p.y;
+        for (int gi = 1; gi < G_COUNT; gi++) { int k = gi - 1; float gx = x - 1.0f + (k % 3) * 1.0f, gy = y + 2.15f - (k / 3) * 0.55f; DrawGunAt(gi, MatrixMultiply(MatrixScale(1.5f, 1.5f, 1.5f), MatrixTranslate(gx - 0.2f, gy, -13.84f))); rt::DrawCubeM(MatrixMultiply(MatrixScale(0.22f, 0.12f, 0.01f), MatrixTranslate(gx + 0.2f, gy - 0.18f, -13.86f)), {250, 250, 235, 255}); }
+        rt::DrawCubeM(MatrixMultiply(MatrixScale(0.34f, 0.22f, 0.26f), MatrixTranslate(x + 0.95f, y + 1.17f, -13.3f)), {60, 60, 70, 255});   // the till
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.2f, 0.08f, 0.02f), MatrixTranslate(x + 0.95f, y + 1.33f, -13.18f)), {120, 255, 140, 255}, 1.2f);
+        for (int b = 0; b < 4; b++) rt::DrawCubeM(MatrixMultiply(MatrixScale(0.2f, 0.12f, 0.14f), MatrixTranslate(x - 1.05f + (b % 2) * 0.22f, y + 1.12f + (b / 2) * 0.12f, -13.3f)), b % 2 ? Color{248, 126, 36, 255} : Color{40, 110, 220, 255});   // dart boxes
+        Player keeper; keeper.id = 90 + (int)si; keeper.team = st.team & 1; keeper.pos = {x - 0.2f, y, -13.72f}; keeper.yaw = PI / 2; keeper.vel = {}; keeper.alive = true;
+        DrawPerson(keeper, keeper.pos, 1.0f, {250, 206, 42, 255}, false, S.t * 0.5f + si, -1);
+    }
 }
 void DrawCannons() {
     const World& w = W(); float t = S.t;
@@ -666,6 +689,7 @@ void Gather() {
         if (IsKeyPressed(KEY_T)) { for (int s = 1; s <= (int)C.jokes.size(); s++) { int j = (S.jokeSel + s) % (int)C.jokes.size(); if (p.jokes[j] > 0) { S.jokeSel = j; break; } } }
         if (IsKeyPressed(KEY_G) && p.jokes[S.jokeSel] > 0) in.joke = S.jokeSel;
     }
+    if (S.pendingBuy >= 0) { in.buy = S.pendingBuy; S.pendingBuy = -1; }
     if (IsKeyPressed(KEY_B) && p.inStore) S.storeOpen = !S.storeOpen;
     if (!p.inStore) S.storeOpen = false;
     S.scoreboard = IsKeyDown(KEY_TAB);
@@ -682,7 +706,7 @@ void DrawStore(Game& g) {
     DrawTextCenteredBold("THE STORE", cx, r.y + 12, 30, {250, 206, 42, 255});
     DrawTextCentered(TextFormat("Score to spend: %d     (your leaderboard total stays %d)     B closes", p.cash, p.score), cx, r.y + 48, 15, {210, 220, 236, 255});
     if (p.storeT < C.storeSafe) DrawTextCentered(TextFormat("Safe for %.1f s", C.storeSafe - p.storeT), cx, r.y + 68, 14, {140, 255, 160, 255});
-    auto buy = [&](int code) { Input& in = p.in; in.buy = code; };
+    auto buy = [&](int code) { S.pendingBuy = code; PlayCue("ui.click"); };   // (sent with the next frame's input: p.in is rebuilt each frame by Gather)
     float y = r.y + 88;
     for (int gi = 1; gi < G_COUNT; gi++) {
         const GunDef& gd = C.guns[gi]; float x = r.x + 20 + ((gi - 1) % 2) * 410, yy = y + ((gi - 1) / 2) * 58;
@@ -909,7 +933,7 @@ void Render(float dt) {
     // the ceiling lights and the high windows of daylight
     for (int i = -4; i <= 4; i++) for (int j = -2; j <= 2; j++) { Vector3 c{i * 6.0f + 3, a.ceil - 0.06f, j * 5.0f}; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.6f, 0.06f, 0.4f), MatrixTranslate(c.x, c.y, c.z)), {255, 250, 236, 255}, 1.4f); }
     for (int s = -1; s <= 1; s += 2) for (int k = -6; k <= 6; k++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(3.4f, 1.2f, 0.04f), MatrixTranslate(k * 4.4f, a.ceil - 2.2f, s * (a.halfZ - 0.03f))), {210, 230, 250, 255}, 0.7f);
-    DrawPits(); DrawConveyor(); DrawCannons(); DrawPlayers(); DrawEnts(); DrawBallsAndDarts(); DrawFx(dt); DrawSigns();
+    DrawPits(); DrawConveyor(); DrawStores(); DrawCannons(); DrawPlayers(); DrawEnts(); DrawBallsAndDarts(); DrawFx(dt); DrawSigns();
     // a banner over each tower in the team's colour
     for (int s = 0; s < 2; s++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.06f, 2.0f, 8.0f), MatrixTranslate((s ? 1 : -1) * (a.halfX - 0.1f), a.ceil - 4.5f, 0)), TEAM[s], 0.5f);
     DrawViewmodel();
@@ -1013,6 +1037,12 @@ void DebugBallPitShot(Game& g, int which) {
     if (which == 13) {   // the spec's milestone 4 load: the pits (thousands of balls drawn) and 100 live balls in the air
         run(3.5f); place({-17, L2, -2}, 0.05f, -0.1f);
         for (int k = 0; k < 100; k++) { Ball b; b.st = BS_LIVE; b.p = {-12.0f + (k % 10) * 2.4f, 1.5f + (k / 10) * 0.6f, -6.0f + (k % 7) * 2.0f}; b.v = {(float)(k % 5) - 2, 3, (float)(k % 3) - 1}; b.thrower = 1; b.team = 1; w.balls.push_back(b); w.arena.pits[0].balls--; }
+    }
+    if (which == 14) { run(2); const Spot& st = w.arena.stores[0]; place({st.p.x, st.p.y, -10.4f}, -PI / 2, -0.12f); m.inStore = false; S.storeOpen = false; }
+    if (which == 15) {   // the kids' swarm on an enemy
+        run(4); Player& foe = w.players[1]; foe.pos = {8, 0, 2}; foe.alive = true; foe.vel = {}; m.rewardReady = 63; m.rewardPick = 63; m.in = Input{}; m.in.reward = 2; w.Step(); m.in = Input{};
+        for (int i = 0; i < 160; i++) { foe.in = Input{}; w.Step(); }
+        place({foe.pos.x - 6, 0, foe.pos.z}, 0, -0.12f);
     }
     // (a debug overview flies the camera out over the hall)
     if (which == 10) { Me().alive = true; }

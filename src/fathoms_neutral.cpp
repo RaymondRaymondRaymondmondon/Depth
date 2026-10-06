@@ -29,6 +29,20 @@ static int Living(const World& w, int site, const char* key = nullptr) {
     for (const auto& u : w.units) if (!u.dead && u.home == site && !IsPlayer(u.owner) && (def < 0 || u.def == def)) n++;
     return n;
 }
+// a raid by sea: boats from the site's own shore, everyone aboard, sailing to land beside the target (they can be sunk on the way)
+static void SeaRaid(World& w, int owner, int site, const char* boat, const std::vector<std::string>& crew, Vector2 target, int hire, float life, std::vector<int>* track = nullptr) {
+    const UnitDef& bd = B().units[B().Unit(boat)]; size_t i = 0; Vector2 from = w.sites[site].p;
+    while (i < crew.size()) {
+        int bid = SpawnNeutral(w, owner, boat, FreeNear(w, from, true, 6), site); Unit* b = w.U(bid); if (!b) return;
+        b->hire = hire; b->life = life + 120; b->stance = ST_PASSIVE;
+        int room = std::max(1, bd.carry);
+        for (int k = 0; k < room && i < crew.size(); k++, i++) {
+            int id = SpawnNeutral(w, owner, crew[i].c_str(), b->p, site); Unit* u = w.U(id); b = w.U(bid); if (!u || !b) continue;
+            u->hire = hire; u->life = life; u->stance = ST_AGGRESSIVE; u->inside = bid; b->cargo.push_back(id); if (track) track->push_back(id);
+        }
+        b->order = O_UNLOAD; b->goal = target; b->path.clear(); if (track) track->push_back(bid);
+    }
+}
 static int MaxEra(const World& w) { int e = 0; for (const auto& p : w.players) if (p.alive) e = std::max(e, p.era); return e; }
 static float RepMult(const Site& s, int p) { return 1 - 0.05f * floorf(s.rep[p] / 25.0f); }   // (every 25 reputation shifts prices 5%)
 
@@ -122,9 +136,8 @@ static void SpawnRaid(World& w, Contract& k) {
     for (int i = 0; i < D.sloops; i++) ship("sloop");
     for (int i = 0; i < D.gunboats; i++) ship("gunboat");
     for (int i = 0; i < D.ironclads; i++) ship("ironclad");
-    // the landing party comes ashore near the target (the Transport is drawn going in)
-    Vector2 shore = FreeNear(w, tgt, false, 6);
-    for (int i = 0; i < D.pirates; i++) { int id = SpawnNeutral(w, OWN_PIRATE, "pirate", FreeNear(w, shore, false, 2), k.cove); if (Unit* u = w.U(id)) { u->hire = k.target; u->life = D.time; u->order = O_ATTACK_MOVE; u->goal = tgt; u->stance = ST_AGGRESSIVE; u->landedT = w.t; k.units.push_back(id); } }
+    // the landing party comes in by Transport
+    if (D.pirates > 0) { std::vector<std::string> crew(D.pirates, "pirate"); SeaRaid(w, OWN_PIRATE, k.cove, "transport", crew, tgt, k.target, D.time, &k.units); }
     k.live = true; k.liveT = w.t; w.Emit(EV_PIRATE_ARRIVE, tgt, k.target, k.hirer);
 }
 bool NeutralCommand(World& w, const Command& c) {
@@ -242,7 +255,7 @@ static void StepTribe(World& w, Site& s, int si) {
     s.t += STEP;
     if (s.t >= Bl.tribeGrowth) { s.t = 0; if (Living(w, si) < Bl.tribeCap) SpawnNeutral(w, OWN_TRIBE, w.Rand() < 0.7f ? "tribal_warrior" : "tribal_thrower", FreeNear(w, s.p, false, 2), si); }
     // raids: from minute 6, every 5 minutes, at whoever last attacked it or the nearest player not at peace
-    if (w.t >= Bl.tribeWake) {
+    if (w.t >= Bl.tribeWake + (si % 4) * 75) {
         s.t2 -= STEP;
         if (s.t2 <= 0) {
             s.t2 = Bl.tribeRaidEvery; int target = -1;
@@ -251,9 +264,9 @@ static void StepTribe(World& w, Site& s, int si) {
             for (const auto& b : w.buildings) { if (b.dead || !IsPlayer(b.owner) || b.owner >= (int)w.players.size() || s.peace[b.owner] != 0) continue; if (target >= 0 && b.owner != target) continue; float d = Vector2Distance(b.Centre(), s.p); if (d < bd) { bd = d; at = b.Centre(); if (target < 0) target = b.owner; } }
             if (target >= 0 && bd < 1e8f) {
                 int n = Bl.raidSize[std::clamp(MaxEra(w), 0, 2)];
-                // the war canoes land them near the target (drawn going in)
-                Vector2 shore = FreeNear(w, at, false, 7);
-                for (int k = 0; k < n; k++) { int id = SpawnNeutral(w, OWN_TRIBE, k == 0 && MaxEra(w) >= 2 ? "chieftain" : "tribal_warrior", FreeNear(w, shore, false, 2), si); if (Unit* u = w.U(id)) { u->hire = target; u->order = O_ATTACK_MOVE; u->goal = at; u->stance = ST_AGGRESSIVE; u->landedT = w.t; u->life = 150; } }
+                // the war canoes paddle them over and land them beside the target (sink the canoes and the raid drowns)
+                std::vector<std::string> crew; for (int k = 0; k < n; k++) crew.push_back(k == 0 && MaxEra(w) >= 2 ? "chieftain" : "tribal_warrior");
+                SeaRaid(w, OWN_TRIBE, si, "war_canoe", crew, at, target, 240);
                 w.Emit(EV_TRIBE_RAID, at, target, si, n);
             }
         }

@@ -61,3 +61,8 @@ of a test (2: every gatherer; 3: unit and building counts); `DEPTH_AITRACE=1` pr
 - Host/Join for friends: each player sees only what their units see.
 - F9 pauses (three each); the toast says Autosaved every 3 minutes; quit and press Resume save on the Fathoms page.
 - Alt+click pings for allies; F2 diplomacy offers and Accept between two humans.
+
+## Playtest fixes (2026-10-06)
+- Nobody walks on water any more: only the tribes wade the shallows (`Passable`); everyone else needs a boat.
+- Raids come by sea (`SeaRaid` in fathoms_neutral.cpp): pirates in transports, tribes in war canoes, which can be sunk before they land; the landed crew attack-move on. The tribes' first raids are staggered (75 s apart per site), so a new colony isn't swamped early.
+

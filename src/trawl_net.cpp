@@ -169,7 +169,8 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
             float cr = line.x * to.y - line.y * to.x, d2 = Vector2DotProduct(line, to);
             lean = std::clamp(atan2f(cr, std::max(0.01f, fabsf(d2))) / (45 * DEG2RAD), -1.0f, 1.0f);
         }
-        bool gaffNow = on(HI_SPACE_P) || (r.state == RodState::Fighting && r.fight.alongside && on(HI_LMB_P));   // (alongside, a click gaffs it too)
+        bool nearHull = r.state == RodState::Fighting && (r.fight.alongside || (Vector2Distance({r.fight.p.x, r.fight.p.y}, {r.fight.tip.x, r.fight.tip.y}) < 5.5f && r.fight.p.z < 4.5f));
+        bool gaffNow = on(HI_SPACE_P) || (nearHull && on(HI_LMB_P));   // (beside her, a click gaffs it)   // (alongside, a click gaffs it too)
         g.RodInput(ci, casting && lmb, in.aim, !casting && lmb && !gaffNow, on(HI_SPACE_P), lean, rmb, gaffNow, in.wheel);
         g.Move(ci, {0, 0}, on(HI_SHIFT), dt);
         return;

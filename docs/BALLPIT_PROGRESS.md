@@ -47,3 +47,10 @@ questions; the open questions below were answered with the spec's own defaults.
 - `depth.exe --ballpit-sim <matches> <mode 0-3> <players>`.
 - Shots: `--shots shots bp_` (atrium, bridge, cannon, store, submerged, slide, ground, over, rewards, flag, overview,
   down, bomb) and `arcade_ballpit`.
+
+## Playtest fixes (2026-10-06)
+- The store works: a click in the store panel queues the purchase (`BPScene::pendingBuy`) and `Gather` sends it as `Input::buy` (before, `Gather` rebuilt the input each frame and dropped it).
+- The store looks like a shop: a counter with candy panels, a pegboard of guns with price tags, a striped awning, a till, dart boxes and a shopkeeper (`DrawStores`). Shot `bp_shopfront`.
+- The annoying-kids streak is a swarm: 8 kids, each assigned to an enemy, spawn 4-7 m from it, chase at 4.6 m/s, hop up to it, ring it and shriek; each kid within 1.1 m slows the target 12% (to at least 45%). Tested in `--ballpit-test`. Shot `bp_kids`.
+- The first-person hands are fused into smooth gloves (`fuse()` in tools/artgen/rt_fphands.py: a voxel remesh, smoothing, a decimate), shared with Red Tide and the Trawl.
+

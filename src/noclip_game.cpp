@@ -27,7 +27,7 @@ struct NcScene {
     int me = 0, bots = 3; std::vector<uint32_t> botRng;
     float camYaw = 0, camPitch = 0, t = 0, acc = 0, bob = 0, blackout = 0, hurtFlash = 0;
     int panel = -1;            // -1 none, 0 the portal desk, 1 the commissary, 2 the monitors
-    bool map = false; int surfTab = 0;
+    bool map = false; int surfTab = 0; bool bearShot = false;
     size_t evCursor = 0; std::deque<Sub> subs;
     std::vector<Entity> fakes; float fakeT = 0; float valueLie = 1;   // the hallucinations (this client only)
     Camera3D cam{};
@@ -175,6 +175,9 @@ void PanelShop() {
     Txt(TextFormat("Crew cash: $%d   (this Lab's prices are %d%% of the Surface's)", w.cash, (int)(mul * 100)), r.x + 20, r.y + 50, 15, INK);
     for (int i = 0; i < (int)D().items.size(); i++) { const ItemDef& it = D().items[i]; float x = r.x + 20 + (i / 11) * 325, y = r.y + 80 + (i % 11) * 34; int pr = (int)roundf(it.price * mul); if (Row({x, y, 315, 30}, it.name, TextFormat("$%d", pr), w.cash >= pr)) { Command c; c.kind = C_LAB_BUY; c.a = i; Send(c); } }
 }
+struct Bearing { std::vector<int> path; int level = -1; float t = -9; std::string goal; bool none = false; };
+Bearing gBear;
+void UpdateBearing(bool force);
 void DrawFieldMap(bool monitors) {
     World& w = W(); Player& p = Me(); Level& lv = w.L(p.level);
     Rectangle r{SCREEN_W / 2.0f - 380, 60, 760, 560}; DrawRectangleRec(r, Color{226, 216, 186, 245}); DrawRectangleLinesEx(r, 3, Color{90, 70, 50, 255});
@@ -195,7 +198,71 @@ void DrawFieldMap(bool monitors) {
     bool radio = false; for (int k = 0; k < p.toolSlots; k++) if (p.tools[k].item == ItemIndex("radio")) radio = true;
     for (const auto& q : w.crew) if (q.level == p.level && q.Alive() && (q.id == S.me || radio)) DrawCircleV({ox + q.p.x / CELL * cs, oz + q.p.z / CELL * cs}, q.id == S.me ? 5.0f : 4.0f, q.id == S.me ? Color{220, 40, 40, 255} : Color{40, 40, 200, 255});
     if (monitors) for (const auto& e : w.ents) if (e.level == p.level && myLab) { const LabPlan& lp = lv.labs[myLab->idx]; if (fabsf(e.p.x / CELL - (lp.x0 + lp.x1) / 2.0f) < 16 && fabsf(e.p.z / CELL - (lp.z0 + lp.z1) / 2.0f) < 16) { DrawCircleV({ox + e.p.x / CELL * cs, oz + e.p.z / CELL * cs}, 4, Color{200, 30, 30, 255}); Txt(D().entities[e.def].name, ox + e.p.x / CELL * cs + 5, oz + e.p.z / CELL * cs - 5, 10, Color{150, 20, 20, 255}); } }
+    if (!monitors) {   // the way back to a Lab, dotted (the same route the B bearing follows)
+        UpdateBearing(false);
+        for (size_t i = 0; i + 1 < gBear.path.size(); i += 2) { int c = gBear.path[i]; DrawCircleV({ox + (c % lv.w + 0.5f) * cs, oz + (c / lv.w + 0.5f) * cs}, std::max(1.5f, cs * 0.22f), Color{200, 60, 40, 220}); }
+        if (!gBear.path.empty()) Txt("the way back: " + gBear.goal, r.x + 14, r.y + r.height - 40, 12, Color{150, 50, 30, 255});
+    }
     DrawTextCentered(D().levels[p.level].compass ? "The compass works here." : "The compass spins.", r.x + r.width / 2, r.y + r.height - 22, 13, Color{90, 70, 50, 255});
+}
+
+// ---------------------------------------------------------------- the bearing home (the playtest: "a button that directs you
+// back to the lab ... so players go further out knowing the rough way back"): hold B and a needle follows the corridors
+// to the nearest Lab on this level, or to the exit that leads back toward a level with one. Drawing only: nothing in
+// the rules changes, so it's the same for solo and guests (who generate the same levels from the day's seed).
+void UpdateBearing(bool force) {
+    World& w = W(); const Player& p = Me();
+    if (!force && gBear.level == p.level && S.t - gBear.t < 0.4f) return;
+    gBear = Bearing(); gBear.level = p.level; gBear.t = S.t;
+    Level& lv = w.L(p.level);
+    std::vector<uint8_t> goal(lv.w * lv.h, 0); std::vector<std::string> goalName(1);
+    auto mark = [&](int x, int z, uint8_t id) { if (x >= 0 && z >= 0 && x < lv.w && z < lv.h && !goal[z * lv.w + x]) goal[z * lv.w + x] = id; };
+    if (!lv.labs.empty()) {
+        for (int k = 0; k < (int)lv.labs.size(); k++) {
+            const LabPlan& lp = lv.labs[k]; goalName.push_back("Lab " + lp.name);
+            for (int z = lp.z0; z <= lp.z1; z++) for (int x = lp.x0; x <= lp.x1; x++) if (lv.At(x, z) == T_LABFLOOR) mark(x, z, (uint8_t)goalName.size() - 1);
+        }
+    } else {
+        // hops to the nearest level with a Lab, over the levels the crew has opened today (the way they came)
+        std::map<int, int> hops; std::deque<int> q;
+        for (auto& [id, L] : w.levels) if (!L.labs.empty()) { hops[id] = 0; q.push_back(id); }
+        while (!q.empty()) {   // (backwards: a level is one hop further than any level its exits lead to)
+            int cur = q.front(); q.pop_front();
+            for (auto& [id, L] : w.levels) { if (hops.count(id)) continue; for (const auto& e : L.exits) if (!e.noclip && e.to == cur) { hops[id] = hops[cur] + 1; q.push_back(id); break; } }
+        }
+        int best = 1 << 20; for (const auto& e : lv.exits) if (!e.noclip && hops.count(e.to)) best = std::min(best, hops[e.to]);
+        for (const auto& e : lv.exits) if (!e.noclip && hops.count(e.to) && hops[e.to] == best) {
+            goalName.push_back(e.label + " (to Level " + std::to_string(e.to) + (best == 0 ? ", a Lab level)" : ")"));
+            uint8_t id = (uint8_t)goalName.size() - 1; mark(e.cx, e.cz, id); mark(e.cx + 1, e.cz, id); mark(e.cx - 1, e.cz, id); mark(e.cx, e.cz + 1, id); mark(e.cx, e.cz - 1, id);
+        }
+    }
+    int sx = lv.CellX(p.p.x), sz = lv.CellZ(p.p.z);
+    if (goalName.size() <= 1 || sx < 0 || sz < 0 || sx >= lv.w || sz >= lv.h) { gBear.none = true; return; }
+    std::vector<int> prev(lv.w * lv.h, -2); std::deque<int> q; int s = sz * lv.w + sx; prev[s] = -1; q.push_back(s); int hit = -1;
+    while (!q.empty()) {
+        int c = q.front(); q.pop_front(); if (goal[c]) { hit = c; break; }
+        int x = c % lv.w, z = c / lv.w; const int D4[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (auto& d : D4) { int nx = x + d[0], nz = z + d[1]; if (nx < 0 || nz < 0 || nx >= lv.w || nz >= lv.h) continue; int ni = nz * lv.w + nx; if (prev[ni] != -2 || ((!lv.Walkable(nx, nz) || lv.At(nx, nz) == T_PIT || w.Sealed(p.level, nx, nz)) && !goal[ni])) continue; prev[ni] = c; q.push_back(ni); }
+    }
+    if (hit < 0) { gBear.none = true; return; }
+    for (int c = hit; c != -1; c = prev[c]) gBear.path.push_back(c);
+    std::reverse(gBear.path.begin(), gBear.path.end());
+    gBear.goal = goalName[goal[hit]];
+}
+void DrawBearing() {
+    const Player& p = Me(); Level& lv = W().L(p.level); float cx = SCREEN_W / 2.0f;
+    Vector2 c{cx, 118}; DrawCircleV(c, 40, Color{16, 18, 16, 200}); DrawCircleLines((int)c.x, (int)c.y, 40, Color{200, 180, 110, 255});
+    auto label = [&](const std::string& t, Color col) { float tw = MeasureTxt(t, 14); DrawRectangleRounded({cx - tw / 2 - 10, 160, tw + 20, 22}, 0.4f, 6, Color{16, 18, 16, 210}); DrawTextCentered(t, cx, 163, 14, col); };
+    if (gBear.none || gBear.path.empty()) { label("No known way back from here: find an exit", WARN); return; }
+    int k = std::min((int)gBear.path.size() - 1, 4); Vector3 wp = lv.Center(gBear.path[k] % lv.w, gBear.path[k] / lv.w);
+    Vector3 d = Vector3Subtract(wp, p.p); float fw = d.x * cosf(p.yaw) + d.z * sinf(p.yaw), rt = -d.x * sinf(p.yaw) + d.z * cosf(p.yaw);
+    float a = atan2f(rt, fw);
+    bool wander = !D().levels[p.level].compass; if (wander) a += 0.35f * sinf(S.t * 1.3f) + 0.2f * sinf(S.t * 3.1f);   // (where the compass spins, the needle wanders: rough is all you get)
+    Vector2 tip{c.x + sinf(a) * 32, c.y - cosf(a) * 32}, back{c.x - sinf(a) * 14, c.y + cosf(a) * 14}, side{cosf(a) * 9, sinf(a) * 9};
+    DrawTriangle(tip, Vector2Subtract(back, side), Vector2Add(back, side), Color{240, 200, 90, 255}); DrawTriangle(tip, Vector2Add(back, side), Vector2Subtract(back, side), Color{240, 200, 90, 255});
+    DrawCircleV(c, 4, Color{60, 50, 30, 255});
+    float m = (gBear.path.size() - 1) * CELL;
+    label(TextFormat("%s: %d m%s", gBear.goal.c_str(), (int)m, wander ? "  (the needle wanders here)" : ""), INK);
 }
 
 // ---------------------------------------------------------------- the HUD on the wrist, the camcorder's overlay
@@ -269,13 +336,14 @@ void DrawHud(Game& g) {
             Txt("SCANNER", sc.x - 26, sc.y + 74, 11, Color{60, 200, 90, 255});
         }
     }
+    if ((IsKeyDown(KEY_B) || S.bearShot) && p.st == PS_ALIVE && S.panel < 0 && !S.map) { UpdateBearing(false); DrawBearing(); }
     if (p.impostor) DrawTextCentered(p.takenOnLevel == p.level ? "You are the Skin-Stealer. You've fed on this level." : "You are the Skin-Stealer. R takes a teammate within reach (one per level). You can't die.", cx, 64, 15, Color{255, 120, 120, 255});
     if (p.lostT > 0) DrawTextCenteredBold("LOST", cx, cy - 80, 30, WARN);
     if (p.blackoutT > 0) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{0, 0, 0, (unsigned char)(255 * std::min(1.0f, p.blackoutT))});
     if (S.help && S.panel < 0 && !S.map) {
-        Rectangle r{SCREEN_W - 330.0f, 70, 314, 232}; DrawRectangleRounded(r, 0.05f, 6, Color{10, 10, 10, 180});
-        const char* L[] = {"WASD walk, Shift sprint, Ctrl crouch", "E use / pick up / open, G drop, T throw", "F headlamp; 1-5 or wheel: a tool; click uses it", "M the field map; Caps Lock: talk (nearby)", "Bring loot to a Lab's crate, signal the portal", "at the desk, and stand in the ring to go up", "Sanity: almond water, company, Lab lights", "Never run from a Smiler. Walk past Hounds.", "Y accepts a Partygoer (don't).  F1 hides this"};
-        for (int i = 0; i < 9; i++) Txt(L[i], r.x + 10, r.y + 8 + i * 24, 14, INK);
+        Rectangle r{SCREEN_W - 330.0f, 70, 314, 256}; DrawRectangleRounded(r, 0.05f, 6, Color{10, 10, 10, 180});
+        const char* L[] = {"WASD walk, Shift sprint, Ctrl crouch", "E use / pick up / open, G drop, T throw", "F headlamp; 1-5 or wheel: a tool; click uses it", "M the field map; Caps Lock: talk (nearby)", "Bring loot to a Lab's crate, signal the portal", "at the desk, and stand in the ring to go up", "Sanity: almond water, company, Lab lights", "Never run from a Smiler. Walk past Hounds.", "Hold B: the bearing back to a Lab", "Y accepts a Partygoer (don't).  F1 hides this"};
+        for (int i = 0; i < 10; i++) Txt(L[i], r.x + 10, r.y + 8 + i * 24, 14, INK);
     }
     if (S.panel == 0) PanelDesk(); else if (S.panel == 1) PanelShop(); else if (S.panel == 2) DrawFieldMap(true);
     if (S.map) DrawFieldMap(false);
@@ -509,6 +577,11 @@ void DebugNoclipShot(Game& g, int which) {
         for (int k = 1; k <= 2; k++) { Player& q = w.crew[k]; q.level = 0; q.st = PS_ALIVE; q.p = Vector3Add(at, {3.2f, 0, k == 1 ? -0.75f : 0.75f}); q.yaw = PI + (k == 1 ? 0.3f : -0.3f); q.vel = which == 11 ? Vector3{-2.5f, 0, 0} : Vector3{}; }
         for (int i = 0; i < (int)D().cosmetics.size(); i++) if (D().cosmetics[i].id == "bureau_orange") w.crew[2].costume = i;
         if (which == 11) for (const char* id : {"faceling", "partygoer", "patient", "warden"}) { static int n = 0; Entity e; e.def = EntityIndex(id); e.level = 0; e.uid = 900 + n; e.p = Vector3Add(at, {5.5f, 0, -2.4f + (n % 4) * 1.6f}); e.yaw = PI; e.st = ES_IDLE; w.ents.push_back(e); n++; }
+    }
+    if (which == 13 || which == 14) {   // the bearing back to a Lab (13 on the HUD, 14 on the field map), from a corridor well out
+        Vector3 at = open(l0); for (int i = 0; i < 4000; i++) { int x = 4 + (i * 41) % (l0.w - 8), z = 4 + (i * 59) % (l0.h - 8); if (l0.At(x, z) == T_FLOOR && Vector3Distance(l0.Center(x, z), lp.spots[0].at) > 45) { at = l0.Center(x, z); break; } }
+        put(0, at, 0.3f, 0.0f); if (which == 13) S.bearShot = true;
+        if (which == 14) { for (int k = 0; k < 40; k++) { p.p = Vector3Add(at, {(float)(k % 8 - 4) * 5, 0, (float)(k / 8 - 2) * 5}); w.SeeMap(p); } p.p = at; S.map = true; }
     }
     S.lastDay = w.day; ReadEvents(); StepCamera(1 / 60.0f);
 }

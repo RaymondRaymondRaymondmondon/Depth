@@ -238,7 +238,7 @@ void ReelGauge(const Gannet& g, const Crew& c) {
                   r.bite.stage == BiteStage::Inspect ? "The tip ticks..." : "Waiting. Scroll sets the depth; hold left mouse to reel in.";
             break;
         case RodState::Fighting:
-            tip = r.fight.alongside ? "Alongside: SPACE or CLICK to gaff" : r.fight.jumpT >= 0 ? "It jumps: RIGHT MOUSE to bow!" :
+            tip = r.fight.alongside || (Vector2Distance({r.fight.p.x, r.fight.p.y}, {r.fight.tip.x, r.fight.tip.y}) < 5.5f && r.fight.p.z < 4.5f) ? "Beside her: SPACE or CLICK to gaff" : r.fight.jumpT >= 0 ? "It jumps: RIGHT MOUSE to bow!" :
                   r.lastTick > 0 ? "The tip ticks: it's about to run (Reader)" :
                   "Left: reel   Right: bow   Mouse to one side: side pressure   Scroll: drag";
             break;

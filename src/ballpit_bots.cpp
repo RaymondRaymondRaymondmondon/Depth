@@ -493,6 +493,21 @@ int RunBallPitTest() {
         check(w.phase == PH_OVER && right, what);
         cm.modes[md] = keep;
     }
+    // the kids' swarm hunts: within a few seconds most of them are hanging off enemies, who slow down
+    {
+        World w; w.Init(MD_TDM, 4, 91); for (auto& p : w.players) { p.bot = false; p.storeT = 99; }
+        w.phase = PH_PLAY; Player& a = w.players[0]; int foeId = -1; for (auto& q : w.players) if (q.team != a.team) { foeId = q.id; break; }
+        Player& foe = w.players[foeId]; foe.pos = {6, 0, 3}; foe.vel = {};
+        a.rewardReady = 63; a.rewardPick = 63; a.in = Input{}; a.in.reward = 2; w.Step(); a.in = Input{};
+        int kids = 0; for (auto& e : w.ents) if (!e.dead && e.kind == E_KID) kids++;
+        for (int i = 0; i < 60 * 6; i++) { for (auto& q : w.players) q.in = Input{}; w.Step(); }
+        int near = 0; for (auto& e : w.ents) if (!e.dead && e.kind == E_KID) for (auto& q : w.players) if (q.team != a.team && q.alive && Vector3Distance(e.p, q.pos) < 1.6f) { near++; break; }
+        char what[96]; std::snprintf(what, sizeof what, "the kids' swarm finds the enemies (%d of %d kids on them after 6 s)", near, kids);
+        check(kids == 8 && near >= 5, what);
+        Vector3 p0 = foe.pos; for (int i = 0; i < 60; i++) { foe.in = Input{}; foe.in.moveX = 1; foe.in.yaw = 0; w.Step(); }
+        float mobbed = Vector3Distance(p0, foe.pos);
+        std::snprintf(what, sizeof what, "a mobbed enemy is slowed (%.1f m in 1 s)", mobbed); check(mobbed < Cfg().run * 0.8f, what);
+    }
     std::printf(fails ? "Ball Pit Brawl: %d FAILED\n" : "Ball Pit Brawl: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

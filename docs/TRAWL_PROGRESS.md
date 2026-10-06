@@ -881,3 +881,7 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
 
 - Playtest (2026-10-06): fishing still too hard. The take's window is 1.2 s (wary 0.9 s, +0.25 for an Angler); an early strike on a nibble spooks the fish only one time in three (otherwise it backs off and comes again); an unbowed jump throws the hook 15% of the time (was 40%); hook pull-outs about half as often; a circle hook allows 2.5 s of slack; no snaps in a fight's first 3 s. The --trawl-fight targets were raised to match (90/78/69/54/56%). The night runs 11 real minutes (`NIGHT_RATE`; was 9), every event keeping its clock time. The shakedown sends you back to land another fish if the one for the gutting lesson goes over the rail.
 - Playtest (2026-10-06, second): Shift sprints (1.7x on deck, the quay and ashore; C/Ctrl is the braced crouch) and Space hops everywhere (ashore too; the eye follows the hop and the crouch on the quay and the landings). The wheelhouse glass is clear: the boat's depth prepass was writing the windows' depth, so the sea behind them never drew; window glass is fainter. The night's moonlight and sky ambient were halved. Gaffing: a fish reeled right in and half spent comes alongside, and a click gaffs it as well as Space.
+
+## Playtest fix (2026-10-06): the gaff
+- A fish beside the boat can be gaffed with Space or a click on the rod once it's within 5.5 m of the rod tip and near the surface (`StepRods`), not only once the fight marks it alongside; a fish gaffed while still fresh lands at a lower chance. Too far: `Too far to gaff`.
+

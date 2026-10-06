@@ -102,3 +102,10 @@ The user said the gumball and slot machines didn't look like well-made machines.
 - Visual polish (2026-10-05): toy guns are built from rounded moulded parts (`RoundCube`, `gRoundBoxes` in fowl_art.cpp); the marsh's dead trees, branches, lily pads (with flowers) and the floating log are round now.
 - The clubhouse furnished (2026-10-05): `tools/artgen/fowl_props.py` now also builds the glass gun case, the pegboard with hooks (the packs hang as printed cards), the scratch counter and ticket dispenser, the Slop Shop booth (striped awning, curtain), the trophy wall (cups, a mounted decoy), the bar (bottles, taps, stools), turned porch posts and beadboard partitions, and `clubdecor` (beams, chair rail, duck prints, two dusk windows, a moose head, a decoy shelf, pendant lamps, a rug, a pot-bellied stove with firelight, a coat rack). The old boxes remain as the fallback.
 - The marsh's own life (2026-10-05): frogs on the lily pads (one hops now and then), two grey herons wading far out that stab at the water, dragonflies darting over the reeds by day and fireflies blinking by night; the stall plaques are enamel with round pips, the ammo tray holds real cartridges.
+
+## Playtest fixes (2026-10-06)
+- The Slop Shop was rebuilt (tools/artgen/fowl_props.py `slopshop`): a fairground booth with a lit `SLOP SHOP` marquee (chasing bulbs in fowl_art.cpp), bunting, candy-striped poles, three shelves of the stock (rubber ducks, jars of bees, glitter bombs, gift boxes, party hats, ghost peppers, whoopee cushions, the bagpipe), a till, a bell, a lollipop jar, a chalk price board, and a cardboard moose beside it.
+- The raccoon is a real model (`raccoon.glb`: fused fur, mask, vest, bow tie, boater, ringed tail), paws on the counter; it sways and breathes.
+- The gun counter's sign reads MR. ZAPPA'S. The Slop Shop panel's sabotage rows no longer print the name over the description.
+- Shots `fowl_booth_slop`, `fowl_booth_guns` (the booths without a panel).
+

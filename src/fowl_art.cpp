@@ -380,10 +380,24 @@ void DrawRoom(const World& w, float t) {
     // 4 the Slop Shop: a garish booth with a neon sign, the raccoon in a vest
     Vector3 s4 = World::Station(4);
     static const Model* ss = rt::LoadAsset("fowl/slopshop.glb");
-    if (ss) rt::DrawPbr(*ss, MatrixTranslate(s4.x, 0, s4.z), WHITE, 0.2f);
-    else { rt::DrawWorldCube({s4.x + 0.9f, 0.6f, s4.z}, {1.0f, 1.2f, 3.0f}, {120, 50, 140, 255}); rt::DrawWorldCube({s4.x + 1.8f, 1.8f, s4.z}, {0.3f, 3.6f, 3.4f}, {80, 30, 100, 255}); }
-    rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.5f, 2.6f), MatrixTranslate(s4.x + 1.6f, 2.9f, s4.z)), Color{255, (unsigned char)(80 + 60 * (sinf(t * 7) > 0.6f)), 200, 255}, 1.8f);
-    DrawRaccoon({s4.x + 1.2f, 1.2f, s4.z}, t);
+    static const Model* rac = rt::LoadAsset("fowl/raccoon.glb");
+    if (ss) {
+        rt::DrawPbr(*ss, MatrixTranslate(s4.x, 0, s4.z), WHITE, 0.2f);
+        // the marquee's bulbs chase round the board (positions as MARQUEE_BULBS in tools/artgen/fowl_props.py)
+        for (int i = 0; i < 24; i++) {
+            float y = i < 11 ? 3.3f : i < 22 ? 2.76f : 3.03f, z = i < 22 ? -1.25f + (i % 11) * 0.25f : (i == 22 ? -1.32f : 1.32f);
+            bool on = ((int)(t * 8) + i) % 3 != 0;
+            rt::DrawStaticGlow(Sphere(), MatrixMultiply(MatrixScale(0.03f, 0.03f, 0.03f), MatrixTranslate(s4.x + 0.495f, y, s4.z + z)), on ? Color{255, 226, 150, 255} : Color{120, 90, 60, 255}, on ? 1.8f : 0.1f);
+        }
+    } else {
+        rt::DrawWorldCube({s4.x + 0.9f, 0.6f, s4.z}, {1.0f, 1.2f, 3.0f}, {120, 50, 140, 255}); rt::DrawWorldCube({s4.x + 1.8f, 1.8f, s4.z}, {0.3f, 3.6f, 3.4f}, {80, 30, 100, 255});
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.5f, 2.6f), MatrixTranslate(s4.x + 1.6f, 2.9f, s4.z)), Color{255, (unsigned char)(80 + 60 * (sinf(t * 7) > 0.6f)), 200, 255}, 1.8f);
+    }
+    if (rac) {   // the raccoon behind the counter: it sways, breathes, and leans to look at whoever is nearest
+        float sway = sinf(t * 0.9f) * 0.12f, breathe = 1 + 0.015f * sinf(t * 2.3f);
+        Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(1.25f, 1.25f * breathe, 1.25f), MatrixRotateY(sway)), MatrixTranslate(s4.x + 1.27f, 1.12f - 1.11f * 1.25f, s4.z));   // (paws on the counter top)
+        rt::DrawPbr(*rac, m, WHITE, 0.2f);
+    } else DrawRaccoon({s4.x + 1.2f, 1.2f, s4.z}, t);
     // 5 the trophy wall
     Vector3 s5 = World::Station(5);
     static const Model* tw = rt::LoadAsset("fowl/trophywall.glb");

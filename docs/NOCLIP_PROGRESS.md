@@ -180,3 +180,9 @@ Arcade Game 10, on the Deep Arcade's **Action** reel. The user moved it there; t
 - The hazmat suit lost its last boxes: rounded rubber boots (toe cap, heel, shaft, sole), puffy mitts over the hands, and an air tank on the back with a hose to the mask's filter. The orange costume got the same boots.
 - First-person arms (p_hazmat.glb/p_orange.glb from noclip_crew.py, `DrawHands` in noclip_render.cpp): the suit's sleeve and a rubber fist in each bottom corner, recoloured with the player's suit cosmetics, swinging with the walk; a carried thing is held between the fists, the flashlight sits in the right fist with its lens lit while the beam is on. `View::hands` turns them off.
 
+
+## The way back (playtest, 2026-10-06)
+- Hold **B**: a needle at the top of the screen follows the corridors (a BFS over the level, not a straight line) to the nearest Lab on this level, with its name and the walking distance; on a level with no Lab it points to the exit that leads back toward one (hops over the levels opened today). Where the compass spins (`LevelDef::compass`) the needle wanders +/-30 degrees: a rough way back, not an exact one.
+- The field map (M) dots the same route.
+- Drawing only (`UpdateBearing`/`DrawBearing` in noclip_game.cpp), so the rules, the bots and the snapshot are unchanged. Shots `noclip_bearing`, `noclip_bearmap`.
+

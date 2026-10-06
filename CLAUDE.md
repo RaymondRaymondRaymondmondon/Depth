@@ -605,3 +605,7 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 - **Never hold a `Unit*` across `World::Step`**: spawns can grow the units vector (Step reserves ahead, but tests must re-fetch with `U(id)`).
 - **Checks:** `--fathoms-test [stage]`, `--fathoms-balance`, `--fathoms-sim N [players] [minutes] [ai]`, `--fathoms-net-test`, `--net-loop fathoms [lagMs] [mem]`. Shots `fa_*`, `arcade_fathoms`.
 - Pauses (`C_PAUSE`, `World::pausedBy`), autosave/resume (`SaveFathoms`/`LoadFathoms`, `fathoms_autosave.bin`, gitignored), diplomacy offers (`Player::offerFrom`), pings (`C_PING`/`EV_PING`).
+## Playtest round 2 fixes (2026-10-06)
+- The Trawl: a fish within 5.5 m of the rod tip can be gaffed (Space or a click on the rod). Fathoms: only tribes wade; raids come by boat (`SeaRaid`) and are staggered. Ball Pit: store purchases go through `pendingBuy`; the store is a shop front (`DrawStores`); the kids streak hunts and slows enemies. First-person hands are fused smooth (`fuse()` in rt_fphands.py).
+- Fowl Play: the Slop Shop booth and the raccoon are Blender models (`slopshop`, `raccoon` in tools/artgen/fowl_props.py; `text()`, `star()`, `pennant()` helpers there). Shots `fowl_booth_slop`, `fowl_booth_guns`.
+- NOCLIP: hold B for the bearing back to a Lab (`UpdateBearing`/`DrawBearing`, drawing only); the field map dots the route. Shots `noclip_bearing`, `noclip_bearmap`. `--noclip-test` crashes intermittently on master too (heap corruption, about 1 run in 3); not yet fixed.

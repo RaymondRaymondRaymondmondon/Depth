@@ -41,7 +41,7 @@ def setup():
     mat("wood", (0.32, 0.17, 0.08), 0.55)
     mat("teal", (0.04, 0.32, 0.34), 0.4)
     mat("gold", (0.9, 0.66, 0.16), 0.2, 1.0)
-    for k, rgb, r in (("wood_lt", (0.5, 0.3, 0.15), 0.5), ("felt", (0.08, 0.25, 0.12), 0.95), ("pegboard", (0.62, 0.48, 0.3), 0.8), ("green", (0.12, 0.3, 0.16), 0.5), ("yellow", (0.85, 0.65, 0.15), 0.4), ("purple", (0.36, 0.1, 0.45), 0.4), ("purple_dk", (0.2, 0.05, 0.26), 0.5), ("velvet", (0.45, 0.04, 0.1), 0.9), ("bottle_g", (0.1, 0.35, 0.12), 0.1), ("bottle_b", (0.35, 0.18, 0.06), 0.1), ("bottle_c", (0.75, 0.75, 0.7), 0.1), ("fur", (0.35, 0.22, 0.12), 0.9), ("fur_dk", (0.18, 0.11, 0.06), 0.9), ("horn", (0.72, 0.62, 0.45), 0.6), ("rug", (0.2, 0.05, 0.04), 0.95), ("rug_edge", (0.42, 0.34, 0.22), 0.95), ("rug_band", (0.45, 0.3, 0.08), 0.9)):
+    for k, rgb, r in (("wood_lt", (0.5, 0.3, 0.15), 0.5), ("felt", (0.08, 0.25, 0.12), 0.95), ("pegboard", (0.62, 0.48, 0.3), 0.8), ("green", (0.12, 0.3, 0.16), 0.5), ("yellow", (0.85, 0.65, 0.15), 0.4), ("purple", (0.36, 0.1, 0.45), 0.4), ("purple_dk", (0.2, 0.05, 0.26), 0.5), ("velvet", (0.45, 0.04, 0.1), 0.9), ("bottle_g", (0.1, 0.35, 0.12), 0.1), ("bottle_b", (0.35, 0.18, 0.06), 0.1), ("bottle_c", (0.75, 0.75, 0.7), 0.1), ("fur", (0.35, 0.22, 0.12), 0.9), ("fur_dk", (0.18, 0.11, 0.06), 0.9), ("horn", (0.72, 0.62, 0.45), 0.6), ("rug", (0.2, 0.05, 0.04), 0.95), ("rug_edge", (0.42, 0.34, 0.22), 0.95), ("rug_band", (0.45, 0.3, 0.08), 0.9), ("magenta", (0.75, 0.05, 0.4), 0.4), ("orange", (0.95, 0.4, 0.04), 0.4), ("pink", (0.95, 0.35, 0.55), 0.35), ("cardboard", (0.55, 0.38, 0.2), 0.95), ("straw", (0.85, 0.7, 0.38), 0.8), ("rac_fur", (0.36, 0.34, 0.33), 0.95), ("rac_dark", (0.06, 0.055, 0.06), 0.9), ("rac_cream", (0.85, 0.82, 0.76), 0.95), ("rac_vest", (0.62, 0.06, 0.38), 0.6)):
         mat(k, rgb, r)
     for k, rgb in enumerate([(0.9, 0.7, 0.05), (0.08, 0.4, 0.85), (0.9, 0.25, 0.5), (0.12, 0.65, 0.2), (0.95, 0.4, 0.05), (0.85, 0.85, 0.85), (0.5, 0.15, 0.7)]):
         mat(f"gum{k}", rgb, 0.25)
@@ -235,7 +235,8 @@ def pegboard():
         x = -2.2 + (i % 8) * 0.62; y = 1.7 + (i // 8) * 0.45 + 0.1
         tube(f"hook{i}", [G(x, y, -1.48), G(x, y, -1.36), G(x, y + 0.02, -1.34)], 0.008, "chrome")
     gbox("sign", (1.6, 0.26, 0.03), (0, 3.15, -1.48), "red", 0.01)
-    gbox("sign_band", (1.5, 0.05, 0.035), (0, 3.15, -1.47), "gold", 0.005)
+    gbox("sign_band", (1.5, 0.05, 0.035), (0, 3.04, -1.47), "gold", 0.005)
+    text("sign_text", "MR. ZAPPA'S", 0.15, (0, 3.17, -1.455), "gold", depth=0.01)
 
 
 def scratchcounter():
@@ -257,22 +258,261 @@ def scratchcounter():
         gbox(f"stub{k}", (0.12, 0.004, 0.07), (0.9, 1.15 + k * 0.025, -0.25), "cream", 0.001, rot=(0, 0, k * 0.6))
 
 
+def text(name, body, size, at, m, face="z", depth=0.008):
+    """Raised lettering centred on 'at' (game coordinates), reading left to right for someone facing it; face 'z' looks
+    toward +z (the players' side of a back-wall sign), '-x' toward -x (a booth on the east side of the room)."""
+    bpy.ops.object.text_add(location=(0, 0, 0))
+    t = bpy.context.active_object; t.name = name
+    t.data.body = body; t.data.size = size; t.data.extrude = depth
+    t.data.align_x = 'CENTER'; t.data.align_y = 'CENTER'
+    C.select_only([t]); bpy.ops.object.convert(target='MESH')
+    t = bpy.context.active_object
+    t.location = G(*at)
+    t.rotation_euler = (math.radians(90), 0, 0) if face == "z" else (math.radians(90), 0, math.radians(-90))
+    return put(t, m, 30)
+
+
+def star(name, at, r, m, depth=0.02):
+    """A five-pointed star facing -x (game), centred on 'at'."""
+    bm = bmesh.new(); front, back = [], []
+    for k in range(10):
+        a = math.pi / 2 + k * math.pi / 5; rr = r if k % 2 == 0 else r * 0.42
+        y, z = at[1] + rr * math.sin(a), at[2] + rr * math.cos(a)
+        front.append(bm.verts.new(G(at[0] - depth / 2, y, z))); back.append(bm.verts.new(G(at[0] + depth / 2, y, z)))
+    bm.faces.new(front); bm.faces.new(list(reversed(back)))
+    for k in range(10):
+        bm.faces.new((front[(k + 1) % 10], front[k], back[k], back[(k + 1) % 10]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    return put(C.link(bpy.data.objects.new(name, me)), m, 20)
+
+
+def pennant(name, a, b, m, depth=0.01):
+    """A triangular flag hanging from the line between a and b (game coordinates)."""
+    tip = ((a[0] + b[0]) / 2, min(a[1], b[1]) - 0.22, (a[2] + b[2]) / 2)
+    bm = bmesh.new(); f, k = [], []
+    for p in (a, b, tip):
+        f.append(bm.verts.new(G(p[0] - depth, p[1], p[2]))); k.append(bm.verts.new(G(p[0] + depth, p[1], p[2])))
+    bm.faces.new(f); bm.faces.new(list(reversed(k)))
+    for i in range(3):
+        bm.faces.new((f[(i + 1) % 3], f[i], k[i], k[(i + 1) % 3]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    return put(C.link(bpy.data.objects.new(name, me)), m, 20)
+
+
+def ware(kind, x, y, z, k):
+    """One piece of the Slop Shop's stock, sitting on a shelf at height y (game coordinates)."""
+    if kind == "duck":   # a rubber duck facing the customers
+        sphere(f"duck_b{k}", G(x, y + 0.06, z), 0.07, "yellow", scale=(0.9, 1.15, 0.75), segs=16)
+        sphere(f"duck_h{k}", G(x - 0.03, y + 0.15, z), 0.045, "yellow", segs=14)
+        sphere(f"duck_bill{k}", G(x - 0.075, y + 0.145, z), 0.022, "orange", scale=(1.6, 0.6, 1.0), segs=10)
+        for s in (-1, 1):
+            sphere(f"duck_e{k}{s}", G(x - 0.065, y + 0.165, z + s * 0.02), 0.008, "black", segs=6)
+    elif kind == "jar":   # a jar of bees (the Bee Hat)
+        glathe(f"jar{k}", [(0.0001, 0), (0.07, 0), (0.075, 0.02), (0.075, 0.17), (0.05, 0.2), (0.0001, 0.2)], (x, y, z), "glass", segs=20)
+        gcyl(f"jarlid{k}", 0.055, 0.03, (x, y + 0.215, z), "gold", verts=16)
+        rng = random.Random(k)
+        for b in range(4):
+            bx, by, bz = x + rng.uniform(-0.03, 0.03), y + rng.uniform(0.05, 0.15), z + rng.uniform(-0.04, 0.04)
+            sphere(f"bee{k}{b}", G(bx, by, bz), 0.016, "yellow", scale=(1, 1, 1.4), segs=8)
+            gbox(f"beeband{k}{b}", (0.034, 0.008, 0.008), (bx, by, bz), "black", 0.002)
+    elif kind == "bomb":   # a glitter bomb: a pink sphere with a fuse and a gold band
+        sphere(f"bomb{k}", G(x, y + 0.08, z), 0.08, "pink", segs=18)
+        torus(f"bombband{k}", G(x, y + 0.08, z), 0.08, 0.008, "gold")
+        gcyl(f"bombcap{k}", 0.025, 0.03, (x, y + 0.165, z), "gold", verts=12)
+        tube(f"fuse{k}", [G(x, y + 0.18, z), G(x - 0.02, y + 0.23, z + 0.02), G(x - 0.05, y + 0.25, z)], 0.005, "cream")
+    elif kind == "pepper":   # a basket of ghost peppers
+        glathe(f"bskt{k}", [(0.0001, 0), (0.09, 0), (0.11, 0.07), (0.1, 0.075), (0.0001, 0.01)], (x, y, z), "wood_lt", segs=18)
+        for p in range(3):
+            px, pz = x + (p - 1) * 0.04, z + (p % 2) * 0.03 - 0.015
+            sphere(f"pep{k}{p}", G(px, y + 0.09, pz), 0.03, "red", scale=(0.9, 1.6, 0.9), segs=10)
+            gcyl(f"pepstem{k}{p}", 0.006, 0.03, (px, y + 0.15, pz), "green", verts=6)
+    elif kind == "gift":   # a gift box with a ribbon and a bow
+        c = ["magenta", "teal", "yellow", "green"][k % 4]
+        s = 0.13 + 0.04 * (k % 2)
+        gbox(f"gift{k}", (s, s, s), (x, y + s / 2, z), c, 0.006)
+        gbox(f"ribv{k}", (s + 0.004, s + 0.004, 0.025), (x, y + s / 2, z), "gold", 0.002)
+        gbox(f"ribh{k}", (0.025, s + 0.004, s + 0.004), (x, y + s / 2, z), "gold", 0.002)
+        for t in (-1, 1):
+            sphere(f"bow{k}{t}", G(x, y + s + 0.02, z + t * 0.025), 0.025, "gold", scale=(0.6, 0.7, 1.2), segs=8)
+    elif kind == "hat":   # a striped party hat
+        for b in range(4):
+            r0, r1 = 0.07 * (1 - b / 4), 0.07 * (1 - (b + 1) / 4)
+            glathe(f"hat{k}{b}", [(r0, 0), (r1 + 0.0001, 0.05), (0.0001, 0.05)], (x, y + b * 0.05, z), "magenta" if b % 2 == 0 else "cream", segs=16)
+        sphere(f"hatpom{k}", G(x, y + 0.21, z), 0.02, "yellow", segs=8)
+    elif kind == "cushion":   # a whoopee cushion
+        sphere(f"cush{k}", G(x, y + 0.035, z), 0.1, "pink", scale=(1, 0.35, 1), segs=16)
+        gcyl(f"cushneck{k}", 0.02, 0.06, (x - 0.11, y + 0.03, z), "pink", axis="x", verts=10)
+    elif kind == "bagpipe":   # the Loud Neighbour: a tartan bag with drones
+        sphere(f"bag{k}", G(x, y + 0.11, z), 0.11, "red_dark", scale=(1, 0.95, 1.2), segs=16)
+        for s in range(3):
+            tube(f"drone{k}{s}", [G(x, y + 0.15, z - 0.05 + s * 0.05), G(x + 0.02, y + 0.42 - s * 0.06, z - 0.1 + s * 0.1)], 0.01, "wood")
+            gcyl(f"dronecap{k}{s}", 0.017, 0.03, (x + 0.02, y + 0.43 - s * 0.06, z - 0.1 + s * 0.1), "cream", verts=10)
+        tube(f"chanter{k}", [G(x - 0.06, y + 0.08, z), G(x - 0.16, y + 0.0, z + 0.04)], 0.009, "wood")
+
+
 def slopshop():
-    # a garish booth (offsets from the station as the old boxes): counter, back wall, a striped awning, a curtain
-    gbox("counter", (1.0, 1.2, 3.0), (0.9, 0.6, 0), "purple", 0.04)
-    gbox("countertop", (1.12, 0.06, 3.12), (0.9, 1.23, 0), "gold", 0.01)
-    for k in range(5):
-        gbox(f"star{k}", (0.02, 0.18, 0.18), (0.39, 0.6, -1.2 + k * 0.6), "gold", 0.01, rot=(0, 0, 0))
+    # a garish fairground booth facing west (-x, toward the room), built about the station point. The raccoon (its own
+    # model) stands on the stage between the counter and the shelves; the marquee's bulbs are lit in the game.
+    gbox("stage", (1.8, 0.08, 3.4), (1.1, 0.04, 0), "purple_dk", 0.02)
+    gbox("counter", (0.55, 1.02, 3.0), (0.68, 0.51, 0), "purple", 0.03)
+    gbox("countertop", (0.68, 0.06, 3.12), (0.66, 1.05, 0), "gold", 0.01)
+    for k in range(10):   # the counter front: magenta and purple boards, a gold kick and three stars
+        gbox(f"board{k}", (0.02, 0.84, 0.28), (0.398, 0.52, -1.35 + k * 0.3), "magenta" if k % 2 == 0 else "purple", 0.006)
+    gbox("kick", (0.04, 0.09, 3.04), (0.39, 0.045, 0), "gold", 0.005)
+    gbox("rail", (0.04, 0.04, 3.04), (0.39, 0.96, 0), "gold", 0.005)
+    for k, z in enumerate((-0.95, 0.0, 0.95)):
+        star(f"star{k}", (0.38, 0.55, z), 0.2 if k == 1 else 0.15, "gold")
     gbox("back", (0.3, 3.6, 3.4), (1.8, 1.8, 0), "purple_dk", 0.03)
+    gbox("backpanel", (0.02, 1.5, 3.0), (1.645, 1.7, 0), "velvet", 0.005)
+    for i, y in enumerate((1.18, 1.6, 2.02)):   # three shelves of stock on brass brackets
+        gbox(f"shelf{i}", (0.28, 0.035, 3.0), (1.51, y, 0), "wood_lt", 0.006)
+        gbox(f"shelflip{i}", (0.02, 0.05, 3.0), (1.37, y + 0.02, 0), "gold", 0.004)
+        for s in (-1, 0, 1):
+            gbox(f"brk{i}{s}", (0.2, 0.04, 0.02), (1.55, y - 0.04, s * 1.3), "brass", 0.004, rot=(0, 0, 0))
+    rng = random.Random(5)
+    kinds = ["duck", "jar", "bomb", "gift", "pepper", "hat", "cushion", "duck", "gift", "bomb", "jar", "hat"]
+    n = 0
+    for i, y in enumerate((1.2, 1.62, 2.04)):
+        z = -1.32
+        while z < 1.3:
+            kind = kinds[(n * 5 + i * 3) % len(kinds)]
+            if i == 2 and abs(z) < 0.15:
+                ware("bagpipe", 1.5, y, z, n); z += 0.34; n += 1; continue
+            ware(kind, 1.5 + rng.uniform(-0.03, 0.03), y, z, n)
+            z += 0.24 + rng.uniform(0, 0.05); n += 1
+    for s in (-1, 1):   # velvet drapes framing the shelves, tied back with gold cord
+        gbox(f"drape{s}", (0.12, 2.5, 0.26), (1.58, 1.33, s * 1.57), "velvet", 0.05)
+        torus(f"tie{s}", G(1.58, 1.15, s * 1.57), 0.12, 0.015, "gold", rot=(0, math.pi / 2, 0))
+    for s in (-1, 1):   # candy-striped poles at the front corners
+        gcyl(f"pole{s}", 0.045, 2.75, (0.42, 1.375, s * 1.55), "cream", verts=16)
+        for b in range(11):
+            gbox(f"stripe{s}{b}", (0.1, 0.07, 0.1), (0.42, 0.2 + b * 0.24, s * 1.55), "magenta", 0.03, rot=(0, 0.6, 0))
+        sphere(f"polecap{s}", G(0.42, 2.8, s * 1.55), 0.07, "gold", segs=14)
     for k in range(8):   # the awning: alternating stripes, tilted out over the counter
         z = -1.5 + k * 0.43
-        gbox(f"awn{k}", (1.2, 0.04, 0.42), (1.1, 2.55, z + 0.21), "red" if k % 2 == 0 else "cream", 0.004, rot=(0, 0.35, 0))
+        gbox(f"awn{k}", (1.2, 0.04, 0.42), (1.05, 2.55, z + 0.21), "magenta" if k % 2 == 0 else "cream", 0.004, rot=(0, 0.35, 0))
     for k in range(9):   # a scalloped hem
-        sphere(f"hem{k}", G(0.55, 2.33, -1.5 + k * 0.375), 0.09, "red" if k % 2 == 0 else "cream", scale=(1, 0.5, 0.6), segs=12)
-    for k in range(6):   # the curtain behind
-        gbox(f"curt{k}", (0.06, 2.0, 0.5), (1.62, 1.3, -1.25 + k * 0.5), "velvet", 0.03, rot=(0, 0, 0.12 if k % 2 else -0.12))
+        sphere(f"hem{k}", G(0.5, 2.33, -1.5 + k * 0.375), 0.09, "magenta" if k % 2 == 0 else "cream", scale=(1, 0.5, 0.6), segs=12)
+    # the marquee over the awning: a purple board with a gold border and raised letters; bulbs round the edge
+    gbox("marquee", (0.1, 0.56, 2.7), (0.56, 3.03, 0), "purple", 0.02)
+    gbox("mq_border", (0.06, 0.62, 2.78), (0.585, 3.03, 0), "gold", 0.02)
+    text("mq_text", "SLOP SHOP", 0.3, (0.495, 3.02, 0), "yellow", face="-x", depth=0.02)
+    for (y, z) in MARQUEE_BULBS:
+        sphere(f"bulb{y}{z}", G(0.5, y, z), 0.028, "cream", segs=10)
+    # bunting along the front under the marquee
+    for k in range(10):
+        z0 = -1.5 + k * 0.3; sag = lambda z: 2.82 - 0.08 * (1 - (z / 1.55) ** 2)
+        pennant(f"pen{k}", (0.4, sag(z0 + 0.02), z0 + 0.02), (0.4, sag(z0 + 0.26), z0 + 0.26), ["yellow", "teal", "magenta", "green"][k % 4])
+    tube("bunting", [G(0.4, 2.82 - 0.08 * (1 - (z / 1.55) ** 2), z) for z in [-1.55 + i * 0.31 for i in range(11)]], 0.006, "cream")
+    # on the counter: a brass till, a service bell, a jar of lollipops, a chalk price sign
+    gbox("till", (0.32, 0.2, 0.38), (0.72, 1.18, 1.0), "brass", 0.02)
+    gbox("till_keys", (0.16, 0.04, 0.32), (0.6, 1.25, 1.0), "black", 0.01, rot=(0, 0, 0.5))
+    for kx in range(3):
+        for kz in range(4):
+            sphere(f"key{kx}{kz}", G(0.56 + kx * 0.04, 1.255 + kx * 0.025, 0.89 + kz * 0.07), 0.013, "cream", segs=8)
+    gbox("till_top", (0.08, 0.12, 0.26), (0.8, 1.34, 1.0), "brass", 0.01)
+    gbox("till_flag", (0.01, 0.07, 0.16), (0.75, 1.38, 1.0), "cream", 0.004)
+    gbox("till_drawer", (0.02, 0.06, 0.3), (0.555, 1.11, 1.0), "gold", 0.004)
+    gcyl("till_crank", 0.012, 0.12, (0.74, 1.22, 1.24), "chrome", axis="z", verts=8)
+    gcyl("bell", 0.06, 0.035, (0.62, 1.1, -0.35), "brass")
+    sphere("bellknob", G(0.62, 1.135, -0.35), 0.016, "brass", segs=10)
+    glathe("lolly_jar", [(0.0001, 0), (0.08, 0), (0.09, 0.03), (0.09, 0.2), (0.06, 0.23), (0.0001, 0.23)], (0.66, 1.08, -1.05), "glass", segs=20)
+    for k in range(5):
+        a = k * 1.25
+        tube(f"lolly_stick{k}", [G(0.66, 1.12, -1.05), G(0.66 + 0.05 * math.cos(a), 1.38, -1.05 + 0.05 * math.sin(a))], 0.004, "cream")
+        sphere(f"lolly{k}", G(0.66 + 0.055 * math.cos(a), 1.41, -1.05 + 0.055 * math.sin(a)), 0.035, ["red", "yellow", "teal", "magenta", "green"][k], scale=(0.4, 1, 1), segs=12)
+    gbox("chalk", (0.02, 0.3, 0.42), (0.5, 1.26, -0.72), "black", 0.006, rot=(0, 0, -0.25))
+    gbox("chalk_frame", (0.015, 0.34, 0.46), (0.51, 1.26, -0.72), "wood", 0.006, rot=(0, 0, -0.25))
+    text("chalk_t1", "PRANKS", 0.08, (0.488, 1.3, -0.72), "cream", face="-x", depth=0.004)
+    text("chalk_t2", "40 AND UP", 0.055, (0.478, 1.2, -0.72), "cream", face="-x", depth=0.004)
+    # beside the booth: a cardboard moose cutout (the Cardboard Sightline) on a wooden foot
+    gbox("moose_body", (0.03, 0.55, 0.9), (0.2, 0.75, -2.05), "cardboard", 0.01)
+    gbox("moose_neck", (0.03, 0.45, 0.25), (0.2, 1.15, -1.75), "cardboard", 0.01, rot=(0.3, 0, 0))
+    gbox("moose_head", (0.03, 0.26, 0.45), (0.2, 1.4, -1.6), "cardboard", 0.01)
     for s in (-1, 1):
-        gcyl(f"pole{s}", 0.04, 2.6, (0.45, 1.3, s * 1.55), "gold", verts=12)
+        gbox(f"moose_leg{s}", (0.03, 0.5, 0.1), (0.2, 0.25, -2.05 + s * 0.3), "cardboard", 0.005)
+        gbox(f"moose_ant{s}", (0.03, 0.12, 0.3), (0.2, 1.58, -1.6 + s * 0.2), "cardboard", 0.005, rot=(s * 0.4, 0, 0))
+    sphere("moose_eye", G(0.18, 1.44, -1.5), 0.02, "black", segs=8)
+    gbox("moose_foot", (0.4, 0.05, 0.12), (0.3, 0.025, -2.05), "wood", 0.01)
+
+
+# the marquee's bulbs (shared with fowl_art.cpp, which lights them): (y, z) on the board's face
+MARQUEE_BULBS = [(3.3, -1.25 + i * 0.25) for i in range(11)] + [(2.76, -1.25 + i * 0.25) for i in range(11)] + [(3.03, -1.32), (3.03, 1.32)]
+
+
+def raccoon():
+    # the Slop Shop's keeper: a raccoon in a magenta vest, a bow tie and a straw boater, paws on the counter. Built facing
+    # -x (the room) with its feet at the origin; each colour is fused into one smooth surface (no facets, no seams).
+    groups = {}
+    def blob(g, at, r, scale=(1, 1, 1)):
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=r, location=G(*at))
+        o = bpy.context.active_object; o.scale = (scale[0], scale[2], scale[1])
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        groups.setdefault(g, []).append(o)
+    def limb(g, a, b, r0, r1, n=8):
+        for i in range(n + 1):
+            t = i / n
+            blob(g, tuple(a[j] + (b[j] - a[j]) * t for j in range(3)), r0 + (r1 - r0) * t)
+    # legs and body
+    for s in (-1, 1):
+        limb("fur", (0.0, 0.42, s * 0.1), (-0.02, 0.1, s * 0.11), 0.08, 0.06)
+        blob("dark", (-0.06, 0.05, s * 0.11), 0.06, (1.5, 0.6, 1.0))
+    blob("fur", (0.0, 0.72, 0), 0.24, (0.92, 1.2, 1.0))
+    blob("vest", (0.02, 0.83, 0), 0.25, (0.93, 0.9, 1.04))
+    blob("cream", (-0.17, 0.8, 0), 0.1, (0.8, 1.8, 0.9))
+    for s in (-1, 1):   # arms reaching forward to the counter, dark paws
+        limb("vest", (0.0, 0.98, s * 0.2), (-0.12, 1.02, s * 0.22), 0.085, 0.07, 4)
+        limb("fur", (-0.12, 1.02, s * 0.22), (-0.3, 1.1, s * 0.19), 0.065, 0.055, 6)
+        blob("dark", (-0.36, 1.11, s * 0.18), 0.055, (1.3, 0.7, 1.0))
+    # the head: round, fluffy cheeks, a pointed cream muzzle, the black mask, eyebrows, ears
+    blob("fur", (-0.02, 1.27, 0), 0.19, (1.0, 0.92, 1.05))
+    for s in (-1, 1):
+        blob("cream", (-0.06, 1.2, s * 0.16), 0.085, (0.9, 0.9, 1.0))
+        blob("dark", (-0.17, 1.29, s * 0.09), 0.07, (0.65, 0.72, 1.1))
+        blob("cream", (-0.175, 1.365, s * 0.085), 0.05, (0.55, 0.32, 1.05))
+        blob("fur", (0.0, 1.44, s * 0.125), 0.075, (0.4, 1.35, 0.8))
+        blob("dark", (-0.03, 1.44, s * 0.125), 0.05, (0.3, 1.0, 0.55))
+        blob("cream", (-0.035, 1.5, s * 0.125), 0.02)
+    blob("dark", (-0.185, 1.3, 0), 0.05, (0.6, 0.6, 1.0))
+    blob("cream", (-0.2, 1.21, 0), 0.08, (1.3, 0.75, 0.85))
+    blob("cream", (-0.19, 1.34, 0), 0.03, (0.6, 1.6, 0.6))
+    # the ringed tail, curling round to the side
+    pts = [(0.16, 0.42, 0.12), (0.24, 0.5, 0.26), (0.24, 0.62, 0.38), (0.18, 0.76, 0.44), (0.1, 0.88, 0.44)]
+    for i in range(len(pts) - 1):
+        limb("fur" if i % 2 == 0 else "dark", pts[i], pts[i + 1], 0.075 - i * 0.006, 0.07 - i * 0.006, 5)
+    blob("dark", pts[-1], 0.05)
+    for g, objs in groups.items():
+        o = fuse(objs, MATS["rac_" + g])
+        PARTS.append(o)
+    # details kept crisp: eyes with a glint, a nose, a bow tie, buttons, the boater
+    for s in (-1, 1):
+        sphere(f"eye{s}", G(-0.222, 1.3, s * 0.08), 0.026, "black", segs=12)
+        sphere(f"glint{s}", G(-0.244, 1.31, s * 0.072), 0.008, "cream", segs=6)
+        sphere(f"bow{s}", G(-0.2, 1.04, s * 0.055), 0.045, "red", scale=(0.5, 0.8, 1.1), segs=12)
+    sphere("nose", G(-0.3, 1.23, 0), 0.032, "black", scale=(0.9, 0.8, 1.1), segs=12)
+    sphere("bowknot", G(-0.215, 1.04, 0), 0.022, "red", segs=8)
+    for k in range(3):
+        for s in (-1, 1):
+            sphere(f"button{k}{s}", G(-0.21, 0.92 - k * 0.11, s * 0.1), 0.015, "gold", segs=8)
+    gcyl("brim", 0.17, 0.012, (0.02, 1.45, 0), "straw", verts=28)
+    gcyl("crown", 0.105, 0.09, (0.02, 1.5, 0), "straw", verts=24)
+    gcyl("hatband", 0.107, 0.025, (0.02, 1.475, 0), "red", verts=24)
+
+
+def fuse(objs, m, voxel=0.007, iters=6, faces=3000):
+    C.select_only(objs); bpy.ops.object.join(); o = bpy.context.active_object
+    r = o.modifiers.new("vox", 'REMESH'); r.mode = 'VOXEL'; r.voxel_size = voxel; r.use_smooth_shade = True
+    bpy.ops.object.modifier_apply(modifier=r.name)
+    s = o.modifiers.new("sm", 'SMOOTH'); s.factor = 0.7; s.iterations = iters
+    bpy.ops.object.modifier_apply(modifier=s.name)
+    if len(o.data.polygons) > faces:
+        d = o.modifiers.new("dec", 'DECIMATE'); d.ratio = faces / len(o.data.polygons)
+        bpy.ops.object.modifier_apply(modifier=d.name)
+    o.data.materials.clear(); o.data.materials.append(m)
+    for p in o.data.polygons: p.use_smooth = True
+    return o
 
 
 def trophywall():
@@ -404,7 +644,7 @@ def clubdecor():
 
 
 BUILDS = {"clubdecor": clubdecor, "gumball": gumball, "gumball_crank": gumball_crank, "slot": slot, "slot_handle": slot_handle,
-          "guncase": guncase, "pegboard": pegboard, "scratchcounter": scratchcounter, "slopshop": slopshop,
+          "guncase": guncase, "pegboard": pegboard, "scratchcounter": scratchcounter, "slopshop": slopshop, "raccoon": raccoon,
           "trophywall": trophywall, "clubbar": clubbar, "porchpost": porchpost, "partition": partition}
 
 

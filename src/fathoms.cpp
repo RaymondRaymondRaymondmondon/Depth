@@ -44,7 +44,7 @@ bool World::Passable(int x, int y, Move m, int faction) const {
     if (o >= 0) { const Building* b = Bd(o); if (b && !BD(*b).wall && BD(*b).key == "farm") {} else if (b) return false; }
     if (m == MV_AMPHIB) return true;
     // land: land tiles and shallows (wading); merfolk swim anywhere; Crustaceans walk the shallows
-    if (water) return t == T_SHALLOW || faction == 3;
+    if (water) return (t == T_SHALLOW && faction == 2) || faction == 3;   // (only the Brood walk the shallows and the Merfolk swim: everyone else needs a boat)
     return true;
 }
 int World::PopCap(int player) const {
@@ -729,7 +729,7 @@ void World::StepUnit(Unit& u) {
             // the island the goal is on (or nearest to it): only its shore will do
             int gIsle = -1; for (int r = 0; r < 8 && gIsle < 0; r++) for (int dy = -r; dy <= r && gIsle < 0; dy++) for (int dx = -r; dx <= r && gIsle < 0; dx++) { int x = (int)u.goal.x + dx, y = (int)u.goal.y + dy; if (In(x, y) && Land(tile[Idx(x, y)])) gIsle = isle[Idx(x, y)]; }
             for (int dy = -2; dy <= 2 && landK < 0; dy++) for (int dx = -2; dx <= 2 && landK < 0; dx++) { int x = (int)u.p.x + dx, y = (int)u.p.y + dy; if (In(x, y) && Land(tile[Idx(x, y)]) && occ[Idx(x, y)] < 0 && (gIsle < 0 || isle[Idx(x, y)] == gIsle)) landK = Idx(x, y); }
-            atShore = landK >= 0 && Vector2Distance(u.p, u.goal) < 9;
+            atShore = landK >= 0 && (Vector2Distance(u.p, u.goal) < 9 || (!u.path.empty() && u.pathAt >= (int)u.path.size() && Vector2Distance(u.p, u.goal) < 30));   // (as near as the sea goes)
             if (!atShore) { Seek(*this, u, u.goal, 2.5f); StepMove(u, sm); if (u.pathAt >= (int)u.path.size() && u.repathT < 2.0f) { u.repathT = 0; } break; }
             u.vel = {}; u.cool -= STEP * (1 + TechSum(u.owner, "unload_speed"));
             if (d.carryWorkers > 0) {   // a Colony Ship: three workers and a Colony Hall site
@@ -743,7 +743,7 @@ void World::StepUnit(Unit& u) {
             }
             if (u.cargo.empty()) { u.order = O_IDLE; break; }
             if (u.cool <= 0) {
-                int id = u.cargo.back(); u.cargo.pop_back(); if (Unit* c = U(id)) { c->inside = -1; c->p = {landK % W + 0.5f, landK / W + 0.5f}; c->landedT = t; c->order = O_IDLE; Emit(EV_LAND, c->p, c->id, c->owner); }
+                int id = u.cargo.back(); u.cargo.pop_back(); if (Unit* c = U(id)) { c->inside = -1; c->p = {landK % W + 0.5f, landK / W + 0.5f}; c->landedT = t; c->order = O_IDLE; if (!IsPlayer(c->owner)) { c->order = O_ATTACK_MOVE; c->goal = u.goal; c->stance = ST_AGGRESSIVE; } Emit(EV_LAND, c->p, c->id, c->owner); }
                 u.cool = 1.0f;
             }
             break; }
