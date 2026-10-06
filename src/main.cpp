@@ -1094,14 +1094,14 @@ int main(int argc, char** argv) {
             MouseLookFrameEnd();   // a scene that stopped asking for mouse look gets its pointer back
             {   // aboard the Nautilus (the salon and its station screens) the waltz and the ship's bed play
                 bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon && g.scene != Scene::Study
-                              && !(g.scene == Scene::RedTide && RedTideAudioActive()) && g.scene != Scene::Trawl && g.scene != Scene::Flight && g.scene != Scene::Mouthful && g.scene != Scene::NightOff && g.scene != Scene::Scuffle && g.scene != Scene::Fowl && g.scene != Scene::Noclip;
+                              && !(g.scene == Scene::RedTide && RedTideAudioActive()) && g.scene != Scene::Trawl && g.scene != Scene::Flight && g.scene != Scene::Mouthful && g.scene != Scene::NightOff && g.scene != Scene::Scuffle && g.scene != Scene::Fowl && g.scene != Scene::Noclip && g.scene != Scene::BallPit;
                 AudioHub(aboard, g.scene == Scene::Hub ? -1 : (int)g.scene, g.mourning);
                 AudioStudy(g.scene == Scene::Study);   // below the hatch: the Study's own soundscape instead
                 if (g.scene != Scene::Dungeon) AudioExpedition(ExpAudio{});   // (the Dungeon scene sets it every frame)
                 if (g.scene != Scene::RedTide) AudioRedTide(RtAudio{});      // (and the Red Tide scene)
                 if (g.scene != Scene::Trawl) AudioTrawl(TwAudio{});          // (and the Trawl)
                 if (g.scene != Scene::Flight) AudioFlight(FlAudio{});        // (and the Flight)
-                if (g.scene != Scene::Mouthful) AudioMouthful(MfAudio{}); if (g.scene != Scene::Scuffle) AudioScuffle(SfAudio{}); if (g.scene != Scene::Fowl) AudioFowl(FpAudio{}); if (g.scene != Scene::Noclip) AudioNoclip(NcAudio{});    // (and Mouthful)
+                if (g.scene != Scene::Mouthful) AudioMouthful(MfAudio{}); if (g.scene != Scene::Scuffle) AudioScuffle(SfAudio{}); if (g.scene != Scene::Fowl) AudioFowl(FpAudio{}); if (g.scene != Scene::Noclip) AudioNoclip(NcAudio{}); if (g.scene != Scene::BallPit) AudioBallPit(BpAudio{});    // (and Mouthful)
             if (g.scene != Scene::NightOff) AudioNightOff(NoAudio{});    // (and A Night Off)
             }
             ArcadeVoiceFrame(GetFrameTime());   // the arcade's voice chat: the mic out, the table's voices in

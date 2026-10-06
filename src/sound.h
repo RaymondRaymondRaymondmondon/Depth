@@ -225,6 +225,18 @@ void AudioFowl(const FpAudio& a);
 enum FpCue { FPC_ZAP, FPC_BOOM, FPC_RATTLE, FPC_CRACK, FPC_POP, FPC_RAY, FPC_QUACK, FPC_HONK, FPC_HISS, FPC_SHRIEK, FPC_HUM, FPC_BARK, FPC_LAUGH,
              FPC_SQUEAK, FPC_PING, FPC_SPLASH, FPC_DING, FPC_FANFARE, FPC_SCRATCH, FPC_CRANK, FPC_BELL, FPC_BOO, FPC_CHEER, FPC_RELOAD, FPC_COUNT };
 void FowlCue(int kind, float vol, float pan, float pitch = 1);
+// Ball Pit Brawl (the Deep Arcade's play-centre shooter): the speakers' synth-pop (calm in the warm-up, the band in play,
+// faster as the match nears its end, muffled under the balls), the hall's bed, foam, rubber and joke-shop effects
+struct BpAudio {
+    bool on = false;
+    int phase = 0;              // 0 warm-up, 1 play, 2 over
+    float intensity = 0;        // 0..1: how near the match is to its end
+    bool submerged = false, won = false;
+};
+void AudioBallPit(const BpAudio& a);
+enum BpCue { BPC_DART, BPC_DART_BIG, BPC_HIT, BPC_KNIFE, BPC_THROW, BPC_BOUNCE, BPC_CANNON, BPC_OVERHEAT, BPC_VACUUM, BPC_SLIDE, BPC_KO, BPC_STREAK, BPC_BUY, BPC_RELOAD, BPC_DRY,
+             BPC_HORN, BPC_KAZOO, BPC_SLURP, BPC_POP, BPC_FART, BPC_SQUAWK, BPC_KIDS, BPC_BOOM, BPC_BEEP, BPC_FLAG, BPC_CAPTURE, BPC_GRAB, BPC_PIT, BPC_ROCKET, BPC_SPLASH, BPC_STEP, BPC_CLIMB, BPC_COUNT };
+void BallPitCue(int kind, float vol, float pan, float pitch = 1);
 
 // NOCLIP (the Deep Arcade's Backrooms): the hum per level, the levels' beds, the portal's rising hum, entities' tells.
 struct NcAudio {

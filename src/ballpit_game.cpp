@@ -520,7 +520,12 @@ void DrawViewmodel() {
 }
 
 // ---------------------------------------------------------------- events: pops, the feed, sound
-void Cue(const char* name, Vector3 at, float vol) { if (S.shot) return; float d = Vector3Distance(at, S.cam.position); float v = vol * std::clamp(1 - d / 40, 0.0f, 1.0f); if (v > 0.02f) PlayCue(name, v); }
+void Cue(int kind, Vector3 at, float vol, float pitch = 1) {
+    if (S.shot) return; Vector3 d = Vector3Subtract(at, S.cam.position); float L = Vector3Length(d); float v = vol * std::clamp(1 - L / 45, 0.0f, 1.0f); if (v < 0.02f) return;
+    Vector3 f = Vector3Normalize(Vector3Subtract(S.cam.target, S.cam.position)), r = Vector3Normalize(Vector3CrossProduct(f, {0, 1, 0})); float pan = L > 0.5f ? std::clamp(Vector3DotProduct(Vector3Scale(d, 1 / L), r), -1.0f, 1.0f) * 0.8f : 0;
+    if (Me().submerged) v *= 0.5f;
+    BallPitCue(kind, v, pan, pitch);
+}
 void ReadEvents() {
     World& w = W(); auto& ev = w.events; const Config& C = Cfg();
     // (the log trims itself from the front: read by the running total)
@@ -529,55 +534,55 @@ void ReadEvents() {
     for (size_t i = from; i < ev.size(); i++) {
         const Event& e = ev[i]; bool mine = e.who == S.me, byMe = e.by == S.me;
         switch (e.kind) {
-            case EV_SHOT: if (mine && (int)e.a < 90) { S.recoil = 1; S.kick = 0.06f; } Cue("hit.shot", e.at, mine ? 0.45f : 0.3f); for (int k = 0; k < 3; k++) S.fx.push_back({1, e.at, {(GetRandomValue(-10, 10)) * 0.05f, 0.5f, (GetRandomValue(-10, 10)) * 0.05f}, 0, 0.2f, {255, 250, 240, 255}}); break;
-            case EV_ROCKET: if (mine) { S.recoil = 1.6f; S.kick = 0.1f; } Cue("hit.cast", e.at, 0.6f); break;
-            case EV_CANNON: if (mine) { S.recoil = 0.4f; S.shake = std::max(S.shake, 0.15f); } Cue("hit.blunt", e.at, 0.5f); break;
-            case EV_HIT: if (mine && e.a > 0) { S.flash = std::min(1.0f, S.flash + e.a / 120); S.hurtT = 1; if (e.by >= 0 && e.by < (int)w.players.size()) { Vector3 d = Vector3Subtract(w.players[e.by].pos, Me().pos); S.hurtYaw = atan2f(d.z, d.x); } } if (byMe && !mine) { S.hitMark = 0.25f; Cue("imp.flesh", S.cam.position, 0.5f); } else Cue("imp.flesh", e.at, 0.25f); break;
+            case EV_SHOT: if (mine && (int)e.a < 90) { S.recoil = 1; S.kick = 0.06f; } Cue((int)e.a == 7 || (int)e.a == 9 ? BPC_DART_BIG : BPC_DART, e.at, mine ? 0.6f : 0.4f, 0.9f + 0.05f * ((int)e.a % 5)); for (int k = 0; k < 3; k++) S.fx.push_back({1, e.at, {(GetRandomValue(-10, 10)) * 0.05f, 0.5f, (GetRandomValue(-10, 10)) * 0.05f}, 0, 0.2f, {255, 250, 240, 255}}); break;
+            case EV_ROCKET: if (mine) { S.recoil = 1.6f; S.kick = 0.1f; } Cue(BPC_ROCKET, e.at, 0.6f); break;
+            case EV_CANNON: if (mine) { S.recoil = 0.4f; S.shake = std::max(S.shake, 0.15f); } Cue(BPC_CANNON, e.at, 0.7f); break;
+            case EV_HIT: if (mine && e.a > 0) { S.flash = std::min(1.0f, S.flash + e.a / 120); S.hurtT = 1; if (e.by >= 0 && e.by < (int)w.players.size()) { Vector3 d = Vector3Subtract(w.players[e.by].pos, Me().pos); S.hurtYaw = atan2f(d.z, d.x); } } if (byMe && !mine) { S.hitMark = 0.25f; Cue(BPC_HIT, S.cam.position, 0.6f, 1.3f); } else Cue(BPC_HIT, e.at, 0.4f); break;
             case EV_KO: {
                 std::string how = e.a > 0.5f ? "cannon" : "";
                 Color c = e.by == S.me ? Color{255, 220, 90, 255} : e.who == S.me ? Color{255, 120, 100, 255} : Color{230, 230, 236, 255};
                 S.feed.push_back({(e.by >= 0 ? NameOf(e.by) : std::string("The fall")) + (how.empty() ? "  >  " : "  [cannon]  >  ") + NameOf(e.who), S.t, c});
-                if (byMe && !mine) { S.pops.push_back({"KNOCKOUT  +" + std::to_string(e.a > 0.5f ? C.scoreCannonKO : C.scoreKO), {255, 220, 90, 255}, S.t}); Cue("mus.kill", S.cam.position, 0.6f); }
-                if (mine) { S.shake = 0.5f; Cue("hero.pain", S.cam.position, 0.6f); }
+                if (byMe && !mine) { S.pops.push_back({"KNOCKOUT  +" + std::to_string(e.a > 0.5f ? C.scoreCannonKO : C.scoreKO), {255, 220, 90, 255}, S.t}); Cue(BPC_KO, S.cam.position, 0.7f); }
+                if (mine) { S.shake = 0.5f; Cue(BPC_KO, S.cam.position, 0.8f, 0.7f); } else Cue(BPC_KO, e.at, 0.4f);
                 for (int k = 0; k < 14; k++) S.fx.push_back({0, Vector3Add(e.at, {0, 1.2f, 0}), {GetRandomValue(-20, 20) * 0.1f, GetRandomValue(5, 30) * 0.1f, GetRandomValue(-20, 20) * 0.1f}, 0, 1.4f, BALLC[k % 6]});
                 break; }
             case EV_ASSIST: if (mine) S.pops.push_back({"Assist  +" + std::to_string(C.scoreAssist), {200, 220, 255, 255}, S.t}); break;
-            case EV_THROW: Cue("hit.throw", e.at, mine ? 0.7f : 0.4f); break;
-            case EV_BOUNCE: Cue("imp.shell", e.at, 0.25f); break;
-            case EV_GRAB: if (mine) Cue("ui.drop", e.at, 0.5f); break;
-            case EV_KNIFE: Cue("hit.slash", e.at, mine ? 0.6f : 0.35f); break;
-            case EV_OVERHEAT: if (mine) S.pops.push_back({"OVERHEATED", {255, 140, 80, 255}, S.t}); Cue("exp.static", e.at, 0.5f); break;
-            case EV_BUY: if (mine) { Cue("ui.confirm", S.cam.position, 0.7f); int b = (int)e.a; S.pops.push_back({b < G_COUNT ? "Bought: " + C.guns[b].name : b == 100 ? std::string("Darts +12") : b == 101 ? std::string("Disarm kit") : "Bought: " + C.jokes[std::clamp(b - 200, 0, (int)C.jokes.size() - 1)].name, {160, 255, 170, 255}, S.t}); } break;
-            case EV_VACUUM: if (mine && fmodf(S.t, 0.12f) < 0.05f) Cue("arc.current", S.cam.position, 0.25f); break;
+            case EV_THROW: Cue(BPC_THROW, e.at, mine ? 0.7f : 0.45f); break;
+            case EV_BOUNCE: Cue(BPC_BOUNCE, e.at, 0.4f, 0.8f + 0.4f * ((int)(e.at.x * 7) % 3) / 2); break;
+            case EV_GRAB: Cue(BPC_GRAB, e.at, mine ? 0.6f : 0.25f); break;
+            case EV_KNIFE: Cue(BPC_KNIFE, e.at, mine ? 0.7f : 0.4f); break;
+            case EV_OVERHEAT: if (mine) S.pops.push_back({"OVERHEATED", {255, 140, 80, 255}, S.t}); Cue(BPC_OVERHEAT, e.at, 0.6f); break;
+            case EV_BUY: if (mine) { Cue(BPC_BUY, S.cam.position, 0.7f); int b = (int)e.a; S.pops.push_back({b < G_COUNT ? "Bought: " + C.guns[b].name : b == 100 ? std::string("Darts +12") : b == 101 ? std::string("Disarm kit") : "Bought: " + C.jokes[std::clamp(b - 200, 0, (int)C.jokes.size() - 1)].name, {160, 255, 170, 255}, S.t}); } break;
+            case EV_VACUUM: break;
             case EV_RESPAWN: if (mine) { S.camYaw = Me().yaw; S.camPitch = 0; } break;
-            case EV_STREAK: if (mine) { S.pops.push_back({"STREAK!  " + std::string(RewardName((int)e.a)) + " ready", {255, 200, 80, 255}, S.t}); Cue("ui.levelup", S.cam.position, 0.7f); } break;
-            case EV_REWARD: if ((int)e.a < 10) { S.feed.push_back({NameOf(e.who) + " used " + RewardName((int)e.a), S.t, {255, 200, 80, 255}}); Cue("mus.boss", e.at, mine ? 0.6f : 0.4f); } else if ((int)e.a == 12) Cue("hero.pain", e.at, 0.15f); else if ((int)e.a == 11 && mine) S.pops.push_back({"+50 health", {120, 255, 140, 255}, S.t}); break;
+            case EV_STREAK: if (mine) { S.pops.push_back({"STREAK!  " + std::string(RewardName((int)e.a)) + " ready", {255, 200, 80, 255}, S.t}); Cue(BPC_STREAK, S.cam.position, 0.7f); } break;
+            case EV_REWARD: if ((int)e.a < 10) { S.feed.push_back({NameOf(e.who) + " used " + RewardName((int)e.a), S.t, {255, 200, 80, 255}}); Cue(BPC_STREAK, e.at, mine ? 0.6f : 0.4f, 0.8f); } else if ((int)e.a == 12) Cue(BPC_KIDS, e.at, 0.45f); else if ((int)e.a == 11 && mine) S.pops.push_back({"+50 health", {120, 255, 140, 255}, S.t}); break;
             case EV_JOKE: {
                 int a = (int)e.a; const Player& who = w.players[std::clamp(e.who, 0, (int)w.players.size() - 1)]; bool team = w.mode != MD_FFA && who.team == Me().team;
-                if (a == 500) { Cue("arc.gull", e.at, 0.5f); break; }   // (the chicken squawks: everyone hears that one)
-                if (a == 501) { if (team || e.who == S.me) { S.pops.push_back({"*PFFFRRT*", {240, 140, 180, 255}, S.t}); Cue("hit.song", e.at, 0.6f); } break; }
+                if (a == 500) { Cue(BPC_SQUAWK, e.at, 0.6f, 0.8f + 0.4f * (e.at.y - floorf(e.at.y))); break; }   // (the chicken squawks: everyone hears that one)
+                if (a == 501) { if (team || e.who == S.me) { S.pops.push_back({"*PFFFRRT*", {240, 140, 180, 255}, S.t}); Cue(BPC_FART, e.at, 0.8f); } break; }
                 if (!team && e.who != S.me) break;   // (joke sounds are for your own team)
                 if (a >= 3000) { S.feed.push_back({NameOf(e.who) + " crowned " + NameOf(a - 3000), S.t, {250, 210, 60, 255}}); break; }
                 if (a >= 2000) { if (e.who == S.me) S.pops.push_back({"Prize: " + C.prizes[std::clamp(a - 2000, 0, (int)C.prizes.size() - 1)], {200, 160, 255, 255}, S.t}); break; }
-                if (a >= 1000) { S.dadLine = C.dadJokes[std::clamp(a - 1000, 0, (int)C.dadJokes.size() - 1)]; S.dadT = 7; Cue("ui.chalk", S.cam.position, 0.5f); break; }
+                if (a >= 1000) { S.dadLine = C.dadJokes[std::clamp(a - 1000, 0, (int)C.dadJokes.size() - 1)]; S.dadT = 7; Cue(BPC_BEEP, S.cam.position, 0.4f); break; }
                 const std::string& key = C.jokes[std::clamp(a, 0, (int)C.jokes.size() - 1)].key;
-                if (key == "horn") Cue("hub.embark", e.at, 0.6f); else if (key == "kazoo") Cue("hit.song", e.at, 0.6f); else if (key == "juice") Cue("arc.current", e.at, 0.6f);
-                else if (key == "confetti") { for (int k = 0; k < 40; k++) S.fx.push_back({0, Vector3Add(e.at, {0, 1.6f, 0}), {GetRandomValue(-30, 30) * 0.1f, GetRandomValue(10, 40) * 0.1f, GetRandomValue(-30, 30) * 0.1f}, 0, 2.0f, BALLC[k % 6]}); Cue("hit.cast", e.at, 0.4f); }
+                if (key == "horn") Cue(BPC_HORN, e.at, 0.8f); else if (key == "kazoo") Cue(BPC_KAZOO, e.at, 0.7f); else if (key == "juice") Cue(BPC_SLURP, e.at, 0.7f);
+                else if (key == "confetti") { for (int k = 0; k < 40; k++) S.fx.push_back({0, Vector3Add(e.at, {0, 1.6f, 0}), {GetRandomValue(-30, 30) * 0.1f, GetRandomValue(10, 40) * 0.1f, GetRandomValue(-30, 30) * 0.1f}, 0, 2.0f, BALLC[k % 6]}); Cue(BPC_POP, e.at, 0.7f); }
                 break; }
-            case EV_FLAG_TAKE: S.feed.push_back({NameOf(e.who) + " took the " + std::string(TEAM_NAME[(int)e.a & 1]) + " flag", S.t, TEAM[(int)e.a & 1]}); Cue("mus.phase", S.cam.position, 0.5f); break;
+            case EV_FLAG_TAKE: S.feed.push_back({NameOf(e.who) + " took the " + std::string(TEAM_NAME[(int)e.a & 1]) + " flag", S.t, TEAM[(int)e.a & 1]}); Cue(BPC_FLAG, S.cam.position, 0.5f); break;
             case EV_FLAG_DROP: S.feed.push_back({std::string(TEAM_NAME[(int)e.a & 1]) + " flag dropped", S.t, TEAM[(int)e.a & 1]}); break;
             case EV_FLAG_RETURN: S.feed.push_back({std::string(TEAM_NAME[(int)e.a & 1]) + " flag returned", S.t, TEAM[(int)e.a & 1]}); break;
-            case EV_CAPTURE: S.bannerT = 3; S.banner = std::string(TEAM_NAME[(int)e.a & 1]) + " CAPTURE!"; S.bannerCol = TEAM[(int)e.a & 1]; Cue("mus.crit", S.cam.position, 0.8f); break;
-            case EV_PLANT: S.bannerT = 3; S.banner = "BOMB PLANTED"; S.bannerCol = {255, 90, 70, 255}; Cue("mus.drum", S.cam.position, 0.8f); break;
-            case EV_DEFUSE: S.bannerT = 3; S.banner = "BOMB DISARMED"; S.bannerCol = {120, 220, 255, 255}; Cue("mus.bell", S.cam.position, 0.8f); break;
-            case EV_BOOM: S.shake = 1.0f; S.bannerT = 3; S.banner = "BOOM!"; S.bannerCol = {255, 160, 60, 255}; Cue("mus.boss", S.cam.position, 1.0f); for (int k = 0; k < 80; k++) S.fx.push_back({0, Vector3Add(e.at, {0, 0.6f, 0}), {GetRandomValue(-60, 60) * 0.1f, GetRandomValue(20, 80) * 0.1f, GetRandomValue(-60, 60) * 0.1f}, 0, 2.5f, BALLC[k % 6]}); break;
-            case EV_SPLASH: Cue("imp.stone", e.at, 0.7f); for (int k = 0; k < 18; k++) S.fx.push_back({1, e.at, {GetRandomValue(-30, 30) * 0.1f, GetRandomValue(10, 40) * 0.1f, GetRandomValue(-30, 30) * 0.1f}, 0, 0.5f, {120, 230, 120, 255}}); break;
-            case EV_ROUND: if (e.who >= 0 && e.a > 0) { S.bannerT = 3; S.banner = std::string(TEAM_NAME[e.who & 1]) + " take the round"; S.bannerCol = TEAM[e.who & 1]; } else if (e.a == 0 && e.who < 0) { S.bannerT = 1.5f; S.banner = "GO!"; S.bannerCol = {255, 230, 100, 255}; Cue("mus.bell", S.cam.position, 0.6f); } break;
-            case EV_SLIDE: Cue("arc.wave", e.at, mine ? 0.7f : 0.3f); break;
-            case EV_CLIMB: break;
-            case EV_LAND: if (mine) { if (e.a < 0) Cue("arc.shell", e.at, 0.6f); else Cue("exp.step.stone", e.at, 0.5f); } break;
-            case EV_RELOAD: if (mine) Cue("hub.latch", S.cam.position, 0.4f); break;
-            case EV_DRY: if (mine) { Cue("ui.error", S.cam.position, 0.5f); S.pops.push_back({"Out of darts: hold Q to vacuum", {255, 200, 120, 255}, S.t}); } break;
+            case EV_CAPTURE: S.bannerT = 3; S.banner = std::string(TEAM_NAME[(int)e.a & 1]) + " CAPTURE!"; S.bannerCol = TEAM[(int)e.a & 1]; Cue(BPC_CAPTURE, S.cam.position, 0.8f); break;
+            case EV_PLANT: S.bannerT = 3; S.banner = "BOMB PLANTED"; S.bannerCol = {255, 90, 70, 255}; Cue(BPC_BEEP, S.cam.position, 0.8f, 0.7f); break;
+            case EV_DEFUSE: S.bannerT = 3; S.banner = "BOMB DISARMED"; S.bannerCol = {120, 220, 255, 255}; Cue(BPC_CAPTURE, S.cam.position, 0.7f, 1.2f); break;
+            case EV_BOOM: S.shake = 1.0f; S.bannerT = 3; S.banner = "BOOM!"; S.bannerCol = {255, 160, 60, 255}; Cue(BPC_BOOM, e.at, 1.0f); for (int k = 0; k < 80; k++) S.fx.push_back({0, Vector3Add(e.at, {0, 0.6f, 0}), {GetRandomValue(-60, 60) * 0.1f, GetRandomValue(20, 80) * 0.1f, GetRandomValue(-60, 60) * 0.1f}, 0, 2.5f, BALLC[k % 6]}); break;
+            case EV_SPLASH: Cue(BPC_SPLASH, e.at, 0.8f); for (int k = 0; k < 18; k++) S.fx.push_back({1, e.at, {GetRandomValue(-30, 30) * 0.1f, GetRandomValue(10, 40) * 0.1f, GetRandomValue(-30, 30) * 0.1f}, 0, 0.5f, {120, 230, 120, 255}}); break;
+            case EV_ROUND: if (e.who >= 0 && e.a > 0) { S.bannerT = 3; S.banner = std::string(TEAM_NAME[e.who & 1]) + " take the round"; S.bannerCol = TEAM[e.who & 1]; } else if (e.a == 0 && e.who < 0) { S.bannerT = 1.5f; S.banner = "GO!"; S.bannerCol = {255, 230, 100, 255}; Cue(BPC_CAPTURE, S.cam.position, 0.5f, 1.5f); } break;
+            case EV_SLIDE: Cue(BPC_SLIDE, e.at, mine ? 0.7f : 0.35f); break;
+            case EV_CLIMB: Cue(BPC_CLIMB, e.at, mine ? 0.5f : 0.2f); break;
+            case EV_LAND: if (e.a < 0) Cue(BPC_PIT, e.at, mine ? 0.7f : 0.3f); else Cue(BPC_STEP, e.at, mine ? 0.6f : 0.25f, 0.8f); break;
+            case EV_RELOAD: if (mine) Cue(BPC_RELOAD, S.cam.position, 0.6f); break;
+            case EV_DRY: if (mine) { Cue(BPC_DRY, S.cam.position, 0.6f); S.pops.push_back({"Out of darts: hold Q to vacuum", {255, 200, 120, 255}, S.t}); } break;
             default: break;
         }
     }
@@ -778,6 +783,19 @@ void DrawHud(Game& g) {
     }
 }
 
+void BallPitSound(float dt) {
+    World& w = W(); BpAudio a; a.on = !S.shot; a.phase = w.phase == PH_WARMUP ? 0 : w.phase == PH_OVER ? 2 : 1;
+    const ModeDef& md = Cfg().modes[w.mode]; float k = w.phaseT / std::max(1.0f, md.timeLimit);
+    if (w.mode == MD_FFA) { int l = w.Leader(); if (l >= 0) k = std::max(k, (float)w.players[l].kos / md.toWin); }
+    if (w.mode == MD_TDM) k = std::max(k, (float)std::max(w.teamKOs[0], w.teamKOs[1]) / md.toWin);
+    if (w.mode == MD_CTF) k = std::max(k, (float)std::max(w.caps[0], w.caps[1]) / md.toWin);
+    if (w.mode == MD_BOMB) k = w.bomb.planted ? 1.0f - w.bomb.fuseT / Cfg().fuse * 0.5f : std::max((float)std::max(w.roundWins[0], w.roundWins[1]) / md.toWin, w.phaseT / Cfg().roundTime);
+    a.intensity = std::clamp(k, 0.0f, 1.0f); a.submerged = Me().alive && Me().submerged;
+    a.won = w.mode == MD_FFA ? w.winner == S.me : w.winner == Me().team;
+    AudioBallPit(a);
+    static float vac = 0; vac -= dt; if (Me().vacuuming && vac <= 0 && !S.shot) { BallPitCue(BPC_VACUUM, 0.5f, 0, 1); vac = 0.22f; }
+    static float step = 0; float spd = Vector3Length({Me().vel.x, 0, Me().vel.z}); if (Me().alive && Me().grounded && spd > 1 && !S.shot && Me().po == PO_STAND) { step -= dt * spd; if (step <= 0) { step = 1.6f; BallPitCue(Me().inPit ? BPC_GRAB : BPC_STEP, Me().inPit ? 0.25f : 0.2f, 0, 0.9f + 0.2f * (S.t - floorf(S.t))); } }
+}
 void StepCamera(float dt) {
     World& w = W(); Player& p = Me();
     if (S.freeCam) return;
@@ -875,7 +893,7 @@ void SceneBallPit(Game& g) {
     S.t += dt;
     if (S.net) {
         if (!NetFrame(g, dt)) return;
-        ReadEvents(); StepCamera(dt);
+        ReadEvents(); StepCamera(dt); BallPitSound(dt);
         std::vector<Vector3> real; bool guest = !S.hostW && S.smooth.size() == S.Wm.players.size();
         if (guest) for (size_t i = 0; i < S.Wm.players.size(); i++) { real.push_back(S.Wm.players[i].pos); if ((int)i != S.me) S.Wm.players[i].pos = S.smooth[i]; }
         Render(dt);
@@ -897,6 +915,7 @@ void SceneBallPit(Game& g) {
     StepCamera(dt);
     Render(dt);
     DrawHud(g);
+    BallPitSound(dt);
 }
 bool BallPitActive() { return S.active; }
 // --shots: 0 the atrium from your base, 1 a firefight on the bridge, 2 a cannon, 3 the store, 4 submerged, 5 the slide,
