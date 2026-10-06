@@ -1269,7 +1269,17 @@ static void DrawFlora() {
     Vector3 eye = m.Eye(Me());
     // (the swaying plants are budgeted: drawn nearest first, in three bands of distance, forty a frame; small ones only
     // within 20 m, the rest to 40 m: past that, or once the budget is spent, they're left out rather than boxed)
-    FloraBudget(28);
+    // the mangroves first, never budgeted, out to 70 m: they are big, and the grass tufts used the budget up as the
+    // diver moved, so the trees blinked in and out (the playtest, 2026-10-06)
+    if (!getenv("DEPTH_OLDSTATIONS")) for (const auto& pr : m.level.props) {
+        if (pr.kind != PropKind::Mangrove || Vector3Distance(pr.pos, eye) > 70) continue;
+        int zp = pr.zone >= 0 ? pr.zone : m.eco.ZoneAt(pr.pos);
+        float floorY = zp >= 0 ? m.map->zones[zp].y0 : pr.pos.y - pr.half.y;
+        uint32_t h = pr.seed ? pr.seed : (uint32_t)(fabsf(pr.pos.x) * 97 + fabsf(pr.pos.z) * 41);
+        FloraBudget(1 << 20);
+        DrawFloraPbr("roots", {pr.pos.x, floorY, pr.pos.z}, (h % 628) * 0.01f, std::max(1.4f, pr.half.y * 2 + 0.6f), Color{100, 80, 58, 255}, S.time, 0);
+    }
+    FloraBudget(60);
     static const float BAND[4] = {0, 12, 25, 45};
     for (int band = 0; band < 3; band++) {
     for (const auto& p : m.eco.flora) {
@@ -1332,7 +1342,7 @@ static void DrawFlora() {
         int zp = pr.zone >= 0 ? pr.zone : m.eco.ZoneAt(pr.pos);
         float floorY = zp >= 0 ? m.map->zones[zp].y0 : pr.pos.y - pr.half.y;
         uint32_t h = pr.seed ? pr.seed : (uint32_t)(fabsf(pr.pos.x) * 97 + fabsf(pr.pos.z) * 41);
-        if (pr.kind == PropKind::Mangrove) { DrawFloraPbr("roots", {pr.pos.x, floorY, pr.pos.z}, (h % 628) * 0.01f, std::max(1.4f, pr.half.y * 2 + 0.6f), Color{100, 80, 58, 255}, S.time, 0); continue; }
+        if (pr.kind == PropKind::Mangrove) continue;   // (drawn above, unbudgeted)
         int n = std::clamp((int)(pr.half.x * pr.half.z * 3), 3, 8);
         for (int k = 0; k < n; k++) {
             uint32_t q = h * 2654435761u + k * 40503u;
