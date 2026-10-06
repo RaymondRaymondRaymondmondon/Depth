@@ -368,3 +368,4 @@ Playtest. Open: join-in-progress and spectating; replays for networked matches; 
   - Atlantis: broken columns, amphorae, vines.
   - The Void: glowing crystal shards, bones, tendrils.
   - The Salon: bottles, candles, books, tassels.
+- Crash fix (2026-10-06): opening the locker crashed the game: the preview stick's floor shadow read the match's stage (empty in the arcade) instead of the preview's own. DrawStick takes the preview's stage now (`gStickStage`).

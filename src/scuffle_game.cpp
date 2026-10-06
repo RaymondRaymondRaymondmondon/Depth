@@ -214,6 +214,7 @@ void DrawStage() {
     DrawDressing(s);
     DrawPieces(s);
 }
+static const sf::Stage* gStickStage = nullptr;   // (the locker's preview stands on its own little stage, not the match's: reading the match's, empty in the arcade, crashed the locker)
 void DrawStick(const sf::Stick& k) {
     if (!k.present) return;
     Color c = k.alive ? StickColor(k.id) : Color{120, 116, 110, 255};
@@ -221,7 +222,7 @@ void DrawStick(const sf::Stick& k) {
     if (k.alive && k.hp < 35) { float w = 0.5f + 0.5f * sinf(S.t * 14); c = ColorLerp(c, Color{230, 30, 30, 255}, 0.35f * w); }   // (low health: a red pulse)
     float th = std::max(4.0f, S.zoom * 0.105f);
     {   // a soft shadow on the floor under the stick (how high it is reads at a glance)
-        const sf::Stage& st = S.M.w.stage; int tx = (int)floorf(k.pt[sf::J_PELVIS].p.x / sf::TILE);
+        const sf::Stage& st = gStickStage ? *gStickStage : S.M.w.stage; int tx = (int)floorf(k.pt[sf::J_PELVIS].p.x / sf::TILE);
         for (int ty = (int)floorf(k.pos.y / sf::TILE); ty >= std::max(0, (int)floorf(k.pos.y / sf::TILE) - 6); ty--) if (st.Solid(tx, ty)) { float gy = (ty + 1) * sf::TILE, hgt = std::max(0.0f, k.pos.y - gy); Vector2 g = W2S({k.pt[sf::J_PELVIS].p.x, gy}); float a = std::clamp(0.35f - hgt * 0.05f, 0.05f, 0.35f), rw = S.zoom * (0.32f + hgt * 0.04f); DrawEllipse((int)g.x, (int)g.y, rw, rw * 0.22f, ColorAlpha(BLACK, a)); break; }
     }
     auto P = [&](int j) { Vector2 p = W2S(k.pt[j].p); if (k.alive && k.hp < 35) p.x += sinf(S.t * 30 + j) * 0.8f; return p; };
@@ -1149,7 +1150,7 @@ void LockerStick(Vector2 feetScreen, float zoom, int skin, int hat) {
     Vector2 cam = S.cam; float z = S.zoom; std::vector<std::string> names = S.names;
     const sf::Stick& k = pv.sticks[0]; S.zoom = zoom; S.names = {" "};
     S.cam = {k.pos.x - (feetScreen.x - SCREEN_W / 2.0f) / zoom, k.pos.y + (feetScreen.y - SCREEN_H / 2.0f) / zoom};
-    DrawStick(k);
+    gStickStage = &pv.stage; DrawStick(k); gStickStage = nullptr;
     S.cam = cam; S.zoom = z; S.names = names;
 }
 }
