@@ -102,12 +102,9 @@ int RunFathomsSim(int matches, int players, int minutes, int ai) {
         Settings s; s.players = players; s.seed = 1000 + m * 7; s.timeCap = minutes * 60;
         for (int i = 0; i < players; i++) { s.ai[i] = true; s.aiLevelOf[i] = ai; s.faction[i] = (m + i) % 6; }
         World w; w.Init(s);
-        std::vector<Command> cmds;
-        while (!w.over && w.t < minutes * 60 + 1) {
-            for (auto& p : w.players) if (p.alive) { cmds.clear(); AiThink(w, p.id, cmds); for (auto& c : cmds) w.Apply(c); }
-            w.Step();
-            if (fabsf(w.t - 360) < STEP * 0.5f || fabsf(w.t - 720) < STEP * 0.5f) for (auto& p : w.players) { int n = CountU(w, p.id, "worker"); if (w.t < 400) w6 += n; else { w12 += n; wN++; } }
-        }
+        Run(w, 360); for (auto& p : w.players) w6 += CountU(w, p.id, "worker");
+        Run(w, 360); for (auto& p : w.players) { w12 += CountU(w, p.id, "worker"); wN++; }
+        Run(w, minutes * 60 + 1 - w.t);
         for (auto& p : w.players) { playsBy[p.faction]++; if (p.eraAt[1] > 0) { steamAt += p.eraAt[1]; steamN++; } if (p.eraAt[2] > 0) { levAt += p.eraAt[2]; levN++; } kills += p.kills; }
         if (w.winner >= 0) for (int q : w.winners) winsBy[w.players[q].faction]++;
         bool conq = true; for (auto& p : w.players) if (p.alive && w.winners.size() && std::find(w.winners.begin(), w.winners.end(), p.id) == w.winners.end()) conq = false; if (conq && w.t < minutes * 60) conquests++;

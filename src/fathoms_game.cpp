@@ -68,15 +68,18 @@ std::vector<int> MySel() { std::vector<int> v; for (int id : S.sel) if (const Un
 
 // ---------------------------------------------------------------- the camera and picking
 Vector3 W3(Vector2 p, float lift = 0) { return {p.x, TileY(W(), p.x, p.y) + lift, p.y}; }
+bool Ground(Vector2 mouse, Vector2* out);
 void StepCam(float dt) {
     World& w = W(); float sp = (12 + S.camH * 0.9f) * dt;
-    if (!Typing()) {
-        if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A) && !IsKeyDown(KEY_LEFT_CONTROL)) S.camC.x -= sp;
-        if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) S.camC.x += sp;
-        if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) S.camC.y -= sp;
-        if (IsKeyDown(KEY_DOWN) || (IsKeyDown(KEY_S) && IsKeyDown(KEY_LEFT_SHIFT))) S.camC.y += sp;
+    if (!Typing()) {   // (the arrows and the screen's edges pan: A and S are orders)
+        if (IsKeyDown(KEY_LEFT)) S.camC.x -= sp; if (IsKeyDown(KEY_RIGHT)) S.camC.x += sp;
+        if (IsKeyDown(KEY_UP)) S.camC.y -= sp; if (IsKeyDown(KEY_DOWN)) S.camC.y += sp;
     }
-    Vector2 m = GetMousePosition(); if (!S.shot && IsWindowFocused()) { if (m.x < 6) S.camC.x -= sp; if (m.x > SCREEN_W - 6) S.camC.x += sp; if (m.y < 6) S.camC.y -= sp; if (m.y > SCREEN_H - 6) S.camC.y += sp; }
+    // middle-mouse drag pans the sea under the pointer
+    static Vector2 grab{}; static bool grabbing = false;
+    if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) { grabbing = Ground(GetMousePosition(), &grab); }
+    if (grabbing && IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) { Vector2 now; if (Ground(GetMousePosition(), &now)) S.camC = Vector2Add(S.camC, Vector2Subtract(grab, now)); }
+    if (IsMouseButtonReleased(MOUSE_BUTTON_MIDDLE)) grabbing = false;    Vector2 m = GetMousePosition(); if (!S.shot && IsWindowFocused()) { if (m.x < 6) S.camC.x -= sp; if (m.x > SCREEN_W - 6) S.camC.x += sp; if (m.y < 6) S.camC.y -= sp; if (m.y > SCREEN_H - 6) S.camC.y += sp; }
     float wh = GetMouseWheelMove(); if (wh != 0) S.camHWant = std::clamp(S.camHWant * (wh > 0 ? 0.88f : 1.14f), 12.0f, 80.0f);
     S.camH += (S.camHWant - S.camH) * std::min(1.0f, dt * 10);
     S.camC.x = std::clamp(S.camC.x, 4.0f, (float)w.W - 4); S.camC.y = std::clamp(S.camC.y, 4.0f, (float)w.H - 4);

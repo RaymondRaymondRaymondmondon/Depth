@@ -312,6 +312,7 @@ bool World::Apply(const Command& c) {
             if (P.faction == 2 && (d.key == "torpedo_boat" || d.key == "ironclad")) return false;   // (the Crustaceans have none)
             if (P.faction == 5 && d.key == "medic") return false;
             if (d.key == "hero" && (P.heroUnit >= 0 && U(P.heroUnit))) return false;
+            if (d.key == "hero") for (const auto& ob : buildings) if (!ob.dead && ob.owner == c.player) for (const auto& q : ob.queue) if (q.kind == 0 && q.def == c.def) return false;   // (only one, queued or alive)
             if (d.key == "hero" && P.heroDeadT >= 0 && t - P.heroDeadT < 60) return false;
             if ((int)b->queue.size() >= 8) return false;
             Cost cost = PriceOf(c.player, d); if (d.key == "hero" && P.heroDeadT >= 0) for (auto& x : cost) x *= 0.5f;

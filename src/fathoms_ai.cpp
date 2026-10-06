@@ -18,7 +18,7 @@ namespace {
 struct Mem {
     float thinkT = 0, lastT = -1; uint32_t seed = 0;
     // expansion: a transport carrying workers to an island
-    int expTransport = -1, expIsland = -1, expStage = 0; float expT = 0; std::vector<int> expWorkers;
+    int expTransport = -1, expIsland = -1, expStage = 0; float expT = 0; std::vector<int> expWorkers; bool resettle = false;
     // the army: an invasion transport, the last wave
     int invTransport = -1, invStage = 0; float invT = 0, lastWave = -1e9f; int waves = 0, waveEra = -1; std::vector<int> invUnits;
     int seen[6] = {};   // enemy units seen by class: 0 ranged, 1 melee infantry, 2 mounted, 3 siege, 4 light ships, 5 heavy ships
@@ -173,6 +173,37 @@ void AiThink(World& w, int p, std::vector<Command>& out) {
             int farms = CountB(w, p, "farm"); if (groves < 3 && farms < 4 + era * 3 && Afford(P, Bl.buildings[Bl.Building("farm")].cost, 40)) { const Building* fs = FindB(w, p, "farmstead"); Vector2 at = fs ? fs->Centre() : home; Build(w, p, "farm", at, homeIsle, builders(at, 1, homeIsle), out, 10); }
         }
     }
+    // ---- the late economy: farms when the groves thin, idle hands moved to islands with work, surplus traded
+    {
+        int groves = 0; for (const auto& n : w.nodes) if (n.kind == N_GROVE && n.amount > 40 && IsleOf(w, n.p) == homeIsle) groves++;
+        int farms = CountB(w, p, P.faction == 2 ? "brood_pool" : "farm"), unbuilt = 0; for (const auto& b : w.buildings) if (!b.dead && b.owner == p && b.progress < 1 && (w.BD(b).key == "farm" || w.BD(b).key == "brood_pool")) unbuilt++;
+        int wantFarms = groves >= 4 ? 0 : groves >= 2 ? 3 : 6 + era * 3; if (P.faction == 2) wantFarms = std::min(10, wantFarms + 2);
+        if (t > 240 && farms < wantFarms && unbuilt == 0 && !hold && FindB(w, p, "farmstead")) {
+            const char* fk = P.faction == 2 ? "brood_pool" : "farm"; const Building* fs = FindB(w, p, "farmstead");
+            if (Afford(P, Bl.buildings[Bl.Building(fk)].cost)) { std::vector<int> who; for (Unit* u : idleW) if ((int)who.size() < 1 && IsleOf(w, u->p) == IsleOf(w, fs->Centre())) who.push_back(u->id); if (who.empty()) for (Unit* u : workers) if (who.empty() && u->order == O_GATHER && IsleOf(w, u->p) == IsleOf(w, fs->Centre())) who.push_back(u->id); Build(w, p, fk, fs->Centre(), IsleOf(w, fs->Centre()), who, out, 12); }
+        }
+        // idle workers with nothing to do on their island go where the work is (walking over shallows, or by Transport)
+        int idleHome = 0; for (Unit* u : idleW) if (IsleOf(w, u->p) == homeIsle) idleHome++;
+        if (idleHome >= 3 && M.expStage == 0) {
+            int best = -1; float bv = 0;
+            for (size_t i = 0; i < w.islands.size(); i++) { if (w.islands[i].owner != p || (int)i == homeIsle) continue; float v = 0; for (const auto& n : w.nodes) if (n.amount > 0 && !Bl.nodes[n.kind].water && IsleOf(w, n.p) == (int)i) v += n.amount; if (v > bv) { bv = v; best = (int)i; } }
+            if (best >= 0 && bv > 300) {
+                std::vector<int> go; for (Unit* u : idleW) if (IsleOf(w, u->p) == homeIsle && go.size() < 8) go.push_back(u->id);
+                std::vector<int> path; const Unit* u0 = w.U(go[0]); w.FindPath(*u0, w.islands[best].c, path, 2.0f);
+                if (!path.empty() && w.isle[path.back()] == best) { Command c; c.kind = C_MOVE; c.player = p; c.units = go; c.at = w.islands[best].c; out.push_back(c); }
+                else { M.expIsland = best; M.expStage = 1; M.expT = t; M.expWorkers = go; M.expTransport = -1; for (auto& q : w.units) if (!q.dead && q.owner == p && w.UD(q).key == "transport" && q.cargo.empty() && q.id != M.invTransport) M.expTransport = q.id; if (M.expTransport < 0 && dock) Train(w, p, dock, "transport", out); M.resettle = true; }
+            }
+        }
+        // a drop site on any owned island with work and none of its own
+        for (size_t i = 0; i < w.islands.size(); i++) {
+            if (w.islands[i].owner != p || (int)i == homeIsle) continue; bool drop = false; for (const auto& b : w.buildings) if (!b.dead && b.owner == p && b.island == (int)i && w.BD(b).drop != "") drop = true; if (drop) continue;
+            std::vector<int> there; for (Unit* u : workers) if (IsleOf(w, u->p) == (int)i && u->order != O_BUILD) there.push_back(u->id); if (there.empty()) continue;
+            Vector2 g = w.islands[i].c; bool mine = false; for (const auto& n : w.nodes) if (IsleOf(w, n.p) == (int)i && n.amount > 0 && !Bl.nodes[n.kind].water) { g = n.p; mine = n.kind == N_BRASS || n.kind == N_COAL || n.kind == N_VENT; break; }
+            const char* dk = mine ? "mine_shed" : "farmstead"; if (Afford(P, Bl.buildings[Bl.Building(dk)].cost)) { there.resize(std::min<size_t>(there.size(), 2)); Build(w, p, dk, g, (int)i, there, out, 8); } break;
+        }
+        // the Exchange: sell what piles up for what runs short
+        if (FindB(w, p, "exchange")) { int hi = -1, lo = -1; float hv = 700, lv = 1e9f; for (int r = 0; r < 3; r++) { float v = P.res[r] * (r == R_COAL ? 0.8f : 1.0f); if (v > hv) { hv = v; hi = r; } if (P.res[r] < lv) { lv = P.res[r]; lo = r; } } if (hi >= 0 && lo >= 0 && hi != lo && lv < 250) { Command c; c.kind = C_EXCHANGE; c.player = p; c.a = hi; c.b = lo; out.push_back(c); } }
+    }
     // ---- research: one affordable tech at a time per building, keeping a reserve
     if (t > 240 && !saving && !hold && (era >= 1 || P.res[R_BRASS] > 260)) for (size_t i = 0; i < Bl.techs.size(); i++) {
         const TechDef& td = Bl.techs[i]; if (P.tech[i] || td.era > era || (td.faction >= 0 && td.faction != P.faction)) continue;
@@ -211,10 +242,11 @@ void AiThink(World& w, int p, std::vector<Command>& out) {
         Unit* tr = w.U(M.expTransport);
         if (!tr && M.expStage == 1 && dock && dock->queue.empty() && Count(w, p, "transport") == 0) Train(w, p, dock, "transport", out);
         if (!tr && M.expStage >= 1) { for (auto& u : w.units) if (!u.dead && u.owner == p && w.UD(u).key == "transport" && u.cargo.empty() && u.id != M.invTransport) { tr = &u; M.expTransport = u.id; break; } }
-        if (t - M.expT > 240 || M.expIsland < 0 || w.islands[M.expIsland].owner >= 0) { M.expStage = 0; M.expWorkers.clear(); M.expTransport = -1; }   // (gave up, or done)
+        if (M.resettle && M.expStage == 3) { bool ashore = true; for (int id : M.expWorkers) if (const Unit* u = w.U(id)) if (u->inside >= 0) ashore = false; if (ashore) { M.expStage = 0; M.resettle = false; M.expWorkers.clear(); M.expTransport = -1; } }
+        if (t - M.expT > 240 || M.expIsland < 0 || (w.islands[M.expIsland].owner >= 0 && !M.resettle)) { M.resettle = false; M.expStage = 0; M.expWorkers.clear(); M.expTransport = -1; }   // (gave up, or done)
         else if (M.expStage == 1 && tr) {
             // two workers board
-            if (M.expWorkers.size() < 2) for (Unit* u : workers) { if ((int)M.expWorkers.size() >= 2) break; if (IsleOf(w, u->p) == homeIsle && u->order != O_BUILD) M.expWorkers.push_back(u->id); }
+            if (M.expWorkers.size() < 2 && !M.resettle) for (Unit* u : workers) { if ((int)M.expWorkers.size() >= 2) break; if (IsleOf(w, u->p) == homeIsle && u->order != O_BUILD) M.expWorkers.push_back(u->id); }
             Command c; c.kind = C_BOARD; c.player = p; c.target = tr->id; c.units = M.expWorkers; out.push_back(c); M.expStage = 2;
         } else if (M.expStage == 2 && tr) {
             int aboard = (int)tr->cargo.size();
