@@ -267,8 +267,8 @@ void World::Init(const Opts& o) {
     orcas.at = roundLen * (5 + 5 * Rand()) / 15; bloomAt = roundLen * (4 + 4 * Rand()) / 15;
     boat.nextT = 50 + Rand() * 40;
     // plankton clouds: a fry's first meal (1 mass a second inside one), drifting over the shallows and the reef's edge
-    for (int i = 0; i < 18; i++) {
-        float x = -290 + Rand() * (i < 12 ? 120 : 220), z = Z0 + 10 + Rand() * (Z1 - Z0 - 20);
+    for (int i = 0; i < 34; i++) {   // (more plankton clouds in the shallows: the playtest, 2026-10-06, found the climb to tier 3 too slow)
+        float x = -290 + Rand() * (i < 26 ? 120 : 220), z = Z0 + 10 + Rand() * (Z1 - Z0 - 20);
         float y = std::max(FloorY(x, z) + 2, -1.5f - Rand() * 8);
         plankton.push_back({{x, y, z}, 4.5f + Rand() * 2.5f, {0.2f + Rand() * 0.3f, 0, (Rand() - 0.5f) * 0.4f}});
     }

@@ -509,8 +509,13 @@ struct Side {
 // the score (design doc p27; data/flight/flight_scoring.json)
 struct ScoreCard { int birds = 0, nests = 0, isles = 0, cache = 0, kills = 0, founder = 0, total = 0, research = 0, pearls = 0, faith = 0, thefts = 0, kraken = 0, legacy = 0, leagueShare = 0; };   // (legacy: the long match's additions, doc p50)
 // stage 7: the dangerous islands' monsters and moods, the weather (flight_danger.cpp; data/flight/flight_danger.json)
-struct Kraken { int isle = -1; int mood = 0; float hp = 4000, hpMax = 4000, moodT = 0, calmT = 0, grabT = 0, armT = 0, armKill = 0; bool dead = false; int killedBy = -1; Vector3 arm{}; };   // mood 0 asleep, 1 awake, 2 surfaced
-struct Ape { int isle = -1; float sleepT = 0, throwT = 0, rockT = 0; Vector3 pos{}, rockFrom{}, rockTo{}; float lizardT = 0, plantT = 0, plantsBurnt = 0; };
+struct Kraken { int isle = -1; int mood = 0; float hp = 4000, hpMax = 4000, moodT = 0, calmT = 0, grabT = 0, armT = 0, armKill = 0; bool dead = false; int killedBy = -1; Vector3 arm{};
+                // (the playtest, 2026-10-06: attacks you can see coming and dodge) atk 0 none, 1 a grab (an arm rises under the
+                // target and lunges), 2 a sweep (an arm swings across the water), 3 a slam (an arm crashes down: a wave rolls out)
+                int atk = 0; float atkT = 0, atkLen = 0, atkAng = 0, atkCd = 3; Vector3 atkAt{}; int atkSide = -1, atkBird = -1; };   // mood 0 asleep, 1 awake, 2 surfaced
+// the great ape walks its island (atGoal, face) and throws real rocks: one in flight (rockLen) lands where it was aimed, and
+// hurts whoever is still within a few metres of that point when it arrives
+struct Ape { int isle = -1; float sleepT = 0, throwT = 0, rockT = 0, rockLen = 1, face = 0, windT = 0; Vector3 pos{}, rockFrom{}, rockTo{}, goal{}; int rockSide = -1, rockBird = -2; float lizardT = 0, plantT = 0, plantsBurnt = 0; };
 struct Volcano { int isle = -1; float next = 0, tremorT = 0, ashT = 0; int eruptions = 0; };
 struct WreckState { int isle = -1; Vector3 c0{}; Vector2 vel{}; float sunk = 0; int hold = 30; bool bell = true; bool gone = false; float ratT = 0, ghostT = 0; };
 // the Long Flight's Council (flight_longflight.cpp)

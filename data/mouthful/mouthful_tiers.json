@@ -20,9 +20,9 @@
   "stamina_refill_s": 6,
   "respawn_s": 5,
   "immune_s": 10,
-  "start_mass": 15,
+  "start_mass": 20,
   "king_bonus": 0.10,
   "streak_bonus": 0.05,
   "armored_cost": 5,
-  "plankton_per_s": 1
+  "plankton_per_s": 2
 }

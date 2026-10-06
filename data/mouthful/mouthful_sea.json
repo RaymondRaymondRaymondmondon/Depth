@@ -27,11 +27,11 @@
     {"species": "Leviathan", "mass": 60000, "npc": true, "eats_up_to": 8, "bite": 99}
   ],
   "spawns": [
-    {"zone": "The Shallows", "species": "Minnow", "count": 120, "respawn_s": 8},
-    {"zone": "The Shallows", "species": "Shrimp", "count": 30, "respawn_s": 12},
-    {"zone": "The Shallows", "species": "Snail", "count": 20, "respawn_s": 15},
-    {"zone": "The Reef", "species": "Sardine", "count": 80, "respawn_s": 6},
-    {"zone": "The Reef", "species": "Minnow", "count": 30, "respawn_s": 8},
+    {"zone": "The Shallows", "species": "Minnow", "count": 260, "respawn_s": 5},
+    {"zone": "The Shallows", "species": "Shrimp", "count": 90, "respawn_s": 6},
+    {"zone": "The Shallows", "species": "Snail", "count": 50, "respawn_s": 8},
+    {"zone": "The Reef", "species": "Sardine", "count": 130, "respawn_s": 5},
+    {"zone": "The Reef", "species": "Minnow", "count": 90, "respawn_s": 6},
     {"zone": "The Reef", "species": "Crab", "count": 12, "respawn_s": 20},
     {"zone": "The Reef", "species": "Urchin", "count": 8, "respawn_s": 30},
     {"zone": "The Reef", "species": "Clam", "count": 8, "respawn_s": 30},

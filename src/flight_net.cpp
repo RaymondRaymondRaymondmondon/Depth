@@ -606,8 +606,8 @@ template <class A> void Visit(A& a, World& w, bool full) {
         if constexpr (A::reading) w.mirrorStock = st;
     }
     // the dangerous islands and the weather
-    { Kraken& k = w.kraken; a.i(k.isle); a.i(k.mood); a.f(k.hp); a.f(k.hpMax); a.b(k.dead); a.i(k.killedBy); a.v3(k.arm); a.f(k.armT); }
-    { Ape& p = w.ape; a.i(p.isle); a.f(p.sleepT); a.v3(p.pos); a.v3(p.rockFrom); a.v3(p.rockTo); a.f(p.rockT); a.f(p.plantsBurnt); }
+    { Kraken& k = w.kraken; a.i(k.isle); a.i(k.mood); a.f(k.hp); a.f(k.hpMax); a.b(k.dead); a.i(k.killedBy); a.v3(k.arm); a.f(k.armT); a.i(k.atk); a.f(k.atkT); a.f(k.atkLen); a.f(k.atkAng); a.v3(k.atkAt); }
+    { Ape& p = w.ape; a.i(p.isle); a.f(p.sleepT); a.v3(p.pos); a.v3(p.rockFrom); a.v3(p.rockTo); a.f(p.rockT); a.f(p.plantsBurnt); a.f(p.rockLen); a.f(p.face); a.f(p.windT); }
     { Volcano& v = w.volcano; a.i(v.isle); a.f(v.next); a.f(v.tremorT); a.f(v.ashT); a.i(v.eruptions); }
     { WreckState& r = w.wreck; a.i(r.isle); a.i(r.hold); a.b(r.bell); }
     { Weather& e = w.weather; a.i(e.kind); a.f(e.t); a.f(e.next); }

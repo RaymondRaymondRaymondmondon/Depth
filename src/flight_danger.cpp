@@ -120,8 +120,8 @@ bool World::FoundOutpost(int isle, Vector3 near) {
             if (LandAt(q.x, q.z) && NormalAt(q.x, q.z).y > 0.8f) { cp = q; break; }
         }
         Cache c; c.pos = {cp.x, cp.y + 0.1f, cp.z}; c.built = false; c.isle = isle; col.caches.push_back(c);
-        for (const auto& tp : is.twigPts) { TwigSource t; t.pos = tp.first; t.cap = tp.second < 0 ? (float)Econ().palmTwigs : tp.second; t.twigs = t.cap; col.twigSrc.push_back(t); }
-        for (const auto& sp : is.shellPts) { TwigSource t; t.pos = Vector3Add(sp, {0, 0.15f, 0}); t.shells = true; t.cap = 4; t.twigs = t.cap; col.twigSrc.push_back(t); }
+        for (const auto& tp : is.twigPts) { TwigSource t; t.pos = tp.first; t.cap = tp.second < 0 ? (float)Econ().palmTwigs : tp.second * 2.5f; t.twigs = t.cap; col.twigSrc.push_back(t); }
+        for (const auto& sp : is.shellPts) { TwigSource t; t.pos = Vector3Add(sp, {0, 0.15f, 0}); t.shells = true; t.cap = 10; t.twigs = t.cap; col.twigSrc.push_back(t); }
         Reveal(n.pos, 120, isle);
     }
     if (LongFlight()) Chronicle(cur, CK_FOUNDING, "We founded an outpost on " + is.name + ".");
@@ -356,26 +356,94 @@ void World::StepDanger(float dt) {
         int want = StormNow() || blood > 2 * wake || (!offered && time > D.kNeglect * DAY) ? 2 : blood > wake ? 1 : 0;
         if (want > kraken.mood) { kraken.mood = want; kraken.calmT = 0; if (want == 2) for (int s = 0; s < N; s++) if (NestsOn(s, kraken.isle) > 0 || Flat2(FounderOf(s).pos, cove) < 400) SayTo(s, "THE KRAKEN SURFACES in its cove."); }
         else if (want < kraken.mood) { kraken.calmT += dt; if (kraken.calmT > D.kCalm * DAY) { kraken.mood = want; kraken.calmT = 0; } }
-        // grabs: any bird low over the cove whose colony hasn't offered today
-        kraken.grabT += dt;
+        // its attacks (the playtest, 2026-10-06: it used to take birds with no movement at all): a grab, a sweep or a slam,
+        // each telegraphed, each hitting only what is still in the way when it lands, on the sides that haven't offered
         if (kraken.armT > 0) kraken.armT -= dt;
-        if (kraken.grabT >= 1) {
-            kraken.grabT = 0;
+        auto safeSide = [&](int s) { const Colony& C = ColOf(s); return time - C.offeredKraken < D.kOfferDays * DAY || DecreeOf(s).dangersIgnore || HasRelic(s, RL_BEAK) || GreatNow(GE_KRAKEN_WALK); };   // (Offerings: it ignores you today; the Kraken's Beak; on its walk the cove is free)
+        auto hurtFounder = [&](int s, float dmg, const char* cause, bool knock) {
+            Founder& F = FounderOf(s); if (F.st == FState::Dead) return;
+            F.hp -= dmg;
+            if (F.hp <= 0) { if (HumanOf(s)) WithSide(s, [&] { Kill(cause); }); else { F.st = FState::Dead; F.respawnT = 30; F.deaths++; } return; }
+            if (knock && F.st == FState::Fly) { F.vel.y = std::min(F.vel.y, -6.0f); F.airspeed *= 0.5f; }
+            if (HumanOf(s)) SayTo(s, std::string("Hit: ") + cause + "!");
+        };
+        auto hurtBird = [&](int s, Bird& b, float dmg, const char* cause) { b.hp -= dmg; if (b.hp <= 0 || !IsWarrior(b.role)) WithSide(s, [&] { BirdDies(b, cause); }); };
+        // every low flyer over the cove (and a little beyond) on a side it would attack, as (side, bird id or -1 the Founder, position)
+        struct Prey { int s, id; Vector3 p, v; };
+        std::vector<Prey> prey;
+        for (int s = 0; s < N; s++) {
+            if (safeSide(s)) continue;
+            for (auto& b : ColOf(s).birds) if (b.alive && b.stage == BStage::Adult && b.pos.y < D.kBelow + 6 && Flat2(b.pos, cove) < D.kRadius + 25) prey.push_back({s, b.id, b.pos, b.vel});
+            Founder& F = FounderOf(s);
+            if (F.st != FState::Dead && F.pos.y < D.kBelow + 6 && Flat2(F.pos, cove) < D.kRadius + 25) prey.push_back({s, -1, F.pos, F.vel});
+        }
+        auto forEachIn = [&](auto inside, auto hit) {   // every attackable thing for which inside(position) holds
             for (int s = 0; s < N; s++) {
-                Colony& C = ColOf(s);
-                bool safe = time - C.offeredKraken < D.kOfferDays * DAY || DecreeOf(s).dangersIgnore || HasRelic(s, RL_BEAK) || GreatNow(GE_KRAKEN_WALK);   // (Offerings: it ignores you today; the Kraken's Beak; on its walk the cove is free)
-                if (safe) continue;
-                auto chance = [&](float y) { return kraken.mood == 2 ? D.kSurfaced : kraken.mood == 1 ? D.kAwake : (y < 5 ? D.kAsleep : 0.0f); };
-                for (auto& b : C.birds) {
-                    if (!b.alive || b.stage != BStage::Adult || b.pos.y > D.kBelow || Flat2(b.pos, cove) > D.kRadius) continue;
-                    if (Rand() < chance(b.pos.y)) { kraken.arm = b.pos; kraken.armT = 1.2f; WithSide(s, [&] { BirdDies(b, "taken by the kraken"); }); eco.AddBlood({b.pos.x, -0.5f, b.pos.z}, 3); }
-                }
+                if (safeSide(s)) continue;
+                for (auto& b : ColOf(s).birds) if (b.alive && b.stage == BStage::Adult && inside(b.pos)) hit(s, &b, nullptr);
                 Founder& F = FounderOf(s);
-                if (F.st != FState::Dead && F.pos.y < D.kBelow && Flat2(F.pos, cove) < D.kRadius && Rand() < chance(F.pos.y)) {
-                    kraken.arm = F.pos; kraken.armT = 1.2f;
-                    if (HumanOf(s)) WithSide(s, [&] { Kill("taken by the kraken"); }); else { F.st = FState::Dead; F.respawnT = 30; F.deaths++; }
+                if (F.st != FState::Dead && F.st != FState::Perched && inside(F.pos)) hit(s, nullptr, &F);
+            }
+        };
+        if (kraken.atk == 0) {
+            float every = kraken.mood == 2 ? 2.2f : kraken.mood == 1 ? 4.0f : 7.0f;
+            kraken.atkCd -= dt;
+            if (kraken.atkCd <= 0 && !prey.empty()) {
+                const Prey& t = prey[(size_t)(Rand() * prey.size()) % prey.size()];
+                if (kraken.mood > 0 || t.p.y < 6) {   // (asleep, it only takes what skims the water over it)
+                    kraken.atkCd = every * (0.8f + 0.4f * Rand());
+                    float r = Rand();
+                    kraken.atk = t.p.y < 7 && r < 0.35f ? 3 : r < 0.65f ? 1 : 2;
+                    kraken.atkT = 0; kraken.atkSide = t.s; kraken.atkBird = t.id;
+                    if (kraken.mood == 0) kraken.atk = 1;
+                    if (kraken.atk == 1) { kraken.atkLen = 1.9f; kraken.atkAt = {t.p.x + t.v.x * 0.9f, 0, t.p.z + t.v.z * 0.9f}; }   // (aimed where it's going)
+                    else if (kraken.atk == 2) { kraken.atkLen = 2.1f; kraken.atkAt = {cove.x, 0, cove.z}; kraken.atkAng = atan2f(t.p.z - cove.z, t.p.x - cove.x) - 1.1f; }
+                    else { kraken.atkLen = 2.6f; kraken.atkAt = {t.p.x + t.v.x * 0.9f, 0, t.p.z + t.v.z * 0.9f}; }
+                    if (HumanOf(t.s) && t.id < 0) SayTo(t.s, kraken.atk == 1 ? "An arm rises under you: turn away!" : kraken.atk == 2 ? "An arm sweeps across the cove: climb!" : "An arm rears up to slam the water: get clear!");
                 }
             }
+        } else {
+            kraken.atkT += dt;
+            float t = kraken.atkT;
+            if (kraken.atk == 1) {   // the grab: the arm follows its mark for 0.6 s, then holds still and lunges at 0.9 s
+                if (t < 0.6f) {
+                    if (kraken.atkBird < 0) { const Founder& F = FounderOf(kraken.atkSide); kraken.atkAt = Vector3Lerp(kraken.atkAt, {F.pos.x, 0, F.pos.z}, std::min(1.0f, dt * 2.5f)); }
+                    else if (Bird* b = FindBird(kraken.atkSide, kraken.atkBird)) kraken.atkAt = Vector3Lerp(kraken.atkAt, {b->pos.x, 0, b->pos.z}, std::min(1.0f, dt * 2.5f));
+                }
+                if (t >= 0.9f && t - dt < 0.9f) {
+                    Vector3 tip = kraken.atkAt;
+                    bool took = false;
+                    forEachIn([&](Vector3 p) { return !took && p.y < D.kBelow + 4 && Flat2(p, tip) < 5.0f; }, [&](int s, Bird* b, Founder* F) {
+                        took = true; kraken.arm = b ? b->pos : F->pos; kraken.armT = 1.2f;
+                        if (b) { WithSide(s, [&] { BirdDies(*b, "taken by the kraken"); }); eco.AddBlood({kraken.arm.x, -0.5f, kraken.arm.z}, 3); }
+                        else hurtFounder(s, 1e9f, "taken by the kraken", false);
+                    });
+                }
+            } else if (kraken.atk == 2) {   // the sweep: 0.7 s rising, then the arm swings 2.2 rad round the cove in 1.4 s
+                if (t > 0.7f) {
+                    float k0 = (t - dt - 0.7f) / 1.4f, k1 = (t - 0.7f) / 1.4f;
+                    float a0 = kraken.atkAng + 2.2f * std::clamp(k0, 0.0f, 1.0f), a1 = kraken.atkAng + 2.2f * std::clamp(k1, 0.0f, 1.0f);
+                    float R = D.kRadius + 10;
+                    forEachIn([&](Vector3 p) {
+                        if (p.y > 16) return false;
+                        float d = Flat2(p, cove); if (d < 8 || d > R) return false;
+                        float a = atan2f(p.z - cove.z, p.x - cove.x);
+                        auto wrap = [](float x) { while (x < -PI) x += 2 * PI; while (x > PI) x -= 2 * PI; return x; };
+                        float da = wrap(a - a0), span = a1 - a0;
+                        return da >= -0.05f && da <= span + 0.05f;
+                    }, [&](int s, Bird* b, Founder* F) { if (b) hurtBird(s, *b, 50, "swept from the air by the kraken"); else hurtFounder(s, 45, "the kraken's sweeping arm", true); });
+                }
+            } else {   // the slam: 1.0 s rearing, then down; a ring of water rolls out to 40 m over 1.6 s, knocking low flyers
+                if (t >= 1.0f && t - dt < 1.0f) {
+                    forEachIn([&](Vector3 p) { return p.y < 14 && Flat2(p, kraken.atkAt) < 5; }, [&](int s, Bird* b, Founder* F) { if (b) WithSide(s, [&] { BirdDies(*b, "crushed under the kraken's arm"); }); else hurtFounder(s, 1e9f, "crushed under the kraken's arm", false); });
+                    eco.AddNoise(kraken.atkAt, 4);
+                }
+                if (t > 1.0f) {
+                    float r0 = (t - dt - 1.0f) / 1.6f * 40, r1 = (t - 1.0f) / 1.6f * 40;
+                    forEachIn([&](Vector3 p) { float d = Flat2(p, kraken.atkAt); return p.y < 5.5f && d >= r0 - 1.5f && d < r1 + 1.5f; }, [&](int s, Bird* b, Founder* F) { if (b) hurtBird(s, *b, 30, "dashed by the kraken's wave"); else hurtFounder(s, 25, "the kraken's wave", true); });
+                }
+            }
+            if (kraken.atkT >= kraken.atkLen) kraken.atk = 0;
         }
         // surfaced, it raids the nests on the cliffs of a loud colony
         if (kraken.mood == 2) {
@@ -416,26 +484,68 @@ void World::StepDanger(float dt) {
     // ---- skull island: the ape's rocks, the lizards, the plants; the holder's carcasses
     if (ape.isle >= 0) {
         if (ape.sleepT > 0) ape.sleepT -= dt;
-        if (ape.rockT > 0) ape.rockT -= dt;
+        // (the playtest, 2026-10-06: it sat on the summit like a turret and its rocks hit instantly.) It roams the island
+        // on foot; it throws only along a clear line of sight (the hills block it), a real rock that flies for a second or
+        // two to where its target was heading, and hurts whoever is still within a few metres of that point when it lands
+        const Island& AI = isles[ape.isle];
+        auto los = [&](Vector3 a, Vector3 b) { for (int k = 1; k < 12; k++) { Vector3 p = Vector3Lerp(a, b, k / 12.0f); if (HeightAt(p.x, p.z) > p.y + 0.5f) return false; } return true; };
+        Vector3 eye = Vector3Add(ape.pos, {0, 9, 0});
+        if (ape.sleepT <= 0 && ape.windT <= 0) {   // walking: toward its goal, a new one picked when it gets there
+            if (Flat2(ape.pos, ape.goal) < 4 || ape.goal.x == 0 && ape.goal.z == 0) {
+                for (int tries = 0; tries < 12; tries++) {
+                    float a = Rand() * 2 * PI, r = AI.radius * (0.15f + 0.55f * Rand());
+                    Vector3 g{AI.c.x + cosf(a) * r, 0, AI.c.z + sinf(a) * r};
+                    if (LandAt(g.x, g.z) && HeightAt(g.x, g.z) > 1.5f) { ape.goal = g; break; }
+                }
+            }
+            Vector3 d = Vector3Subtract(ape.goal, ape.pos); d.y = 0;
+            float L = Vector3Length(d);
+            if (L > 0.5f) {
+                Vector3 step = Vector3Scale(d, std::min(L, 3.2f * dt) / L);
+                Vector3 np = Vector3Add(ape.pos, step);
+                if (LandAt(np.x, np.z)) { ape.pos = np; ape.face = atan2f(d.z, d.x); } else ape.goal = {0, 0, 0};
+            }
+            ape.pos.y = std::max(0.5f, HeightAt(ape.pos.x, ape.pos.z));
+        }
+        if (ape.windT > 0) {   // winding up a throw: it stands, faces its mark, and lets go at the end
+            ape.windT -= dt;
+            if (ape.windT <= 0) {
+                float flight = std::clamp(Flat2(ape.rockTo, ape.pos) / 45.0f, 0.8f, 2.2f);
+                ape.rockFrom = Vector3Add(ape.pos, {cosf(ape.face) * 2, 10, sinf(ape.face) * 2}); ape.rockT = ape.rockLen = flight;
+            }
+        }
+        if (ape.rockT > 0) {
+            ape.rockT -= dt;
+            if (ape.rockT <= 0) {   // it lands: whoever is within 4.5 m of the point
+                Vector3 at = ape.rockTo; float best = 4.5f; int hs = -1; Bird* hb = nullptr; Founder* hf = nullptr;
+                for (int s = 0; s < N; s++) {
+                    if (DecreeOf(s).dangersIgnore) continue;
+                    for (auto& b : ColOf(s).birds) if (b.alive && b.stage == BStage::Adult) { float d = Vector3Distance(b.pos, at); if (d < best) { best = d; hs = s; hb = &b; hf = nullptr; } }
+                    Founder& F = FounderOf(s);
+                    if (F.st == FState::Fly) { float d = Vector3Distance(F.pos, at); if (d < best) { best = d; hs = s; hf = &F; hb = nullptr; } }
+                }
+                if (hb) { hb->hp -= D.apeDmg; if (hb->hp <= 0 || !IsWarrior(hb->role)) { Bird& b = *hb; WithSide(hs, [&] { BirdDies(b, "struck by the great ape's rock"); }); } }
+                else if (hf) { hf->hp -= D.apeDmg; if (hf->hp <= 0) { if (HumanOf(hs)) WithSide(hs, [&] { Kill("struck by the great ape's rock"); }); else { hf->st = FState::Dead; hf->respawnT = 30; hf->deaths++; } } else SayTo(hs, "A rock from the great ape hits you!"); }
+            }
+        }
         ape.throwT -= dt;
-        if (ape.sleepT <= 0 && ape.throwT <= 0) {
-            ape.throwT = D.apeThrow;
-            // the nearest low flyer in range, whoever's
+        if (ape.sleepT <= 0 && ape.throwT <= 0 && ape.windT <= 0 && ape.rockT <= 0) {
+            // the nearest low flyer in range that it can see, whoever's
             int ts = -1; Bird* tb = nullptr; Founder* tf = nullptr; float bd = D.apeRange;
             for (int s = 0; s < N; s++) {
                 if (DecreeOf(s).dangersIgnore) continue;   // (Offerings)
-                for (auto& b : ColOf(s).birds) if (b.alive && b.stage == BStage::Adult && b.pos.y < D.apeBelow + ape.pos.y * 0.3f && Vector3Length(b.vel) > 0.5f) { float d = Flat2(b.pos, ape.pos); if (d < bd) { bd = d; ts = s; tb = &b; tf = nullptr; } }
+                for (auto& b : ColOf(s).birds) if (b.alive && b.stage == BStage::Adult && b.pos.y < D.apeBelow + ape.pos.y * 0.3f + 20 && Vector3Length(b.vel) > 0.5f) { float d = Flat2(b.pos, ape.pos); if (d < bd && los(eye, b.pos)) { bd = d; ts = s; tb = &b; tf = nullptr; } }
                 Founder& F = FounderOf(s);
-                if (F.st == FState::Fly && F.pos.y < D.apeBelow + ape.pos.y * 0.3f) { float d = Flat2(F.pos, ape.pos); if (d < bd) { bd = d; ts = s; tf = &F; tb = nullptr; } }
+                if (F.st == FState::Fly && F.pos.y < D.apeBelow + ape.pos.y * 0.3f + 20) { float d = Flat2(F.pos, ape.pos); if (d < bd && los(eye, F.pos)) { bd = d; ts = s; tf = &F; tb = nullptr; } }
             }
             if (ts >= 0) {
-                Vector3 to = tb ? tb->pos : tf->pos;
-                ape.rockFrom = Vector3Add(ape.pos, {0, 4, 0}); ape.rockTo = to; ape.rockT = 1.0f;
-                if (Rand() < D.apeHit) {
-                    if (tb) { tb->hp -= D.apeDmg; if (tb->hp <= 0 || !IsWarrior(tb->role)) { Bird& b = *tb; WithSide(ts, [&] { BirdDies(b, "struck by the great ape's rock"); }); } }
-                    else { tf->hp -= D.apeDmg; if (tf->hp <= 0) { if (HumanOf(ts)) WithSide(ts, [&] { Kill("struck by the great ape's rock"); }); else { tf->st = FState::Dead; tf->respawnT = 30; tf->deaths++; } } else SayTo(ts, "A rock from the great ape hits you!"); }
-                }
-            }
+                ape.throwT = D.apeThrow;
+                Vector3 p = tb ? tb->pos : tf->pos, v = tb ? tb->vel : tf->vel;
+                float lead = std::clamp(bd / 45.0f, 0.8f, 2.2f) + 0.6f;   // (the wind-up and the flight: where it will be)
+                ape.rockTo = Vector3Add(p, Vector3Scale(v, lead * (0.6f + 0.5f * Rand())));   // (a good arm, not a perfect one)
+                ape.face = atan2f(p.z - ape.pos.z, p.x - ape.pos.x); ape.windT = 0.6f;
+                if (tf && HumanOf(ts)) SayTo(ts, "The great ape winds up a rock at you: turn!");
+            } else ape.throwT = 0.5f;
         }
         ape.lizardT += dt; ape.plantT += dt;
         bool lizards = ape.lizardT >= D.lizardDays * DAY, plants = ape.plantT >= D.plantDays * DAY && ape.plantsBurnt < time;
@@ -623,7 +733,7 @@ int RunFlightDangerTest() {
         Vector3 c = w->isles[cove].c;
         w->kraken.mood = 2;
         std::vector<int> ids; for (int k = 0; k < 6; k++) ids.push_back(Adult(*w, 0, Role::Fisher, {c.x + k * 3.0f, 6, c.z}).id);
-        int lost = 0; for (float t = 0; t < 30; t += 0.1f) { w->kraken.mood = 2; w->Step(0.1f, FounderInput{w->me.yaw}); for (int id : ids) if (!w->FindBird(0, id)) { lost++; ids.erase(std::find(ids.begin(), ids.end(), id)); break; } }
+        int lost = 0; for (float t = 0; t < 30; t += 0.1f) { w->kraken.mood = 2; for (int k = 0; k < (int)ids.size(); k++) if (Bird* b = w->FindBird(0, ids[k])) { b->pos = {c.x + 20 + k * 3.0f, 6, c.z}; b->vel = {0, 0, 0}; b->task = Task::Fly; } w->Step(0.1f, FounderInput{w->me.yaw}); for (int id : ids) if (!w->FindBird(0, id)) { lost++; ids.erase(std::find(ids.begin(), ids.end(), id)); break; } }
         check(lost >= 2, TextFormat("surfaced, it takes %d of six birds low over the cove in 30 s", lost));
         auto u = fresh(); u->kraken.mood = 2; u->col.offeredKraken = 0;
         std::vector<int> safe; for (int k = 0; k < 6; k++) safe.push_back(Adult(*u, 0, Role::Fisher, {c.x + k * 3.0f, 6, c.z}).id);
@@ -650,10 +760,10 @@ int RunFlightDangerTest() {
         if (sk >= 0) {
             Vector3 a = w->ape.pos;
             std::vector<int> ids; for (int k = 0; k < 4; k++) { Bird& b = Adult(*w, 0, Role::Fisher, {a.x + 60, 12, a.z + k * 4.0f}); b.vel = {1, 0, 0}; ids.push_back(b.id); }
-            int hit = 0; for (float t = 0; t < 60; t += 0.1f) { for (int id : ids) if (Bird* b = w->FindBird(0, id)) { b->pos = {a.x + 60, 12, a.z}; b->vel = {1, 0, 0}; b->task = Task::Fly; } w->Step(0.1f, FounderInput{w->me.yaw}); }
+            int hit = 0; for (float t = 0; t < 60; t += 0.1f) { Vector3 ap = w->ape.pos; for (int id : ids) if (Bird* b = w->FindBird(0, id)) { b->pos = {ap.x + 30, ap.y + 12, ap.z}; b->vel = {1, 0, 0}; b->task = Task::Fly; } w->Step(0.1f, FounderInput{w->me.yaw}); }   // (it walks now: the birds hang near it, in its sight)
             for (int id : ids) hit += !w->FindBird(0, id);
             check(hit >= 1, TextFormat("it throws rocks at low flyers: %d of 4 struck down in a minute", hit));
-            w->me.st = FState::Perched; w->me.pos = a; w->me.carrySp = w->eco.map->SpeciesIndex("Tuna"); w->me.carrySize = 4;
+            w->me.st = FState::Perched; w->me.pos = w->ape.pos; w->me.carrySp = w->eco.map->SpeciesIndex("Tuna"); w->me.carrySize = 4;
             check(w->FeedApe() && w->ape.sleepT > 0, "fed a tuna, it sleeps for a day");
         }
     }

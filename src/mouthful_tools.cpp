@@ -46,7 +46,7 @@ int RunMouthfulTest() {
     me.immuneT = 0;
     w.eco.agents[mi].pos = Vector3Add(me.pos, {0.25f, 0, 0}); Face(me, w.eco.agents[mi].pos);
     w.Bite(me);
-    Check(!w.eco.agents[mi].alive && fabsf(me.mass - 18) < 0.01f, TextFormat("a fry swallows a minnow (mass %.1f)", me.mass));
+    Check(!w.eco.agents[mi].alive && fabsf(me.mass - 23) < 0.01f, TextFormat("a fry swallows a minnow (mass %.1f)", me.mass));
     // the first fork
     SetMass(w, me, 35); w.GrowCheck(me);
     Check(me.pendingFork == 2 && me.forkOpts.size() == 6, "tier 2 offers the first fork");

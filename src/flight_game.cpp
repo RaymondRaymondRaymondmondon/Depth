@@ -1022,34 +1022,125 @@ void DrawDangers(const fl::World& w, const Camera3D& cam, float dt) {
     const fl::Kraken& K = w.kraken;
     if (K.isle >= 0 && !K.dead) {
         Vector3 c = w.isles[K.isle].c;
-        if (Vector3Distance(c, cam.position) < 900) {
-            int arms = K.mood == 2 ? 8 : K.mood == 1 ? 4 : 0;
-            for (int a = 0; a < arms; a++) {
-                float ang = a * 2 * PI / arms + 0.3f * sinf(S.t * 0.4f + a);
-                float r = 16 + 14 * Hash((float)a, 3.0f);
-                float len = (K.mood == 2 ? 26 : 14) * (0.8f + 0.4f * Hash((float)a, 7.0f)) * (0.85f + 0.15f * sinf(S.t * 1.3f + a));
-                Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(len * 0.6f, len, len * 0.6f), MatrixRotateZ(0.35f * sinf(S.t * 0.9f + a * 1.7f))), MatrixMultiply(MatrixRotateY(-ang), MatrixTranslate(c.x + cosf(ang) * r, -1.0f, c.z + sinf(ang) * r)));
-                rt::DrawStatic(S.krakenArm, m);
+        // (the playtest, 2026-10-06: "the kraken looks lame". Each arm is drawn along a living curve: thick at the water,
+        // tapering to a whip, pale suckers down its inner side, coiling and uncoiling; the head is a ridged mantle with
+        // great slit-pupilled eyes that watch you; its attacks are drawn as they happen)
+        static Model seg = LoadModelFromMesh(GenMeshCylinder(1, 1, 10)); static Model ball = LoadModelFromMesh(GenMeshSphere(1, 10, 14));
+        const Color skin{138, 40, 44, 255}, under{176, 86, 80, 255}, sucker{232, 196, 176, 255};
+        auto tentacle = [&](const std::vector<Vector3>& pts, float r0, float r1, Vector3 inner) {
+            int n = (int)pts.size();
+            for (int i = 0; i + 1 < n; i++) {
+                Vector3 a = pts[i], b = pts[i + 1], d = Vector3Subtract(b, a); float L = Vector3Length(d); if (L < 1e-3f) continue;
+                d = Vector3Scale(d, 1 / L);
+                Vector3 ax = fabsf(d.y) < 0.95f ? Vector3{0, 1, 0} : Vector3{1, 0, 0}, x = Vector3Normalize(Vector3CrossProduct(ax, d)), z = Vector3CrossProduct(x, d);
+                float r = r0 + (r1 - r0) * (i + 0.5f) / (n - 1);
+                Matrix M{x.x * r, d.x * L, z.x * r, a.x, x.y * r, d.y * L, z.y * r, a.y, x.z * r, d.z * L, z.z * r, a.z, 0, 0, 0, 1};
+                rt::DrawStatic(seg, M, Mix(skin, under, (float)i / n * 0.5f));
+                float rj = r0 + (r1 - r0) * (float)i / (n - 1);
+                rt::DrawStatic(ball, MatrixMultiply(MatrixScale(rj, rj, rj), MatrixTranslate(a.x, a.y, a.z)), skin);
+                if (i % 2 == 0 && i > 0) { Vector3 sp = Vector3Add(Vector3Lerp(a, b, 0.5f), Vector3Scale(Vector3Normalize(Vector3Subtract(inner, Vector3Scale(d, Vector3DotProduct(inner, d)))), r * 0.9f)); float rs = r * 0.42f; rt::DrawStatic(ball, MatrixMultiply(MatrixScale(rs, rs * 0.6f, rs), MatrixTranslate(sp.x, sp.y, sp.z)), sucker); }
             }
-            if (K.mood == 2) rt::DrawStatic(S.krakenHead, MatrixMultiply(MatrixScale(14, 10, 14), MatrixTranslate(c.x, -4.5f + 0.6f * sinf(S.t * 0.7f), c.z)));
+        };
+        // an arm rising from a base on the water, curling over toward `toward` (height h, curl 0..1, a phase for its wave)
+        auto arm = [&](Vector3 base, Vector3 toward, float h, float curl, float ph, float thick) {
+            Vector3 dir = Vector3Subtract(toward, base); dir.y = 0; float dl = Vector3Length(dir); dir = dl > 0.1f ? Vector3Scale(dir, 1 / dl) : Vector3{1, 0, 0};
+            Vector3 side{-dir.z, 0, dir.x};
+            std::vector<Vector3> pts;
+            for (int k = 0; k <= 12; k++) {
+                float u = k / 12.0f, bend = curl * u * u * 2.4f + 0.25f * sinf(S.t * 1.6f + ph + u * 4);
+                Vector3 p = Vector3Add(base, {0, -2 + h * sinf(std::min(1.0f, u * 1.15f) * PI * 0.5f) * (1 - 0.35f * curl * u * u), 0});
+                p = Vector3Add(p, Vector3Scale(dir, h * 0.55f * sinf(bend) * u));
+                p = Vector3Add(p, Vector3Scale(side, 1.2f * sinf(S.t * 1.1f + ph + u * 3) * u));
+                pts.push_back(p);
+            }
+            tentacle(pts, thick, thick * 0.12f, dir);
+        };
+        bool near = Vector3Distance(c, cam.position) < 900;
+        if (near) {
+            int arms = K.mood == 2 ? 8 : K.mood == 1 ? 5 : 0;
+            if (K.mood == 0) { rt::DrawStatic(ball, MatrixMultiply(MatrixScale(22, 0.05f, 18), MatrixTranslate(c.x, 0.02f, c.z)), Color{30, 40, 52, 255}); }   // (asleep: a dark shape under the water)
+            for (int a = 0; a < arms; a++) {
+                float ang = a * 2 * PI / arms + 0.25f * sinf(S.t * 0.3f + a);
+                float r = 14 + 10 * Hash((float)a, 3.0f);
+                float h = (K.mood == 2 ? 20 : 11) * (0.75f + 0.4f * Hash((float)a, 7.0f)) * (0.8f + 0.2f * sinf(S.t * 0.9f + a));
+                Vector3 base{c.x + cosf(ang) * r, 0, c.z + sinf(ang) * r};
+                arm(base, Vector3Add(base, {cosf(ang) * 10, 0, sinf(ang) * 10}), h, 0.45f + 0.35f * sinf(S.t * 0.7f + a * 1.3f), a * 1.7f, K.mood == 2 ? 1.6f : 1.1f);
+                rt::DrawStatic(ball, MatrixMultiply(MatrixScale(3.2f, 0.25f, 3.2f), MatrixTranslate(base.x, 0.1f, base.z)), Color{220, 236, 240, 255});   // (white water round it)
+            }
+            if (K.mood == 2) {   // the head: a ridged mantle out of the water, eyes watching the nearest bird
+                float bob = 0.6f * sinf(S.t * 0.7f);
+                Vector3 hc{c.x, 4 + bob, c.z};
+                rt::DrawStatic(ball, MatrixMultiply(MatrixScale(11, 9, 12), MatrixTranslate(hc.x, hc.y, hc.z)), skin);
+                rt::DrawStatic(ball, MatrixMultiply(MatrixMultiply(MatrixScale(7, 10, 8), MatrixRotateX(-0.5f)), MatrixTranslate(hc.x, hc.y + 7, hc.z - 4)), Mix(skin, Color{90, 24, 30, 255}, 0.3f));
+                for (int k = 0; k < 6; k++) rt::DrawStatic(ball, MatrixMultiply(MatrixScale(1.6f, 1.2f, 2.5f), MatrixTranslate(hc.x + (k - 2.5f) * 3.2f, hc.y + 8 - fabsf(k - 2.5f), hc.z + 3)), under);   // (the ridge's warts)
+                Vector3 look = Vector3Subtract(cam.position, hc); look.y = 0; float ll = Vector3Length(look); look = ll > 1 ? Vector3Scale(look, 1 / ll) : Vector3{0, 0, 1};
+                Vector3 sd{-look.z, 0, look.x};
+                for (int s2 = -1; s2 <= 1; s2 += 2) {
+                    Vector3 e = Vector3Add(Vector3Add(hc, Vector3Scale(look, 10.5f)), Vector3Add(Vector3Scale(sd, s2 * 5.5f), {0, 1.5f, 0}));
+                    rt::DrawStatic(ball, MatrixMultiply(MatrixScale(2.4f, 2.4f, 2.4f), MatrixTranslate(e.x, e.y, e.z)), Color{250, 214, 110, 255});
+                    Vector3 pu = Vector3Add(e, Vector3Scale(look, 2.1f));
+                    rt::DrawStatic(ball, MatrixMultiply(MatrixScale(0.45f, 1.6f, 0.45f), MatrixTranslate(pu.x, pu.y, pu.z)), Color{18, 14, 12, 255});   // (a slit pupil)
+                }
+                rt::DrawStatic(ball, MatrixMultiply(MatrixScale(15, 0.3f, 15), MatrixTranslate(hc.x, 0.15f, hc.z)), Color{220, 236, 240, 255});   // (the water foaming round it)
+            }
         }
-        if (K.armT > 0) {   // an arm out of the water where a bird was taken
+        // the attack under way
+        if (K.atk != 0 && Vector3Distance(K.atkAt, cam.position) < 900) {
+            float t = K.atkT;
+            if (K.atk == 1) {   // the grab: a dark swirl on the water first, then an arm bursting up under the mark, then lunging
+                float k = std::clamp(t / 0.9f, 0.0f, 1.0f);
+                rt::DrawStatic(ball, MatrixMultiply(MatrixScale(5 * (1.2f - k * 0.4f), 0.05f, 5 * (1.2f - k * 0.4f)), MatrixTranslate(K.atkAt.x, 0.06f, K.atkAt.z)), Color{20, 28, 38, 255});
+                for (int j = 0; j < 10; j++) { float a = j * 0.628f + S.t * 3; rt::DrawStatic(ball, MatrixMultiply(MatrixScale(0.6f, 0.3f, 0.6f), MatrixTranslate(K.atkAt.x + cosf(a) * 5.5f, 0.2f, K.atkAt.z + sinf(a) * 5.5f)), Color{226, 240, 244, 255}); }
+                float h = t < 0.9f ? 4 + 10 * k : 18 * (1 - std::clamp((t - 0.9f) / 1.0f, 0.0f, 1.0f)) + 2;
+                arm(Vector3Add(K.atkAt, {-4, 0, -2}), Vector3Add(K.atkAt, {4, 0, 2}), h, t < 0.9f ? 0.9f : 0.2f, 0, 1.4f);
+            } else if (K.atk == 2) {   // the sweep: an arm rears at the start angle, then swings low round the cove, spray along it
+                float k = std::clamp((t - 0.7f) / 1.4f, 0.0f, 1.0f), a = K.atkAng + 2.2f * k;
+                float R = 72;
+                Vector3 c0{c.x, 0, c.z};
+                std::vector<Vector3> pts;
+                float rise = t < 0.7f ? t / 0.7f : 1 - 0.6f * k;
+                for (int j = 0; j <= 12; j++) { float u = j / 12.0f, aa = a - 0.25f * u * (t > 0.7f ? 1 : 0); pts.push_back({c0.x + cosf(aa) * R * u, 2 + 9 * rise * sinf(u * PI) + 3 * u, c0.z + sinf(aa) * R * u}); }
+                tentacle(pts, 2.2f, 0.4f, {0, -1, 0});
+                if (t > 0.7f) for (int j = 0; j < 14; j++) { float u = 0.3f + j * 0.05f; rt::DrawStatic(ball, MatrixMultiply(MatrixScale(1.4f, 1.0f, 1.4f), MatrixTranslate(c0.x + cosf(a) * R * u, 0.5f + (j % 3), c0.z + sinf(a) * R * u)), Color{226, 240, 244, 255}); }
+            } else {   // the slam: an arm rears high over the mark, crashes down, and a ring of water rolls out
+                if (t < 1.0f) {
+                    float k = t / 1.0f;
+                    arm(Vector3Add(K.atkAt, {-6, 0, 0}), Vector3Add(K.atkAt, {6, 0, 0}), 10 + 20 * k, 0.2f + 0.5f * k, 0, 1.8f);
+                    rt::DrawStatic(ball, MatrixMultiply(MatrixScale(6, 0.05f, 6), MatrixTranslate(K.atkAt.x, 0.06f, K.atkAt.z)), Color{20, 28, 38, 255});   // (its shadow on the mark)
+                } else {
+                    float k = (t - 1.0f) / 1.6f, R = k * 40;
+                    std::vector<Vector3> pts; for (int j = 0; j <= 10; j++) pts.push_back({K.atkAt.x - 6 + j * 1.6f, 1.0f + 0.5f * sinf(j * 0.8f), K.atkAt.z});
+                    if (k < 0.5f) tentacle(pts, 1.8f, 0.4f, {0, -1, 0});
+                    for (int j = 0; j < 36; j++) { float a = j * 2 * PI / 36; float hh = 3.5f * (1 - k) + 0.5f; rt::DrawStatic(ball, MatrixMultiply(MatrixScale(2.2f, hh, 2.2f), MatrixTranslate(K.atkAt.x + cosf(a) * R, hh * 0.5f, K.atkAt.z + sinf(a) * R)), Color{226, 240, 244, 255}); }
+                }
+            }
+        }
+        if (K.armT > 0 && near) {   // an arm dragging its catch under
             float k = std::clamp(K.armT / 1.2f, 0.0f, 1.0f);
-            float hgt = std::max(4.0f, K.arm.y + 4) * (0.4f + 0.6f * k);
-            rt::DrawStatic(S.krakenArm, MatrixMultiply(MatrixScale(hgt * 0.5f, hgt, hgt * 0.5f), MatrixTranslate(K.arm.x, -1.0f, K.arm.z)));
+            arm(Vector3Add(K.arm, {-2, -K.arm.y, 0}), Vector3Add(K.arm, {2, -K.arm.y, 0}), std::max(3.0f, K.arm.y + 3) * k, 0.9f, 1, 1.2f);
         }
     }
     // ---- the great ape on skull island's summit, and its rock in the air
     const fl::Ape& A = w.ape;
     if (A.isle >= 0 && Vector3Distance(A.pos, cam.position) < 900) {
         bool sleeping = A.sleepT > 0;
+        // facing the way it walks or throws (the model's front is +z), a knuckle-walk bob as it goes, rearing on a wind-up
+        static Vector3 lastPos{}; static float gait = 0;
+        float moved = Vector3Distance(A.pos, lastPos); lastPos = A.pos; gait += moved * 0.6f;
+        float yaw = PI * 0.5f - A.face, rear = A.windT > 0 ? (1 - A.windT / 0.6f) : 0;
         Matrix m = sleeping ? MatrixMultiply(MatrixMultiply(MatrixScale(7, 7, 7), MatrixRotateX(-PI * 0.45f)), MatrixTranslate(A.pos.x, A.pos.y + 1.5f, A.pos.z))
-                            : MatrixMultiply(MatrixMultiply(MatrixScale(7, 7 * (1 + 0.02f * sinf(S.t * 1.7f)), 7), MatrixRotateY(0.6f * sinf(S.t * 0.15f))), MatrixTranslate(A.pos.x, A.pos.y - 0.5f, A.pos.z));
+                            : MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(7, 7 * (1 + 0.02f * sinf(S.t * 1.7f)), 7), MatrixRotateX(-0.5f * rear + 0.08f * sinf(gait * 2))), MatrixRotateY(yaw)), MatrixTranslate(A.pos.x, A.pos.y - 0.5f + 0.3f * fabsf(sinf(gait * 2)), A.pos.z));
         rt::DrawStatic(S.ape, m);
+        static Model rockM = LoadModelFromMesh(GenMeshSphere(1, 7, 9));
+        if (A.windT > 0) {   // the rock held up over its head
+            Vector3 hp{A.pos.x - cosf(A.face) * 1.5f, A.pos.y + 9 + 2 * rear, A.pos.z - sinf(A.face) * 1.5f};
+            rt::DrawStatic(rockM, MatrixMultiply(MatrixScale(1.8f, 1.5f, 1.7f), MatrixTranslate(hp.x, hp.y, hp.z)), Color{110, 104, 96, 255});
+        }
         if (A.rockT > 0) {
-            float k = std::clamp(1 - A.rockT, 0.0f, 1.0f);
-            Vector3 p = Vector3Lerp(A.rockFrom, A.rockTo, k); p.y += 30 * sinf(k * PI);
-            rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.6f, 1.4f, 1.5f), MatrixRotateY(S.t * 7)), MatrixTranslate(p.x, p.y, p.z)), Color{96, 90, 82, 255});
+            float k = std::clamp(1 - A.rockT / std::max(0.1f, A.rockLen), 0.0f, 1.0f);
+            Vector3 p = Vector3Lerp(A.rockFrom, A.rockTo, k); p.y += 14 * A.rockLen * sinf(k * PI);
+            rt::DrawStatic(rockM, MatrixMultiply(MatrixMultiply(MatrixScale(1.8f, 1.5f, 1.7f), MatrixRotateY(S.t * 7)), MatrixTranslate(p.x, p.y, p.z)), Color{110, 104, 96, 255});
+            if (A.rockT < 0.6f) { float r = 4.5f; rt::DrawStatic(rockM, MatrixMultiply(MatrixScale(r, 0.05f, r), MatrixTranslate(A.rockTo.x, std::max(0.1f, w.HeightAt(A.rockTo.x, A.rockTo.z)) + 0.1f, A.rockTo.z)), Color{60, 40, 30, 255}); }   // (where it will land)
         }
     }
     // ---- the volcano: a plume always; in an eruption a column of ash and lava down its flanks; tremors shake the summit
@@ -3270,8 +3361,8 @@ void DebugFlightShot(Game& g, int which) {
         int I = -1; for (int i = 0; i < (int)w.isles.size(); i++) if (w.isles[i].type == want) I = i;
         if (I >= 0) {
             const fl::Island& is = w.isles[I];
-            if (which == 16) { w.kraken.mood = 2; w.kraken.armT = 1.0f; w.kraken.arm = Vector3Add(is.c, {-30, 8, 10}); }
-            if (which == 17) { w.ape.sleepT = 0; w.ape.rockT = 0.45f; w.ape.rockFrom = w.ape.pos; w.ape.rockTo = Vector3Add(w.ape.pos, {-60, -10, 50}); }
+            if (which == 16) { w.kraken.mood = 2; w.kraken.atk = getenv("DEPTH_KATK") ? atoi(getenv("DEPTH_KATK")) : 2; w.kraken.atkT = getenv("DEPTH_KATKT") ? (float)atof(getenv("DEPTH_KATKT")) : 1.3f; w.kraken.atkLen = 3; w.kraken.atkAng = 2.0f; w.kraken.atkAt = Vector3Add(is.c, {-30, 0, 10}); w.kraken.atkCd = 99; }
+            if (which == 17) { w.ape.sleepT = 0; w.ape.rockLen = 1.5f; w.ape.rockT = 0.7f; w.ape.rockFrom = Vector3Add(w.ape.pos, {0, 10, 0}); w.ape.rockTo = Vector3Add(w.ape.pos, {-60, -10, 50}); w.ape.face = 2.4f; w.ape.throwT = 99; }
             if (which == 18) { w.volcano.ashT = 60; w.volcano.tremorT = 0; }
             float dist = which == 18 ? is.radius * 2.6f + 120 : which == 16 ? is.radius * 0.9f : 70;
             Vector3 c = which == 17 ? w.ape.pos : is.c;

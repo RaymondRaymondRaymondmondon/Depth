@@ -204,8 +204,8 @@ void World::InitColony() {
     Cache c0; c0.pos = {cp.x, cp.y + 0.1f, cp.z}; c0.isle = this->home;
     col.caches.push_back(c0);
     // twigs: palms drop fronds and sticks; driftwood on the beaches and ledges; the town's woodpile; shells
-    for (const auto& tp : island.twigPts) { TwigSource t; t.pos = tp.first; t.cap = tp.second < 0 ? (float)E.palmTwigs : tp.second; t.twigs = t.cap; col.twigSrc.push_back(t); }
-    for (const auto& sp : island.shellPts) { TwigSource t; t.pos = Vector3Add(sp, {0, 0.15f, 0}); t.shells = true; t.cap = 4; t.twigs = t.cap; col.twigSrc.push_back(t); }    // the grounds: the sea's spawn rows, regrown logistically from here on
+    for (const auto& tp : island.twigPts) { TwigSource t; t.pos = tp.first; t.cap = tp.second < 0 ? (float)E.palmTwigs : tp.second * 2.5f; t.twigs = t.cap; col.twigSrc.push_back(t); }   // (driftwood 2.5x: the playtest, 2026-10-06, found too few resources)
+    for (const auto& sp : island.shellPts) { TwigSource t; t.pos = Vector3Add(sp, {0, 0.15f, 0}); t.shells = true; t.cap = 10; t.twigs = t.cap; col.twigSrc.push_back(t); }    // the grounds: the sea's spawn rows, regrown logistically from here on
     if (!stocks.empty()) { dayAcc = 0; dayNum = 0; return; }   // (a rival's colony: the grounds are the world's, already counted)
     for (int ri = 0; ri < (int)eco.map->spawns.size(); ri++) {
         const auto& r = eco.map->spawns[ri];
