@@ -103,7 +103,8 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
     if (on(HI_T_P) && c.deck == 0 && c.station < 0 && c.p.x < -10 && g.hardhat && g.dive.diver < 0) { g.StartDive(ci); return; }   // T at the stern: down to the wreck
     if (c.deck == DECK_SHORE) {
         // on foot on a landing: walk; Space at the beached skiff climbs in
-        if (on(HI_SPACE_P)) g.BoardSkiff(ci);
+        c.sprint = on(HI_SHIFT);
+        if (on(HI_SPACE_P) && !g.BoardSkiff(ci)) g.Jump(ci);   // (Space: into the beached skiff beside it, else a hop)
         g.Move(ci, in.wish, false, dt);
         return;
     }
@@ -168,12 +169,14 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
             float cr = line.x * to.y - line.y * to.x, d2 = Vector2DotProduct(line, to);
             lean = std::clamp(atan2f(cr, std::max(0.01f, fabsf(d2))) / (45 * DEG2RAD), -1.0f, 1.0f);
         }
-        g.RodInput(ci, casting && lmb, in.aim, !casting && lmb, on(HI_SPACE_P), lean, rmb, on(HI_SPACE_P), in.wheel);
+        bool gaffNow = on(HI_SPACE_P) || (r.state == RodState::Fighting && r.fight.alongside && on(HI_LMB_P));   // (alongside, a click gaffs it too)
+        g.RodInput(ci, casting && lmb, in.aim, !casting && lmb && !gaffNow, on(HI_SPACE_P), lean, rmb, gaffNow, in.wheel);
         g.Move(ci, {0, 0}, on(HI_SHIFT), dt);
         return;
     }
     if (c.station < 0 && on(HI_SPACE_P)) g.Jump(ci);   // Space off a station: a hop (the rail is only a hop away)
-    g.Move(ci, c.crouch ? Vector2Scale(wish, 0.5f) : wish, on(HI_SHIFT) || c.crouch, dt);   // (a crouch is braced, and slow)
+    c.sprint = on(HI_SHIFT) && !c.crouch;   // (Shift runs; C or Ctrl crouches, braced and slow: the playtest, 2026-10-06)
+    g.Move(ci, c.crouch ? Vector2Scale(wish, 0.5f) : wish, c.crouch, dt);
     if (c.station < 0) g.UseItem(ci, in.aim, on(HI_LMB_P), lmb, rmb, dt);
     g.Primary(ci, lmb, dt);
     g.Secondary(ci, rmb, dt);

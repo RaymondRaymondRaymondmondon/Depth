@@ -272,6 +272,9 @@ void Fight::Step(float dt) {
 
     // ---- alongside
     if (tired && Vector2Distance(Flat(p), Flat(tip)) < k.alongside && p.z < 3) alongside = true;
+    // (the playtest, 2026-10-06: a fish reeled right in but not yet beaten could not be gaffed. Reeled to the rod and
+    // half spent, it comes alongside too)
+    if (!tired && S < 0.5f * S0 && L < 6 && Vector2Distance(Flat(p), Flat(tip)) < k.alongside + 1.5f && p.z < 4) alongside = true;
 
     // ---- the drawn line (Verlet): hangs in the water, never longer than what's out
     if ((int)node.size() >= 2) {
@@ -898,7 +901,7 @@ struct Target { const char* fish; Tackle tackle; LineType line; Hook hook; float
 const Target TARGETS[] = {   // design doc, "Target fights (sensible bot angler, matched tackle)", raised after the playtest (2026-10-06: fishing too hard; the doc had 85/75/60/45/40%)
     {"snapper", Tackle::Light, LineType::Mono, Hook::Small, 20, 40, 0.90f},
     {"lingcod", Tackle::Medium, LineType::Mono, Hook::Small, 60, 120, 0.78f},
-    {"yellowfin", Tackle::Heavy, LineType::Mono, Hook::Small, 180, 300, 0.69f},
+    {"yellowfin", Tackle::Heavy, LineType::Mono, Hook::Small, 110, 300, 0.69f},
     {"sturgeon", Tackle::DeepDrop, LineType::Braid, Hook::Small, 600, 1200, 0.54f},
     {"marlin", Tackle::Chair, LineType::Mono, Hook::Treble, 480, 720, 0.56f},
 };

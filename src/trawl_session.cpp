@@ -1477,6 +1477,8 @@ int RunTrawlShakedownTest() {
                 break;
             case 4: me.p = Stations()[sonar].at; me.station = sonar; if (g.sonar.cool <= 0) g.SonarPing(0); if (!g.sonar.ret.empty()) g.SonarMarkAt(0, g.boat.ToDeck({g.sonar.ret[0].p.x, g.sonar.ret[0].p.y})); break;
             case 5: {
+                if (s.shake.stepT < 0.05f && e.DepthAt(g.boat.pos) > 10) spot = g.boat.pos;   // (deep water where she is: tow round here)
+                if (g.net.state == NetState::Stowed && Vector2Distance(g.boat.pos, spot) > 25) { me.station = helm; me.p = Stations()[helm].at; steerTo(spot, 25); break; }   // (back to the mark over deep water first: she drifts during the lessons)
                 me.p = Stations()[winch].at; me.station = winch;
                 bool held = g.net.state == NetState::Stowed || g.net.state == NetState::Shooting || g.net.state == NetState::Hauling || (g.net.state == NetState::Down && (g.net.load > 60 || s.shake.stepT > 150));
                 g.NetInput(0, held, false, dt);

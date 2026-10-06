@@ -811,7 +811,7 @@ void main() {
     col = pow(col, vec3(1.0 / 2.2));
     col = sceneFog(col, fragWorld, fragViewZ, uFog / 255.0, uFogDensity);
     if (uSil > 0.5) col = vec3(0.0);
-    float ga = uGlass > 1.5 ? mix(0.22, 0.75, pow(1.0 - max(dot(N, V), 0.0), 2.0)) : uGlass > 0.5 ? mix(0.18, 0.85, pow(1.0 - max(dot(N, V), 0.0), 3.0)) : 1.0;
+    float ga = uGlass > 1.5 ? mix(0.22, 0.75, pow(1.0 - max(dot(N, V), 0.0), 2.0)) : uGlass > 0.5 ? mix(0.08, 0.55, pow(1.0 - max(dot(N, V), 0.0), 3.0)) : 1.0;   // (window glass: clear face-on, a sheen at a slant)
     finalColor = vec4(col, ga);
 }
 )";
@@ -1623,7 +1623,12 @@ static void DrawQueue(Shader sh, bool lit) {
             if (!pre) { rlDrawRenderBatchActive(); rlColorMask(false, false, false, false); SetI(gDepthSh, L_depthSkinned, 0); pre = true; }
             Model& m = const_cast<Model&>(*d.model);
             Matrix world = MatrixMultiply(m.transform, d.world);
-            for (int i = 0; i < m.meshCount; i++) { Material mat = m.materials[m.meshMaterial[i]]; mat.shader = gDepthSh; DrawMesh(m.meshes[i], mat, world); }
+            auto names = gMatNames.find(d.model);
+            for (int i = 0; i < m.meshCount; i++) {
+                // (never the glass: its depth in the prepass hid the sea behind the wheelhouse windows - the playtest)
+                if (names != gMatNames.end() && m.meshMaterial[i] >= 1 && m.meshMaterial[i] - 1 < (int)names->second.size() && names->second[m.meshMaterial[i] - 1].find("glass") != std::string::npos) continue;
+                Material mat = m.materials[m.meshMaterial[i]]; mat.shader = gDepthSh; DrawMesh(m.meshes[i], mat, world);
+            }
         }
     if (pre) { rlDrawRenderBatchActive(); rlColorMask(true, true, true, true); }
     for (const DrawCmd& d : gQueue) {

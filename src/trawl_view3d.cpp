@@ -87,7 +87,7 @@ Camera3D EyeCamera(const Gannet& g, int you, const Eye3D& e) {
     if (c.deck == DECK_SHORE) {
         // on foot on a landing: the sand's height, the look turned as on the quay
         Vector2 w = g.HandWorld(you);
-        cam.position = W3(w, ATOLL_Y_EYE + EYE_H);
+        cam.position = W3(w, ATOLL_Y_EYE + EYE_H + c.z);
         Vector3 d = Vector3Transform(dl, MatrixRotateY(-g.boat.heading));
         cam.target = Vector3Add(cam.position, d); cam.up = {0, 1, 0};
         return cam;
@@ -104,7 +104,7 @@ Camera3D EyeCamera(const Gannet& g, int you, const Eye3D& e) {
     }
     if (OnQuay(g, c)) {
         Vector2 w = g.boat.ToWorld(c.p);
-        cam.position = W3(w, QUAY_Y + EYE_H);
+        cam.position = W3(w, QUAY_Y + EYE_H + c.z - 0.55f * c.crouchK);
         Vector3 d = Vector3Transform(dl, MatrixRotateY(-g.boat.heading));
         cam.target = Vector3Add(cam.position, d); cam.up = {0, 1, 0};
         return cam;
@@ -2059,9 +2059,9 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         bool roofed = (g.eco && g.eco->ground == "grotto" && g.boat.pos.x > g.eco->archX0) || (me.deck == 1 && !me.overboard);
         float full = 1 - fabsf(sess.moon - 0.5f) * 2;   // (sess.moon 0 new .. 0.5 full .. 1 new again)
         if (sess.moon > 1.0f || sess.moon < 0.0f) full = 0.5f;
-        L.moonK = roofed ? 0.0f : (cloud ? 0.06f : 0.1f + 0.2f * full);
+        L.moonK = roofed ? 0.0f : (cloud ? 0.03f : 0.05f + 0.1f * full);   // (halved: the playtest found the night too bright, 2026-10-06)
         L.moon = {120, 140, 180, 255};
-        L.ambK = roofed ? 0.0f : 0.35f; L.skyAmb = {26, 34, 52, 255}; L.seaAmb = {6, 10, 16, 255};
+        L.ambK = roofed ? 0.0f : 0.18f; L.skyAmb = {26, 34, 52, 255}; L.seaAmb = {6, 10, 16, 255};
     }
     float lantern = LanternRadius(b.lantern) * (g.sea.weather == Weather::Fog ? 0.6f : 1.0f);
     L.lampPos = BoatPoint(b, {0.2f, DECK_Y + 5.45f, 0});

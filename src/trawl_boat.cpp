@@ -241,7 +241,10 @@ void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
     gMoored = moored; gDoorOpen = doorOpen;
     if (c.deck == DECK_SKIFF && !c.overboard) { c.v = {0, 0}; c.braced = true; return; }   // seated in the skiff (the oars move her)
     if (c.deck == DECK_DIVE) { c.v = {0, 0}; return; }   // (down on a wreck: the dive's own moves, DiveMove)
-    if (c.deck == DECK_SHORE && !c.overboard) { ShoreMove(ci, wish, dt); return; }       // on foot on a landing
+    if (c.deck == DECK_SHORE && !c.overboard) {   // on foot on a landing (a hop carries there too)
+        if (c.z > 0 || c.vz > 0) { c.z += c.vz * dt; c.vz -= 9.81f * dt; if (c.z <= 0) { c.z = 0; c.vz = 0; } }
+        ShoreMove(ci, wish, dt); return;
+    }
     if (c.overboard) {
         // treading water: a slow swim, screen-relative like the deck (the deck frame turned into the sea's)
         if (c.dead) return;
@@ -258,7 +261,7 @@ void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
     float l = Vector2Length(wish);
     if (l > 1) wish = Vector2Scale(wish, 1 / l);
     if (l > 0.1f) c.facing = Vector2Normalize(wish);
-    float speed = D().walk * burnSlow * (c.carryKg > 30 ? 0.5f : 1.0f) * (c.braced && c.station < 0 ? 0.4f : 1.0f);
+    float speed = D().walk * burnSlow * (c.carryKg > 30 ? 0.5f : 1.0f) * (c.braced && c.station < 0 ? 0.4f : 1.0f) * (c.sprint && !c.braced && c.deck == 0 ? 1.7f : 1.0f);
     Vector2 want = Vector2Scale(wish, speed);
     // the wet deck: past 12 deg of roll an unbraced hand slides to the low side; past 25 deg they fall
     float rollDeg = boat.RollDeg(), pitchDeg = boat.pitch * 57.2958f;

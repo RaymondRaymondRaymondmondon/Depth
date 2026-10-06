@@ -170,7 +170,7 @@ void Gannet::ShoreMove(int ci, Vector2 wish, float dt) {
     Vector2 w{f.x * wish.x + sd.x * wish.y, f.y * wish.x + sd.y * wish.y};
     if (c.tangleT > 0) { w = {0, 0}; c.v = {0, 0}; }   // (a Kelp Wraith from the pilings has them)
     if (l > 0.1f && c.tangleT <= 0) c.facing = Vector2Normalize(wish);
-    float speed = D().walk * (c.carryKg > 30 ? 0.5f : c.carryKg > 10 ? 0.75f : 1.0f) * (Vector2Distance(c.p, L.pond) < L.pondR ? 0.5f : 1.0f);
+    float speed = D().walk * (c.carryKg > 30 ? 0.5f : c.carryKg > 10 ? 0.75f : 1.0f) * (Vector2Distance(c.p, L.pond) < L.pondR ? 0.5f : 1.0f) * (c.sprint ? 1.7f : 1.0f);
     c.v = Vector2Lerp(c.v, Vector2Scale(w, speed), std::min(1.0f, dt * 12));
     Vector2 np = Vector2Add(c.p, Vector2Scale(c.v, dt));
     if (ShoreWalkable(L, np)) c.p = np;
