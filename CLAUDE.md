@@ -604,3 +604,4 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 - **All play is a `fa::Command`** (the scene's `Issue`); never call World actions from the scene.
 - **Never hold a `Unit*` across `World::Step`**: spawns can grow the units vector (Step reserves ahead, but tests must re-fetch with `U(id)`).
 - **Checks:** `--fathoms-test [stage]`, `--fathoms-balance`, `--fathoms-sim N [players] [minutes] [ai]`, `--fathoms-net-test`, `--net-loop fathoms [lagMs] [mem]`. Shots `fa_*`, `arcade_fathoms`.
+- Pauses (`C_PAUSE`, `World::pausedBy`), autosave/resume (`SaveFathoms`/`LoadFathoms`, `fathoms_autosave.bin`, gitignored), diplomacy offers (`Player::offerFrom`), pings (`C_PING`/`EV_PING`).

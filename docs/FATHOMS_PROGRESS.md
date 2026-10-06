@@ -33,10 +33,19 @@ of a test (2: every gatherer; 3: unit and building counts); `DEPTH_AITRACE=1` pr
 - Pirate deals land their pirates directly near the target; Ransom is not built (nothing captures units yet).
 - Ichor for the AI: when it has an Exchange it sells surplus for Doubloons and buys Ichor at the black market.
 
+## Added in the second pass
+- Pauses: 3 per player, up to 60 s each (F9 or Pause; anyone may resume after 10 s); no orders while paused.
+- Autosave every 3 minutes (`fathoms_autosave.bin` next to the exe, solo and host); the arcade's Fathoms page has Resume save, and the host can choose to host the save (everyone rejoins by seat). `SaveFathoms`/`LoadFathoms` reuse the snapshot writer with nothing filtered, plus each player's explored chart and the RNG.
+- Diplomacy offers between humans wait for the other player's Accept (`Player::offerFrom`); the AI still answers at once.
+- Ally pings: Alt+click (attack), Ctrl+Alt (defend), Shift+Alt (danger), drawn on the map and the minimap.
+- Team games from the lobby: free for all, teams of two, teams of three, three teams of two.
+- The volcano is one walkable cone of rock with the altar on its summit (it used to sit inside impassable mountain tiles, so Volcano Ascension could never be won); a smoke plume, thick and dark while it erupts.
+- The AI farms as the groves thin, moves idle workers to its other islands, trades surplus at the Exchange, and fields one hero only; in Captain AI matches every 2-player game now ends in conquest by about 30 minutes, with the Leviathan Era around minute 25.
+- Camera: arrows, screen edges and middle-drag pan (A and S are orders).
+
 ## What is simpler than the doc (next passes)
 - Delta compression of snapshots (each is a full fog-filtered state, ~5-6 KB at 10 Hz).
-- Pausing (3 per player), autosave every 3 minutes, replays, join codes (the arcade's shared networking handles LAN/ZeroTier).
-- Diplomacy offers to humans are accepted at once by the AI and need no acceptance step between humans yet.
+- Replays, join codes (the arcade's shared networking handles LAN/ZeroTier).
 - Unit models are code art (primitives); the doc's Blender pass is for later.
 - The AI is decent but not strong: Captain and Admiral conquer about half of 2-player matches by 35 minutes, and the
   Leviathan Era is rare before 30 minutes in AI-only games.
@@ -50,3 +59,5 @@ of a test (2: every gatherer; 3: unit and building counts); `DEPTH_AITRACE=1` pr
 - Watch for minute 6 (tribes raid), 10 (the volcano erupts), 15 (Ghost Ship on 4+ players), 20 (the Kraken).
 - The Nautilus Logbook (F3), heroes' actives (R), the ultimate (Leviathan Era, at the Harbor).
 - Host/Join for friends: each player sees only what their units see.
+- F9 pauses (three each); the toast says Autosaved every 3 minutes; quit and press Resume save on the Fathoms page.
+- Alt+click pings for allies; F2 diplomacy offers and Accept between two humans.

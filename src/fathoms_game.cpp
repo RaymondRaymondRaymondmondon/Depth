@@ -711,6 +711,10 @@ void DebugFathomsShot(Game& g, int which) {
     if (which == 9) { run(1); for (auto& p : w.players) { p.res = {5000, 5000, 5000, 5000, 500}; p.era = 2; } int k = 0; Vector2 at{}; for (const auto& b : w.buildings) if (b.owner == 0 && w.BD(b).key == "harbor") at = b.Centre();
         for (size_t i = 0; i < Bl().buildings.size(); i++) { const BuildingDef& d = Bl().buildings[i]; if (d.key == "harbor" || (d.faction >= 0 && d.faction != w.players[0].faction)) continue; for (int r = 0; r < 30; r++) { int x = (int)at.x - 12 + (k % 6) * 4 + (r % 5) - 2, y = (int)at.y - 12 + (k / 6) * 4 + r / 5; if (w.CanPlace(0, (int)i, x, y)) { w.PlaceBuilding(0, (int)i, x, y, true); break; } } k++; }
         S.camC = {at.x - 2, at.y - 4}; S.camHWant = S.camH = 30; }
+    if (which == 10 || which == 11 || which == 12) { run(which == 12 ? 9 * 60 + 30 : 90); for (auto& p : w.players) p.res = {900, 900, 400, 200, 300}; if (which == 12) w.players[0].era = 1;
+        if (which == 10) { for (const auto& u : w.units) if (u.owner == 0 && w.UD(u).key == "worker") { S.sel = {u.id}; S.camC = u.p; break; } }
+        else { for (const auto& b : w.buildings) if (b.owner == 0 && w.BD(b).key == "harbor") { S.selB = b.id; S.camC = b.Centre(); break; } }
+        S.camHWant = S.camH = 24; if (which == 12) S.panel = 2; if (which == 12) for (size_t i = 0; i < w.sites.size(); i++) if (w.sites[i].kind == S_COVE) S.panelSite = (int)i; }
     S.evSeen = w.evCount; ReadEvents();
     if (which == 2 || which == 3) { S.sel.clear(); for (const auto& u : w.units) if (u.owner == 0 && w.UD(u).attack > 0 && !(w.UD(u).tags & TG_WORKER) && S.sel.size() < 12) S.sel.push_back(u.id); }
     for (int i = 0; i < 3; i++) StepCam(1 / 30.0f);
