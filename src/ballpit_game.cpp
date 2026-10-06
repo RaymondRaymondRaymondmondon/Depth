@@ -338,6 +338,53 @@ PitVis& PitModel(int i) {
 }
 float PitSurfaceY(const Pit& q) { return q.lo.y + 0.25f + (q.hi.y - q.lo.y - 0.25f) * std::clamp((float)q.balls / std::max(1.0f, q.cap * 0.62f), 0.0f, 1.0f); }
 
+// ---------------------------------------------------------------- signs and posters (painted in code)
+struct SignDef { const char* top; const char* big; const char* small; Color bg, ink; int w, h; };
+static const SignDef SIGNS[] = {
+    {"WELCOME TO", "BALL PIT\nBRAWL", "the biggest play centre on the coast", {250, 206, 42, 255}, {200, 40, 40, 255}, 512, 256},
+    {"", "STORE", "darts - blasters - jokes", {226, 56, 48, 255}, {255, 250, 230, 255}, 256, 128},
+    {"HOUSE RULES", "1. NO SHOES\n2. NO BITING\n3. FEET FIRST\nON SLIDES", "4. foam only, please", {44, 128, 228, 255}, {255, 255, 255, 255}, 256, 360},
+    {"YOU MUST BE", "THIS TALL", "to ride the cannons", {74, 186, 82, 255}, {255, 255, 240, 255}, 256, 360},
+    {"HAPPY 8TH", "BIRTHDAY\nTYLER!", "party room 3, 2 pm", {240, 110, 170, 255}, {255, 255, 255, 255}, 256, 360},
+    {"LOST & FOUND", "1 SOCK\n(WET)", "ask at the desk", {236, 236, 228, 255}, {40, 40, 50, 255}, 256, 360},
+    {"CAUTION", "BALLS MAY\nBE LIVE", "until the first bounce", {250, 206, 42, 255}, {20, 20, 24, 255}, 256, 360},
+    {"NO", "SWIMMING\nIN THE PIT", "(crouching is fine)", {150, 92, 204, 255}, {255, 250, 255, 255}, 256, 360},
+};
+constexpr int SIGN_N = (int)(sizeof(SIGNS) / sizeof(SIGNS[0]));
+Texture2D SignTex(int k) {
+    static Texture2D t[SIGN_N] = {}; if (t[k].id) return t[k];
+    const SignDef& d = SIGNS[k]; const int Wd = d.w, Ht = d.h;
+    Image im = GenImageColor(Wd, Ht, d.bg);
+    ImageDrawRectangleLines(&im, {6, 6, Wd - 12.0f, Ht - 12.0f}, 5, d.ink);
+    for (int c = 0; c < 10; c++) ImageDrawCircle(&im, 14 + c * (Wd - 28) / 9, Ht - 12, 5, BALLC[c % 6]);   // (a row of balls along the bottom)
+    Font f = GetFontDefault();
+    auto centred = [&](const char* s, int y, int size) { int ly = y; std::string str = s; size_t a = 0; while (a <= str.size()) { size_t b = str.find('\n', a); std::string line = str.substr(a, b == std::string::npos ? std::string::npos : b - a); Vector2 m = MeasureTextEx(f, line.c_str(), (float)size, size / 10.0f); ImageDrawTextEx(&im, f, line.c_str(), {(Wd - m.x) / 2, (float)ly}, (float)size, size / 10.0f, d.ink); ly += size + 4; if (b == std::string::npos) break; a = b + 1; } return ly; };
+    int big = Wd >= 512 ? 64 : Ht <= 128 ? 50 : 30;
+    int y = 18; if (d.top[0]) y = centred(d.top, y, Ht <= 128 ? 14 : 20) + 6;
+    y = centred(d.big, y + (Ht <= 128 ? 0 : 6), big);
+    centred(d.small, std::max(y + 6, Ht - (Ht <= 128 ? 34 : 56)), Ht <= 128 ? 14 : 16);
+    ImageFlipVertical(&im);
+    t[k] = LoadTextureFromImage(im); UnloadImage(im); SetTextureFilter(t[k], TEXTURE_FILTER_BILINEAR); GenTextureMipmaps(&t[k]); return t[k];
+}
+Model& SignModel(int k) {
+    static Model m[SIGN_N] = {}; static bool made[SIGN_N] = {};
+    if (!made[k]) { m[k] = LoadModelFromMesh(GenMeshCube(1, 1, 1)); m[k].materials[0].maps[MATERIAL_MAP_ALBEDO].texture = SignTex(k); m[k].materials[0].maps[MATERIAL_MAP_METALNESS].value = 0; m[k].materials[0].maps[MATERIAL_MAP_ROUGHNESS].value = 0.8f; made[k] = true; }
+    return m[k];
+}
+// a sign on a wall: centre, the way it faces (x or z), width and height in metres
+void DrawSign(int k, Vector3 c, Vector3 n, float w, float h) {
+    Vector3 u{0, 1, 0}, r = Vector3CrossProduct(u, n);
+    Matrix m = {r.x * w, u.x * h, n.x * 0.02f, c.x, r.y * w, u.y * h, n.y * 0.02f, c.y, r.z * w, u.z * h, n.z * 0.02f, c.z, 0, 0, 0, 1};
+    rt::DrawPbr(SignModel(k), m, WHITE, 0.3f);
+}
+void DrawSigns() {
+    const Arena& a = W().arena; float X = a.halfX - 0.04f, Z = a.halfZ - 0.04f;
+    for (int s = -1; s <= 1; s += 2) DrawSign(0, {0, a.ceil - 4.6f, s * Z}, {0, 0, (float)-s}, 9.0f, 4.5f);   // the big banners on the long walls
+    for (const auto& st : a.stores) DrawSign(1, {st.p.x, st.p.y + 2.45f, -14.02f + 0.06f}, {0, 0, 1}, 1.8f, 0.9f);
+    int k = 2; for (int s = -1; s <= 1; s += 2) for (int j = -2; j <= 2; j++) { if (j == 0) continue; DrawSign(2 + (k++ % (SIGN_N - 2)), {j * 6.5f + s * 1.2f, 1.4f + (j & 1) * 0.2f, s * Z}, {0, 0, (float)-s}, 0.9f, 1.26f); }
+    for (int s = -1; s <= 1; s += 2) DrawSign(2 + (k++ % (SIGN_N - 2)), {s * X, 1.6f, s * 10.5f}, {(float)-s, 0, 0}, 0.9f, 1.26f);
+}
+
 // ---------------------------------------------------------------- drawing the world
 const Model* Body() { return rt::LoadAsset("shared/crew/crew_diver.glb"); }
 Matrix Orient(Vector3 p, float yaw, float pitch, float s = 1) { return MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(s, s, s), MatrixRotateZ(pitch)), MatrixRotateY(-yaw)), MatrixTranslate(p.x, p.y, p.z)); }
@@ -703,8 +750,8 @@ void DrawHud(Game& g) {
     else {
         int a = w.mode == MD_TDM ? w.teamKOs[0] : w.mode == MD_CTF ? w.caps[0] : w.roundWins[0], b = w.mode == MD_TDM ? w.teamKOs[1] : w.mode == MD_CTF ? w.caps[1] : w.roundWins[1];
         TxtBold(TextFormat("%d", a), cx - 120 - MeasureTxt(TextFormat("%d", a), 30, true), 12, 30, TEAM[0]); TxtBold(TextFormat("%d", b), cx + 120, 12, 30, TEAM[1]);
-        DrawTextCentered(TextFormat("to %d", md.toWin), cx, 42, 12, {170, 180, 200, 255});
-        if (w.mode == MD_BOMB) DrawTextCentered(TextFormat("%s attack", TEAM_NAME[w.attackers]), cx, 42, 12, TEAM[w.attackers]);
+        if (w.mode == MD_BOMB) DrawTextCentered(TextFormat("round %d   %s attack   (first to %d)", w.round, TEAM_NAME[w.attackers], md.toWin), cx, 42, 12, TEAM[w.attackers]);
+        else DrawTextCentered(TextFormat("to %d", md.toWin), cx, 42, 12, {170, 180, 200, 255});
     }
     if (w.mode == MD_BOMB) left = w.bomb.planted ? w.bomb.fuseT : std::max(0.0f, C.roundTime - (w.phase == PH_PLAY ? w.phaseT : 0));
     DrawTextCenteredBold(TextFormat("%d:%02d", (int)left / 60, (int)left % 60), cx, w.mode == MD_FFA ? 38 : 16, 20, w.mode == MD_BOMB && w.bomb.planted ? Color{255, 90, 70, 255} : WHITE);
@@ -740,6 +787,22 @@ void DrawHud(Game& g) {
         return;
     }
     if (S.loadout) { DrawLoadout(); return; }
+    // markers: teammates' names, the objectives (flags, the bomb, the sites)
+    {
+        auto mark = [&](Vector3 at, const char* text, Color c, bool always) {
+            Vector3 f = Vector3Normalize(Vector3Subtract(S.cam.target, S.cam.position)); Vector3 to = Vector3Subtract(at, S.cam.position); if (Vector3DotProduct(to, f) < 0.5f) return;
+            if (!always && !w.Sees(S.cam.position, at)) return;
+            Vector2 s = GetWorldToScreenEx(at, S.cam, SCREEN_W, SCREEN_H); float d = Vector3Length(to);
+            DrawTextCenteredBold(text, s.x, s.y - 18, 13, c); if (always) DrawTextCentered(TextFormat("%.0f m", d), s.x, s.y - 4, 11, Fade(c, 0.8f));
+        };
+        if (w.mode != MD_FFA) for (const auto& q : w.players) if (q.alive && q.id != S.me && q.team == p.team && !q.submerged) mark(Vector3Add(q.pos, {0, q.Height() + 0.35f, 0}), q.name.c_str(), Mix(TEAM[q.team], WHITE, 0.4f), false);
+        if (w.mode == MD_CTF) for (int s = 0; s < 2; s++) { const Flag& f = w.flags[s]; Vector3 at = f.carrier >= 0 ? Vector3Add(w.players[f.carrier].pos, {0, 2.4f, 0}) : Vector3Add(f.p, {0, 2.6f, 0}); mark(at, s == p.team ? (f.home_ ? "your flag" : f.carrier >= 0 ? "YOUR FLAG IS TAKEN" : "your flag (dropped)") : (f.carrier == S.me ? "" : f.carrier >= 0 ? "flag carrier" : "their flag"), TEAM[s], true); }
+        if (w.mode == MD_BOMB) {
+            int def = 1 - w.attackers;
+            if (!w.bomb.planted) { for (const auto& s : w.arena.bombSites) if (s.team == def) mark(Vector3Add(s.p, {0, 1.6f, 0}), p.team == w.attackers ? "plant here" : "defend", {255, 210, 80, 255}, true); if (w.bomb.carrier < 0 && p.team == w.attackers) mark(Vector3Add(w.bomb.p, {0, 1.0f, 0}), "the bomb", {255, 120, 90, 255}, true); }
+            else mark(Vector3Add(w.bomb.p, {0, 1.2f, 0}), p.team == w.attackers ? "guard the bomb" : "DISARM", {255, 90, 70, 255}, true);
+        }
+    }
     // the crosshair (spread grows on the move, in the air and on the bridges), the hit marker
     {
         const GunDef& gd = w.Gun(p); float sp = gd.spread * (p.in.aim && gd.ads ? 0.45f : 1) * (p.onBridge ? C.bridgeSpread : 1) * (p.grounded ? 1 : 1.6f) * (Vector3Length({p.vel.x, 0, p.vel.z}) > 1 ? 1.25f : 1);
@@ -812,7 +875,9 @@ void StepCamera(float dt) {
         else S.cam.position = Vector3Add(e.p, {-cosf(S.camYaw) * 3.2f, 2.4f, -sinf(S.camYaw) * 3.2f});
     } else if (!p.alive) {
         // knocked out: a slow orbit above where you fell
-        S.cam.position = Vector3Lerp(S.cam.position, Vector3Add(p.pos, {cosf(S.t * 0.3f) * 4, 3.5f, sinf(S.t * 0.3f) * 4}), std::min(1.0f, dt * 2));
+        Vector3 tgt = Vector3Add(p.pos, {0, 0.8f, 0}), want = Vector3Add(p.pos, {cosf(S.t * 0.3f) * 3.2f, 1.9f, sinf(S.t * 0.3f) * 3.2f});
+        { Vector3 d = Vector3Subtract(want, tgt); float L = Vector3Length(d), th; if (w.Ray(tgt, Vector3Scale(d, 1 / L), L, &th, 0)) want = Vector3Add(tgt, Vector3Scale(d, std::max(0.3f, th - 0.3f) / L)); }   // (never inside a deck)
+        S.cam.position = Vector3Lerp(S.cam.position, want, std::min(1.0f, dt * 3));
         Vector3 d = Vector3Subtract(Vector3Add(p.pos, {0, 0.8f, 0}), S.cam.position); S.camYaw = atan2f(d.z, d.x); S.camPitch = atan2f(d.y, sqrtf(d.x * d.x + d.z * d.z));
     } else {
         Vector3 eye = p.Eye();
@@ -844,7 +909,7 @@ void Render(float dt) {
     // the ceiling lights and the high windows of daylight
     for (int i = -4; i <= 4; i++) for (int j = -2; j <= 2; j++) { Vector3 c{i * 6.0f + 3, a.ceil - 0.06f, j * 5.0f}; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.6f, 0.06f, 0.4f), MatrixTranslate(c.x, c.y, c.z)), {255, 250, 236, 255}, 1.4f); }
     for (int s = -1; s <= 1; s += 2) for (int k = -6; k <= 6; k++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(3.4f, 1.2f, 0.04f), MatrixTranslate(k * 4.4f, a.ceil - 2.2f, s * (a.halfZ - 0.03f))), {210, 230, 250, 255}, 0.7f);
-    DrawPits(); DrawConveyor(); DrawCannons(); DrawPlayers(); DrawEnts(); DrawBallsAndDarts(); DrawFx(dt);
+    DrawPits(); DrawConveyor(); DrawCannons(); DrawPlayers(); DrawEnts(); DrawBallsAndDarts(); DrawFx(dt); DrawSigns();
     // a banner over each tower in the team's colour
     for (int s = 0; s < 2; s++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.06f, 2.0f, 8.0f), MatrixTranslate((s ? 1 : -1) * (a.halfX - 0.1f), a.ceil - 4.5f, 0)), TEAM[s], 0.5f);
     DrawViewmodel();
