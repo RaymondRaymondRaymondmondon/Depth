@@ -396,7 +396,7 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   sync via `CMD_WARDROBE` + `Crew::skin/costume`. **Second design (2026-10-06, the user: the mascot suits "wouldn't be
   something my friends would wear"):** `tools/artgen/costumes_v2.py` builds every costume as an outfit (armour plates,
   helmets with visors, coats with skirts, capes, glowing seams, a held weapon or tool; the Lobster Knight, Kraken Lord,
-  Captain Nemo...) on the same files and ids; `costumes.py` keeps the kit (NOCLIP imports it). `DEPTH_CZOOM=1|2` with
+  Captain Nemo...) on the same files and ids; `costumes.py` keeps the kit (NOCLIP imports it). **Third pass (2026-10-06, the user: still "geometric blocks instead of looking like what they are"):** `tools/artgen/costumes_v3.py` builds every costume now (it imports v2's outfits and replaces the creature ones): helmets lofted into real heads (shark, lobster, gull, orca, turtle, puffer, swordfish, grouper, fish), fins with real outlines, tapered Catmull-Rom tentacles with suckers, segmented tail plates, a conch, branching coral, barnacle cones, kelp blades, overlapping scales; every low-poly piece is subdivided as it's made (no blocks) and dense ones thinned (about 23 MB for all 32). `DEPTH_CMODEL=<model> depth.exe --shots shots costumes_gallery_redtide` renders one costume big from three sides. `DEPTH_CZOOM=1|2` with
   `costumes_gallery_redtide` is a close-up of one row. **Send the user gallery shots whenever skins or costumes change:**
   `skins_gallery_*` (`DEPTH_SKINPAGE=0..7`), `costumes_gallery_*` (`0..1`), `costumes_wardrobe_*`.
 - **First-person hands (both games): a real viewmodel, not the headless body** (the user found the IK'd body arms out of

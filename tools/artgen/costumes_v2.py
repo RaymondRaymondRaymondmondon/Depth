@@ -768,7 +768,8 @@ def o_mermaid(k):   # the Sea Siren: a scaled gown to the deck, a shell bodice, 
     base(k, "top", 1.04)
     k.ell("bodice", (0.03, 0, 1.24), (0.165, 0.205, 0.13), "scale", "chest", 26)
     for s in (1, -1):
-        k.ell(f"shellcup{s}", (0.17, s * 0.08, 1.28), (0.03, 0.065, 0.055), "shell", "chest", 14)
+        for f in range(5): k.cone(f"scallop{s}{f}", (0.175, s * 0.08, 1.24), (0.2, s * 0.08 + (f - 2) * 0.022, 1.31), 0.012, 0.008, "fin", "chest", 6)
+        k.ell(f"shellcup{s}", (0.18, s * 0.08, 1.27), (0.018, 0.055, 0.045), "fin", "chest", 14)
     for i in range(10):
         k.ell(f"pearl{i}", (0.2 - 0.003 * abs(i - 4.5), -0.12 + i * 0.027, 1.14), (0.012, 0.012, 0.012), "white", "chest", 8)
     segs = 20
@@ -948,7 +949,7 @@ def build(name, out):
     CO.EXTRA_COLS.clear(); CO.EXTRA_COLS.update(saved)
 
 
-if __name__ == "__main__" or True:
+if not os.environ.get("COSTUMES_V2_IMPORT"):
     a = C.args()
     only = a[a.index("--only") + 1].split(",") if "--only" in a else None
     out = C.out_dir()

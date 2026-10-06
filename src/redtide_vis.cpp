@@ -717,7 +717,25 @@ void DrawRedTideStudio(int which, float t) {
         int zoom = getenv("DEPTH_CZOOM") ? atoi(getenv("DEPTH_CZOOM")) : 0;   // (1 or 2: a close-up of that row)
         if (zoom) { float y = zoom == 1 ? 1.15f + 0.75f : -1.55f + 0.75f; cam.position = {0, y + 0.2f, 6.2f}; cam.target = {0, y, 0}; cam.fovy = 34; }
         lamp({-3, 5, 8}, {0, 1, 0});
+        int one = getenv("DEPTH_CONE") ? atoi(getenv("DEPTH_CONE")) : -1;   // (one costume, big, from three sides: a close look)
+        const char* forceModel = getenv("DEPTH_CMODEL");                    // (or any costume model by name, the Trawl's too)
+        if (forceModel && forceModel[0] && one < 0) one = 0;
+        if (one >= 0) { cam.position = {0, 1.0f, 4.6f}; cam.target = {0, 0.95f, 0}; cam.fovy = 40; }
         RenderBegin(cam, L);
+        if (one >= 0 && one < (int)cat.size()) {
+            skins::Costume c = cat[one]; if (forceModel && forceModel[0]) { c.model = forceModel; c.name = forceModel; }
+            for (int v = 0; v < 3; v++) {
+                fig::Pose P; P.breathe = t * 1.4f;
+                Vector3 at{(v - 1) * 1.25f, 0.05f, 0};
+                Matrix fr = fig::Frame(at, FRONT + (v == 0 ? 0.6f : v == 1 ? PI / 2 : PI));
+                std::vector<Matrix> sk = DrawDiverFigure(0, fr, P, t, WHITE, "", "", nullptr, false);
+                if (const Model* dm = DiverModel(0)) fig::DrawCostume(c.model, *dm, sk, fr);
+            }
+            RenderEnd();
+            skins::gGallery.clear();
+            DrawTextCenteredBold(TextFormat("%s  (%s)", c.name, c.model), SCREEN_W / 2.0f, 16, 24, WHITE);
+            return;
+        }
         for (int k = 0; k < 10; k++) {
             int i = page * 10 + k;
             if (i >= (int)cat.size()) break;
