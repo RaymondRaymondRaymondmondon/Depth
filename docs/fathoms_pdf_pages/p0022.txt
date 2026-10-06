@@ -1,0 +1,58 @@
+Fathoms — RTS Design Document
+Unique unit
+Deep Priest
+Legionnaire
+(Giant Roman
+Armor)
+Era
+Steam
+Steam
+Cost
+80 F,
+50B
+70 F,
+65B
+Pop
+1
+2
+HP
+40
+170
+Attack
+11 melee,
+reload 2.0
+Range
+7
+0.5
+Speed Special
+0.9
+0.8
+Converts one enemy
+unit over 6 s for 30
+Devotion; 20 s
+cooldown; cannot
+convert heroes,
+ultimates, or ships over
+3 pop
+Armor 3/4; regenerates
+• Hero: The Visitor (the Alien). Aura: reveals hidden units within 8 tiles. Active "Phase
+Step" (60 s cooldown): teleports the hero and up to 6 nearby units 12 tiles.
+• Faction techs. Whispers Below (Steam, 150 F, 150 B): Priests convert in 4 s. Drowned
+Legion (Leviathan, 250 F, 200 B, 50 1): converted units gain +20% HP.
+• Ultimate: Cthulhu Avatar. Costs 150 Ichor and 600 Devotion instead of 300 Ichor. Its
+gaze Weakens every enemy on screen by 20% for as long as it stays.
+• Wonder: The Sunken Spire. Devotion gain doubled.
+Clockwork Foundry
+The steampunk robots. An industrial army that never loses its nerve, as long as the
+furnaces burn.
+•
+•
+Coal-powered army. Military units replace their Food cost with Coal at 0.7x (a 40 Food,
+30 Brass Rifleman costs 28 Coal, 30 Brass). Workers still cost Food.
+Unbreakable. Clockwork units ignore morale.
+Salvage. When any unit dies within 8 tiles of a Clockwork unit or building, the Foundry
+gains 12% of that unit's cost as Brass.
+No Medics. Mechanics (same stats as Medics) repair units instead.
+Weakness. If Coal hits O, the whole army moves 40% slower and deals 25% less
+damage, not just ships. Storms deal double damage to Clockwork units.
+Page 22 of 37

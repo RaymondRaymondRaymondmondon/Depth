@@ -1,0 +1,215 @@
+Fathoms —
+Unit
+RTS Design Document
+Riflema
+Harpoo
+ner
+SCOUt
+Rider
+Lancer
+Bell
+Guard
+Medic
+Mortar
+Era
+sail
+sail
+sail
+Steam
+Steam
+Steam
+Steam
+Naval units
+Unit
+Fishing
+Boat
+SCOUt
+Skiff
+Transp
+ort
+Sloop
+Era
+sail
+sail
+sail
+Sail
+Buildin
+Barrack
+Barrack
+S
+Stable
+Stable
+Barrack
+S
+Barrack
+Siege
+Works
+Buildin
+Harbor,
+Dock
+Harbor,
+Dock
+Harbor,
+Dock
+Dock
+Cost
+40 F, 30
+35 F, 25
+80 F
+60845
+50 F, 65
+40 F, 40
+100 B,
+50 c
+cost
+60B
+50B
+100 B
+90 B
+POP
+2
+2
+3
+Pop
+2
+50
+55
+70
+120
+150
+40
+80
+60
+80
+200
+130
+Attack
+7
+pierce
+4 melee
+9 melee
+10
+melee
+Heals 2
+14 blast
+Attack
+7
+pierce
+Reload
+2.0
+2.0
+2.0
+1.8
+2.0
+5.0
+Reload
+2.5
+Range
+5
+0.5
+0.5
+0.5
+0.5
+4
+IO (min
+3)
+Range
+6
+Speed
+1.0
+1.05
+1.8
+1.6
+0.8
+1.0
+0.6
+Speed
+1.8
+3.0
+1.6
+1.8
+Armor
+(melee/
+pierce)
+1/3
+012
+2/2
+3/5
+Armor
+(melee/
+pierce)
+0/3
+Tags
+infantr
+ranged
+infantr
+large,
+mounte
+large,
+mounte
+infantr
+y, large
+infantr
+siege,
+large
+Tags
+ship,
+light
+ship,
+light
+ship,
+light
+ship,
+light
+Bonuse
+infantr
+large
+vision
+10
+ranged,
++15 vs
+siege
+buildin
+gs
+Can
+cure
+bleed
+and
+poison
++45 vs
+buildin
+gs;
+upkeep
+2
+Coal/mi
+n
+Bonuse
+Gather
+s fish,
+kelp,
+pearls
+Vision
+12
+Carries
+IO pop
+Can
+refit
+into a
+Gunbo
+at for
+the
+cost
+differe
+n ce
+Train
+22 s
+20s
+25 s
+30s
+32 s
+25 s
+40 s
+Upkeep
+(Coal/
+min)
+Page 14 of 37

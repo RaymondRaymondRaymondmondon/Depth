@@ -1,0 +1,94 @@
+Fathoms —
+RTS Design Document
+Economic targets for a steady player (used to tune costs and to build the Al): about 20
+workers at minute 6, 32 at minute 12, 45 at minute 18. At 32 workers plus 4 fishing boats,
+income is roughly 300 Food, 170 Brass, and 90 Coal per minute after walking time (about
+70% of the base rate).
+Buildings
+Every faction shares these buildings; factions rename and reskin them and swap in their
+own where noted in the faction sections. Workers build them; build time halves with each
+extra worker, down to a minimum of one third.
+Building
+Harbor
+Cottage
+Farmstead
+Mine Shed
+Farm
+Dock
+Barracks
+Stable
+Lighthouse
+Watchtower
+Era
+Start (one
+free)
+Sail
+Sail
+Sail
+Sail
+Sail
+Sail
+Sail
+Sail
+Sail
+Cost
+350 Brass, 100 Coal
+30 Brass
+80 Brass
+80 Brass
+60 Brass
+120 Brass
+150 Brass
+150 Brass
+120 Brass, 20 Coal
+60 Brass, 30 Food
+2,400
+400
+800
+800
+300
+1,500
+1,500
+1,500
+1,200
+700
+Build
+time
+150 s
+20 s
+30s
+30s
+15 s
+40s
+45 s
+45 S
+60s
+40 s
+Role
+Town center: trains workers,
+fishing boats, SCOUt skiffs;
+drop-off for everything; +10
+pop; garrisons 15 workers and
+fires 1 shot per garrisoned
+unit; can train Transports
++5 population
+Food drop-off; farm and
+fishing techs
+Brass, Coal, and Ichor drop-
+off; mining techs
+Infinite Food, 1 worker
+Fishing boats, transports,
+warships, naval techs; Food
+and Brass drop-off
+Riflemen, Harpooners; later
+Bell Guards, Medics
+Scout Riders; Lancers in
+Steam
+Claims its island (radius 14
+tiles), vision 16, supply zone
+for morale; only one per island;
+the first one on a new island
+needs a worker delivered by
+boat
+Range 7, attack 6; garrisons 4
+Page g of 37

@@ -1,0 +1,65 @@
+Fathoms — RTS Design Document
+Unique
+unit
+Tesla
+Walker
+Rivet
+Golem
+Era
+Steam
+Steam
+Cost
+100 B,
+50 c
+100 B,
+80 c
+Pop
+3
+3
+HP
+160
+300
+Attack
+10 blast, reload 3.0
+16 melee, reload
+2.2, +10 vs
+buildings
+Range Speed Special
+5
+0.5
+0.9
+0.7
+Lightning chains to 2
+more targets at 40%
+damage; counts as siege
+Armor 4/5
+• Hero: The Chief Engineer (the Robot). Aura: nearby units repair 1 HP/s. Active
+"Overclock" (60 s cooldown): nearby units attack 30% faster for 10 s.
+• Faction techs. Pressure Regulators (Steam, 200 B, 100 C): the Coal-shortage penalty is
+halved. Grounded Casings (Leviathan, 250 B, 150 C, 50 1): storms no longer hurt
+Clockwork units double, and electric attacks against them deal -25%.
+• Ultimate: The Steam Titan. A walking fortress that fires cannons in all directions and
+carries 10 infantry.
+• Wonder: The Great Furnace. Coal upkeep for all units -50%.
+Neutral powers
+Neutral sites are the map's third force: every one can be fought, and most can also be
+bargained with. Rewards are sized so that taking a site pays back its cost in about 4-6
+minutes, and the riskiest sites pay the most.
+Pirate Coves
+Each cove is a fortress (4,000 HP) with 8 cutlass pirates, 4 shore cannons, and a harbor of
+pirate ships. Every player has a reputation with the pirates from -100 to +100, starting at
+o.
+Black market
+Black market
+buy
+Era
+Any
+Any
+60 Doubloons per 100 Food,
+Brass, or Coal; 100 Doubloons
+per 40 Ichor
+What you get
+100 of any resource -Y 20
+Doubloons
+The only way to buy Ichor
+Page 23 of 37

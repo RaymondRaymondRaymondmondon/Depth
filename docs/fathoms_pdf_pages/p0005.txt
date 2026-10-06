@@ -1,0 +1,80 @@
+Fathoms —
+RTS Design Document
+30-36
+14-20
+12-18
+10
+16-22
+12-16
+20-26
+Island
+Home
+island
+Fertile
+isle
+Mining
+Coal isle
+Reef atoll
+Ruin isle
+Tribal isle
+Pirate
+cove
+Volcano
+isle
+Size (tiles
+across)
+6-10 (mostly
+shallows)
+8-12
+Terrain and its effects
+What it holds
+Harbor, 8 fertile tiles, 2 Brass
+seams, 1 small Coal seam, 1
+kelp bed offshore, 6 fish
+schools
+Farmland, fruit groves, fish
+2-3 Brass seams, rocky hills
+2 Coal seams
+Kelp beds, pearl banks
+(Doubloons)
+One relic in a sunken temple,
+guarded
+A tribal town, jungle, fertile
+land
+A pirate fortress and black
+market
+Ichor vents, obsidian, the
+summit altar, the Sun God
+Combat effect
+Terrain
+Deep sea
+Shallows
+Movement
+Ships 100%, land
+units cannot enter
+Ships 70%, land
+units wade at 50%
+Wading land units take
++20% damage
+Who wants it
+Its owner; losing it is
+usually losing the game
+Food-hungry players,
+Crustaceans
+Everyone mid-game
+Clockwork, anyone with a
+navy
+Merfolk, fishing economies
+Atlanteans, Relic victory
+Islanders, anyone wanting
+loot
+Everyone, for deals
+Late-game players,
+Volcano victory
+Notes
+Merfolk units can swim
+here
+Crustaceans walk here at
+full speed; ironclads
+cannot enter
+Page 5 of 37

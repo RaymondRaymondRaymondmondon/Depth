@@ -1,0 +1,68 @@
+Fathoms — RTS Design Document
+• Seafloor walking. Land units cross shallows at full speed and can walk between islands
+joined by shallows without boats. Every map guarantees each home island a shallow
+path to at least one neighboring island, and the same path length for every player.
+• Brood Pools (100 Brass, max 10) replace Farms: each makes 0.25 Food per second with
+no worker and no population.
+• Weaknesses. Land units are 15% slower. No Torpedo Boats or Ironclads.
+Unique unit Era
+Cost
+35 F, 30
+70 F, 70
+140 F,
+100 B
+Pop
+2
+3
+HP
+45
+175
+280
+Attack
+6 pierce,
+reload 2.0
+12 melee,
+reload 2.0
+20 melee,
+reload 2.5
+Range
+4
+0.5
+Speed Special
+Spitter
+Shrimp
+Lobster
+Knight
+Ghost
+Worm (sea)
+Sail
+Steam
+Steam
+1.0
+0.75
+1.8
+Hits cause Poison (I dmg/s
+for 4 s)
+Armor 4/6; molts twice
+Swims; attacks ships and
+swimmers only; burrows
+(invisible) while idle; no
+Coal upkeep
+• Hero: The Lobster. 700 HP instead of 500, the slowest hero. Active "Crushing Claw" (40
+s cooldown): 80 damage to one target and StUns it 3 s.
+• Faction techs. Chitin Plating (Steam, 200 F, 150 B): all units +1/+1 armor. Rapid Molting
+(Leviathan, 250 F, 200 B, 50 1): molt at 40 experience.
+• Ultimate: The Crustacean Queen. Spawns 2 Spitter Shrimp every 10 s while
+summoned.
+• Wonder: The Great Brood Mound. Units are trained already molted once.
+Merfolk of the Weeds
+Mermen, mermaids, and octopi. They own the sea between islands and strike from the
+kelp.
+• Swimming army. Merfolk infantry and riders swim through any water at 1.2 speed, so
+they need no transports and have no landing penalty. On land they move 20% slower,
+and more than 6 tiles from the shore they deal 10% less damage.
+• Kelp Spread. Kelp beds you own grow 1 tile every 15 s, up to 10 tiles out. On your kelp,
+Merfolk units are +20% faster and hidden unless an enemy is within 3 tiles; enemy
+ships on it are 20% slower.
+• Economy. Kelp gathering +40%. Buildings can be placed on reefs and shallows.
+Page 20 of 37

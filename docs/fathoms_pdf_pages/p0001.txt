@@ -1,0 +1,34 @@
+Fathoms — RTS Design Document
+Fathoms — RTS Design Document
+sep 29, 2026 • @PhilIip Argall
+Overview
+Fathoms is a 2-6 player steampunk island RTS in Depth's Deep Arcade, built for 20-30
+minute matches over LAN or the internet. Players start on a home island, claim new
+islands with Lighthouses, fight over Coal, Ichor, and relics, and bargain with or battle
+pirates, tribes, and volcano gods.
+Design pillars
+• Islands are the map. Every expansion and every attack crosses water, so the navy
+decides where you can go and the army decides what you keep.
+• Six factions that play differently. Each has a signature mechanic that changes how
+you build, fight, or expand — not just a stat bonus.
+• Neutral powers make every match a story. Pirates can be hired against rivals, tribes
+raid or ally, volcanoes reward the brave and punish the careless.
+• Short and readable. Five resources, three eras, about IO shared unit types per faction,
+and a hard 30-minute cap.
+• Rooted in Depth. Factions, bosses, and relics come from the roguelike's locations and
+characters, so the arcade feels like part of the same world.
+Reference games and what Fathoms takes from each
+Game
+Age of Empires II
+Stellaris
+Civilization
+What Fathoms borrows
+Workers, three eras with building requirements,
+unit counter triangles, relics, unique units per
+faction, idle-worker hotkeys, market trading
+Claiming territory with outposts, chokepoint
+defense, pick-one-of-three tech cards, diplomatic
+stances
+Founding colonies on new land, tile improvements
+around settlements, city-state style neutral towns
+Page 1 of 37

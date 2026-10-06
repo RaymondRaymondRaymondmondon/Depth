@@ -1,0 +1,67 @@
+Fathoms — RTS Design Document
+Unique unit
+Walker
+Rivet Golem
+Faction
+Clockwork
+Clockwork
+Efficiency vs
+shared median
+-16%
+(modeled)
+Paid for by
+Chain lightning
+Slow, costs Coal
+Beaten by (equal
+cost)
+Lancer (68%),
+Harpooner
+(25%)
+Harpooner
+(45%)
+Faction balance
+Faction
+Nautilus Crew
+Islanders
+Crustacean Brood
+Merfolk of the Weeds
+Atlantean Lost Ones
+Clockwork Foundry
+sail
+0.96
+1.08
+0.98
+1.09
+0.90
+0.92
+Steam
+1.04
+1.13
+1.07
+1.12
+1.05
+1.09
+Leviathan
+1.15
+1.04
+1.09
+1.02
+1.19
+1.10
+Overall vs average
+-0.2%
+-0.9%
++0.1%
+-1.3%
+Values are economy x army strength relative to a faction with no bonuses (1.00). Every
+faction has a weak era and a strong era, and the early aggressors (Islanders, Merfolk) are
+balanced against the late-game factions (Nautilus, Atlanteans) by the length of each era.
+Other balance rules
+• Heroes and ultimates have identical costs, HP, and damage budgets for every faction;
+ultimates with strong crowd control (Neptune's stun wave, Cthulhu's gaze) deal about
+25% less damage to compensate.
+• Era timing. An economy model puts a steady player in the Steam Era at about minute 9
+and the Leviathan Era at about minute 18, matching the pacing targets.
+• Neutral rewards pay back their cost in 4-6 minutes, so taking them is worthwhile but
+never automatic.
+Page 32 of 37

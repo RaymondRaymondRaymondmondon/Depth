@@ -1,0 +1,77 @@
+Fathoms — RTS Design Document
+hotkey layout.
+The six factions
+Each faction has one signature mechanic, two unique units, one hero, two faction techs,
+one ultimate, and a wonder. They are balanced to equal overall strength but peak at
+different times, so each has a window where it should attack and a window where it
+should defend.
+At a glance
+Faction
+Nautilus Crew
+Islanders
+Crustacean
+Brood
+Merfolk of the
+Weeds
+Atlantean
+Lost Ones
+Clockwork
+Foundry
+Playstyle
+Flexible,
+technological
+Raiders and
+diplomats
+Slow, tough,
+snowballing
+Sea control and
+ambush
+Slow start, huge
+finish
+Industrial grind
+Signature mechanic
+Nemo's Logbook:
+pick 1 of 3 tech cards
+each era
+Kinship: turn tribal
+towns into allies
+Molting and seafloor
+walking
+Kelp Spread and
+swimming units
+Devotion and
+conversion
+Coal-powered army
+that never breaks
+Strongest
+Leviathan
+Sail and
+Steam
+Steam and
+Leviathan
+Sail and
+Steam
+Leviathan
+Steam
+Main
+weakness
+Every unit
+costs 10%
+more
+Weak navy
+late
+Slow, limited
+navy
+Weak far
+inland
+Slow early
+economy
+Collapses
+without Coal
+Rules every faction shares. A hero costs 200 Food, 200 Brass, 50 Coal, is trained at the
+Harbor in the Steam Era, has 500 HP, and only one can exist; if it dies it can be revived at
+the Harbor after 60 s for half its cost. An ultimate is summoned in the Leviathan Era for
+300 Ichor, stays for 120 s, has 2,500 HP and roughly 40 damage per second, and has a 6-
+minute cooldown after it leaves. Unique units follow the same damage rules as shared
+units.
+Page 17 of 37

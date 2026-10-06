@@ -1,0 +1,56 @@
+Fathoms — RTS Design Document
+Unique
+unit
+Eel
+Rider
+Siren
+Era
+Steam
+Steam
+Cost
+60 F,
+50B
+40 F,
+45B
+Pop
+2
+HP
+115
+55
+Attack
+9 melee, reload 1.8,
++4 vs ranged, +8
+vs ships
+6 pierce, reload 2.0
+Range
+0.5
+6
+Speed
+1.4 land,
+2.2 water
+1.0
+Special
+Every 3rd hit stuns 1 s
+Song: enemies within
+5 tiles deal -20%
+damage (does not
+stack)
+• Hero: The Eel King. Aura: swimming units +15% speed. Active "Riptide" (50 s
+cooldown): pulls enemy ships in a 5-tile circle toward the center and slows them 50%
+for 5 s.
+• Faction techs. Octopus Ink (Steam, 150 F, 150 B): units leaving kelp stay hidden 5s
+longer. Tidecallers (Leviathan, 250 F, 200 B, 50 1): Kelp Spread twice as fast and 14 tiles
+out.
+Ultimate: Neptune. A sea giant whose trident sends a wave that stuns every ship in a
+line.
+• Wonder: The Coral Throne. Your kelp heals your units 2 HP/s.
+Atlantean Lost Ones
+The people trapped in the sunken city, worshipping something old. Weak for ten minutes,
+frightening after twenty.
+• Devotion. A meter from O to 1,000. Gain +1 per second per relic held, +0.5 per second
+per ruin isle owned, and by offering units at a Chapel (half their cost in Devotion).
+Spend it on conversions and on the ultimate.
+• Awakening economy. Gathering is 10% slower in the Sail Era, normal in Steam, and 10%
+faster in the Leviathan Era.
+• Weakness. The slowest start in the game; rushes hurt.
+Page 21 of 37

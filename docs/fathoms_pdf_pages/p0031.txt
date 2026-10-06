@@ -1,0 +1,80 @@
+Fathoms — RTS Design Document
+Every unit loses to at least one cheaper answer, and no shared unit beats every other one.
+Unique unit results
+Unique unit
+Nautilus
+Submarine
+Diving Marine
+War Canoe
+Dog Handler
+Spitter
+Shrimp
+Lobster
+Knight
+Ghost Worm
+Eel Rider
+Siren
+Legionnaire
+Deep Priest
+Faction
+Nautilus
+Nautilus
+Islanders
+Islanders
+Crustacean
+Crustacean
+Crustacean
+Merfolk
+Merfolk
+Atlantean
+Atlantean
+Efficiency vs
+shared median
+-27%
+-15%
+-20%
+(modeled)
++7%
+Not a fighter
+Paid for by
+Invisibility while
+submerged
+Swimming, no landing
+penalty
+Carries 5 infantry
+(cheap Sail unit,
+bleed)
+Poison
+Slow (0.75 speed)
+Covers the missing
+Torpedo Boat and
+Ironclad
+Weakening song
+Slow, regenerates
+Conversion costs
+Devotion
+Beaten by (equal
+cost)
+Gunboat (80%
+left), Torpedo
+Boat
+Lancer (60%
+left)
+Sloop (54%),
+Gunboat (70%)
+Bell Guard (73%)
+Lancer (70%)
+Harpooner
+(36%)
+Torpedo Boat
+(70%)
+Harpooner
+(68%)
+Lancer (71%),
+Harpooner
+(33%)
+Harpooner
+(52%)
+Lancers and
+anything fast
+Page 31 of 37

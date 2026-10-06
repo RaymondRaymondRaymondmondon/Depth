@@ -1,0 +1,55 @@
+Fathoms — RTS Design Document
+Islanders
+The Dethroned Island Queen's people. They win by making the map's tribes fight for them
+and raiding with fast canoes.
+• Kinship. A Shaman (Barracks, 60 F, 40 B) can perform a 45 s ritual at a tribal town with a
+gift of 150 Food and 100 Doubloons. The town becomes an ally: its island counts as
+Islander territory and it produces 1 free Tribal Warrior (60 HP, 7 melee attack) every 60
+s, up to 6 per town. Warriors don't use population. If the Shaman is killed during the
+ritual, the gift is lost.
+• Totems (80 Brass, one per island): friendly units within 8 tiles get +15% attack.
+• Economy bonus. Fishing and fruit gathering +8%.
+• Weakness. Ironclads have 15% less HP.
+Unique
+unit
+War
+Canoe
+Dog
+Handler
+Era
+Sail
+Sail
+Cost
+50 F, 45
+45 F, 25
+POP H p
+110
+65
+Attack
+6 pierce, reload 2.2
+6 melee, reload 1.5,
++3 vs ranged
+Range Speed Special
+4
+0.5
+2.4
+1.3
+Carries 5 infantry and
+fights; no upkeep
+Attacks cause Bleed (2
+dmg/s for 4 s)
+• Hero: The Coconut Queen. Aura: nearby units heal 1 HP/s. Active "Coconut Barrage"
+(45 s cooldown): 40 blast damage in a 3-tile circle, stuns for 2 s.
+• Faction techs. Blood Oath (Steam, 200 F, 150 B): Tribal Warriors +25% HP. Sun Drums
+(Leviathan, 250 F, 200 B): Totem radius +4, Totems also give +1 armor.
+• Ultimate: The Tribal Demigod. A giant warrior that leaps between targets and knocks
+units back.
+• Wonder: Temple of the Sun. All allied tribal towns produce warriors twice as fast;
+volcano Sun Gods ignore your units.
+Crustacean Brood
+The undersea cave's creatures: slow and armored, getting stronger with every fight they
+survive.
+• Molting. Units earn experience equal to damage dealt. At 60 experience a unit molts: it
+is cocooned for 5 s (takes +50% damage), then gains +25% HP and +15% attack and a
+bigger model. Units molt once; Lobster Knights molt twice.
+Page 19 of 37

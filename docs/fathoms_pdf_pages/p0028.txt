@@ -1,0 +1,50 @@
+Fathoms —
+RTS Design Document
+Victory
+Conquest
+Relics
+Volcano Ascension
+Score
+How to win
+Destroy every rival's Harbors and Colony Halls. A
+player with no town center left has 90 s to land a
+Colony Ship and start a new one, or is eliminated
+Hold every relic on the map (the count is shown in
+the top bar) garrisoned in your Chapels or Harbors
+Hold the summit altar through one full eruption
+cycle. On Large maps with two volcanoes, hold
+both altars
+Highest score when the time cap ends; ties go to
+most islands, then most relics
+Countdown
+3 minutes
+4 minutes
+At the time cap
+Wonders are not a victory on their own (to keep matches short); each is worth score and
+gives its faction passive.
+Score
+Source
+Each island you hold (Lighthouse, Harbor, or
+Colony Hall)
+Each relic held
+Enemy units killed
+Enemy buildings destroyed
+Resources gathered
+Era reached
+Technologies researched
+Wonder standing
+Neutral bosses
+Points
+20
+40
+1 per 10 resources of their cost
+1 per 20 resources of their cost
+1 per 100
+Steam 50, Leviathan 100
+5 each
+150
+Blackbeard 50, Sun God 60, Kraken 80, tribal
+town conquered 25
+Resigning. A player can resign at any time; their units and buildings are removed after IO s.
+In team games, a team resigns only when every living member votes to.
+Page 28 of 37

@@ -237,6 +237,12 @@ void AudioBallPit(const BpAudio& a);
 enum BpCue { BPC_DART, BPC_DART_BIG, BPC_HIT, BPC_KNIFE, BPC_THROW, BPC_BOUNCE, BPC_CANNON, BPC_OVERHEAT, BPC_VACUUM, BPC_SLIDE, BPC_KO, BPC_STREAK, BPC_BUY, BPC_RELOAD, BPC_DRY,
              BPC_HORN, BPC_KAZOO, BPC_SLURP, BPC_POP, BPC_FART, BPC_SQUAWK, BPC_KIDS, BPC_BOOM, BPC_BEEP, BPC_FLAG, BPC_CAPTURE, BPC_GRAB, BPC_PIT, BPC_ROCKET, BPC_SPLASH, BPC_STEP, BPC_CLIMB, BPC_COUNT };
 void BallPitCue(int kind, float vol, float pan, float pitch = 1);
+// Fathoms (the Deep Arcade's island strategy game): an age-of-sail score that grows with the eras, war drums near battle,
+// the open sea's bed (waves, wind, gulls; a storm's rumble; lava), and the RTS's effects.
+struct FaAudio { bool on = false; int era = 0, faction = 0, over = 0; float battle = 0, busy = 0, storm = 0, zoom = 0.5f, lava = 0; };
+void AudioFathoms(const FaAudio& a);
+enum FaCue { FAC_SHOT, FAC_BOOM, FAC_DIE, FAC_BUILT, FAC_READY, FAC_TECH, FAC_ERA, FAC_ALARM, FAC_RAZED, FAC_ERUPT, FAC_TREMOR, FAC_DRUMS, FAC_RELIC, FAC_KRAKEN, FAC_MOLT, FAC_CONVERT, FAC_ULTIMATE, FAC_HERO, FAC_CLICK, FAC_DENY, FAC_COUNT };
+void FathomsCue(int kind, float vol, float pan, float pitch = 1);
 
 // NOCLIP (the Deep Arcade's Backrooms): the hum per level, the levels' beds, the portal's rising hum, entities' tells.
 struct NcAudio {

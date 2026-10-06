@@ -1,0 +1,67 @@
+Fathoms — RTS Design Document
+5. The generator rejects and rerolls any map that fails a distance check; the seed is
+shown in the lobby.
+Resources and economy
+Fathoms uses four gathered resources plus Doubloons, a trade-only currency for pirates
+and mercenaries. Workers gather by walking to a resource and carrying it back to a drop-
+off building, as in AOE2, so drop-off placement matters.
+Resource
+Food
+Brass
+Coal
+Ichor
+Doubloons
+Main uses
+Workers, infantry,
+riders, era advance
+Buildings, ships,
+ranged and heavy
+units
+Steam ships, airships,
+machines, Clockwork
+units, some techs
+Leviathan Era
+advance, elite units,
+ultimates, top techs
+Pirate deals,
+mercenaries, ransoms,
+bribes
+Sources
+Fish schools (fishing
+boat), farms, fruit
+groves, kelp beds
+(boat)
+Brass seams, wrecks
+(salvage)
+Coal seams
+Ichor vents (ruin
+isles, volcanoes),
+relics (trickle)
+Pearl banks (fishing
+boat), trade routes,
+salvage bonus, tribal
+loot, raiding enemy
+trade ships, selling at
+the Exchange
+Base gather rate
+(per worker or
+boat per second)
+Fish 0.50 Farm
+0.40 Grove 0.45
+Kelp 0.35
+Seam 0.40 • Wreck
+0.50
+0.35
+Vent 0.15 Relic
+0.30 per relic, no
+worker needed
+Pearls 0.20
+Resource amounts per node
+Carry
+load
+10
+10
+8
+5
+5
+Page 7 of 37

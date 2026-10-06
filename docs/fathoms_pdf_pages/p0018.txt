@@ -1,0 +1,64 @@
+Fathoms — RTS Design Document
+Nautilus Crew
+Captain Nemo's crew: a steampunk navy that can adapt to any plan. The easiest faction to
+learn.
+• Nemo's Logbook. On reaching each era (including the start), draw 3 cards from the
+Logbook and keep 1. Cards include Galvanic Batteries (ships +10% damage), Deep
+Survey (reveal every ruin and wreck), Pressure Hulls (Nautilus Submarines +25% HP),
+Diving Bells (Ichor gathering +30%), Steam Turbines (ships +15% speed), Marine Drill
+(Diving Marines +2 armor), Surveyor's Instinct (Lighthouses cost 30% less), and
+Quartermaster (Coal upkeep -25%). No card may be drawn twice.
+• Weakness. All units cost 10% more.
+Unique unit Era
+Cost
+(before
++10%)
+180 B, 70
+c
+50 F, 40 B
+Pop HP
+Attack
+30 blast,
++20 vs
+heavy,
+reload 5.5
+8 pierce,
+reload 2.0
+Range Speed
+Nautilus
+Submarine
+Diving
+Marine
+Steam
+Steam
+3
+260
+75
+5
+4
+2.0 (1.4
+submerged)
+1.0
+Special
+Dive: invisible
+while submerged;
+surfaces for 3 s
+after firing. Seen
+by Gunboats,
+Scout Skiffs, and
+Coastal Batteries
+within 4 tiles.
+Upkeep 3 Coal/min
+Amphibious: swims
+up to 10 tiles of
+water; no landing
+penalty
+• Hero: Captain Nemo. Aura: nearby units +10% attack. Active "Full Ahead" (60 s
+cooldown): ships within 8 tiles +40% speed for IO s.
+• Faction techs. Ballast Tanks (Steam, 200 B, 100 C): Submarines can fire once every 20 s
+without surfacing. Electric Harpoons (Leviathan, 250 F, 200 B, 50 1): Harpooners stun
+targets for 1 s on hit, once every 8 s.
+• Ultimate: The Nautilus. The legendary submarine surfaces for 120 s: 2,500 HP, torpedo
+volleys that deal splash damage, can submerge for IO s once.
+• Wonder: Nautilus Drydock. Your ships regenerate 2 HP/s inside your territory.
+Page 18 of 37

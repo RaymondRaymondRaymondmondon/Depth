@@ -11,6 +11,7 @@
 #include "flight_net.h"
 #include "warp_net.h"
 #include "ballpit_net.h"
+#include "fathoms_net.h"
 #include "fowl_net.h"
 #include "noclip_net.h"
 #include "net.h"
@@ -34,6 +35,7 @@ void DrawBetControls(Rectangle row);
 void ArcadeBetFrame();
 static void DrawBetResult();
 
+fa::Settings gFaSettings;   // (the arcade's picks for a Fathoms game: solo or hosted)
 namespace {
 int gNoMode = 0, gNoCrowd = 1, gNoCrew = 0, gNoBar = 0, gNoSeason = -1; bool gNoPvp = true, gNoCloak = false;   // (A Night Off: the host's mode, crowd and fights; who you go ashore as)
 
@@ -292,7 +294,7 @@ void DrawReels(Game& g) {
             gError.clear();
             if (k == 0) {
                 std::string err;
-                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason) : selGame == G_SCUFFLE ? ScuffleOpts(5, 0, 2) : selGame == G_WARP ? wd::WarpOpts(gWarpArena, 1, gWarpFill) : selGame == G_FOWL ? fp::FowlOpts(gFowlMode, 1, 6) : selGame == G_NOCLIP ? nc::NoclipOpts(0, gNcMode) : selGame == G_BALLPIT ? bp::BallPitOpts(gBallPitMode, 1, gBallPitFill) : ""; }
+                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason) : selGame == G_SCUFFLE ? ScuffleOpts(5, 0, 2) : selGame == G_WARP ? wd::WarpOpts(gWarpArena, 1, gWarpFill) : selGame == G_FOWL ? fp::FowlOpts(gFowlMode, 1, 6) : selGame == G_NOCLIP ? nc::NoclipOpts(0, gNcMode) : selGame == G_BALLPIT ? bp::BallPitOpts(gBallPitMode, 1, gBallPitFill) : selGame == G_FATHOMS ? fa::FathomsOpts(gFaSettings) : ""; }
                 else gError = "Couldn't host: " + err;
             } else if (k == 1) { gMode = MODE_JOIN; gJoinFocus = true; }
             else gMode = MODE_BROWSE;
@@ -410,6 +412,33 @@ void DrawReels(Game& g) {
         row(c.y + 42, ARENA[gWarpArena], gWarpArena, 2, 0); gWarpFill = wdSize + 1;
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Play (solo)", true, 15)) { StartWarp(g, wdSize + 1, wdSkill, gWarpArena); return; }
         DrawTextCentered("Host or Join for friends (the sides above fill up with bots)", c.x, c.y + 280, 13, SCREEN_DIM);
+    }
+    if (selGame == G_FATHOMS) {   // solo: you against AI captains (Host or Join for friends: up to six, AI in the empty seats)
+        static int faPlayers = 2, faFac = 0, faAi = 1, faMap = 0, faWin = 0, faCap = 1, faStart = 0;
+        static const char* FAC[7] = {"Nautilus Crew", "Islanders", "Crustacean Brood", "Merfolk of the Weeds", "Atlantean Lost Ones", "Clockwork Foundry", "a random faction"};
+        static const char* AIL[4] = {"Deckhand rivals", "Mate rivals", "Captain rivals", "Admiral rivals"};
+        static const char* MAP[4] = {"an archipelago", "twin continents", "a ring of isles", "scattered isles"};
+        static const char* WIN[3] = {"every victory", "conquest only", "score only"};
+        static const int CAP[4] = {20, 30, 45, 0};
+        static const char* START[3] = {"standard stores", "high stores", "very high stores"};
+        auto row = [&](float y, const char* text, int& v, int n, int lo) {
+            Rectangle l{c.x - 190, y, 30, 26}, r{c.x + 160, y, 30, 26};
+            DrawTextCenteredBold(text, c.x, y + 2, 18, Color{230, 200, 150, 255});
+            DrawTextCenteredBold("<", l.x + 15, l.y, 22, Pal::Brass); DrawTextCenteredBold(">", r.x + 15, r.y, 22, Pal::Brass);
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = lo + (v - lo + n - 1) % n; PlayCue("ui.click"); }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = lo + (v - lo + 1) % n; PlayCue("ui.click"); }
+        };
+        row(c.y - 14, TextFormat("%d players", faPlayers), faPlayers, 5, 2);
+        row(c.y + 12, TextFormat("You: %s", FAC[faFac]), faFac, 7, 0);
+        row(c.y + 38, AIL[faAi], faAi, 4, 0);
+        row(c.y + 64, MAP[faMap], faMap, 4, 0);
+        row(c.y + 90, WIN[faWin], faWin, 3, 0);
+        row(c.y + 116, CAP[faCap] ? TextFormat("%d-minute cap", CAP[faCap]) : "no time cap", faCap, 4, 0);
+        row(c.y + 142, START[faStart], faStart, 3, 0);
+        fa::Settings& st = gFaSettings; st.players = faPlayers; st.mapType = faMap; st.victory = faWin == 0 ? 7 : faWin == 1 ? 1 : 0; st.timeCap = CAP[faCap] * 60; st.start = faStart;
+        for (int k = 0; k < fa::MAX_PLAYERS; k++) { st.faction[k] = k == 0 ? (faFac == 6 ? -1 : faFac) : -1; st.aiLevelOf[k] = faAi; st.ai[k] = k > 0; }
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Set sail (solo)", true, 15)) { fa::Settings s = st; s.seed = (uint32_t)GetRandomValue(1, 1 << 30); uint32_t h = s.seed; for (int k = 0; k < fa::MAX_PLAYERS; k++) if (s.faction[k] < 0) { h = h * 1103515245u + 12345u; s.faction[k] = (int)((h >> 16) % 6); } StartFathoms(g, s); return; }
+        DrawTextCentered("Host or Join for friends (AI captains take the empty seats)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (selGame == G_BALLPIT) {   // solo: you and the bots (Host or Join above for friends: up to twelve)
         static int bpSkill = 1;
@@ -823,7 +852,7 @@ void DrawLobby() {
     if (host) {
         std::string why;
         bool can = gSess.CanLaunch(&why);
-        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : gSess.game == G_MOUTHFUL ? "Into the water" : gSess.game == G_NIGHT_OFF ? "Go ashore" : gSess.game == G_SCUFFLE ? "Fight!" : gSess.game == G_WARP ? "Play ball" : gSess.game == G_FOWL ? "Open the gates" : gSess.game == G_NOCLIP ? "Through the portal" : gSess.game == G_BALLPIT ? "Into the pit" : "Start the race";
+        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : gSess.game == G_MOUTHFUL ? "Into the water" : gSess.game == G_NIGHT_OFF ? "Go ashore" : gSess.game == G_SCUFFLE ? "Fight!" : gSess.game == G_WARP ? "Play ball" : gSess.game == G_FOWL ? "Open the gates" : gSess.game == G_NOCLIP ? "Through the portal" : gSess.game == G_BALLPIT ? "Into the pit" : gSess.game == G_FATHOMS ? "Set sail" : "Start the race";
         if (Button({p.x + p.width - 250, p.y + p.height - 66, 220, 50}, go, can, 20)) { std::string w2; gSess.Launch(&w2); }
         if (!can) Txt(why, p.x + 30, p.y + p.height - 50, 15, SCREEN_DIM);
     } else if (gSess.mySeat >= 0) {
@@ -1250,6 +1279,7 @@ void DrawRoom(Game& g) {
             if (gSess.game == G_WARP) { StartWarpNet(g, &gSess, gProfile.name.c_str()); return; }
             if (gSess.game == G_FOWL) { StartFowlNet(g, &gSess, gProfile.name.c_str()); return; }
             if (gSess.game == G_BALLPIT) { StartBallPitNet(g, &gSess, gProfile.name.c_str()); return; }
+            if (gSess.game == G_FATHOMS) { StartFathomsNet(g, &gSess, gProfile.name.c_str()); return; }
             if (gSess.game == G_NOCLIP) { StartNoclipNet(g, &gSess, gProfile.name.c_str()); return; }                              // into the ring (host or guest)
             DrawTable(g);
             break;

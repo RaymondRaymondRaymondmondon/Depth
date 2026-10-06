@@ -1,0 +1,47 @@
+Fathoms — RTS Design Document
+How balance was checked
+1. Resource weights. Food and Brass count as 1, Coal as 1.5 (fewer seams, and it is also
+upkeep), Ichor as 4 (few vents, needed to advance). A unit's cost value is the weighted
+sum of its cost.
+2. Cost-efficiency. Efficiency = V(HP x damage per second) + cost value. Under
+Lanchester's square law this is what decides who wins a straight fight between equal
+budgets, so generalist units must sit close together.
+3. Equal-budget fights. Two armies of the same resource value (1,200 land, 1,500 naval)
+fight in the simulator with armor, bonuses, range, closing speed, and melee crowding
+(only about 70% of a melee blob can reach the enemy at once). The target for a
+counter is 55-65% of its army surviving: a clear win, not a wipeout.
+4. Abilities modeled. Chain lightning was modeled as damage and the Siren's song as
++25% effective HP; abilities that can't be simulated (invisibility, swimming, conversion)
+were paid for by lowering raw efficiency.
+5. Faction phase model. Each mechanic was turned into an economy and army multiplier
+for each era, then weighted by era length (8, IO, and 12 minutes). Factions were tuned
+until overall strength matched within ±3% while their strongest era differs.
+Shared unit results
+Matchup (equal cost)
+Rifleman vs Harpooner
+Harpooner vs Lancer
+Lancer vs Rifleman
+Bell Guard vs Rifleman
+Harpooner vs Bell Guard
+Bell Guard vs Lancer
+Lancer vs Mortar
+Gunboat vs Torpedo Boat
+Ironclad vs Gunboat
+Torpedo Boat vs Ironclad
+Winner
+Rifleman
+Harpooner
+Lancer
+Bell Guard
+Harpooner
+Bell Guard
+Lancer
+Gunboat
+Ironclad
+Torpedo Boat
+Winner's army left
+66%
+43%
+87% (siege is meant to die to riders)
+63%
+Page 30 of 37

@@ -793,6 +793,7 @@ int gRoomWant = RR_SALON;
 #include "sound_scuffle.inl"
 #include "sound_fowl.inl"
 #include "sound_ballpit.inl"
+#include "sound_fathoms.inl"
 #include "sound_noclip.inl"
 #include "sound_nightoff.inl"
 float gTestBusOpen = 0;   // --audio-test: open the music and ambience buses with no scene playing
@@ -1004,7 +1005,7 @@ void Render(float* out, int frames) {
         MfUpdate(blockT);
         SfUpdate(blockT);
         FpUpdate(blockT);
-        BpUpdate(blockT);
+        BpUpdate(blockT); FaUpdate(blockT);
         NcUpdate(blockT);
         NoUpdate(blockT);
         if (gHub.on) {
@@ -1039,7 +1040,7 @@ void Render(float* out, int frames) {
             v.env0 = EnvAt(v, v.t); v.env1 = EnvAt(v, v.t + blockT);
         }
         float voiceDuck = 1 - 0.37f * gVoiceS;   // a voice ducks everything else 4 dB
-        float roomS = std::max({gHub.s, gExp.s, gRt.s, gTw.s, gFl.s, gMf.s, gNo.s, gSf.s, gFp.s, gNc.s, gBp.s, gTestBusOpen});  // aboard, on an expedition, in the arcade games: the generated rooms
+        float roomS = std::max({gHub.s, gExp.s, gRt.s, gTw.s, gFl.s, gMf.s, gNo.s, gSf.s, gFp.s, gNc.s, gBp.s, gFa.s, gTestBusOpen});  // aboard, on an expedition, in the arcade games: the generated rooms
         float musicLevel = std::max(gScene, roomS) * (1 - 0.29f * gDuck); // combat impacts duck the music 3 dB
         float busG[5] = {gVol.sfx * voiceDuck, gVol.music * musicLevel * voiceDuck, gVol.ambience * std::max(gScene, roomS) * voiceDuck, gVol.sfx, gVol.sfx};
         for (int i = 0; i < n; i++) {
@@ -1105,6 +1106,7 @@ void Render(float* out, int frames) {
             if (gSf.s > 0.002f) { float e = SfBedSample(gClock + i * dtS, base + i) * gVol.ambience * gSf.s * voiceDuck; mL += e; mR += e * 0.95f; send += e * 0.3f; }
             if (gFp.s > 0.002f) { float e = FpBedSample(gClock + i * dtS, base + i) * gVol.ambience * gFp.s * voiceDuck; mL += e; mR += e * 0.95f; send += e * 0.3f; }
             if (gBp.s > 0.002f) { float e = BpBedSample(gClock + i * dtS, base + i) * gVol.ambience * gBp.s * voiceDuck; mL += e; mR += e * 0.96f; send += e * 0.45f; }
+            if (gFa.s > 0.002f) { float e = FaBedSample(gClock + i * dtS, base + i) * gVol.ambience * gFa.s * voiceDuck; mL += e; mR += e * 0.95f; send += e * 0.3f; }
             if (gNc.s > 0.002f) { float e = NcBedSample(gClock + i * dtS, base + i) * gVol.ambience * gNc.s * voiceDuck; mL += e; mR += e * 0.95f; send += e * 0.3f; }
             if (gNo.s > 0.002f) { float e = NoBedSample(gClock + i * dtS, base + i) * gVol.ambience * voiceDuck; mL += e; mR += e * 0.96f; send += e * 0.3f; }
             if (gExp.s > 0.002f) { float e = ExpBedSample(gClock + i * dtS, base + i) * gVol.ambience * gExp.s * voiceDuck; mL += e; mR += e * 0.92f; send += e * 0.3f; }
@@ -1179,6 +1181,8 @@ void AudioFowl(const FpAudio& a) { gFp.want = a; if (a.on) gRoomWant = a.phase =
 void FowlCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) FpCueImpl(kind, vol, pan, pitch); }
 void AudioBallPit(const BpAudio& a) { gBp.want = a; if (a.on) gRoomWant = RR_HALL; }
 void BallPitCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) BpCueImpl(kind, vol, pan, pitch); }
+void AudioFathoms(const FaAudio& a) { gFa.want = a; if (a.on) gRoomWant = RR_OPENSEA; }
+void FathomsCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) FaCueImpl(kind, vol, pan, pitch); }
 void AudioNoclip(const NcAudio& a) { gNc.want = a; if (a.on) gRoomWant = a.surface ? RR_HALL : a.level == 7 || a.level == 17 ? RR_OPENSEA : a.level == 8 || a.level == 6 ? RR_CAVE : RR_HALL; }
 void NoclipCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) NcCueImpl(kind, vol, pan, pitch); }
 void AudioMouthful(const MfAudio& a) { gMf.want = a; if (a.on) gRoomWant = a.band >= 3 ? RR_OPENSEA : RR_OPENSEA; }
@@ -1632,6 +1636,33 @@ bool AudioSelfTest(const char* wavPath) {
         for (int k = 0; k < BPC_COUNT; k++) { float pk = solo([&] { BpCueImpl(k, 1, 0, 1); }); if (pk < 0.01f || pk > 0.97f) { printf("  ballpit effect %d is %s (peak %.3f)\n", k, pk < 0.01f ? "silent" : "clipping", pk); mute++; } }
         gTestBusOpen = 0;
         printf("ballpit: 6 states, %d effects: %d silent or clipping\n", (int)BPC_COUNT, mute);
+        if (mute) ok = false;
+    }
+    // Fathoms: the Sail shanty, Steam, Leviathan, a battle, a storm, an eruption, the end (won, lost); every effect alone
+    {
+        auto faPass = [&](FaAudio st, const char* label, float secs) {
+            for (auto& v : gV) v.on = false;
+            gFa = FaState{}; gFa.want = st; gFa.s = 1; gFaBedKind = -1; gRoomWant = RR_OPENSEA; for (int e = 0; e < 3; e++) gFa.eraS[e] = st.era == e ? 1.0f : 0.0f; gFa.battleS = st.battle; gFa.lastOver = 0;
+            int N = (int)(SR * secs); std::vector<float> b(N * 2);
+            for (int at = 0; at < N; at += BLOCK) Render(&b[at * 2], std::min(BLOCK, N - at));
+            double sum = 0; float pk = 0; int bad = 0; for (float x : b) { if (!std::isfinite(x)) bad++; else { sum += x * x; pk = std::max(pk, fabsf(x)); } }
+            float db = 20 * log10f(std::max(1e-6f, sqrtf((float)(sum / b.size())))); bool pass = !bad && db > -52.0f && pk < 0.97f;
+            printf("fathoms  %-10s rms %5.1f dB  peak %.2f%s\n", label, db, pk, pass ? "" : "  FAIL"); if (!pass) ok = false;
+            if (wavPath) all.insert(all.end(), b.begin(), b.end());
+        };
+        { FaAudio st; st.on = true; st.era = 0; faPass(st, "sail", 5); }
+        { FaAudio st; st.on = true; st.era = 1; st.busy = 0.6f; faPass(st, "steam", 5); }
+        { FaAudio st; st.on = true; st.era = 2; faPass(st, "leviathan", 5); }
+        { FaAudio st; st.on = true; st.era = 1; st.battle = 1; faPass(st, "battle", 5); }
+        { FaAudio st; st.on = true; st.era = 0; st.storm = 1; st.zoom = 1; faPass(st, "storm", 4); }
+        { FaAudio st; st.on = true; st.era = 1; st.lava = 1; faPass(st, "eruption", 4); }
+        { FaAudio st; st.on = true; st.over = 1; faPass(st, "won", 3); }
+        { FaAudio st; st.on = true; st.over = 2; faPass(st, "lost", 3); }
+        gFa = FaState{}; gFaBeds.clear(); gFaBedKind = -1; gTestBusOpen = 1;
+        int mute = 0;
+        for (int k = 0; k < FAC_COUNT; k++) { float pk = solo([&] { FaCueImpl(k, 1, 0, 1); }); if (pk < 0.01f || pk > 0.97f) { printf("  fathoms effect %d is %s (peak %.3f)\n", k, pk < 0.01f ? "silent" : "clipping", pk); mute++; } }
+        gTestBusOpen = 0;
+        printf("fathoms: 8 states, %d effects: %d silent or clipping\n", (int)FAC_COUNT, mute);
         if (mute) ok = false;
     }    // NOCLIP: the Surface, the Lobby's hum, the station's roar, Lights Out's silence (a breath), the ocean, a portal charging; every cue alone
     {

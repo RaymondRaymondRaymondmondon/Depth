@@ -1,0 +1,77 @@
+Fathoms —
+RTS Design Document
+Tech
+Guild Charters
+Letters of
+Marque
+Clockwork
+Harvesters
+Deep-Bore Rigs
+Building
+Exchange
+Exchange
+Farmstead
+Mine Shed
+Era
+Steam
+Steam
+Leviathan
+Leviathan
+Cost
+200 Food, 200
+Brass
+150 Brass, 60
+Doubloons
+300 Food, 200
+Brass, 100 Coal
+300 Food, 200
+Brass, 100 Coal
+Effect
+Exchange price penalty
+halved; Trade Ship
+income +20%
+Pirate hiring -20%; your
+raiders capture +50%
+loot
+Farms +20%
+Mining +20%; seams last
++25%
+Military technologies (the Forge line at the Workshop). Each line has three levels: level 1
+in Steam, levels 2-3 in Leviathan. Each level costs 150 / 300 / 450 Food and 100 / 225 / 350
+Brass.
+Line
+Cutlasses
+Rifling
+Riveted Plate
+Oilskin Coats
+Naval Gunnery (Dock)
+Armored Hulls (Dock)
+Other technologies
+Per level
+Melee units +1 attack
+Ranged land units +1 attack, +1 range at level 3
+Land units +1 melee armor
+Land units +1 pierce armor
+Ships +1 attack, +1 range at level 3
+Ships +10% HP, +1 pierce armor
+Tech
+Fresnel Lens
+Supply
+Caches
+Building
+Lighthouse
+Lighthouse
+Era
+Sail
+Steam
+Cost
+75 Brass, 25
+Coal
+150 Food, 100
+Brass
+Effect
+Lighthouse vision +6,
+claim radius +3
+Morale loss outside
+territory halved
+Page 12 of 37

@@ -114,6 +114,14 @@ const HowTo& Get(int key) {
                     "Birds pay money at the tally. Between hunts you have 45 seconds in the clubhouse: buy guns and attachments at the counter (Mr. Zappa has a deal just for you), crank the mystery-gun machine, play the slots and scratch-offs, or visit the raccoon's Slop Shop for cosmetics and sabotage.",
                     "Sabotage lands on your target's next hunt and everyone sees who bought it; every item has a counter (buy it before the hunt). Shooting the dog costs you a bird. Decoys have no eyes and cost $10. The armored duck's weak spot is its belly."};
         fw.keys = {{"Mouse", "aim"}, {"Left mouse", "shoot"}, {"Right mouse", "scope / both barrels"}, {"A / D", "step in your stall"}, {"Q / E", "lean"}, {"Ctrl", "crouch"}, {"R", "reload"}, {"1 / 2, wheel", "swap guns"}, {"H", "swap with the stall hook"}, {"V (hold)", "wipe a smudged lens"}, {"T", "scratch a ticket from your pocket"}, {"WASD, E", "walk the room, use a station"}, {"F", "pick up a gun from the floor"}};
+        auto& fz = H[19];
+        fz.title = "Fathoms";
+        fz.lines = {"A steampunk island RTS for 2-6 players. Grow a colony from your Harbor: workers gather Food, Brass and Coal and bring them to a drop site (the Harbor, a Farmstead for food, a Mine Shed for ore); Fishing Boats fish the shallows. Cottages raise your population.",
+                    "Advance at the Harbor through three eras: Sail, Steam (needs two of Barracks, Stable, Dock, Farmstead, Mine Shed) and Leviathan (Ichor: ruins, volcano vents, or the pirates' black market). Each faction has a mechanic, two unique units, a hero, an ultimate and a wonder.",
+                    "Claim other islands with a Lighthouse: board workers onto a Transport (right-click it), sail, then Unload on the shore. Steam ships need coal: beyond a Harbor, Dock or Coaling Station they slow down. Landed troops take +25% damage for 10 s; morale falls away from your ground.",
+                    "Neutral powers: pirate coves (black market, raids you can hire, counter-bids), tribal towns (raid you from minute 6; tribute, conquest, or the Islanders' Kinship), volcanoes (the Sun God and the altar), sunken ruins with relics, the Ghost Ship, the Kraken.",
+                    "Win by conquest (no Harbor or Colony Hall left), by holding every relic for 3 minutes, by holding the volcano's altar for 4, or with the best score at the time cap."};
+        fz.keys = {{"Left drag", "select (double-click: all of a kind)"}, {"Right click", "move, attack, gather, garrison, board"}, {"Ctrl + right click", "attack a cove or a tribal town"}, {"A then click", "attack-move"}, {"S", "stop"}, {"R", "hero ability"}, {"U then click", "unload a transport"}, {"WASD / arrows / edges", "pan"}, {"Wheel", "zoom"}, {"Ctrl+1-9 / 1-9", "set / recall a group"}, {"Tab", "next idle worker"}, {"H", "your Harbor"}, {"Space", "the last alert"}, {"F1 / F2 / F3", "help / diplomacy / Logbook"}, {"Delete", "dismiss the selection"}};
         auto& bpz = H[18];
         bpz.title = "Ball Pit Brawl";
         bpz.lines = {"A foam-weapon shooter inside a four-level play centre. Everyone starts with a foam knife and a single-shot blaster; knockouts and objectives earn score, which you spend at your team's store (at your base, B) on better foam guns and darts. Spending never lowers your leaderboard score.",
@@ -146,6 +154,7 @@ const HowTo& HowToFor(const Game& g) {
         case Scene::Fowl: return Get(16);
         case Scene::Noclip: return Get(17);
         case Scene::BallPit: return Get(18);
+        case Scene::Fathoms: return Get(19);
         default: return Get(0);
     }
 }
@@ -155,7 +164,7 @@ bool ActUsedIn(const Game& g, int a) {
     switch (g.scene) {
         case Scene::Platformer: case Scene::Abyss: return a <= A_MOD;
         case Scene::Dungeon: return a == A_SCOPE;
-        case Scene::Arcade: case Scene::RedTide: case Scene::Trawl: case Scene::Flight: case Scene::Mouthful: case Scene::NightOff: case Scene::Scuffle: case Scene::Warp: case Scene::Fowl: case Scene::Noclip: case Scene::BallPit: return a == A_TALK;
+        case Scene::Arcade: case Scene::RedTide: case Scene::Trawl: case Scene::Flight: case Scene::Mouthful: case Scene::NightOff: case Scene::Scuffle: case Scene::Warp: case Scene::Fowl: case Scene::Noclip: case Scene::BallPit: case Scene::Fathoms: return a == A_TALK;
         default: return false;
     }
 }

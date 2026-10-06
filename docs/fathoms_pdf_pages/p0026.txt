@@ -1,0 +1,65 @@
+Fathoms — RTS Design Document
+(vision -50%). The vents always sit next to a lava path, so gathering there means
+pulling workers out on time.
+• Claiming the altar. A unit must stand on it for 45 s uncontested after the Sun God is
+dead.
+Other sites and events
+Site or event
+Shipwrecks
+Sunken ruins
+Kraken
+Storms, fog,
+whirlpools
+Pirate raids on
+trade
+When
+Always
+Always
+Wakes at minute
+20 in the central
+sea
+Every 3 minutes
+(see Map)
+Every 4 minutes if
+unhired
+Risk
+20% are trapped: 3
+drowned sailors or a
+burrowed Ghost Worm
+4 Lost One sentinels
+(Steam-level)
+6,000 HP; grabs one ship
+ata time (30 dps) and
+sinks transports
+Ship damage, blindness
+Loses Trade Ships
+Reward
+600 Brass, 30 Doubloons
+1 relic, an 800-lchor vent
+The player who dealt the
+most damage gets 300
+Ichor, 300 Doubloons,
+and Kraken Ink (their
+fleet is invisible for 60 s,
+once)
+Cover for raids
+All neutral strength scales with the lobby's Neutral Power setting: Low
+damage, High +30%.
+Diplomacy, trade, and teams
+-30% HP and
+In Open diplomacy each player sets a stance toward every other player; in Locked teams
+the stances are fixed at Allied between teammates and War with everyone else.
+Stance
+War
+Units
+fight?
+Yes
+Can pass through
+territory?
+Yes, by fighting
+Shared
+vision
+No
+Notes
+Default in free-for-all
+Page 26 of 37

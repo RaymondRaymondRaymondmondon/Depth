@@ -1,0 +1,51 @@
+Fathoms — RTS Design Document
+Unit
+Rifleman
+Harpooner
+Lancer
+Bell Guard
+Mortar
+Gunboat
+Torpedo Boat
+Ironclad
+Airship
+Strong against
+Harpooner
+Lancer, Bell Guard, Scout Rider
+Rifleman, Mortar
+Rifleman, Lancer, buildings
+Buildings, clumped infantry
+Torpedo Boat, buildings, shore
+Ironclad
+Gunboat, shore targets
+Buildings, slow ground units
+Weak against
+Lancer, Bell Guard
+Rifleman
+Harpooner, Bell Guard
+Harpooner, Mortar
+Lancer, anything that reaches it
+Ironclad
+Gunboat, Sloop
+Torpedo Boat
+Flak Tower, Coastal Battery
+Morale and supply (Call of War's rule)
+• Every unit has morale from O to 100. Inside your territory (any Lighthouse, Harbor, or
+Colony Hall radius) it recovers 5 per 10 s.
+• Outside your territory it drops 2 per 10 s; enemy territory doubles that.
+• Below 50 morale: -10% damage. Below 25: -25% damage and -10% speed.
+• Medics, heroes, and the Supply Caches tech slow the loss. An army can push about 4
+minutes into enemy land before it weakens.
+• Ships beyond coaling range (30 tiles from a friendly Harbor, Dock, or Coaling Station)
+move 25% slower.
+Landings. A Transport unloads 1 unit per second on a beach. Units that landed in the last
+10 s take +25% damage (Amphibious Drills removes this). Landing directly under a
+Watchtower or Coastal Battery is meant to hurt.
+Status effects (from Depth's roguelike, used by Unique units and heroes): Stun (cannot
+act), Bleed and Poison (damage over time; Medics cure them), Weaken (-20% attack or
+speed), Strengthen (+20% attack or speed). Durations are 3-8 s; the same effect does not
+stack, it refreshes.
+Control. Box select, right-click to act, Ctrl+number groups, formations (line, box,
+staggered), stances (aggressive, defensive, stand ground, passive), patrol, attack-move,
+idle-worker and idle-army hotkeys, and waypoints for trained units, following AoE2's
+Page 16 of 37

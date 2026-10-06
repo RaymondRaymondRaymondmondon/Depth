@@ -1,0 +1,58 @@
+Fathoms — RTS Design Document
+Stance
+Ceasefire
+Peace
+Open
+Harbors
+Allied
+Units
+fight?
+No
+No
+No
+No
+Can pass through
+territory?
+No (units are
+pushed out)
+No
+Yes
+Yes
+Shared
+vision
+No
+No
+No
+Yes
+Notes
+Lasts 3 minutes, then returns
+to War unless changed
+Allows trade routes and
+tribute
+Can dock and refuel (coaling
+range) at their Harbors
+Shared vision, can garrison in
+each other's buildings, counts
+as a team for victory
+• Changing stance. Offering a better stance needs the other player to accept.
+Downgrading is one-sided but announced to everyone, and breaking Allied or Peace
+into War gives the betrayer's units -15 morale and pauses their Trade Ships for 60 s, so
+a backstab is possible but costly.
+• Tribute. Send any resource or Doubloons to a player at Peace or better; 10% is lost as a
+fee (0% for allies in Locked teams).
+• Trade routes. A Trade Ship sails between your Exchange and another player's
+Exchange (Peace or better) or a pirate cove. Each round trip pays both ends Doubloons
+equal to 0.15 x the distance in tiles (a 100-tile route pays 15 per trip; a round trip takes
+about 2 minutes, so 6 ships earn about 45 Doubloons per minute). Longer, more
+exposed routes pay more.
+• Communication. Team and all chat, map pings (attack here, defend here, danger), and a
+diplomacy panel listing each player's stance, score, and islands, in the spirit of Call of
+War's diplomacy screen.
+• Team victory. Allied players win together. In Open diplomacy, alliances must be at least
+5 minutes old at the moment of victory to share it, so no one allies at the last second to
+claim a win.
+Victory conditions and scoring
+The first player or alliance to meet any enabled victory wins; if the time cap arrives first,
+the highest score wins. Every countdown below is shown to all players so everyone can
+react.
+Page 27 of 37

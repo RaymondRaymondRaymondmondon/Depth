@@ -1,0 +1,111 @@
+Fathoms —
+RTS Design Document
+Building
+Palisade
+Stone Seawall
+Colony Hall
+Workshop
+Siege Works
+Exchange
+Coastal
+Battery
+Coaling Station
+Chapel of the
+Deep
+Airship Hangar
+Flak Tower
+Faction
+Wonder
+Era
+Sail
+Steam
+Steam
+Steam
+Steam
+Steam
+Steam
+Steam
+Steam
+Leviathan
+Leviathan
+Leviathan
+Cost
+2 Brass per tile
+6 Brass per tile
+250 Brass, 50 Coal
+(plus Colony Ship)
+175 Brass
+200 Brass, 50 Coal
+175 Brass
+150 Brass, 60 Coal
+120 Brass
+150 Brass,
+50 Ichor
+250 Brass, 150 Coal
+120 Brass, 60 Coal
+1,000 Brass, 500
+Coal, 300 Ichor
+150 per
+tile
+1,200
+per tile
+1,800
+1,500
+1,500
+1,500
+1,800
+1,000
+1,200
+1,800
+1,000
+6,000
+Build
+time
+3 s per
+tile
+8 s per
+tile
+100 s
+50 s
+60s
+50 s
+60s
+40s
+60s
+80 s
+50 s
+240 s
+Role
+Cheap wall
+Heavy wall; blocks landings on
+beaches
+Second town center on a
+claimed island: trains workers,
+drop-off for everything, +8
+pop; max 3 per player
+Combat upgrades (Forge line)
+Mortars
+Resource trading, Trade Ships,
+Doubloon sales
+Range 9 gun that deals +100%
+to ships; garrisons 5
+Extends coaling range 30 tiles;
+Coal drop-off from boats
+Relic storage (relics only count
+when garrisoned here or at a
+Harbor); faction healer units
+Airships
+Range IO anti-air, +300% to
+airships; cannot hit ground
+Each faction's great work;
+grants its passive and counts
+as 150 score (see factions)
+Garrisoning. Workers, infantry, and Medics can hide in Harbors, Colony Halls,
+Watchtowers, and Coastal Batteries. Garrisoned units heal 1 HP per second and add
+firepower.
+Losing a Lighthouse. The island stays yours until an enemy builds their own Lighthouse
+there; your buildings on it keep working but units there lose morale (see combat rules).
+Eras and technology
+There are three eras. Advancing is researched at the Harbor, needs two buildings from the
+current era, and pauses worker training at that Harbor while it rUns.
+Page 10 of 37

@@ -1,0 +1,96 @@
+Fathoms —
+RTS Design Document
+Tech
+Field
+Medicine
+Copper
+Sheathing
+Fortified
+Masonry
+Amphibious
+Drills
+Elite
+upgrades
+Faction techs
+Building
+Barracks
+Dock
+Workshop
+Barracks
+Unit's
+building
+Varies
+Era
+Steam
+Steam
+Steam
+Steam
+Leviathan
+Steam and
+Leviathan
+Cost
+200 Food, 100
+Brass
+200 Brass, 50
+Coal
+200 Brass
+150 Food, 150
+Brass
+About 2x the
+unit's cost + 25
+Ichor
+See factions
+Effect
+Medics heal +50%;
+infantry regen 0.5 HP/s
+out of combat
+Ships +10% speed
+Buildings +20% HP;
+towers +1 range
+Removes the landing
+penalty; transports
+unload 2x faster
+Each unit line becomes
+Elite: +20% HP, +15%
+attack
+Two per faction
+Every tech costs the same for every faction, so no faction can out-tech another by
+default. Faction differences live in their mechanics and unique content.
+Shared units and combat rules
+Every faction has this roster (reskinned to fit it) plus its own unique units. Stats below
+were tuned in a combat simulator so each counter wins an equal-cost fight with about 55-
+65% of its army left (see Balance).
+Damage formula. Damage = attack + bonus against the target's tags - the target's armor
+of the matching type, minimum 1. There are three damage types: melee (reduced by melee
+armor), pierce (reduced by pierce armor), and blast (ignores armor, and deals 50% splash
+within 1.5 tiles). Speeds are in tiles per second; ranges in tiles.
+Land units
+Unit
+Worker
+Era
+sail
+Buildin
+g
+Harbor
+cost
+50 F
+Pop
+25
+Attack
+3 melee
+Reload
+2.0
+Range
+0.5
+Speed
+1.0
+Armor
+(melee/
+pierce)
+Tags
+infantr
+Bonuse
+S
+Train
+20s
+Page 13 of 37

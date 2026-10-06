@@ -1,0 +1,60 @@
+Fathoms — RTS Design Document
+Connection modes
+Mode
+LAN
+Virtual LAN
+(testing)
+Direct IP
+Join code (main
+mode)
+Steam (if ever
+released there)
+Who it's for
+Players on the same
+network
+Friends far away, early
+in development
+Friends far away, with a
+technical host
+Friends far away
+Anyone
+How it connects
+Host broadcasts on the
+local network; joiners see it
+under Browse
+Everyone installs ZeroTier
+or Tailscale, then uses LAN
+mode
+Host forwards one UDP
+port on their router; joiners
+type the host's address
+Lobby server matches the
+code to the host, punches
+through routers, relays if
+needed
+Steam's relay network and
+friends list
+Needs a
+server?
+No
+No (free third-
+party app)
+No
+Yes (small
+cloud server)
+No (Steam
+provides it)
+Technical requirements for Claude Code
+• Library. Valve's open-source GameNetworkingSockets (C++): reliable and unreliable
+messages, encryption, and ICE/STUN support for connecting through routers. ENet is
+a simpler fallback.
+• Message types. Reliable ordered: commands, chat, diplomacy, lobby changes.
+Unreliable: world updates (a lost one is replaced by the next).
+• World updates. Delta-compressed: only units that changed since the client's last
+acknowledged update are sent. Positions quantized to 1/16 tile.
+• Fog-of-war filtering. The host never sends a unit's position to a player who can't see it.
+This saves bandwidth and prevents map-hacking.
+• Bandwidth estimate. A busy 6-player match (about 360 units, 150 buildings, neutrals)
+needs roughly 10-20 KB/s per client after filtering, so the host uploads about 1 Mbps.
+That fits normal home internet.
+Page 34 of 37

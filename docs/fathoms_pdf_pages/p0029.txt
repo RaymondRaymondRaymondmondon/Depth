@@ -1,0 +1,30 @@
+Fathoms — RTS Design Document
+Match pacing
+A standard 4-player match should reach its deciding fights around minutes 20-25. Timers
+on neutral events are fixed so every match builds to the same climax.
+1. Minutes 0-3: opening. Train workers, send the SCOUt Skiff out, fish, and build Cottages
+and a Farmstead or Mine Shed.
+2. Minutes 3-7: first expansion. Claim the nearest islands with Lighthouses, especially
+the Coal isle. First pirate trades. Sail-era raids with Sloops, War Canoes, or Merfolk
+swimmers.
+3. Minute 6: tribes wake up. First tribal raids. Decide to conquer, pay tribute, or ally them.
+4. Minutes 7-9: Steam Era. Gunboats, Lancers, heroes, and Colony Ships arrive. Fights
+begin over ruin isles for the first Ichor.
+5. Minute 10: volcanoes wake. First eruption. The Sun God becomes the mid-game prize.
+6. Minutes 10-16: the mid-game. Naval battles over contested islands, Pirate Squadrons
+hired against the leader, alliances forming in free-for-all.
+7. Minute 15: Ghost Pirate Ship appears on Medium and Large maps.
+8. Minutes 16-19: Leviathan Era. Airships, elite units, and the first ultimates.
+9. Minute 20: the Kraken wakes in the central sea.
+10. Minutes 20-30: endgame. Relic and Volcano countdowns, final invasions of home
+islands, or the score finish at the time cap.
+Faction timing windows (from the balance model): Islanders and Merfolk want to press in
+Sail and early Steam; Crustaceans and Clockwork are strongest from Steam onward;
+Nautilus and Atlanteans want the game to reach Leviathan.
+Balance
+Every counter in the shared roster wins an equal-cost fight with 57-66% of its army left,
+every unique unit sits within -27% to +10% of the shared units' cost-efficiency (lower
+where it has a strong ability), and the six factions land within ±1.3% of each other in
+overall strength. These numbers come from a combat simulator and a phase model built
+for this document; they are a starting point that playtesting must confirm.
+Page 29 of 37

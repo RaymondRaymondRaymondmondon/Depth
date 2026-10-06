@@ -1,0 +1,44 @@
+Fathoms — RTS Design Document
+Tribal Towns
+Tribal towns guard fertile islands. A small town has a Longhouse (3,000 HP), 8 warriors,
+and 4 spear-throwers; a large town adds a mini-boss: the Tribal Chieftain (1,200 HP, war
+cry buffs warriors +20%) or the Witch Doctor (900 HP, poisons and heals tribesmen).
+Option
+Conquer
+Tribute
+Kinship (Islanders
+only)
+Ignore
+Cost
+An army of roughly 800-1,000
+resources in Steam
+200 Food and 100 Brass every 5
+minutes
+Shaman ritual, 150 Food and 100
+Doubloons once
+Result
+Loot: 400 Brass, 200 Food, 80
+Doubloons; the island is free to
+claim; 25% chance of a relic
+Truce: the town stops raiding you
+and sells Tribal Warriors for 50
+Food each (max 6 alive)
+Full ally; see Islanders
+It raids you
+• Raids. From minute 6, each town sends 4 warriors (Sail), 6 (Steam), or 8 plus a
+champion (Leviathan) every 5 minutes at the nearest player island it is not at peace
+with, or at whoever last attacked it.
+• Town growth. Towns that are ignored add 1 warrior per minute (cap 16), so leaving them
+alone gets harder over time.
+Volcano Islands
+The highest-risk, highest-reward land on the map.
+• Rewards. Two volcanic Ichor vents (3,000 Ichor each, gathered 60% faster than ruin
+vents) and the summit altar, which gives its owner +1 Ichor per second and is the
+objective of Volcano Ascension victory.
+• The Sun God guards the altar: 4,000 HP, a fire-beam that deals 60 blast damage in a
+line, and a Strengthen aura on 6 fire imps. He reforms 8 minutes after defeat if nobody
+holds the altar.
+• Eruptions. The volcano sleeps until minute IO, then erupts every 4 minutes. A 30 s
+tremor warning shows glowing cracks along 3 lava paths. Lava flows for 40 s at 40
+damage per second and destroys buildings on its paths. An ash cloud follows for 60 s
+Page 25 of 37

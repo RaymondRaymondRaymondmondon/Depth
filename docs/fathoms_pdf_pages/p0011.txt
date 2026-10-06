@@ -1,0 +1,95 @@
+Fathoms —
+RTS Design Document
+Advance
+Sail Steam
+Steam
+Leviathan
+Cost
+400 Food, 150
+Brass
+800 Food, 600
+Brass, 150 Ichor
+Time
+90s
+120 s
+Requires two of
+Barracks, Stable, Dock,
+Farmstead, Mine Shed,
+Lighthouse on a second island
+Workshop, Siege Works,
+Exchange, Coastal Battery,
+Colony Hall, Chapel of the Deep
+Target
+timing
+Minute 7-
+9
+Minute
+16-19
+The first Ichor comes from your nearest ruin isle's vent (800 Ichor, equidistant for every
+player), so the Leviathan race always starts with a fight or a deal over ruins.
+Economy technologies
+Tech
+Cast Nets
+Iron Plows
+Pickaxes
+Handcarts
+Trawlers
+Steam
+Threshers
+Pneumatic
+Drills
+Ichor
+Condensers
+Coal Efficiency
+Building
+Farmstead
+Farmstead
+Mine Shed
+Harbor
+Farmstead
+Farmstead
+Mine Shed
+Mine Shed
+Dock
+Era
+Sail
+Sail
+Sail
+Sail
+Steam
+Steam
+Steam
+Steam
+Steam
+Cost
+100 Food, 50
+Brass
+125 Food,
+75 Brass
+100 Food, 75
+Brass
+150 Food, 50
+Brass
+200 Food, 150
+Brass
+250 Food, 150
+Brass, 50 Coal
+200 Food, 150
+Brass, 50 Coal
+200 Brass, 100
+Coal
+150 Brass, 100
+Coal
+Effect
+Fishing +15%
+Farms +15%
+Brass and Coal mining
+Workers carry +3 and
+move +10%
+Fishing +15%; fishing
+boats +20% HP
+Farms +15%
+Mining +15%
+Ichor gathering +25%
+Coal upkeep -33%
+Page 11 of 37

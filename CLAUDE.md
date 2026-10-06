@@ -593,3 +593,14 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   - Props: `tools/artgen/ballpit_props.py` -> `assets/ballpit/*.glb` (blasters, knife, vacuum, foam finger, cannon, tank, RC car, drone, health box, bomb, flag); the code-built shapes are the fallback.
 - **The shared supply:** `World::BallsTotal()` never changes (pits + loose/live/held + belt + hoppers); a test checks it.
 - **Checks:** `--ballpit-test`, `--ballpit-net-test`, `--net-loop ballpit [lagMs] [mem]`, `--ballpit-sim <n> <mode> <players>`. Shots `bp_*` (`bp_perf` is the spec's frame-rate load: about 15 ms on this PC), `arcade_ballpit`.
+
+## Fathoms (arcade game, Strategy; build log in docs/FATHOMS_PROGRESS.md)
+- **Design:** `Reference_For_Future_MP_Games/Fathoms — RTS Design Document.pdf` (OCR in `docs/fathoms_pdf_pages/`). A 2-6 player steampunk island RTS: six factions, three eras (Sail, Steam, Leviathan), a generated archipelago with fairness rules, neutral powers.
+- **Code (namespace `fa`):**
+  - `fathoms.h/.cpp`: the headless core at 20 ticks a second (`World::Step`, `Apply(Command)`, A* on the tile grid with flat scratch arrays, an 8-tile unit grid for target scans). All numbers in `data/fathoms/fathoms_balance.json` (`fathoms_data.cpp`; keys starting `_` are comments).
+  - `fathoms_map.cpp` (`GenerateMap`, `CheckFairness`), `fathoms_neutral.cpp` (coves, tribes, volcanoes, ruins, the Kraken, the Ghost Ship, weather), `fathoms_faction.cpp` (the six factions, auras via `FactionAuras` each tick), `fathoms_ai.cpp` (`AiThink`), `fathoms_test.cpp`.
+  - `fathoms_net.*`: `FathomsHost`; per-viewer fog-filtered snapshots; guests rebuild the map from the Settings (`World::Init` is deterministic). **Any new field a screen draws goes in the Visit**; `--fathoms-net-test` checks the mirror rewrites byte-identical.
+  - `fathoms_game.cpp` (`Scene::Fathoms`), `fathoms_art.cpp` (code art), `sound_fathoms.inl`.
+- **All play is a `fa::Command`** (the scene's `Issue`); never call World actions from the scene.
+- **Never hold a `Unit*` across `World::Step`**: spawns can grow the units vector (Step reserves ahead, but tests must re-fetch with `U(id)`).
+- **Checks:** `--fathoms-test [stage]`, `--fathoms-balance`, `--fathoms-sim N [players] [minutes] [ai]`, `--fathoms-net-test`, `--net-loop fathoms [lagMs] [mem]`. Shots `fa_*`, `arcade_fathoms`.

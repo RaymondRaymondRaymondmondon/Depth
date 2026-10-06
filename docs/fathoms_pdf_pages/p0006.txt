@@ -1,0 +1,60 @@
+Fathoms — RTS Design Document
+Terrain
+Beach
+Grassland
+Jungle
+Hills and
+cliffs
+Mountains
+Lava flow
+Kelp forest
+(sea)
+Currents
+Movement
+Land 100%
+Land 100%
+Land
+Land
+Impassable
+Impassable while
+active
+Ships
+One-way, +50%
+ship speed
+Combat effect
+Units that landed in the
+last 10 s take +25%
+damage
+Ranged attacks into
+jungle deal -25%; units
+inside are hidden until
+an enemy is within 4
+tiles
+Defenders on higher
+ground deal +25% and
+take -15%
+40 damage per second
+Hidden like jungle
+Notes
+Where amphibious
+assaults happen
+Best building ground
+Ambush terrain
+Towers here get +2 range
+Blocks line of sight
+Only during eruptions
+Spreads if Merfolk own it
+Fixed lanes that connect
+regions
+Weather rolls every 3 minutes on Medium and Large maps: calm (60%), fog bank (20%,
+vision -50% in its area), storm (15%, ships in it take 2 damage per second and move at
+60%), whirlpool (5%, pulls ships toward its center for 45 s). A storm or whirlpool never
+spawns within 20 tiles of a home island.
+Fairness rules the generator must follow
+1. Home islands sit on a circle around the center, evenly spaced by angle.
+2. Each player's nearest Coal isle, Mining isle, and Fertile isle are the same distance (±2
+tiles) from their Harbor.
+3. Each player has one tribal town and one pirate cove at the same distance, or shares an
+equidistant one with a neighbor.
+4. Volcanoes and the richest ruins sit in the center, equally far from everyone.
+Page 6 of 37

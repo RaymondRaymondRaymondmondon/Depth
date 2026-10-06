@@ -42,6 +42,10 @@ namespace bp {   // Ball Pit Brawl's host (ballpit_net.cpp)
 std::unique_ptr<arcade::GameHost> MakeBallPitHost();
 uint32_t BallPitDataHash();
 }
+namespace fa {
+uint32_t FathomsDataHash();
+std::unique_ptr<arcade::GameHost> MakeFathomsHost();
+}
 namespace fl {   // The Flight's host (flight_net.cpp)
 std::unique_ptr<arcade::GameHost> MakeFlightHost();
 uint32_t FlightDataHash();
@@ -54,7 +58,7 @@ const GameInfo& Info(int g) {
         {"Flats Duel", 2, 2, false, 0, false},
         {"The Trawl", 1, 6, true, 20, true},
         {"Scuttle", 2, scuttle::MAX_SEATS, false, 0, true},
-        {"Fathoms", 2, 6, true, 20, false},
+        {"Fathoms", 2, 6, true, 10, true},
         {"Red Tide", 1, 4, true, 20, true},
         {"The Flight", 2, 6, true, 20, true, false},
         {"Mouthful", 1, 6, true, 20, true, false},
@@ -171,6 +175,7 @@ uint32_t DataHash() {
     w.U32(fp::FowlDataHash());
     w.U32(nc::NoclipDataHash());
     w.U32(bp::BallPitDataHash());
+    w.U32(fa::FathomsDataHash());
     return Fnv1a(w.b.data(), w.b.size());
 }
 
@@ -187,6 +192,7 @@ std::unique_ptr<GameHost> MakeGameHost(int g) {
         case G_FOWL: return fp::MakeFowlHost();
         case G_NOCLIP: return nc::MakeNoclipHost();
         case G_BALLPIT: return bp::MakeBallPitHost();
+        case G_FATHOMS: return fa::MakeFathomsHost();
         case G_TEST_DRIFT: return std::make_unique<DriftHost>();
         default: return nullptr;   // Flats Duel, the Trawl, Fathoms and the fifth game come aboard in stages 12-14 and later
     }

@@ -1,0 +1,53 @@
+Fathoms — RTS Design Document
+Cutter Raid
+Pirate
+Squadron
+Black Flag
+Armada
+Intel
+Ransom
+Era
+Sail
+Steam
+Leviathan
+Any
+Any
+price
+150 Doubloons
+350 Doubloons
+700 Doubloons
+60 Doubloons (region) • 100
+Doubloons (a player's base)
+Half the unit's cost in
+Doubloons
+What you get
+2 Sloops and 1 Gunboat
+attack your chosen target for
+2 minutes
+4 Gunboats and a Transport
+that lands 10 pirates, for 3
+minutes
+2 Ironclads, 4 Gunboats, and
+16 pirates, for 3 minutes
+Reveals it for 30 s
+Buy back your units the
+pirates captu red
+• Counter-bids. The target of a raid gets a warning 20 s before the pirates arrive and can
+pay 125% of the contract to call them off, or 150% to send them back at whoever hired
+them. The hirer can top that bid by another 25%. Each raid contract can be bid on at
+most twice, so bidding wars end quickly.
+• Limits. One raid contract per target at a time; each cove takes a new contract every 90
+s. You cannot hire pirates against an ally.
+• Reputation. Hiring +5, trading +1 per 100 resources, sinking pirate ships -30, attacking
+a cove -100. Every 25 reputation shifts prices by 5%. Below -50, that cove refuses you
+and its raiders target you when unhired.
+• Unhired pirates raid the most valuable trade route on the map every 4 minutes (a
+Trade Ship route's owner gets a 20 s warning).
+• Storming the cove. Destroy the fortress and defeat Blackbeard (1,500 HP; pistol
+volleys, calls 4 pirates every 30 s). The cove becomes yours: your deals cost 50% less,
+other players can still trade there at +25% and you receive that fee. It is a Pirate Ship
+nod from the platformer.
+• Ghost Pirate Ship (minute 15, Medium and Large maps): a spectral ship roams the map,
+moving and attacking faster than normal ships (1,200 HP). Sinking it pays 400
+Doubloons and 1 relic.
+Page 24 of 37

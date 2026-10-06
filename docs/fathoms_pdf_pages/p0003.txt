@@ -1,0 +1,47 @@
+Fathoms — RTS Design Document
+Setting
+Starting
+resources
+Starting era
+Neutral powers
+Peace timer
+Diplomacy
+Reveal map
+Game speed
+Al difficulty
+Random seed
+Options
+Standard, High, Very High
+Sail, Steam
+Pirates, Tribes, Volcanoes, Kraken
+each on or off; strength Low / Normal
+/ High
+Off, 3, 5, 8 minutes (no player-vs-
+player attacks allowed)
+Locked teams or Open diplomacy
+(players can change stances)
+Normal fog, Explored, All visible
+Deckhand (easy), Mate, Captain,
+Admiral (hard)
+Random or typed in (lets friends
+replay a map they liked)
+Default
+Standard
+Sail
+All on, Normal
+Off
+Locked in team games, Open in
+Normal fog
+Mate
+Random
+Faction selection rules. Duplicate factions are allowed. A Random pick shows a question
+mark until the match starts. Each player sees the others' picks only when the host locks
+the lobby, so no one counter-picks at the last second.
+Handicaps. The host can give any player +10% to +30% gather rate. This keeps games fun
+when skill levels differ a lot among friends.
+Map and archipelago generation
+Maps are tile grids generated from a seed with rotational symmetry, so every player gets
+the same home island and the same distances to key sites. The center of the map holds
+the richest and most dangerous sites.
+Map sizes
+Page 3 of 37

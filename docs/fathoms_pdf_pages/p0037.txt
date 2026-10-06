@@ -1,0 +1,14 @@
+Fathoms — RTS Design Document
+7. Neutral powers. Tribes, pirates (including counter-bids), volcanoes, the Kraken,
+weather. Check: a 4-player match hits the Match pacing milestones.
+8. Factions, part 2, and internet play. Crustacean Brood, Merfolk, Atlanteans, ultimates,
+wonders, diplomacy, the lobby/relay server with join codes, Al difficulty levels. Check:
+a 6-player match over the internet with join codes.
+Tips for working with Claude Code on this
+• Hand it this document and one stage at a time; ask it to write tests for the damage
+formula and the map fairness rules.
+• Keep every number in the data file so balance changes never touch code.
+• Ask it to port the balance simulator used for this document into a small command-line
+tool in the project, so any stat change can be checked against the Balance tables
+before a playtest.
+Page 37 of 37

@@ -1,0 +1,51 @@
+Fathoms — RTS Design Document
+Game
+Call of War
+Polytopia
+Pharaoh (Ozymandias)
+Depth (roguelike)
+What Fathoms borrows
+Terrain modifiers, morale and supply away from
+home, stack efficiency, upkeep, diplomacy stances,
+Al takeover of inactive players
+Short matches, compact tech, score victory at the
+time limit, small readable maps
+Housing caps and base needs, gods that bless or
+punish
+Factions, bosses, relics, and status effects (stun,
+bleed, poison, weaken, strengthen)
+Match setup and lobby
+The host picks every match setting in the lobby; each player picks a faction, a color, and a
+team, then pulls their ready lever.
+Setting
+Players
+Teams
+Map size
+Map type
+Victory
+Time cap
+Options
+2-6 humans, empty slots filled by Al
+or left closed
+Free-for-all, 2v2, 3v3, 2v2v2, 4v2
+(handicapped), or locked custom
+teams
+Small, Medium, Large (auto-picked
+from player count, host can override)
+Archipelago, Twin Continents (two
+big landmasses plus small islands),
+Ring of Fire (volcano center),
+Scattered Isles (many tiny islands)
+Conquest, Relics, Volcano Ascension,
+Score only; any combination can be
+on
+20, 25, 30, 40 minutes, or none
+Default
+2
+Free-for-all
+Auto
+Archipelago
+Conquest + Relics + Volcano,
+Score at time cap
+30
+Page 2 of 37

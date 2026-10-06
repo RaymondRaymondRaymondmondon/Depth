@@ -1,0 +1,55 @@
+Fathoms — RTS Design Document
+• Responsiveness. A click shows its marker and plays the unit's acknowledgment sound
+instantly on the client; the unit starts moving when the host confirms (typically 50-150
+ms), which is normal for RTS games.
+• Version check. Joining requires the same game build and the same balance-file hash,
+so no one plays with different numbers.
+• Disconnects. The game pauses up to 2 minutes for a reconnect. After that, an Al takes
+over the player's faction (as Call of War does for inactive players) until they return.
+• Autosave. The host saves the match every 3 minutes. If the host crashes, the host can
+reload the save and the same lobby code lets everyone rejoin.
+• Pausing. Each player gets 3 pauses of up to 60 s per match.
+• Replays (later). Recording the host's full world updates to a file allows watching a
+match again (a command-only replay would need a deterministic simulation, which this
+design avoids).
+AI opponents
+The Al fills empty lobby slots, replaces disconnected players, and lets you test the game
+alone. It plays by the same rules as humans (no extra resources or vision below Admiral)
+and issues the same commands a player would.
+Difficulty
+Deckhand
+Mate
+Captain
+Admiral
+Reaction
+delay
+1.5 s
+0.8 s
+Economy
+Reaches Steam
+around minute 12
+Steam around
+minute 10
+Steam around
+minute 9
+Steam around
+minute 8
+Army behavior
+Defends only; attacks after
+minute 20
+One attack wave per era;
+hires pirates rarely
+Scouts, counter-builds
+against what it sees, raids
+trade, uses heroes and
+ultimates
+Multi-front attacks, bidding
+wars with pirates, times
+volcano eruptions
+Cheats
+None
+None
+None
+gather rate
+How it is built. A small set of managers that each run a few times per second:
+Page 35 of 37

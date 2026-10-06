@@ -1,0 +1,46 @@
+Fathoms —
+RTS Design Document
+Size
+Players
+3-4
+5-6
+Small
+Medium
+Large
+2
+Grid
+(tiles)
+128 x 128
+176 x 176
+224 X
+224
+Islands
+12
+20
+30
+Volcanoes
+2
+Pirate
+coves
+1
+2
+3
+Tribal
+towns
+2
+4
+6
+Sunken ruins
+(relics)
+3
+5
+7
+Coal
+islands
+4
+6-8
+10-12
+One tile is about the width of a worker. A worker crosses a Medium map's full width in
+about 3 minutes on foot-equivalent speed; a Steam ship does it in about 75 seconds.
+Island types
+Page 4 of 37

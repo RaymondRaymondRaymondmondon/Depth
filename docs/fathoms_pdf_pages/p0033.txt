@@ -1,0 +1,32 @@
+Fathoms — RTS Design Document
+• Six-player games use a lower population cap (60) so that no single player can field an
+army large enough to end the game in one push, and so network traffic stays
+manageable.
+Playtest tuning plan
+1. Put every number in this document in one data file (for example
+fathoms _ balance . json ) that the game loads at startup, so tuning never requires
+recompiling.
+2. Log every match: faction, winner, era timings, units built, and resources gathered.
+3. After 20+ matches, any faction winning over 60% or under 40% of games gets one
+change of about 5% (a cost, HP, or gather rate), then retest.
+4. Change one thing at a time and record it in a balance changelog.
+Multiplayer and networking
+Fathoms uses a host-authoritative model: one player's game (or a headless server) runs
+the real simulation, and everyone else sends commands and receives updates. LAN works
+through local discovery; friends far away connect through a small lobby and relay server,
+or through a virtual-LAN app while that server is being built.
+How the pieces fit
+• Host (authoritative simulation). Runs the full game at 20 ticks per second, validates
+every command (the player owns the unit, can afford it, the target is legal), and sends
+each client only what that client can see.
+• Clients. Send commands (move, attack, build, train, research, diplomacy, chat). They
+render the world by smoothly interpolating between the host's updates about 100 ms
+behind, so movement looks smooth even with lag.
+• Lobby server. A small program on a cheap cloud server. It creates join codes, tells
+players how to reach the host, helps connect through home routers (NAT hole
+punching), and relays traffic when a direct connection fails.
+• Headless server (optional, later). The same game code built without graphics, running
+on the cloud server so no player has to host.
+The arcade menu, lobby, chat, and connection code are one shared networking layer that
+all four Deep Arcade games Use.
+Page 33 of 37

@@ -1,0 +1,34 @@
+Fathoms — RTS Design Document
+1. Economy manager. Keeps workers training, balances gatherers against the targets in
+the Resources section, builds Cottages before hitting the pop cap.
+2. Expansion manager. Scores nearby islands (resources, distance, danger) and sends
+Lighthouse builders.
+3. Military manager. Tracks enemy unit types it has seen and builds the counter from the
+counter table.
+4. Neutral manager. Decides whether to conquer, pay tribute to, or ally each tribe; trades
+with and hires pirates; avoids lava paths.
+5. Diplomacy manager (Open diplomacy only). Offers peace to strong neighbors, allies
+against the score leader, and responds to human offers.
+6. Faction behaviors. Each faction adds one rule set: Islanders prioritize Kinship, Merfolk
+fight on kelp, Crustaceans keep molted units alive, Atlanteans gather relics, Clockwork
+guards its Coal, Nautilus picks Logbook cards by what it's facing.
+Build roadmap for Claude Code
+Build Fathoms in eight stages, each ending in something playable, and only start a stage
+once the previous one's check passes.
+1. Foundations. Balance data file, tile map, camera, selection, commands, and a fixed 20-
+tick simulation that takes commands as input (so networking plugs in later). Check:
+move workers around a hand-made island.
+2. Economy. Gathering, drop-offs, Harbor, Cottages, farms, the Exchange, population.
+Check: reach the worker targets from the Resources section alone.
+3. Combat. Shared land units, damage formula, counters, morale, the three eras, the
+Workshop techs. Check: equal-cost fights in-game match the Balance tables within
+about 10%.
+4. Islands and navy. Archipelago generator with the fairness rules, ships, transports,
+landings, Lighthouses, coaling range. Check: a full IVI against a basic Al on a generated
+map.
+5. LAN multiplayer. Shared arcade networking layer, lobby, host-authoritative updates,
+fog filtering, reconnects. Check: two computers on one network finish a match; then
+friends far away play it through ZeroTier or Tailscale.
+6. Factions, part 1. Nautilus Crew, Islanders, and Clockwork Foundry, with heroes. Check:
+all three pairings played several times each.
+Page 36 of 37
