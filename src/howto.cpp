@@ -114,7 +114,14 @@ const HowTo& Get(int key) {
                     "Birds pay money at the tally. Between hunts you have 45 seconds in the clubhouse: buy guns and attachments at the counter (Mr. Zappa has a deal just for you), crank the mystery-gun machine, play the slots and scratch-offs, or visit the raccoon's Slop Shop for cosmetics and sabotage.",
                     "Sabotage lands on your target's next hunt and everyone sees who bought it; every item has a counter (buy it before the hunt). Shooting the dog costs you a bird. Decoys have no eyes and cost $10. The armored duck's weak spot is its belly."};
         fw.keys = {{"Mouse", "aim"}, {"Left mouse", "shoot"}, {"Right mouse", "scope / both barrels"}, {"A / D", "step in your stall"}, {"Q / E", "lean"}, {"Ctrl", "crouch"}, {"R", "reload"}, {"1 / 2, wheel", "swap guns"}, {"H", "swap with the stall hook"}, {"V (hold)", "wipe a smudged lens"}, {"T", "scratch a ticket from your pocket"}, {"WASD, E", "walk the room, use a station"}, {"F", "pick up a gun from the floor"}};
-        wd.keys = {{"WASD / mouse", "move / look"}, {"Shift", "sprint"}, {"Space", "jump"}, {"Ctrl", "crouch (hold)"}, {"C", "squat (a quick duck)"}, {"Q + direction", "dive"}, {"Left mouse", "hold to charge, release to throw"}, {"Right mouse", "cancel the throw"}, {"Z / X", "curve left / right"}, {"E / R", "portal A / B"}, {"F or middle mouse", "catch (when the ring goes green)"}, {"H", "the key card"}, {"Tab (when out)", "the view: the whole court, your bench, or a teammate"}};
+        auto& bpz = H[18];
+        bpz.title = "Ball Pit Brawl";
+        bpz.lines = {"A foam-weapon shooter inside a four-level play centre. Everyone starts with a foam knife and a single-shot blaster; knockouts and objectives earn score, which you spend at your team's store (at your base, B) on better foam guns and darts. Spending never lowers your leaderboard score.",
+                     "Any live ball knocks a player out in one hit, until its first bounce. Grab balls from the pits (F) and throw them; or get on a cannon (E): six balls a second, but it overheats, and every ball comes back through one shared conveyor, so firing drains everyone's supply.",
+                     "Climb the cargo nets and ladders (slow, exposed), ride the slides (fast, one way), cross the rope bridges (your aim wobbles) or the netted routes (you can see through nets but not shoot through them). Crawl tunnels are knife only. Crouch in a ball pit to hide under the balls: darts can't reach you.",
+                     "Out of darts? Hold Q to vacuum up foam darts from the floor, anyone's. Score earned without being knocked out builds a streak that unlocks your three chosen rewards (4, 5, 6; pick them with L).",
+                     "Modes: free for all, team deathmatch, capture the flag (flags on each tower's roof), and disarm the bomb (no respawns in a round)."};
+        bpz.keys = {{"WASD / mouse", "move / look"}, {"Space", "jump"}, {"Ctrl or C", "crouch (in a pit: submerge)"}, {"Left mouse", "fire / throw a ball"}, {"Right mouse", "aim down the sights"}, {"1 / 2, wheel", "starter / your bought gun"}, {"R", "reload"}, {"V or middle mouse", "foam knife"}, {"Q (hold)", "vacuum darts"}, {"F", "grab a ball"}, {"E", "cannon, slide, plant, disarm, leave an RC car"}, {"B", "the store"}, {"4 5 6", "streak rewards"}, {"L", "choose rewards"}, {"T / G", "pick / use a joke item"}, {"Tab", "scores"}, {"H", "the key card"}};        wd.keys = {{"WASD / mouse", "move / look"}, {"Shift", "sprint"}, {"Space", "jump"}, {"Ctrl", "crouch (hold)"}, {"C", "squat (a quick duck)"}, {"Q + direction", "dive"}, {"Left mouse", "hold to charge, release to throw"}, {"Right mouse", "cancel the throw"}, {"Z / X", "curve left / right"}, {"E / R", "portal A / B"}, {"F or middle mouse", "catch (when the ring goes green)"}, {"H", "the key card"}, {"Tab (when out)", "the view: the whole court, your bench, or a teammate"}};
     }
     return H[std::clamp(key, 0, 23)];
 }
@@ -138,6 +145,7 @@ const HowTo& HowToFor(const Game& g) {
         case Scene::Warp: return Get(15);
         case Scene::Fowl: return Get(16);
         case Scene::Noclip: return Get(17);
+        case Scene::BallPit: return Get(18);
         default: return Get(0);
     }
 }
@@ -147,7 +155,7 @@ bool ActUsedIn(const Game& g, int a) {
     switch (g.scene) {
         case Scene::Platformer: case Scene::Abyss: return a <= A_MOD;
         case Scene::Dungeon: return a == A_SCOPE;
-        case Scene::Arcade: case Scene::RedTide: case Scene::Trawl: case Scene::Flight: case Scene::Mouthful: case Scene::NightOff: case Scene::Scuffle: case Scene::Warp: case Scene::Fowl: case Scene::Noclip: return a == A_TALK;
+        case Scene::Arcade: case Scene::RedTide: case Scene::Trawl: case Scene::Flight: case Scene::Mouthful: case Scene::NightOff: case Scene::Scuffle: case Scene::Warp: case Scene::Fowl: case Scene::Noclip: case Scene::BallPit: return a == A_TALK;
         default: return false;
     }
 }

@@ -1,0 +1,74 @@
+{
+  "_source": "Ball Pit Brawl - Game Design Spec.pdf (Reference_For_Future_MP_Games). Numbers from the spec's tables; where the OCR lost a cell the default is noted in docs/BALLPIT_PROGRESS.md.",
+  "player": {
+    "height": 1.75, "crouch_height": 1.1, "submerged_height": 0.55, "radius": 0.3, "eye_from_top": 0.12, "gravity": 9.81,
+    "run": 5.5, "crouch": 2.5, "jump_height": 1.0, "climb": 1.5, "tunnel": 2.0, "slide": 9.0, "bridge": 4.0, "wade": 2.0, "submerged": 1.0,
+    "air_control": 0.35, "step_up": 0.55, "safe_fall": 3.0, "fall_damage_per_m": 30, "bridge_spread": 1.3, "flag_speed": 0.9, "vacuum_speed": 0.7
+  },
+  "health": { "max": 100, "regen_after": 4, "regen_rate": 20, "respawn": 5 },
+  "knife": { "damage": 50, "cooldown": 0.6, "reach": 2.0 },
+  "balls": {
+    "radius": 0.075, "throw_speed": 25, "throw_windup": 0.3, "throw_loft_deg": 3, "grab_time": 0.4, "cannon_speed": 40, "gravity_scale": 0.6,
+    "total": 2600, "hopper": 40, "conveyor_time": 8, "cannon_rate": 6, "cannon_yaw_deg": 60, "cannon_pitch_deg": 20, "cannon_mount": 0.5,
+    "cannon_heat": 3, "cannon_cool": 2
+  },
+  "darts": { "floor_life": 60, "cap": 400, "start": 12, "max": 60, "vacuum_range": 4, "vacuum_cone_deg": 35, "vacuum_rate": 10 },
+  "score": { "ko": 100, "cannon_ko": 50, "assist": 50, "capture": 300, "return": 100, "plant": 200, "defuse": 300, "assist_window": 5 },
+  "store": { "dart_pack": 12, "dart_pack_cost": 50, "disarm_kit": 200, "safe_seconds": 3, "joke_cooldown": 10 },
+  "objectives": { "flag_return": 20, "plant": 4, "fuse": 40, "defuse": 6, "defuse_kit": 3, "round_time": 120, "bomb_rounds": 7, "bomb_swap": 6 },
+  "guns": [
+    { "key": "starter", "name": "Single-shot blaster", "cost": 0, "damage": 35, "mag": 1, "rate": 1, "reload": 1.0, "speed": 20, "gravity": 0.5, "spread": 1.2, "role": "Starter; 3 hits to knock out" },
+    { "key": "pistol", "name": "Semi-auto dart pistol", "cost": 150, "damage": 25, "mag": 8, "rate": 3, "reload": 1.2, "speed": 20, "gravity": 0.5, "spread": 1.4, "role": "Cheap first upgrade" },
+    { "key": "revolver", "name": "Six-shot revolver", "cost": 300, "damage": 30, "mag": 6, "rate": 2, "reload": 1.6, "speed": 20, "gravity": 0.5, "spread": 0.9, "role": "Reliable mid-range sidearm" },
+    { "key": "dual", "name": "Dual mini blasters", "cost": 450, "damage": 20, "mag": 12, "rate": 4, "reload": 1.8, "speed": 18, "gravity": 0.55, "spread": 2.6, "ads": false, "role": "Fast close-range spray; no aiming down sights" },
+    { "key": "pump", "name": "Pump scatter blaster", "cost": 600, "damage": 12, "pellets": 6, "mag": 4, "rate": 1, "reload": 2.0, "speed": 15, "gravity": 0.6, "spread": 6, "role": "Close-range bursts in tunnels and on decks" },
+    { "key": "burst", "name": "Three-round burst blaster", "cost": 750, "damage": 20, "mag": 18, "rate": 2, "burst": 3, "reload": 1.8, "speed": 22, "gravity": 0.4, "spread": 0.8, "role": "Accurate mid-range" },
+    { "key": "flywheel", "name": "Flywheel auto blaster", "cost": 900, "damage": 14, "mag": 25, "rate": 8, "reload": 2.0, "speed": 22, "gravity": 0.45, "spread": 2.0, "role": "Sustained fire, eats ammo fast" },
+    { "key": "crossbow", "name": "Mega dart crossbow", "cost": 1000, "damage": 90, "mag": 1, "rate": 0.66, "reload": 1.5, "speed": 18, "gravity": 0.9, "spread": 0.4, "knockback": 1.0, "role": "One huge dart with heavy drop; knocks the target back 1 m" },
+    { "key": "belt", "name": "Belt-fed heavy blaster", "cost": 1200, "damage": 12, "mag": 100, "rate": 10, "reload": 3.0, "speed": 20, "gravity": 0.5, "spread": 2.4, "spin_up": 1.5, "slow": 0.8, "role": "Holds a doorway; slows you to 80% speed" },
+    { "key": "long", "name": "Long-range blaster", "cost": 1300, "damage": 75, "mag": 5, "rate": 1, "reload": 2.2, "speed": 30, "gravity": 0.15, "spread": 0.2, "role": "Across the atrium; low dart drop" },
+    { "key": "rocket", "name": "Foam rocket launcher", "cost": 1600, "damage": 60, "mag": 1, "rate": 0.33, "reload": 3.0, "speed": 14, "gravity": 0.25, "spread": 0.3, "splash": 2.0, "dart_cost": 5, "role": "Clears decks and campers; slow rocket is easy to dodge" }
+  ],
+  "rewards": [
+    { "key": "refill", "name": "Instant dart refill", "streak": 300, "time": 0, "text": "Fills your magazine and dart reserve, and any teammates' within 10 m", "counter": "None; it's a small reward" },
+    { "key": "healthbox", "name": "Placeable health box", "streak": 400, "time": 60, "text": "A first-aid box on the deck: teammates who touch it heal 50. Lasts 60 s or 5 uses", "counter": "Destroy it with 3 darts or 1 ball" },
+    { "key": "kids", "name": "Swarm of annoying kids", "streak": 600, "time": 30, "text": "8 shrieking kids flood the enemy half for 30 s: in front of enemies, crowding slides and ladders, splashing in pits", "counter": "They can't be hurt; wait them out or go around" },
+    { "key": "rccar", "name": "RC car drone", "streak": 700, "time": 45, "text": "Drive a remote-control car with a dart turret (10 damage, 4 shots/s) for 45 s. It has 50 health; your body stands still", "counter": "Shoot the car, or find and knock out the driver" },
+    { "key": "drone", "name": "Flying dart drone", "streak": 900, "time": 30, "text": "A drone hovers over you for 30 s and fires at any enemy it can see (8 damage, 3 shots/s)", "counter": "Shoot it down (80 health) or break line of sight; nets block its darts" },
+    { "key": "tank", "name": "Dart tank", "streak": 1200, "time": 40, "text": "Ride a padded toy tank for 40 s: twin flywheel blasters (15 damage, 10 shots/s) and 400 armor. Ground floor and the wide level 2 decks only", "counter": "Stay on narrow upper decks it can't reach; focus it with balls" }
+  ],
+  "jokes": [
+    { "key": "horn", "name": "Party horn", "cost": 5, "text": "One loud toot and a little noise-maker animation" },
+    { "key": "juice", "name": "Juice box", "cost": 5, "text": "You drink it with an extremely long slurp" },
+    { "key": "dadjoke", "name": "Dad joke card", "cost": 5, "text": "Shows a random terrible joke on your teammates' screens" },
+    { "key": "kazoo", "name": "Kazoo", "cost": 5, "text": "Play a wobbly 3-second tune" },
+    { "key": "confetti", "name": "Confetti popper", "cost": 5, "text": "A burst of confetti that vanishes in 2 s" },
+    { "key": "cushion", "name": "Whoopee cushion", "cost": 10, "text": "Place it on a deck; the next teammate to step on it sets it off" },
+    { "key": "chicken", "name": "Rubber chicken", "cost": 10, "text": "Throw it; it bounces around squawking and does nothing else" },
+    { "key": "capsule", "name": "Capsule machine toy", "cost": 10, "text": "A random cheap plastic prize with a silly name, added to your collection" },
+    { "key": "crown", "name": "Paper birthday crown", "cost": 15, "text": "Put it on a teammate's head for the rest of their life" },
+    { "key": "finger", "name": "Giant foam finger", "cost": 15, "text": "Wave it around for 10 s in place of your weapon" },
+    { "key": "beanie", "name": "Propeller beanie", "cost": 20, "text": "The propeller spins faster the faster you run" }
+  ],
+  "dad_jokes": [
+    "Why did the ball pit file a complaint? It was tired of being taken for granted... and for grabs.",
+    "I'd tell you a joke about foam darts, but it would go over your head. Then drop. A lot.",
+    "What do you call a slide that tells jokes? A pun-tube.",
+    "I used to hate cargo nets. Then they grew on me. Mostly on my shins.",
+    "Why don't cannons ever win arguments? They always lose their balls.",
+    "My kid asked for a vacuum for his birthday. Honestly it sucked.",
+    "What's a ball pit's favourite music? Anything with a lot of bounce.",
+    "I tried to catch some fog yesterday. Mist.",
+    "Why was the rope bridge so calm? It knew how to hang in there.",
+    "The store only sells darts by the dozen. I asked why. They said it was a pack-tical decision.",
+    "Did you hear about the crawl tunnel? It's a real low point in my career.",
+    "Why did the dart go to therapy? It kept falling short of expectations."
+  ],
+  "prizes": [ "Sad Plastic Ring", "Glow-in-the-Dark Tooth", "Sticky Hand of Destiny", "Bouncy Eyeball", "Mood Whistle", "Tiny Rubber Duck (Cursed)", "Spinning Top That Doesn't", "Fake Mustache, Medium", "Plastic Dinosaur Missing a Leg", "Squishy Shrimp", "Mini Slide Keychain", "Lucky Foam Dart" ],
+  "modes": [
+    { "key": "ffa", "name": "Free for all", "goal": "Most knockouts: first to 25, or the most after 10 minutes", "min": 2, "max": 12, "respawn": 5, "to_win": 25, "time": 600, "teams": false },
+    { "key": "tdm", "name": "Team deathmatch", "goal": "Team knockouts: first team to 50, or the most after 10 minutes", "min": 2, "max": 12, "respawn": 5, "to_win": 50, "time": 600, "teams": true },
+    { "key": "ctf", "name": "Capture the flag", "goal": "Take the enemy flag from their roof to your own: first to 3, or the most after 15 minutes", "min": 2, "max": 12, "respawn": 8, "to_win": 3, "time": 900, "teams": true },
+    { "key": "bomb", "name": "Disarm the bomb", "goal": "Attackers plant the foam bomb in the defenders' tower; defenders stop or disarm it. First to 7 rounds; sides swap at round 6", "min": 2, "max": 10, "respawn": 0, "to_win": 7, "time": 120, "teams": true }
+  ]
+}

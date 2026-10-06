@@ -1,0 +1,69 @@
+Ball Pit Brawl —
+Game Design Spec
+• You choose your three rewards in the pre-match loadout screen and can swap them
+while respawning.
+Reward
+Instant dart
+refill
+Placeable
+health box
+Swarm of
+annoying kids
+RC car drone
+Flying dart
+drone
+Dart tank
+Streak
+300
+400
+600
+700
+900
+1,200
+What it does
+Fills your magazine and dart
+reserve to max, plus any
+teammates within 10 m
+Drop a first-aid box on a
+deck. Teammates who touch
+it heal 50 health. Lasts 60 s
+or 5 uses
+8 shrieking kids flood the
+enemy half for 30 s: they run
+in front of enemies, crowd
+slides and ladders, and
+splash around in ball pits
+Drive a remote-control car
+with a dart turret (10
+damage, 4 shots/s) through
+tunnels and decks for 45 s. It
+has 50 health. Your body
+stands still while you drive
+A drone hovers over you for
+30 s and fires at any enemy it
+can see (8 damage, 3
+shots/s)
+Ride a padded ride-on toy
+tank for 40 s with twin
+flywheel blasters (15
+damage, 10 shots/s) and 400
+armor. Balls do 100 damage
+to it instead of a knockout
+How to counter it
+None; it's a small reward
+Destroy it with 3 darts or 1
+ball
+They can't be hurt (darts
+bounce off and they laugh);
+wait them out or go around
+Shoot the car, or find and
+knock out the driver
+Shoot it down (80 health)
+or break line of sight; nets
+block its darts
+Stay on narrow upper
+decks it can't reach; fOCUS
+it with balls
+The tank only drives on the ground floor and the wide Level 2 decks. The RC car fits
+through crawl tunnels.
+Page 11 of 14

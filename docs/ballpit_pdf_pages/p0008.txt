@@ -1,0 +1,35 @@
+Ball Pit Brawl — Game Design Spec
+Balls that land on decks or floors roll into gutters and ride the conveyor back to the
+cannons; balls that land in a ball pit stay there until a player grabs one to throw.
+Cannons
+• Six cannons: two in each team tower on Level 3 aimed across the atrium, and two
+neutral cannons on the central roof deck. Any player can use any cannon.
+• Fire rate 6 balls per second at 40 m/s, nearly flat. Every ball is a one-hit knockout until
+its first bounce.
+• Turning limits: 1200 left to right and 400 up and down, so each cannon has blind spots
+players can use.
+• Getting on takes 0.5 s; getting off is instant. The operator sits exposed from behind and
+above.
+• Overheats after 3 s of continuous fire and needs 2 s to cool down.
+The conveyor
+• Every deck and floor slopes slightly toward gutters at its edges. Gutters drop onto
+conveyor belts running along the ground floor.
+• The belts carry balls to a hub, where air pipes (like the overhead pipes in the reference
+image) lift them up to the cannon hoppers. The lift always refills the hopper with the
+fewest balls first.
+• A ball takes about 8 s to get from a gutter to a hopper. Each hopper holds 40 balls and
+starts the match full.
+• Balls dropped by a knocked-out player, and missed throws that land on decks, also go
+back into the conveyor.
+• One shared supply means a team firing a cannon nonstop drains the balls everyone
+else's cannons depend on, and a team that keeps balls in its hands is starving the
+cannons.
+Score, store, and ammo
+Score is both the leaderboard and the currency: you earn it by knocking out enemies and
+playing the objective, and spend it at your team's store on guns and darts. Spending
+doesn't lower your leaderboard total.
+Action
+Knockout with knife, dart, or thrown ball
+Score earned
+100
+Page 8 of 14

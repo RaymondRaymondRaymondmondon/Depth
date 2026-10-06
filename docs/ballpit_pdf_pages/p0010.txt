@@ -1,0 +1,53 @@
+Ball Pit Brawl — Game Design Spec
+Item
+Juice box
+Dad joke card
+Kazoo
+Confetti popper
+Whoopee cushion
+Rubber chicken
+Capsule machine toy
+Paper birthday crown
+Giant foam finger
+Propeller beanie
+Cost (score)
+5
+5
+5
+5
+10
+10
+10
+15
+15
+20
+What it does
+YOU drink it with an extremely long slurp
+Shows a random terrible joke on your teammates'
+screens
+Play a wobbly 3-second tune
+A burst of confetti that vanishes in 2 s
+Place it on a deck; the next teammate to step on it
+sets it off
+Throw it; it bounces around squawking and does
+nothing else
+A random cheap plastic prize with a silly name,
+added to your collection
+Put it on a teammate's head for the rest of their life
+Wave it around for 10 s in place of your weapon
+The propeller spins faster the faster you run
+Rules that keep them harmless: no joke item changes hitbox size, speed, damage, or what
+enemies can see through. Sounds from joke items are heard only by teammates. Each
+item has a IO s cooldown so nobody spams it.
+Streak rewards
+Staying alive pays: score earned without being knocked out builds a streak, and hitting a
+streak threshold unlocks a reward. There are six rewards, and each player picks three
+before the match.
+How streaks work
+• Streak points are the score you've earned since your last knockout (kills, assists,
+objectives). Being knocked out resets them to zero.
+Spending score in the store does not lower your streak.
+• Each of your three rewards unlocks once per life when your streak reaches its
+threshold. Press the reward key to use it whenever you like; an unused reward is lost if
+you're knocked out.
+Page IO of 14

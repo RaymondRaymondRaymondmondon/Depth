@@ -10,6 +10,7 @@
 #include "scuttle.h"
 #include "flight_net.h"
 #include "warp_net.h"
+#include "ballpit_net.h"
 #include "fowl_net.h"
 #include "noclip_net.h"
 #include "net.h"
@@ -197,7 +198,7 @@ void DrawReels(Game& g) {
     Glow(c, 360, Color{60, 220, 210, 50});
     TxtBold("THE DEEP ARCADE", c.x - MeasureTxt("THE DEEP ARCADE", 30, true) / 2.0f, c.y - 250, 30, SCREEN_INK);
     struct Reel { int game; const char* players; const char* length; const char* line; };
-    const int NREELS = 12;
+    const int NREELS = 13;
     const Reel reels[NREELS] = {
         {G_FLATS_DUEL, "2 players", "8-12 min", "Flats against a person: a best of three at the table."},
         {G_TRAWL, "1-6 co-op", "30-35 min", "Work a steam trawler by night: catch it, kill it, cook it, sell it, and meet the Owners' quota."},
@@ -211,11 +212,12 @@ void DrawReels(Game& g) {
         {G_WARP, "2-12 players (solo with bots)", "10-15 min", "Team dodgeball where everyone carries a portal gun: throw through a wall and out of the ceiling."},
         {G_FOWL, "1-6 players (bots fill the stalls)", "25 min", "A light-gun duck shoot with money: thirty toy guns, slots and scratchers, and sabotage for your friends."},
         {G_NOCLIP, "1-6 co-op (solo with bot salvagers)", "45-90 min", "Scavenge the Backrooms for the Bureau: carry it to a Threshold Lab, signal the portal, and make the week's quota."},
+        {G_BALLPIT, "2-12 players (solo with bots)", "10-15 min", "Foam guns in a four-storey play centre: climb the nets, ride the slides, hide in the ball pits - and any live ball is a knockout."},
     };
     // the games in five groups (the playtesters' call): a tab row, and the drum shows one group's reels
     static const char* CATS[5] = {"Action", "Strategy", "Fighting", "Traditional", "Slop"};
-    static const int CAT_N[5] = {3, 2, 2, 2, 3};
-    static const int CAT_LIST[5][3] = {{1, 4, 11}, {5, 3, -1}, {6, 8, -1}, {0, 2, -1}, {7, 9, 10}};   // (reel indices: the Trawl, Red Tide, NOCLIP | the Flight, Fathoms | Mouthful, Scuffle | Flats Duel, Scuttle | A Night Off, Warp Dodgeball, Fowl Play)
+    static const int CAT_N[5] = {3, 2, 3, 2, 3};
+    static const int CAT_LIST[5][3] = {{1, 4, 11}, {5, 3, -1}, {6, 8, 12}, {0, 2, -1}, {7, 9, 10}};   // (reel indices: the Trawl, Red Tide, NOCLIP | the Flight, Fathoms | Mouthful, Scuffle | Flats Duel, Scuttle | A Night Off, Warp Dodgeball, Fowl Play)
     auto catOf = [&](int reel) { for (int k = 0; k < 5; k++) for (int j = 0; j < CAT_N[k]; j++) if (CAT_LIST[k][j] == reel) return k; return 0; };
     auto posIn = [&](int reel) { int k = catOf(reel); for (int j = 0; j < CAT_N[k]; j++) if (CAT_LIST[k][j] == reel) return j; return 0; };
     static int lastCat = -1;
@@ -290,7 +292,7 @@ void DrawReels(Game& g) {
             gError.clear();
             if (k == 0) {
                 std::string err;
-                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason) : selGame == G_SCUFFLE ? ScuffleOpts(5, 0, 2) : selGame == G_WARP ? wd::WarpOpts(gWarpArena, 1, gWarpFill) : selGame == G_FOWL ? fp::FowlOpts(gFowlMode, 1, 6) : selGame == G_NOCLIP ? nc::NoclipOpts(0, gNcMode) : ""; }
+                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason) : selGame == G_SCUFFLE ? ScuffleOpts(5, 0, 2) : selGame == G_WARP ? wd::WarpOpts(gWarpArena, 1, gWarpFill) : selGame == G_FOWL ? fp::FowlOpts(gFowlMode, 1, 6) : selGame == G_NOCLIP ? nc::NoclipOpts(0, gNcMode) : selGame == G_BALLPIT ? bp::BallPitOpts(gBallPitMode, 1, gBallPitFill) : ""; }
                 else gError = "Couldn't host: " + err;
             } else if (k == 1) { gMode = MODE_JOIN; gJoinFocus = true; }
             else gMode = MODE_BROWSE;
@@ -409,7 +411,23 @@ void DrawReels(Game& g) {
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Play (solo)", true, 15)) { StartWarp(g, wdSize + 1, wdSkill, gWarpArena); return; }
         DrawTextCentered("Host or Join for friends (the sides above fill up with bots)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
-    if (selGame == G_NOCLIP) {   // solo: you and bot salvagers; Host for friends (proximity voice)
+    if (selGame == G_BALLPIT) {   // solo: you and the bots (Host or Join above for friends: up to twelve)
+        static int bpSkill = 1;
+        static const char* SKILL[3] = {"Toddler bots", "Kid bots", "Teen bots"};
+        auto row = [&](float y, const char* text, int& v, int n, int lo) {
+            Rectangle l{c.x - 190, y, 30, 26}, r{c.x + 160, y, 30, 26};
+            DrawTextCenteredBold(text, c.x, y + 2, 19, Color{230, 200, 150, 255});
+            DrawTextCenteredBold("<", l.x + 15, l.y, 22, Pal::Brass); DrawTextCenteredBold(">", r.x + 15, r.y, 22, Pal::Brass);
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = lo + (v - lo + n - 1) % n; PlayCue("ui.click"); }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = lo + (v - lo + 1) % n; PlayCue("ui.click"); }
+        };
+        row(c.y - 10, bp::ModeName(gBallPitMode), gBallPitMode, bp::MD_COUNT, 0);
+        int maxP = gBallPitMode == bp::MD_BOMB ? 10 : 12; gBallPitFill = std::clamp(gBallPitFill, 2, maxP);
+        row(c.y + 16, TextFormat("%d players", gBallPitFill), gBallPitFill, maxP - 1, 2);
+        row(c.y + 42, SKILL[bpSkill], bpSkill, 3, 0);
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Play (solo)", true, 15)) { StartBallPit(g, gBallPitMode, gBallPitFill, bpSkill); return; }
+        DrawTextCentered("Host or Join for friends (bots fill the rest of the players above)", c.x, c.y + 280, 13, SCREEN_DIM);
+    }    if (selGame == G_NOCLIP) {   // solo: you and bot salvagers; Host for friends (proximity voice)
         static int ncBots = 2;
         Rectangle l{c.x - 190, c.y - 10, 30, 26}, r{c.x + 160, c.y - 10, 30, 26};
         DrawTextCenteredBold(TextFormat("%d bot salvager%s", ncBots, ncBots == 1 ? "" : "s"), c.x, c.y - 8, 19, Color{230, 200, 150, 255});
@@ -805,7 +823,7 @@ void DrawLobby() {
     if (host) {
         std::string why;
         bool can = gSess.CanLaunch(&why);
-        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : gSess.game == G_MOUTHFUL ? "Into the water" : gSess.game == G_NIGHT_OFF ? "Go ashore" : gSess.game == G_SCUFFLE ? "Fight!" : gSess.game == G_WARP ? "Play ball" : gSess.game == G_FOWL ? "Open the gates" : gSess.game == G_NOCLIP ? "Through the portal" : "Start the race";
+        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : gSess.game == G_MOUTHFUL ? "Into the water" : gSess.game == G_NIGHT_OFF ? "Go ashore" : gSess.game == G_SCUFFLE ? "Fight!" : gSess.game == G_WARP ? "Play ball" : gSess.game == G_FOWL ? "Open the gates" : gSess.game == G_NOCLIP ? "Through the portal" : gSess.game == G_BALLPIT ? "Into the pit" : "Start the race";
         if (Button({p.x + p.width - 250, p.y + p.height - 66, 220, 50}, go, can, 20)) { std::string w2; gSess.Launch(&w2); }
         if (!can) Txt(why, p.x + 30, p.y + p.height - 50, 15, SCREEN_DIM);
     } else if (gSess.mySeat >= 0) {
@@ -1231,6 +1249,7 @@ void DrawRoom(Game& g) {
             if (gSess.game == G_SCUFFLE) { StartScuffleNet(g, &gSess, gProfile.name.c_str()); return; }
             if (gSess.game == G_WARP) { StartWarpNet(g, &gSess, gProfile.name.c_str()); return; }
             if (gSess.game == G_FOWL) { StartFowlNet(g, &gSess, gProfile.name.c_str()); return; }
+            if (gSess.game == G_BALLPIT) { StartBallPitNet(g, &gSess, gProfile.name.c_str()); return; }
             if (gSess.game == G_NOCLIP) { StartNoclipNet(g, &gSess, gProfile.name.c_str()); return; }                              // into the ring (host or guest)
             DrawTable(g);
             break;

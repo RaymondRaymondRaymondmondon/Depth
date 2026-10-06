@@ -1,0 +1,27 @@
+Ball Pit Brawl — Game Design Spec
+6. Score, store, vacuum, gun tiers.
+o Test: buying with exactly enough score works; vacuuming picks up both teams'
+darts.
+7. Modes. Team deathmatch first, then free for all, capture the flag, disarm the bomb,
+with simple bots.
+o Test: each mode completes with bots and declares the right winner.
+8. Full map and art pass. The 60 m x 30 m arena in Blender, colors and padding to match
+the reference images, sounds, HUD.
+Open questions
+Each has a working default in the spec; confirm or change it before the matching
+milestone.
+Cannon balance: cannons are the fastest-firing weapons and every ball is a one-hit
+knockout. The spec limits them with a fixed firing arc, an exposed operator,
+overheating, and the shared ball supply. Is that enough, or should cannon balls do
+damage instead of instant knockouts?
+Ball speed: the spec makes balls faster than darts, as described, including thrown
+balls. Should thrown balls be slower than cannon balls but still faster than darts
+(current default)?
+Dodgeball bounce rule: balls stop being deadly after one bounce. Keep it, or let
+bounced balls still knock players out?
+Players: bots first, then online? Default: bots first.
+Knife role: the spec makes the knife a melee weapon with backstab knockouts. Did
+you mean something more specific by knives being for attacking the enemy base?
+Streak thresholds: should streaks count only knockouts instead of all score? Counting
+objective score (default) rewards flag runners and bomb planters too.
+Page 14 of 14

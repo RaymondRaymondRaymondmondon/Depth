@@ -1,0 +1,53 @@
+Ball Pit Brawl — Game Design Spec
+The first image sets the look of each structure (colored pipe frame, padded floors, spiral
+and tube slides, a ball pit at the base). The second sets the scale and the open atrium:
+wide drops between netted decks, ball pits below, and the overhead pipes that inspired
+the ball conveyor.
+Layout (default map, 60 m x 30 m hall)
+• Two team towers, one at each end of the hall, each holding that team's base, spawn,
+and store. In free for all, both stores are open to everyone and spawns are spread
+across the map.
+• A central atrium between the towers, open from floor to ceiling, crossed by rope
+bridges, net tunnels, and tube slides. This is the long-range danger zone.
+• Mirror-symmetric, so neither team has a better side.
+Height What's there
+Ground
+Level 2
+Level 3
+Roof deck
+Cover materials
+Material
+Solid plastic
+panel
+Netted wall
+Open frame
+Large ball pits, the main conveyor belts, crawl
+tunnels, slide exits
+Padded decks, obstacle courses (punching bags,
+rollers), base entrances
+Rope bridges across the atrium, net tunnels, team
+cannons
+Spiral slide tops, two neutral cannons at the center,
+highest sight lines
+Blocks
+darts
+Yes
+Yes
+No
+Blocks
+balls
+Yes
+Yes
+No
+Can see through
+No
+Yes
+Yes
+Notes
+Full cover
+You can see enemies but not
+shoot through; push around
+the edges to get a shot
+Pipe railings only; no
+protection
+Page 3 of 14

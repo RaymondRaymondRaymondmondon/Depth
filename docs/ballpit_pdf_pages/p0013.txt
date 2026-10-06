@@ -1,0 +1,35 @@
+Ball Pit Brawl — Game Design Spec
+Technical notes and build milestones
+Use the same pipeline as Warp Dodgeball: Claude Code models the play structure in
+Blender, exports .glb files, and the game runs in Godot 4. The biggest technical risk is the
+ball count, so it's built and tested early.
+Engine notes
+• Ball pits: thousands of real physics balls would be far too slow. Draw resting pit balls as
+one instanced mesh with a gentle animated surface, and only spawn a real physics ball
+when a player grabs one, a ball is fired, or a ball drops. Real balls that settle get
+absorbed back into the pit.
+• Ball supply: track the total number of balls as one number shared by pits, conveyors,
+hoppers, and balls in flight, so the shared-supply rule is exact.
+• Darts: fast projectiles with drop, each a lightweight object. Cap live and floor darts at
+around 400; remove the oldest first.
+• Nets: use collision that blocks projectiles but not line of sight (a see-through material
+on a solid collider).
+• Slides: move the player along a fixed path (spline) rather than simulating sliding
+physics.
+• Blender conventions: one file per modular piece (deck, net wall, slide section, cannon,
+conveyor segment), snapped to a 1 m grid so Claude Code can assemble maps from
+pieces. Collision meshes use the -col suffix.
+Milestones
+1. Greybox modular kit and one small map. Decks, nets, ladders, a slide, a ball pit.
+o Test: a player can climb from the ground to Level 3 and slide back down.
+2. Movement. All traversal types from the movement table.
+o Test: speeds match the table; submerged players can't be hit by darts.
+3. Knife and starter blaster, health, respawn.
+o Test: 2 knife hits or 3 starter darts knock out a full-health player; a back hit with the
+knife is instant.
+4. Balls. Pit pickup, throwing, one-hit knockout until first bounce, instanced pits.
+o Test: 60 frames per second holds with 2,000 pit balls and 100 live balls.
+5. Conveyor and cannons. The full ball loop.
+o Test: firing a cannon until empty, then waiting, refills it only from balls that came
+back through the conveyor.
+Page 13 of 14

@@ -35,7 +35,7 @@ const Color Bad     = {225, 70, 70, 255};
 const Color Stress  = {170, 120, 230, 255};
 }  // namespace Pal
 
-enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade, RedTide, Trawl, Flight, Mouthful, NightOff, Scuffle, Warp, Fowl, Noclip };
+enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade, RedTide, Trawl, Flight, Mouthful, NightOff, Scuffle, Warp, Fowl, Noclip, BallPit };
 
 // Workshop upgrades. Each has levels 0..UPGRADE_MAX.
 enum Upgrade { UP_REFLECTOR, UP_BUNKS, UP_SONAR, UP_INFIRMARY, UP_CARGO, UP_COUNT };
@@ -904,6 +904,12 @@ void LeaveWarp(Game& g);
 void StartWarpNet(Game& g, arcade::Session* net, const char* name);
 extern int gWarpArena, gWarpFill;   // (the arcade's picks for a hosted table)
 void DebugWarpShot(Game& g, int which);
+void SceneBallPit(Game& g);      // Ball Pit Brawl, arcade game 13 (ballpit_game.cpp)
+void StartBallPit(Game& g, int mode = 1, int players = 8, int skill = 1);
+void LeaveBallPit(Game& g);
+void StartBallPitNet(Game& g, arcade::Session* net, const char* name);
+extern int gBallPitMode, gBallPitFill;   // (the arcade's picks for a hosted match)
+void DebugBallPitShot(Game& g, int which);
 void SceneFowl(Game& g);         // Fowl Play, arcade game 11 (fowl_game.cpp)
 void StartFowl(Game& g, int mode = 0, int bots = 5, int skill = 1);
 void StartFowlNet(Game& g, arcade::Session* net, const char* name);

@@ -1,0 +1,60 @@
+Ball Pit Brawl — Game Design Spec
+Traversal
+Run on decks
+Crouch
+Jump
+Climb cargo net or
+ladder
+Crawl tunnel
+Tube or spiral slide
+Rope bridge
+Wade through ball pit
+Submerge in ball pit
+Drop down from a
+ledge
+Speed
+5.5 m/s
+2.5 m/s
+1.0 m high
+1.5 m/s
+2.0 m/s
+8 to 10
+m/s
+4.0 m/s
+2.0 m/s
+1.0 m/s
+Gravity
+Can
+attack?
+No
+Knife only
+No
+Yes
+Yes
+No
+Trade-off
+Default
+Hides behind padding blocks
+Hop gaps and low walls
+Main way UP a level; you're exposed
+Fully enclosed, safe but slow
+Fastest way down; can't stop or exit until
+the bottom
+Crosses the atrium; wobbles aim (+30
+spread)
+Free balls to grab everywhere
+Hidden from view and immune to darts;
+can't see out except a narrow peek
+Falls up to 3 m are safe; landing in a ball
+pit is safe from any height
+Players have 100 health and respawn after 5 s (except in Disarm the bomb, which has no
+respawns within a round).
+Weapons
+Every player starts with a foam knife and a single-shot foam gun; better guns are bought
+with score, and any live ball knocks a player out in one hit.
+Damage model
+• Players have 100 health. Health regenerates after 4 s without taking damage.
+• Foam darts are slow (15 to 30 m/s) and drop over distance, so long shots need leading.
+• Balls are faster and flatter than darts (25 m/s thrown, 40 m/s from a cannon) and are an
+instant knockout.
+Page 5 of 14

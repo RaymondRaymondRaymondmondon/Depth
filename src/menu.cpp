@@ -80,6 +80,7 @@ void MainPage(Game& g, Rectangle p) {
     if (g.scene == Scene::Scuffle && item("Leave the fight")) { gOpen = false; LeaveScuffle(g); }
     if (g.scene == Scene::Warp && item("Leave the match")) { gOpen = false; LeaveWarp(g); }
     if (g.scene == Scene::Fowl && item("Leave the gun club")) { gOpen = false; LeaveFowl(g); }
+    if (g.scene == Scene::BallPit && item("Leave the play centre")) { gOpen = false; LeaveBallPit(g); }
     if (g.scene == Scene::Noclip && item("Leave the Bureau")) { gOpen = false; LeaveNoclip(g); }
     if (g.scene == Scene::Platformer || g.scene == Scene::Abyss) {
         if (item("Abandon the dive")) {

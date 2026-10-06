@@ -1,0 +1,90 @@
+Ball Pit Brawl — Game Design Spec
+• A ball is only deadly until its first bounce, like dodgeball. After that it's just a ball on the
+floor (and heads for the conveyor).
+• Friendly fire is off in team modes.
+Foam knife (always carried)
+• 50 damage per swing, 0.6 s between swings, 2 m reach. Two hits knock out a full-health
+player.
+A hit from behind is an instant knockout.
+• The only attack that works inside crawl tunnels.
+Thrown balls
+• Pick up a ball by walking over it or reaching into a ball pit (0.4 s). You can carry one ball
+at a time.
+• Holding a ball, your gun is lowered. Throwing has a 0.3 s windup, then the ball flies at 25
+m/s with light drop.
+Any player can grab a ball anywhere: ball pits are full of them, which is what makes the
+ground floor dangerous.
+Foam guns (bought in the store)
+Gun
+Single-shot
+blaster
+Semi-auto
+dart pistol
+Six-shot
+revolver
+Dual mini
+blasters
+Pump scatter
+blaster
+Three-round
+burst blaster
+Flywheel auto
+blaster
+Cost
+(score)
+Free
+(starter)
+150
+300
+600
+750
+900
+Damage
+per dart
+35
+25
+30
+20
+12 x 6 darts
+20
+14
+Magazine
+8
+6
+4 shells
+18
+25
+Fire rate
+Reload 1.0 s
+3 shots/s
+2 shots/s
+4 shots/s
+(alternating)
+1 shot/s
+3-dart bursts, 2
+bursts/s
+8 shots/s
+Dart
+speed
+20 m/s
+20 m/s
+20 m/s
+18 m/s
+15 m/s
+22 m/s
+22 m/s
+Role
+Starter; 3 hits to knock
+out
+Cheap first upgrade
+Reliable mid-range
+sidearm
+Fast close-range
+spray; no aiming down
+sights
+Close-range bursts in
+tunnels and on decks
+Accurate mid-range
+Sustained fire, eats
+ammo fast
+Page 6 of 14

@@ -1,0 +1,78 @@
+Ball Pit Brawl —
+Gun
+Game Design Spec
+Mega dart
+crossbow
+Belt-fed heavy
+blaster
+Long-range
+blaster
+Foam rocket
+launcher
+Cost
+(score)
+1,000
+1,200
+1,300
+1,600
+Damage
+per dart
+90
+12
+75
+60, splash
+within 2 m
+Magazine
+100
+5
+Fire rate
+Reload 1.5 s
+IO shots/s after
+1.5 s spin-up
+1 shot/s
+Reload 3.0 s
+Dart
+speed
+18 m/s
+20 m/s
+30 m/s
+14 m/s
+Role
+One huge dart with
+heavy drop; knocks
+the target back 1 m
+Holds a doorway;
+slows you to 80%
+speed
+Across the atrium; low
+dart drop
+Clears decks and
+campers; slow rocket
+is easy to dodge
+The launcher's rockets use the same vacuum-collectable ammo as darts but cost 5 darts
+each.
+Players carry the starter blaster, one bought gun, and the knife. Buying a new gun replaces
+the old bought gun. Bought guns are kept after being knocked out, for the rest of the
+match.
+Ball cannons and the conveyor loop
+Ball cannons are the fastest-firing weapons in the game, but they are bolted in place and
+can only fire balls that the shared conveyor brings back to them.
+Every ball cycles back to the cannons through one shared conveyor
+Cannon hopper
+holds 40 balls
+Lift pipe
+refills emptiest
+Cannon fires
+6 balls/s at 40 mis
+Conveyor belt
+shared by all cannons
+Ball in flight
+knockout until bounce
+Lands on a deck
+rolls into a gutter
+Player throws
+25 mfs, one-hit
+Lands in ball pit
+Stays until grabbed
+ball loop • cannons, conveyor, pits
+Page 7 of 14

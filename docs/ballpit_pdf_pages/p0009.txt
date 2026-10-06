@@ -1,0 +1,42 @@
+Ball Pit Brawl — Game Design Spec
+Action
+Knockout with a cannon
+Assist (damaged a player a teammate knocked out
+within 5 s)
+Capture the flag
+Return your flag
+Plant the bomb
+Disarm the bomb
+The store
+Score earned
+50 (cannons are easy, so they pay
+less)
+50
+300
+100
+200
+300
+One store in each team's tower (both open to everyone in free for all). It's a counter
+you walk up to; buying is instant from a quick menu.
+• Sells the foam guns in the weapons table, plus darts: 12 darts for 50 score.
+• The store area is a safe zone for 3 s after you arrive, so players aren't knocked out mid-
+menu.
+VaCUUm reloading (free)
+• Every player has a handheld vacuum. Hold the vacuum button to suck up foam darts
+lying within a 4 m cone in front of you, at 10 darts per second.
+• You can keep moving at 70% speed while vacuuming, but can't fire. Release to fire
+immediately.
+• Fired darts stay on the floor for 60 s. Enemy darts work too, so fights leave free ammo
+behind for the winner.
+• The vacuum only collects darts. Balls are picked up by hand or carried by the conveyor.
+• Dart reserve: start with 12, carry up to 60.
+Joke shop
+Every store has a joke shelf of very cheap items that change nothing about the fight. They
+exist to make teammates laugh.
+Item
+Party horn
+Cost (score)
+5
+What it does
+One loud toot and a little noise-maker animation
+Page g of 14

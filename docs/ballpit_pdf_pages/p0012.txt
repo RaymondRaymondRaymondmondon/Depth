@@ -1,0 +1,67 @@
+Ball Pit Brawl — Game Design Spec
+Game modes
+All four modes use the same arena, weapons, and economy; they change the goal, team
+setup, and respawn rules.
+Mode
+Free for all
+Team
+deathmatch
+Capture the
+flag
+Disarm the
+bomb
+Players
+8 to 12, solo
+2 teams of 4 to
+6
+2 teams of 4 to
+6
+2 teams of 5
+(attack vs.
+defend)
+Goal
+Most knockouts
+Team knockouts
+Take the enemy
+flag to your base
+Attackers plant,
+defenders stop or
+disarm
+Respawn
+5 s, spread
+spawns
+5 s, in your
+tower
+8 s, in your
+tower
+None within
+a round
+Ends when
+First to 25
+knockouts, or 10
+min
+First team to 50, or
+10 min
+First to 3 captures,
+or 15 min
+First to 7 rounds;
+sides swap at
+round 6
+Capture the flag details
+• Each flag sits on the roof deck of its team's tower, so attackers must climb all the way
+up.
+• The carrier can use the knife and starter blaster only (no ball throwing, no bought gun),
+and moves at 90% speed.
+• Carriers can ride slides. Sliding down with the flag is the fastest escape, but the slide
+exit is a known spot to wait at.
+A dropped flag returns home after 20 s, or immediately when a defender touches it.
+Disarm the bomb details
+• Each round, the attackers carry one foam "bomb" (a big, obvious prop). There are two
+plant sites inside the defenders' tower: one on Level 2, one on Level 3.
+• Planting takes 4 s; the bomb then goes off after 40 s. Disarming takes 6 s, or 3 s with a
+disarm kit from the store (200 score).
+• Rounds last 2 min before the plant. Attackers win by detonation or by knocking out
+every defender; defenders win by disarming, running out the clock, or knocking out
+every attacker before a plant.
+• Score carries between rounds, so buying is part of the strategy.
+Page 12 of 14

@@ -99,7 +99,7 @@ src/flight_long.cpp
     src/abyss.cpp
     src/beasts.cpp
     src/beasts_biomes.cpp src/beasts_hull.cpp src/beasts_pirate.cpp src/beasts_cave.cpp src/beasts_island.cpp src/beasts_weeds.cpp src/beasts_atlantis.cpp src/dossier.cpp src/sound.cpp src/sound_parkour.cpp src/pixelart.cpp src/beastart.cpp
-    src/rig.cpp src/rig_clips.cpp src/rigfigs.cpp src/chart.cpp src/combatfx.cpp src/input.cpp src/menu.cpp src/warp.cpp src/warp_bots.cpp src/warp_game.cpp src/warp_net.cpp src/fowl.cpp src/fowl_shop.cpp src/fowl_bots.cpp src/fowl_net.cpp src/fowl_art.cpp src/fowl_game.cpp src/noclip.cpp src/noclip_gen.cpp src/noclip_ents.cpp src/noclip_bots.cpp src/noclip_net.cpp src/noclip_render.cpp src/noclip_game.cpp src/howto.cpp
+    src/rig.cpp src/rig_clips.cpp src/rigfigs.cpp src/chart.cpp src/combatfx.cpp src/input.cpp src/menu.cpp src/warp.cpp src/warp_bots.cpp src/warp_game.cpp src/warp_net.cpp src/fowl.cpp src/fowl_shop.cpp src/fowl_bots.cpp src/fowl_net.cpp src/fowl_art.cpp src/fowl_game.cpp src/noclip.cpp src/noclip_gen.cpp src/noclip_ents.cpp src/noclip_bots.cpp src/noclip_net.cpp src/noclip_render.cpp src/noclip_game.cpp src/howto.cpp src/ballpit.cpp src/ballpit_bots.cpp src/ballpit_net.cpp src/ballpit_game.cpp
     src/scuttle.cpp src/net_gns.cpp src/net_lan.cpp src/net_mem.cpp src/arcade_session.cpp src/arcade_games.cpp src/arcade.cpp src/net_test.cpp
     src/study_audio.cpp src/study_data.cpp src/study_test.cpp src/study.cpp src/study_scenes.cpp
     src/json.cpp src/expr.cpp src/course.cpp

@@ -1,0 +1,29 @@
+Ball Pit Brawl — Game Design Spec
+Ball Pit Brawl
+Oct 5, 2026 • @PhilIip Argall
+Overview
+— Game Design Spec
+Ball Pit Brawl is a foam-weapon shooter set inside a giant multistory indoor play center:
+players climb nets, ride tube slides, and wade through ball pits while fighting with foam
+knives, foam guns, and plastic balls that knock a player out in one hit.
+Core loop: spawn with a foam knife and a single-shot foam gun climb toward the enemy
+earn score from kills and objectives spend score on better foam guns and darts
+fight over the ball cannons, the most powerful weapons in the arena.
+Design pillars
+• The playground is the battlefield. Every piece of play equipment is also a route or a
+piece of cover: nets you can see through but not shoot through, slides that are fast but
+trap you, ball pits that hide you but slow you down.
+• Balls are deadly, darts are reliable. Any live ball is a one-hit knockout, so balls are the
+high-risk, high-reward weapon. Darts do steady damage and never run out if you keep
+vacuuming.
+• One shared ball supply. Every ball in the arena cycles through one conveyor system
+that feeds every cannon. Grabbing balls to throw, or draining the conveyor by firing a
+cannon, takes them away from everyone else.
+• Earn your arsenal. Everyone starts equal; score buys better guns mid-match.
+Camera: first person. Players see their foam gun or knife in hand, and climbing, sliding, and
+wading through ball pits are all shown from the player's eyes.
+Setting and arena
+The whole match takes place inside one huge indoor play structure, a steel frame of
+padded decks, nets, tube slides, and ball pits four levels high, inside a warehouse-sized
+building.
+Page 1 of 14

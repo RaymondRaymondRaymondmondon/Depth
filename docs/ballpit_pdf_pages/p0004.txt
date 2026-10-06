@@ -1,0 +1,27 @@
+Ball Pit Brawl — Game Design Spec
+Material
+Foam padding
+blocks
+Tube slide
+shell
+Blocks
+darts
+Yes
+Blocks
+balls
+Yes
+Can see through
+No
+Partly (colored
+windows)
+Notes
+Low cover on decks; crouch
+behind
+Fast travel, but you're trapped
+inside until the exit
+Netted walls are the main way players cross the big open spaces safely: routes along the
+atrium edge are netted, while the fastest routes (bridges, open decks) are exposed.
+Movement and traversal
+Getting to the enemy means climbing up and sliding down: the fast routes are exposed or
+one-way, and the safe routes are slow.
+Page 4 of 14
