@@ -581,3 +581,15 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 - **All play is an `nc::Input` or an `nc::Command`.** Any new field a screen draws goes in the Visit in noclip_net.cpp.
 - **Checks:** `--noclip-test`, `--noclip-gen <lvl> <seed>`, `--noclip-sim`, `--noclip-net-test`, `--net-loop noclip [lagMs] [mem]`. Shots: `noclip_*`, `arcade_noclip`.
 - **Second pass:** seven modes (`World::mode`: campaign, Lost, Roulette, Lights Out, Expedition, Lonely, Skin-Stealer), the Siren and cargo link, chalk/rope/grapple/scanner, rank and the Bureau locker (`NoclipLockerPage`, `noclip_profile.txt`), bots that restart Labs and scout deeper. Details and what is still simpler in docs/NOCLIP_PROGRESS.md.
+
+## Ball Pit Brawl (arcade game 13, Fighting; build log in docs/BALLPIT_PROGRESS.md)
+- **Design:** `Reference_For_Future_MP_Games/Ball Pit Brawl — Game Design Spec.pdf` (OCR in `docs/ballpit_pdf_pages/`). A first-person foam-weapon shooter in a 60 x 30 m four-level play centre: foam guns bought with score, balls that knock out until their first bounce, six cannons fed by one shared conveyor, slides, nets, tunnels, ball pits.
+- **Code (namespace `bp`):**
+  - `ballpit.h/.cpp`: the headless core at 60 Hz (the arena kit `MakeArena`, the traversal table, guns, the knife, the vacuum, the ball supply, cannons, the store, streak rewards, joke items, four modes). All numbers in `data/ballpit/ballpit_config.json`.
+  - `ballpit_bots.cpp`: the navigation graph (`NavOf`, a 1 m grid on every floor plus drops, ladders and slides), the bots (`BotInput`, `BotGoto`), the milestone tests, the sim.
+  - `ballpit_net.*`: `BallPitHost`; the snapshot is one templated Visit (per viewer: floor darts near you only). **Any new field a screen draws goes in the Visit.**
+  - `ballpit_game.cpp`: `Scene::BallPit` (one static hall mesh, pit mosaics, the viewmodel on the shared fp hands, the HUD, the store, the reward loadout).
+  - `sound_ballpit.inl`: `AudioBallPit`, `BallPitCue`.
+  - Props: `tools/artgen/ballpit_props.py` -> `assets/ballpit/*.glb` (blasters, knife, vacuum, foam finger, cannon, tank, RC car, drone, health box, bomb, flag); the code-built shapes are the fallback.
+- **The shared supply:** `World::BallsTotal()` never changes (pits + loose/live/held + belt + hoppers); a test checks it.
+- **Checks:** `--ballpit-test`, `--ballpit-net-test`, `--net-loop ballpit [lagMs] [mem]`, `--ballpit-sim <n> <mode> <players>`. Shots `bp_*` (`bp_perf` is the spec's frame-rate load: about 15 ms on this PC), `arcade_ballpit`.

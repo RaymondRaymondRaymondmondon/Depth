@@ -285,6 +285,10 @@ Model& GunModel(int g) { static std::map<int, Model> c; auto it = c.find(g); if 
     else if (g == 102) { BoxC(mb, {-0.03f, -0.05f, -0.06f}, {0.04f, 0.42f, 0.06f}, {60, 80, 220, 255}, {50, 70, 210, 255}, {40, 50, 160, 255}); BoxC(mb, {-0.02f, 0.42f, -0.02f}, {0.03f, 0.62f, 0.03f}, {60, 80, 220, 255}, {50, 70, 210, 255}, {40, 50, 160, 255}); }
     else GunMesh(mb, g);
     c[g] = Upload(mb); return c[g]; }
+// the Blender models (tools/artgen/ballpit_props.py -> assets/ballpit), each falling back to the code-built shape
+const Model* PropAsset(const char* key) { return rt::LoadAsset(std::string("ballpit/") + key + ".glb"); }
+const char* GunKey(int g) { if (g == 100) return "knife"; if (g == 101) return "vacuum"; if (g == 102) return "finger"; return g >= 0 && g < G_COUNT ? Cfg().guns[g].key.c_str() : "starter"; }
+void DrawGunModel(int g, Matrix m) { if (const Model* a = PropAsset(GunKey(g))) rt::DrawPbr(*a, m, WHITE, 0.25f); else rt::DrawStatic(GunModel(g), m, WHITE); }
 Model& CannonBase() { static Model m = [] { rt::MeshBuilder mb; Cyl(mb, {0, -1.0f, 0}, {0, -0.35f, 0}, 0.16f, {90, 94, 110, 255}); Cyl(mb, {0, -0.35f, 0}, {0, -0.15f, 0}, 0.42f, {250, 206, 42, 255}, 16); for (int s = -1; s <= 1; s += 2) BoxC(mb, {-0.25f, -0.15f, s * 0.36f - 0.05f}, {0.25f, 0.25f, s * 0.36f + 0.05f}, {250, 206, 42, 255}, {230, 186, 32, 255}, {200, 160, 30, 255}); return Upload(mb); }(); return m; }
 Model& CannonBarrel() { static Model m = [] { rt::MeshBuilder mb; Cyl(mb, {-0.5f, 0, 0}, {1.3f, 0.1f, 0}, 0.2f, {226, 58, 48, 255}, 16); Cyl(mb, {1.15f, 0.09f, 0}, {1.35f, 0.1f, 0}, 0.24f, {250, 206, 42, 255}, 16); Cyl(mb, {-0.55f, 0, 0}, {-0.4f, 0, 0}, 0.24f, {250, 206, 42, 255}, 16); for (int s = -1; s <= 1; s += 2) { Cyl(mb, {-0.7f, 0, s * 0.18f}, {-0.95f, -0.05f, s * 0.22f}, 0.03f, {50, 52, 60, 255}, 6); Sphere(mb, {-0.97f, -0.05f, s * 0.22f}, 0.05f, {50, 52, 60, 255}, 8, 5); }
     // the hopper above the breech (clear, the balls inside drawn per frame)
@@ -337,7 +341,7 @@ float PitSurfaceY(const Pit& q) { return q.lo.y + 0.25f + (q.hi.y - q.lo.y - 0.2
 // ---------------------------------------------------------------- drawing the world
 const Model* Body() { return rt::LoadAsset("shared/crew/crew_diver.glb"); }
 Matrix Orient(Vector3 p, float yaw, float pitch, float s = 1) { return MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(s, s, s), MatrixRotateZ(pitch)), MatrixRotateY(-yaw)), MatrixTranslate(p.x, p.y, p.z)); }
-void DrawGunAt(int g, Matrix m) { rt::DrawStatic(GunModel(g), m, WHITE); if (g == G_DUAL) rt::DrawStatic(GunModel(g), MatrixMultiply(MatrixTranslate(0, 0, -0.12f), m), WHITE); }
+void DrawGunAt(int g, Matrix m) { DrawGunModel(g, m); if (g == G_DUAL) DrawGunModel(g, MatrixMultiply(MatrixTranslate(0, 0, -0.12f), m)); }
 void DrawPerson(const Player& p, Vector3 feet, float scale, Color top, bool kid, float t, int heldGun) {
     const Model* m = Body(); if (!m) return;
     fig::Pose P; fig::Build B; B.build = kid ? 1.15f : 1.0f + 0.04f * (p.id % 3); B.headW = kid ? 1.25f : 1; B.headH = kid ? 1.2f : 1;
@@ -363,20 +367,20 @@ void DrawPerson(const Player& p, Vector3 feet, float scale, Color top, bool kid,
     if (p.crown) { rt::MeshBuilder* none = nullptr; (void)none; for (int k = 0; k < 5; k++) { float a = k * 2 * PI / 5 + p.yaw; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.06f, 0.1f, 0.02f), MatrixRotateY(-a)), MatrixTranslate(head.x + cosf(a) * 0.1f, head.y + 0.05f, head.z + sinf(a) * 0.1f)), {250, 210, 60, 255}); } }
     if (p.beanie) { rt::DrawStatic(SphereM(), MatrixMultiply(MatrixScale(0.13f, 0.07f, 0.13f), MatrixTranslate(head.x, head.y, head.z)), {228, 58, 48, 255}); float spin = S.t * (4 + spd * 6); for (int k = 0; k < 2; k++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.22f, 0.01f, 0.04f), MatrixRotateY(spin + k * PI / 2)), MatrixTranslate(head.x, head.y + 0.1f, head.z)), k ? Color{250, 206, 42, 255} : Color{44, 128, 228, 255}); }
     if (p.carry >= 0) { Color c = TEAM[p.carry & 1]; rt::DrawCubeM(MatrixMultiply(MatrixScale(0.03f, 1.2f, 0.03f), MatrixTranslate(feet.x - cosf(p.yaw) * 0.25f, feet.y + 1.4f, feet.z - sinf(p.yaw) * 0.25f)), {230, 230, 230, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.5f, 0.32f, 0.02f), MatrixTranslate(feet.x - cosf(p.yaw) * 0.25f, feet.y + 1.85f, feet.z - sinf(p.yaw) * 0.25f + 0.25f)), c, 0.4f); }
-    if (p.bomb) rt::DrawStatic(SphereM(), MatrixMultiply(MatrixScale(0.25f, 0.25f, 0.25f), MatrixTranslate(feet.x - cosf(p.yaw) * 0.32f, feet.y + 1.2f, feet.z - sinf(p.yaw) * 0.32f)), {40, 40, 46, 255});
+    if (p.bomb && PropAsset("bomb")) rt::DrawPbr(*PropAsset("bomb"), MatrixMultiply(MatrixScale(0.7f, 0.7f, 0.7f), MatrixTranslate(feet.x - cosf(p.yaw) * 0.32f, feet.y + 0.95f, feet.z - sinf(p.yaw) * 0.32f)), WHITE, 0.2f); else if (p.bomb) rt::DrawStatic(SphereM(), MatrixMultiply(MatrixScale(0.25f, 0.25f, 0.25f), MatrixTranslate(feet.x - cosf(p.yaw) * 0.32f, feet.y + 1.2f, feet.z - sinf(p.yaw) * 0.32f)), {40, 40, 46, 255});
 }
 void DrawCannons() {
     const World& w = W(); float t = S.t;
     for (int c = 0; c < (int)w.cannons.size(); c++) {
         const Cannon& k = w.cannons[c]; const CannonDef& d = w.arena.cannons[c];
-        rt::DrawStatic(CannonBase(), MatrixMultiply(MatrixRotateY(-k.yaw), MatrixTranslate(d.pivot.x, d.pivot.y, d.pivot.z)), WHITE);
+        { Matrix bm0 = MatrixMultiply(MatrixRotateY(-k.yaw), MatrixTranslate(d.pivot.x, d.pivot.y, d.pivot.z)); if (const Model* a = PropAsset("cannon_base")) rt::DrawPbr(*a, bm0, WHITE, 0.2f); else rt::DrawStatic(CannonBase(), bm0, WHITE); }
         Color team = d.team < 0 ? Color{250, 250, 250, 255} : TEAM[d.team];
         float rec = k.shotT > 0 ? k.shotT * 0.6f : 0;
         Matrix bm = MatrixMultiply(MatrixMultiply(MatrixTranslate(-rec, 0, 0), MatrixRotateZ(k.pitch)), MatrixMultiply(MatrixRotateY(-k.yaw), MatrixTranslate(d.pivot.x, d.pivot.y, d.pivot.z)));
-        rt::DrawStatic(CannonBarrel(), bm, k.overheated ? Mix(WHITE, Color{255, 120, 80, 255}, 0.4f + 0.3f * sinf(t * 12)) : Mix(WHITE, team, 0.25f));
+        { Color tint = k.overheated ? Mix(WHITE, Color{255, 120, 80, 255}, 0.4f + 0.3f * sinf(t * 12)) : Mix(WHITE, team, 0.25f); if (const Model* a = PropAsset("cannon_barrel")) rt::DrawPbr(*a, bm, tint, 0.2f); else rt::DrawStatic(CannonBarrel(), bm, tint); }
         if (k.heat > 1.5f || k.overheated) rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.5f, 0.05f, 0.05f), MatrixTranslate(0.6f, 0.26f, 0)), bm), {255, 120, 60, 255}, 0.5f + 0.5f * k.heat / Cfg().cannonHeat);
         // the hopper's balls (up to 40, stacked)
-        int n = std::min(k.hopper, 40); for (int i = 0; i < n; i++) { float ring = 0.06f + 0.16f * ((i % 8) / 8.0f), a = i * 2.39f, y = 0.04f + (i / 8) * 0.075f; Vector3 lp{0.1f + cosf(a) * ring, y, 0.5f + sinf(a) * ring}; Vector3 wp = Vector3Transform(lp, bm); float r = Cfg().ballR; rt::DrawStatic(SphereM(), MatrixMultiply(MatrixScale(r, r, r), MatrixTranslate(wp.x, wp.y, wp.z)), BALLC[i % 6]); }
+        int n = std::min(k.hopper, 40); for (int i = 0; i < n; i++) { float ring = 0.06f + 0.16f * ((i % 8) / 8.0f), a = i * 2.39f, y = 0.04f + (i / 8) * 0.075f; Vector3 lp{0.1f + cosf(a) * ring * 0.8f, y, 0.55f + sinf(a) * ring * 0.8f}; Vector3 wp = Vector3Transform(lp, bm); float r = Cfg().ballR; rt::DrawStatic(SphereM(), MatrixMultiply(MatrixScale(r, r, r), MatrixTranslate(wp.x, wp.y, wp.z)), BALLC[i % 6]); }
     }
 }
 void DrawBallsAndDarts() {
@@ -419,11 +423,11 @@ void DrawEnts() {
     const World& w = W();
     for (const auto& e : w.ents) {
         switch (e.kind) {
-            case E_HEALTHBOX: rt::DrawCubeM(MatrixMultiply(MatrixScale(0.5f, 0.32f, 0.36f), MatrixTranslate(e.p.x, e.p.y + 0.16f, e.p.z)), {245, 245, 240, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.32f, 0.08f, 0.38f), MatrixTranslate(e.p.x, e.p.y + 0.18f, e.p.z)), {228, 40, 40, 255}, 0.3f); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.33f, 0.38f), MatrixTranslate(e.p.x, e.p.y + 0.16f, e.p.z)), {228, 40, 40, 255}, 0.3f); break;
+            case E_HEALTHBOX: if (const Model* a = PropAsset("healthbox")) { rt::DrawPbr(*a, MatrixTranslate(e.p.x, e.p.y, e.p.z), WHITE, 0.2f); break; } rt::DrawCubeM(MatrixMultiply(MatrixScale(0.5f, 0.32f, 0.36f), MatrixTranslate(e.p.x, e.p.y + 0.16f, e.p.z)), {245, 245, 240, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.32f, 0.08f, 0.38f), MatrixTranslate(e.p.x, e.p.y + 0.18f, e.p.z)), {228, 40, 40, 255}, 0.3f); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.08f, 0.33f, 0.38f), MatrixTranslate(e.p.x, e.p.y + 0.16f, e.p.z)), {228, 40, 40, 255}, 0.3f); break;
             case E_KID: { Player kid; kid.id = e.owner * 7 + (int)(e.goal.x * 3); kid.team = e.team & 1; kid.pos = e.p; kid.vel = e.v; kid.yaw = e.yaw; static const Color KC[5] = {{250, 90, 160, 255}, {80, 200, 230, 255}, {250, 210, 60, 255}, {130, 220, 90, 255}, {200, 120, 250, 255}}; DrawPerson(kid, e.p, 0.6f, KC[(int)fabsf(e.goal.z * 10) % 5], true, S.t + e.goal.x, -1); break; }
-            case E_RCCAR: { Matrix m = Orient(e.p, e.yaw, 0); rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.5f, 0.14f, 0.3f), MatrixTranslate(0, 0.13f, 0)), m), {228, 58, 48, 255}); for (int k = 0; k < 4; k++) rt::DrawStatic(SphereM(), MatrixMultiply(MatrixMultiply(MatrixScale(0.07f, 0.07f, 0.04f), MatrixTranslate((k & 1) ? 0.17f : -0.17f, 0.07f, (k & 2) ? 0.16f : -0.16f)), m), {30, 30, 34, 255}); DrawGunAt(G_FLYWHEEL, MatrixMultiply(MatrixMultiply(MatrixScale(0.8f, 0.8f, 0.8f), MatrixTranslate(-0.05f, 0.22f, 0)), m)); break; }
-            case E_DRONE: { Matrix m = Orient(e.p, e.yaw, 0); rt::DrawCubeM(MatrixMultiply(MatrixScale(0.26f, 0.08f, 0.26f), m), {60, 64, 80, 255}); for (int k = 0; k < 4; k++) { float a = k * PI / 2 + PI / 4; Vector3 q{cosf(a) * 0.24f, 0.05f, sinf(a) * 0.24f}; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.2f, 0.01f, 0.03f), MatrixRotateY(S.t * 40 + k)), MatrixMultiply(MatrixTranslate(q.x, q.y, q.z), m)), {200, 200, 210, 255}); } rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.05f, 0.05f, 0.05f), MatrixMultiply(MatrixTranslate(0.13f, 0, 0), m)), e.team == Me().team ? Color{80, 255, 120, 255} : Color{255, 60, 60, 255}, 1.0f); DrawGunAt(G_PISTOL, MatrixMultiply(MatrixTranslate(0, -0.1f, 0), m)); break; }
-            case E_TANK: { Matrix m = Orient(e.p, e.yaw, 0); Color c = e.team >= 0 ? TEAM[e.team & 1] : Color{120, 160, 90, 255};
+            case E_RCCAR: { Matrix m = Orient(e.p, e.yaw, 0); if (const Model* a = PropAsset("rccar")) { rt::DrawPbr(*a, m, WHITE, 0.2f); break; } rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.5f, 0.14f, 0.3f), MatrixTranslate(0, 0.13f, 0)), m), {228, 58, 48, 255}); for (int k = 0; k < 4; k++) rt::DrawStatic(SphereM(), MatrixMultiply(MatrixMultiply(MatrixScale(0.07f, 0.07f, 0.04f), MatrixTranslate((k & 1) ? 0.17f : -0.17f, 0.07f, (k & 2) ? 0.16f : -0.16f)), m), {30, 30, 34, 255}); DrawGunAt(G_FLYWHEEL, MatrixMultiply(MatrixMultiply(MatrixScale(0.8f, 0.8f, 0.8f), MatrixTranslate(-0.05f, 0.22f, 0)), m)); break; }
+            case E_DRONE: { Matrix m = Orient(e.p, e.yaw, 0); if (const Model* a = PropAsset("drone")) { rt::DrawPbr(*a, m, WHITE, 0.2f); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.04f, 0.04f, 0.04f), MatrixMultiply(MatrixTranslate(0.13f, 0, 0), m)), e.team == Me().team ? Color{80, 255, 120, 255} : Color{255, 60, 60, 255}, 1.0f); break; } rt::DrawCubeM(MatrixMultiply(MatrixScale(0.26f, 0.08f, 0.26f), m), {60, 64, 80, 255}); for (int k = 0; k < 4; k++) { float a = k * PI / 2 + PI / 4; Vector3 q{cosf(a) * 0.24f, 0.05f, sinf(a) * 0.24f}; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.2f, 0.01f, 0.03f), MatrixRotateY(S.t * 40 + k)), MatrixMultiply(MatrixTranslate(q.x, q.y, q.z), m)), {200, 200, 210, 255}); } rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.05f, 0.05f, 0.05f), MatrixMultiply(MatrixTranslate(0.13f, 0, 0), m)), e.team == Me().team ? Color{80, 255, 120, 255} : Color{255, 60, 60, 255}, 1.0f); DrawGunAt(G_PISTOL, MatrixMultiply(MatrixTranslate(0, -0.1f, 0), m)); break; }
+            case E_TANK: { Matrix m = Orient(e.p, e.yaw, 0); Color c = e.team >= 0 ? TEAM[e.team & 1] : Color{120, 160, 90, 255}; if (const Model* a = PropAsset("tank")) { rt::DrawPbr(*a, m, Mix(WHITE, c, 0.35f), 0.25f); break; }
                 rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.7f, 0.55f, 1.2f), MatrixTranslate(0, 0.38f, 0)), m), c);
                 for (int s = -1; s <= 1; s += 2) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.8f, 0.4f, 0.28f), MatrixTranslate(0, 0.2f, s * 0.62f)), m), {50, 52, 60, 255});
                 rt::DrawStatic(SphereM(), MatrixMultiply(MatrixMultiply(MatrixScale(0.5f, 0.32f, 0.5f), MatrixTranslate(0, 0.72f, 0)), m), Mix(c, WHITE, 0.2f));
@@ -437,12 +441,13 @@ void DrawEnts() {
     // flags and the bomb
     if (w.mode == MD_CTF) for (int s = 0; s < 2; s++) {
         const Flag& f = w.flags[s]; if (f.carrier >= 0) continue; Vector3 p = f.p;
+        if (const Model* a = PropAsset("flag")) { rt::DrawPbr(*a, MatrixMultiply(MatrixRotateY(sinf(S.t * 1.3f) * 0.15f), MatrixTranslate(p.x, p.y, p.z)), Mix(TEAM[s], WHITE, 0.15f), 0.3f); continue; }
         rt::DrawCubeM(MatrixMultiply(MatrixScale(0.04f, 2.2f, 0.04f), MatrixTranslate(p.x, p.y + 1.1f, p.z)), {230, 230, 230, 255});
         float wave = sinf(S.t * 3) * 0.08f; rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.02f, 0.5f, 0.8f), MatrixRotateY(wave)), MatrixTranslate(p.x, p.y + 1.9f, p.z + 0.4f)), TEAM[s], 0.4f);
     }
     if (w.mode == MD_BOMB && w.bomb.carrier < 0 && !w.bomb.done) {
-        Vector3 p = w.bomb.p; rt::DrawStatic(SphereM(), MatrixMultiply(MatrixScale(0.32f, 0.32f, 0.32f), MatrixTranslate(p.x, p.y + 0.32f, p.z)), {40, 40, 46, 255});
-        rt::DrawCubeM(MatrixMultiply(MatrixScale(0.66f, 0.08f, 0.1f), MatrixTranslate(p.x, p.y + 0.32f, p.z)), {250, 206, 42, 255});
+        Vector3 p = w.bomb.p; if (const Model* a = PropAsset("bomb")) rt::DrawPbr(*a, MatrixTranslate(p.x, p.y, p.z), WHITE, 0.2f); else rt::DrawStatic(SphereM(), MatrixMultiply(MatrixScale(0.32f, 0.32f, 0.32f), MatrixTranslate(p.x, p.y + 0.32f, p.z)), {40, 40, 46, 255});
+        if (!PropAsset("bomb")) rt::DrawCubeM(MatrixMultiply(MatrixScale(0.66f, 0.08f, 0.1f), MatrixTranslate(p.x, p.y + 0.32f, p.z)), {250, 206, 42, 255});
         if (w.bomb.planted) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.06f, 0.06f, 0.06f), MatrixTranslate(p.x, p.y + 0.7f, p.z)), {255, 60, 40, 255}, fmodf(S.t, w.bomb.fuseT < 10 ? 0.3f : 1.0f) < 0.15f ? 2.0f : 0.2f);
     }
 }
@@ -505,8 +510,8 @@ void DrawViewmodel() {
     if (g == 102) { gx = up; gy = Vector3Scale(f, -1); at = Vector3Add(at, Vector3Scale(up, 0.08f + 0.04f * sinf(S.t * 9))); }
     float sc = 0.72f;
     Matrix gm = Matrix{gx.x * sc, gy.x * sc, gz.x * sc, at.x, gx.y * sc, gy.y * sc, gz.y * sc, at.y, gx.z * sc, gy.z * sc, gz.z * sc, at.z, 0, 0, 0, 1};
-    rt::DrawStatic(GunModel(g), gm, WHITE);
-    if (g == G_DUAL) { Matrix gm2 = gm; Vector3 o = Vector3Scale(rgt, -0.34f + side * -0.0f); gm2.m12 += o.x; gm2.m13 += o.y; gm2.m14 += o.z; rt::DrawStatic(GunModel(g), gm2, WHITE); }
+    DrawGunModel(g, gm);
+    if (g == G_DUAL) { Matrix gm2 = gm; Vector3 o = Vector3Scale(rgt, -0.34f + side * -0.0f); gm2.m12 += o.x; gm2.m13 += o.y; gm2.m14 += o.z; DrawGunModel(g, gm2); }
     // the muzzle flash of foam: a little puff for a frame
     if (S.kick > 0 && g < G_COUNT) { Vector3 mz = Vector3Transform(gv.muzzle, gm); rt::DrawStaticGlow(SphereM(), MatrixMultiply(MatrixScale(0.02f + S.kick * 0.04f, 0.02f + S.kick * 0.04f, 0.02f + S.kick * 0.04f), MatrixTranslate(mz.x, mz.y, mz.z)), {255, 240, 220, 255}, 0.6f); }
     // the hands: right on the grip, left under the fore-end (or the second blaster)
@@ -940,6 +945,10 @@ void DebugBallPitShot(Game& g, int which) {
     if (which == 10) { run(3.5f); place({-36, 22, 0}, 0, -0.55f); m.alive = true; }
     if (which == 11) { run(5); w.KnockOut(m, 1, "a ball", false); for (int i = 0; i < 120; i++) StepCamera(1 / 60.0f); }
     if (which == 12) { run(5); place({22, L2, 6}, PI, 0); }
+    if (which == 13) {   // the spec's milestone 4 load: the pits (thousands of balls drawn) and 100 live balls in the air
+        run(3.5f); place({-17, L2, -2}, 0.05f, -0.1f);
+        for (int k = 0; k < 100; k++) { Ball b; b.st = BS_LIVE; b.p = {-12.0f + (k % 10) * 2.4f, 1.5f + (k / 10) * 0.6f, -6.0f + (k % 7) * 2.0f}; b.v = {(float)(k % 5) - 2, 3, (float)(k % 3) - 1}; b.thrower = 1; b.team = 1; w.balls.push_back(b); w.arena.pits[0].balls--; }
+    }
     // (a debug overview flies the camera out over the hall)
     if (which == 10) { Me().alive = true; }
     S.evCountSeen = w.evCount;
