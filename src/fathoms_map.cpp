@@ -87,10 +87,11 @@ void GenerateMap(World& w) {
                 float jn = Hash(s.shape, (int)(phi * 7 + 50) + (int)(d * 0.7f) * 31);
                 if (t == T_GRASS && (s.kind == I_TRIBAL || s.kind == I_FERTILE) && jn > 0.55f && inner > 0.15f) t = T_JUNGLE;
                 if (t == T_GRASS && (s.kind == I_MINING || s.kind == I_VOLCANO || s.kind == I_RUIN) && inner > 0.35f) t = T_HILL;
-                if (s.kind == I_VOLCANO && inner > 0.75f) t = T_MOUNTAIN;
+                if (s.kind == I_VOLCANO && t != T_BEACH) t = T_HILL;   // (the volcano is one walkable cone: its altar on the summit)
                 if (s.kind == I_HOME && t == T_GRASS && inner > 0.25f && jn > 0.82f) t = T_HILL;
                 w.tile[k] = t; w.isle[k] = (int16_t)i; is.tiles.push_back(k);
                 w.height[k] = 0.3f + inner * (t == T_MOUNTAIN ? 6.0f : t == T_HILL ? 2.4f : 0.9f) + (t == T_BEACH ? -0.15f : 0);
+                if (s.kind == I_VOLCANO) w.height[k] = 0.3f + powf(inner, 1.35f) * 7.0f;
             } else if (d < landR + shallowW + (s.shallowPath ? 0 : 0)) {
                 if (w.tile[k] == T_DEEP) { w.tile[k] = T_SHALLOW; w.height[k] = -0.5f; }
             }

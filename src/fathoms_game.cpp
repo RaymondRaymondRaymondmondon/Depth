@@ -31,7 +31,7 @@ struct FScene {
     bool dragging = false; Vector2 dragA{};
     int place = -1; int order = 0;   // order: 1 attack-move, 2 patrol, 3 hero ability point, 4 rally, 5 unload point, 6 convert target, 7 trade target
     std::vector<int> groups[10];
-    std::deque<Msg> msgs; std::vector<Mark> marks;
+    std::deque<Msg> msgs; std::vector<Mark> marks, pings; int pingKind = 0;
     int panel = 0; int panelSite = -1; int page = 0; bool help = true; float helpT = 0;
     TerrainMesh terrain; float shadeT = 0; Model sea{}; bool seaReady = false;
     Texture2D mini{}; bool miniReady = false; float miniT = 0; uint32_t miniKey = 0; std::vector<Color> miniBase;
@@ -201,13 +201,15 @@ void ReadEvents() {
             case EV_KRAKEN: Say(e.b == 2 ? "The Kraken is slain!" : "The Kraken wakes in the central sea", {230, 120, 120, 255}, e.at); Cue(FAC_KRAKEN, e.at); break;
             case EV_GHOST: Say(e.b == 2 ? "The Ghost Ship sinks" : "A Ghost Pirate Ship roams the sea", {150, 230, 210, 255}, e.at); break;
             case EV_ELIM: Say(Who(e.a) + (e.a == S.me ? " have been eliminated" : " has been eliminated"), Pal::Bad); break;
-            case EV_DIPLO: if (e.b == S.me || e.a == S.me) { static const char* D[5] = {"War", "Ceasefire", "Peace", "Open Harbors", "Allied"}; Say(Who(e.a) + " -> " + Who(e.b) + ": " + D[std::clamp(e.c, 0, 4)], {200, 220, 255, 255}); } break;
+            case EV_DIPLO: if (e.c == 20 || e.c == 21) { Say(Who(e.a) + (e.c == 21 ? " paused the game" : " resumed the game"), {220, 220, 255, 255}); break; } if (e.b == S.me || e.a == S.me) { static const char* D[5] = {"War", "Ceasefire", "Peace", "Open Harbors", "Allied"}; Say(Who(e.a) + " -> " + Who(e.b) + ": " + D[std::clamp(e.c, 0, 4)], {200, 220, 255, 255}); } break;
             case EV_MOLT: if (near) Cue(FAC_MOLT, e.at); break;
             case EV_CONVERT: if (near) Cue(FAC_CONVERT, e.at); break;
             case EV_ULTIMATE: if (e.b == S.me || near) Cue(FAC_ULTIMATE, e.at); if (e.c >= 0 && e.b >= 0 && e.b < (int)w.players.size()) Say(Who(e.b) + " summon" + (e.b == S.me ? " " : "s ") + Bl().factions[w.players[e.b].faction].ultimate + "!", {255, 120, 255, 255}, e.at); break;
             case EV_HERO: if (near) Cue(FAC_HERO, e.at); break;
             case EV_CARD: if (e.a == S.me && e.b > 0) { S.panel = 6; } break;
             case EV_LAND: break;
+            case EV_PING: if (w.Allied(e.a, S.me)) { static const char* PN[3] = {"Attack here!", "Defend here!", "Danger!"}; S.pings.push_back({e.at, 0, e.b == 0 ? Pal::Bad : e.b == 1 ? Pal::Good : Pal::Brass}); Say(Who(e.a) + ": " + PN[std::clamp(e.b, 0, 2)], {230, 230, 255, 255}, e.at); FathomsCue(FAC_CLICK, 0.8f, 0); } break;
+            case EV_OFFER: if (e.b == S.me) { static const char* D[5] = {"War", "a Ceasefire", "Peace", "Open Harbors", "an Alliance"}; Say(Who(e.a) + " offers " + D[std::clamp(e.c, 0, 4)] + " (F2 to answer)", Pal::Good); FathomsCue(FAC_TECH, 0.7f, 0); } break;
             case EV_VICTORY: S.over = true;  break;
             default: break;
         }
@@ -249,7 +251,7 @@ void DrawWorld3D(float dt) {
         const Site& s = w.sites[i]; if (!ExploredAt(s.p)) continue; float y = TileY(w, s.p.x, s.p.y);
         if (s.kind == S_COVE) rt::DrawStatic(SiteModel(S_COVE, 0), Place({s.p.x, y, s.p.y}, 0.3f, 1), s.hp > 0 ? WHITE : Color{120, 110, 100, 255});
         if (s.kind == S_TRIBE && s.state != 3) rt::DrawStatic(SiteModel(S_TRIBE, s.large), Place({s.p.x, y, s.p.y}, 0.9f, 1), WHITE);
-        if (s.kind == S_ALTAR) { rt::DrawStatic(SiteModel(S_ALTAR, 0), Place({s.p.x, y, s.p.y}, 0, 1), WHITE); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.4f, 0.4f, 0.4f), MatrixTranslate(s.p.x, y + 1.55f, s.p.y)), s.holder >= 0 ? PlayerColor(w.players[s.holder].color) : Color{255, 170, 60, 255}, 1.6f);
+        if (s.kind == S_ALTAR) { rt::DrawStatic(SiteModel(S_ALTAR, 0), Place({s.p.x, y, s.p.y}, 0, 0.8f), WHITE); for (int q = 0; q < 7; q++) { float k = fmodf(S.t * 0.12f + q / 7.0f, 1.0f); float r = 0.5f + k * (s.count == 2 ? 3.0f : 1.6f); rt::DrawCubeM(MatrixMultiply(MatrixScale(r, r * 0.7f, r), MatrixTranslate(s.p.x + 2.0f + k * 4 * sinf(q * 2.3f), y + 2.5f + k * (s.count == 2 ? 14 : 8), s.p.y + k * 2 * cosf(q * 1.7f))), s.count == 2 ? Color{70, 62, 60, 255} : Color{150, 146, 140, 255}); } rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.4f, 0.4f, 0.4f), MatrixTranslate(s.p.x, y + 1.3f, s.p.y)), s.holder >= 0 ? PlayerColor(w.players[s.holder].color) : Color{255, 170, 60, 255}, 1.6f);
             if (s.count == 1) for (auto& q : s.lava) if (((int)(q.x * 7 + q.y * 3) % 3) == 0) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.5f, 0.04f, 0.5f), MatrixTranslate(q.x + 0.5f, TileY(w, q.x + 0.5f, q.y + 0.5f) + 0.05f, q.y + 0.5f)), {255, 90, 30, 255}, 0.6f + 0.6f * sinf(S.t * 8 + q.x)); }
         if (s.kind == S_RUIN && (s.state != 2 || s.relic > 0)) rt::DrawStatic(SiteModel(S_RUIN, s.relic > 0), Place({s.p.x, s.state == 2 ? 0.0f : y, s.p.y}, 0, s.state == 2 ? 0.5f : 1), WHITE);
     }
@@ -296,6 +298,7 @@ void DrawWorld3D(float dt) {
     }
     // order marks
     for (auto& mk : S.marks) DrawRing(mk.p, 0.3f + mk.t * 1.2f, FadeC(mk.c, 1 - mk.t * 2));
+    for (auto& pg : S.pings) for (int q = 0; q < 3; q++) DrawRing(pg.p, 0.6f + fmodf(pg.t * 1.5f + q * 0.33f, 1.0f) * 3.0f, pg.c, 0.3f);
     // the building being placed
     if (S.place >= 0) {
         Vector2 g; if (Ground(GetMousePosition(), &g)) { int sz = Bl().buildings[S.place].size; int x = (int)floorf(g.x - sz * 0.5f + 0.5f), y = (int)floorf(g.y - sz * 0.5f + 0.5f); bool ok = w.CanPlace(S.me, S.place, x, y);
@@ -310,8 +313,8 @@ void Render(float dt) {
     L.fog = Mix2(horizon, {120, 126, 134, 255}, stormK * 0.7f); L.fog = Mix2(L.fog, {214, 220, 224, 255}, fogK * 0.7f); L.fogDensity = 0.004f * (1 + 2 * stormK + 4 * fogK); L.fogBanks = 0;
     L.key = {0, 0, 0, 255}; L.lampRange = 1; L.lampPos = {0, -500, 0}; L.lampDir = {0, -1, 0};
     L.fill = {120, 140, 160, 255}; L.rim = {200, 220, 240, 255};
-    L.moonDir = Vector3Normalize({-0.45f, -1.0f, -0.35f}); L.moon = {255, 246, 226, 255}; L.moonK = 1.05f * (1 - 0.5f * stormK);
-    L.skyAmb = {170, 196, 224, 255}; L.seaAmb = {80, 96, 110, 255}; L.ambK = 0.8f;
+    L.moonDir = Vector3Normalize({-0.45f, -1.0f, -0.35f}); L.moon = {255, 246, 226, 255}; L.moonK = 0.85f * (1 - 0.5f * stormK);
+    L.skyAmb = {170, 196, 224, 255}; L.seaAmb = {80, 96, 110, 255}; L.ambK = 0.7f;
     L.surfaceY = 1e5f; L.time = S.t; L.outline = 0.5f; L.outlineTint = {30, 36, 46, 255}; L.stipple = 0; L.grain = 0.2f; L.aoK = 0.45f; L.aoRadius = 0.5f; L.filmic = 0; L.saturation = 1.25f;
     rt::ApplyGameQuality();
     rt::RenderBegin(S.cam, L);
@@ -350,6 +353,7 @@ void DrawMini() {
     for (const auto& u : w.units) if (Visible(u)) { Color c = IsPlayer(u.owner) && u.owner < (int)w.players.size() ? PlayerColor(w.players[u.owner].color) : u.owner == OWN_PIRATE ? Color{30, 30, 30, 255} : Color{240, 240, 240, 255}; DrawRectangle((int)(MINI.x + u.p.x * kx), (int)(MINI.y + u.p.y * ky), 2, 2, c); }
     for (const auto& s : w.sites) if (ExploredAt(s.p) && (s.kind == S_COVE || s.kind == S_TRIBE || s.kind == S_ALTAR || (s.kind == S_RUIN && s.relic > 0))) DrawCircleLines((int)(MINI.x + s.p.x * kx), (int)(MINI.y + s.p.y * ky), 3, s.kind == S_RUIN ? Color{120, 240, 230, 255} : s.kind == S_ALTAR ? Color{255, 150, 60, 255} : s.kind == S_COVE ? Color{20, 20, 20, 255} : Color{230, 200, 120, 255});
     if (w.weather) DrawCircleLines((int)(MINI.x + w.weatherAt.x * kx), (int)(MINI.y + w.weatherAt.y * ky), w.weatherR * kx, w.weather == 2 ? Color{200, 200, 255, 200} : Color{220, 220, 220, 160});
+    for (auto& pg : S.pings) DrawCircleLines((int)(MINI.x + pg.p.x * kx), (int)(MINI.y + pg.p.y * ky), 4 + fmodf(pg.t * 8, 6), pg.c);
     if (S.t - S.lastAttackT < 6) DrawCircleLines((int)(MINI.x + S.lastAttackAt.x * kx), (int)(MINI.y + S.lastAttackAt.y * ky), 6 + 4 * sinf(S.t * 10), Pal::Bad);
     // the camera's view
     Vector2 c[4]; Vector2 corners[4] = {{0, 0}, {SCREEN_W, 0}, {SCREEN_W, SCREEN_H}, {0, SCREEN_H}}; for (int i = 0; i < 4; i++) { Vector2 g{S.camC.x, S.camC.y}; Ground(corners[i], &g); c[i] = {MINI.x + std::clamp(g.x, 0.0f, (float)w.W) * kx, MINI.y + std::clamp(g.y, 0.0f, (float)w.H) * ky}; }
@@ -506,7 +510,8 @@ void DrawPanels() {
         static const char* D[5] = {"War", "Ceasefire", "Peace", "Open Harbors", "Allied"};
         for (const auto& q : w.players) { if (q.id == S.me) continue;
             Txt(TextFormat("%s (%s)  score %d  %s", q.name.c_str(), Bl().factions[q.faction].name.c_str(), (int)q.score, q.alive ? D[P.stance[q.id]] : "eliminated"), p.x + 20, y, 15, q.alive ? WHITE : SCREEN_DIM);
-            if (q.alive && w.set.diplomacy) for (int s = 0; s < 5; s++) if (PanelButton({p.x + 20 + s * 112.0f, y + 20, 106, 24}, D[s], s != P.stance[q.id])) { Command c = Cmd(C_DIPLO); c.a = q.id; c.b = s; Issue(c); }
+            if (q.alive && w.set.diplomacy) for (int s = 0; s < 5; s++) if (PanelButton({p.x + 20 + s * 112.0f, y + 20, 106, 24}, P.offerFrom[q.id] == s ? TextFormat("Accept %s", D[s]) : D[s], s != P.stance[q.id])) { Command c = Cmd(C_DIPLO); c.a = q.id; c.b = s; Issue(c); }
+            if (q.alive && P.offerFrom[q.id] > P.stance[q.id]) Txt(TextFormat("%s offers %s", q.name.c_str(), D[P.offerFrom[q.id]]), p.x + 380, y, 15, Pal::Good);
             if (q.alive && P.stance[q.id] >= DP_PEACE) for (int r = 0; r < R_COUNT; r++) if (PanelButton({p.x + 20 + r * 112.0f, y + 48, 106, 22}, TextFormat("Send 100 %s", ResName(r)), P.res[r] >= 100)) { Command c = Cmd(C_TRIBUTE); c.a = q.id; c.b = r; c.amount = 100; Issue(c); }
             y += w.set.diplomacy ? 80 : 26; }
         if (!w.set.diplomacy) Txt("Diplomacy is locked in this game (teams are fixed).", p.x + 20, y + 6, 15, SCREEN_DIM);
@@ -588,6 +593,7 @@ void DrawHud() {
     if (S.order) DrawTextCenteredBold(S.order == 1 ? "Attack-move: click a place" : S.order == 2 ? "Patrol: click a place" : S.order == 3 ? "Ability: click a target" : S.order == 4 ? "Rally: click a place" : S.order == 5 ? "Unload: click the shore" : S.order == 6 ? "Convert: click an enemy" : "Trade: click an Exchange or a cove", SCREEN_W / 2.0f, SCREEN_H - 210, 18, Pal::Brass);
     if (S.place >= 0) DrawTextCenteredBold("Place " + BName(Bl().buildings[S.place].key) + ": left-click (Shift: more), right-click cancels", SCREEN_W / 2.0f, SCREEN_H - 210, 18, Pal::Brass);
     if (S.toastT > 0) DrawTextCenteredBold(S.toast, SCREEN_W / 2.0f, SCREEN_H - 236, 17, WHITE);
+    if (w.Paused()) { DrawRectangle(0, SCREEN_H / 2 - 40, SCREEN_W, 80, {10, 12, 20, 200}); DrawTextCenteredBold(TextFormat("PAUSED by %s  (%d s)", Who(w.pausedBy).c_str(), (int)w.pauseLeft), SCREEN_W / 2.0f, SCREEN_H / 2.0f - 22, 30, Pal::Brass); DrawTextCentered(TextFormat("F9 or Pause to resume. You have %d pauses left.", w.pausesLeft[std::clamp(S.me, 0, MAX_PLAYERS - 1)]), SCREEN_W / 2.0f, SCREEN_H / 2.0f + 14, 15, WHITE); }
     DrawPanels();
     if (S.help && S.helpT < 14) { Rectangle r{SCREEN_W / 2.0f - 330, 60, 660, 70}; DrawRectangleRounded(r, 0.2f, 6, {14, 18, 28, 220}); DrawTextCenteredBold("Fathoms: build an island empire", SCREEN_W / 2.0f, r.y + 10, 20, Pal::Brass); DrawTextCentered("Drag-select workers, right-click resources. Build Cottages and a Barracks. F1 for help.", SCREEN_W / 2.0f, r.y + 40, 15, WHITE); }
     // the end
@@ -607,6 +613,7 @@ void HandleInput(float dt) {
     Vector2 m = GetMousePosition();
     bool overUi = m.y > SCREEN_H - 190 || m.y < 32 || (S.panel && CheckCollisionPointRec(m, {SCREEN_W / 2.0f - 300, 110, 600, 400})) || (m.x > SCREEN_W - 124 && m.y < 120);
     if (IsKeyPressed(KEY_F1)) S.panel = S.panel == 5 ? 0 : 5;
+    if (IsKeyPressed(KEY_PAUSE) || IsKeyPressed(KEY_F9)) Issue(Cmd(C_PAUSE));
     if (IsKeyPressed(KEY_F2)) S.panel = S.panel == 1 ? 0 : 1;
     if (IsKeyPressed(KEY_F3) && Me().faction == 0) S.panel = S.panel == 6 ? 0 : 6;
     if (IsKeyPressed(KEY_ESCAPE)) { if (S.place >= 0 || S.order) { S.place = -1; S.order = 0; } else if (S.panel) S.panel = 0; else GameMenuRequest(); }
@@ -616,7 +623,8 @@ void HandleInput(float dt) {
     for (int k = 0; k <= 9; k++) if (IsKeyPressed(KEY_ZERO + k)) { if (IsKeyDown(KEY_LEFT_CONTROL)) S.groups[k] = MySel(); else if (!S.groups[k].empty()) { std::vector<int> g; for (int id : S.groups[k]) if (w.U(id)) g.push_back(id); S.groups[k] = g; static double last = 0; static int lastK = -1; if (GetTime() - last < 0.35 && lastK == k && !g.empty()) S.camC = w.U(g[0])->p; last = GetTime(); lastK = k; S.sel = g; S.selB = -1; } }
     if (IsKeyPressed(KEY_DELETE)) { Command c = Cmd(C_DELETE); c.units = MySel(); Issue(c); }
     if (!overUi && !CheckCollisionPointRec(m, MINI)) {
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { if (S.place >= 0 || S.order) LeftClick(m, IsKeyDown(KEY_LEFT_SHIFT)); else { S.dragging = true; S.dragA = m; } }
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && IsKeyDown(KEY_LEFT_ALT)) { Vector2 g; if (Ground(m, &g)) { Command c = Cmd(C_PING); c.at = g; c.a = IsKeyDown(KEY_LEFT_SHIFT) ? 2 : IsKeyDown(KEY_LEFT_CONTROL) ? 1 : 0; Issue(c); } }   // (Alt+click: attack here; Ctrl: defend; Shift: danger)
+        else if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { if (S.place >= 0 || S.order) LeftClick(m, IsKeyDown(KEY_LEFT_SHIFT)); else { S.dragging = true; S.dragA = m; } }
         if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) { if (S.place >= 0 || S.order) { S.place = -1; S.order = 0; } else RightClick(m); }
     }
     if (S.dragging && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) { S.dragging = false; if (Vector2Distance(S.dragA, m) < 6) LeftClick(m, IsKeyDown(KEY_LEFT_SHIFT)); else SelectBox(S.dragA, m, IsKeyDown(KEY_LEFT_SHIFT)); }
@@ -648,6 +656,11 @@ void StartFathoms(Game& g, const fa::Settings& s) {
     for (const auto& b : S.local.buildings) if (b.owner == 0 && S.local.BD(b).key == "harbor") S.camC = b.Centre();
     S.evSeen = S.local.evCount; g.scene = Scene::Fathoms;
 }
+bool ResumeFathoms(Game& g) {
+    S = FScene{}; if (!LoadFathoms("fathoms_autosave.bin", S.local)) return false;
+    S.active = true; S.me = 0; for (const auto& b : S.local.buildings) if (b.owner == 0 && S.local.BD(b).key == "harbor") S.camC = b.Centre();
+    S.evSeen = S.local.evCount; g.scene = Scene::Fathoms; return true;
+}
 void StartFathomsNet(Game& g, arcade::Session* net, const char* name) { S = FScene{}; S.active = true; S.net = net; S.netName = name ? name : "Player"; g.scene = Scene::Fathoms; }
 void LeaveFathoms(Game& g) {
     if (S.net) { if (S.net->role == arcade::R_HOST) S.net->BackToLobby(); else S.net->Leave(); S.net = nullptr; }
@@ -658,8 +671,9 @@ void SceneFathoms(Game& g) {
     if (!S.active) { fa::Settings s; StartFathoms(g, s); }
     float dt = S.shot ? 1 / 30.0f : std::min(GetFrameTime(), 0.1f); S.t += dt; S.helpT += dt;
     if (S.net) { if (!NetFrame(g, dt)) return; }
-    else if (!S.shot && !W().over) StepSolo(dt);
-    for (auto& m : S.msgs) m.t += dt; for (auto& mk : S.marks) mk.t += dt; S.marks.erase(std::remove_if(S.marks.begin(), S.marks.end(), [](const Mark& k) { return k.t > 0.5f; }), S.marks.end());
+    else if (!S.shot && !W().over) { if (W().Paused()) W().TickPause(dt); else StepSolo(dt);
+        static float saveT = 0; saveT += dt; if (saveT >= 180) { saveT = 0; if (SaveFathoms(W(), "fathoms_autosave.bin")) { S.toast = "Autosaved"; S.toastT = 1.5f; } } }
+    for (auto& m : S.msgs) m.t += dt; for (auto& mk : S.marks) mk.t += dt; for (auto& pg : S.pings) pg.t += dt; S.pings.erase(std::remove_if(S.pings.begin(), S.pings.end(), [](const Mark& k) { return k.t > 6; }), S.pings.end()); S.marks.erase(std::remove_if(S.marks.begin(), S.marks.end(), [](const Mark& k) { return k.t > 0.5f; }), S.marks.end());
     S.toastT -= dt;
     // prune the selection of the dead and the hidden
     { std::vector<int> keep; for (int id : S.sel) if (const Unit* u = W().U(id)) if (Visible(*u)) keep.push_back(id); S.sel = keep; if (S.selB >= 0 && !W().Bd(S.selB)) S.selB = -1; }

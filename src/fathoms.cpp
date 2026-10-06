@@ -275,6 +275,7 @@ bool World::Apply(const Command& c) {
     if (!IsPlayer(c.player) || c.player >= (int)players.size()) return false;
     Player& P = players[c.player]; const Balance& Bl = B(); cmd = c;
     if (!P.alive && c.kind != C_DIPLO) return false;
+    if (Paused() && c.kind != C_PAUSE && c.kind != C_DIPLO) return false;   // (nothing moves while the game is paused)
     auto mine = [&](int id) -> Unit* { Unit* u = U(id); return u && u->owner == c.player && u->inside < 0 ? u : nullptr; };
     switch (c.kind) {
         case C_MOVE: case C_ATTACK_MOVE: case C_PATROL: {
@@ -377,6 +378,9 @@ bool World::Apply(const Command& c) {
                 Emit(EV_DIPLO, {0, 0}, c.player, o, want); return true;
             }
             if (players[o].ai) { bool yes = players[o].score < P.score * 1.4f || want <= DP_CEASEFIRE; if (!yes) return false; }
+            else if (P.offerFrom[o] < (int)want) {   // a human must accept: the offer waits on their diplomacy page
+                players[o].offerFrom[c.player] = want; Emit(EV_OFFER, {0, 0}, c.player, o, want); return true; }
+            P.offerFrom[o] = -1; players[o].offerFrom[c.player] = -1;
             P.stance[o] = players[o].stance[c.player] = want; if (want == DP_ALLIED) P.allyT[o] = players[o].allyT[c.player] = t; if (want == DP_CEASEFIRE) P.allyT[o] = players[o].allyT[c.player] = t;
             Emit(EV_DIPLO, {0, 0}, c.player, o, want); return true; }
         case C_TRIBUTE: {
@@ -386,6 +390,10 @@ bool World::Apply(const Command& c) {
         case C_TRADE: {   // a Trade Ship's route: to another player's Exchange (target building) or a pirate cove (a = site + 1000)
             int n = 0; for (int id : c.units) if (Unit* u = mine(id)) if (UD(*u).key == "trade_ship") { SetOrder(*this, *u, O_TRADE, c.target, c.at, c.a >= 1000 ? 3 : 1); u->home = -1; n++; } return n > 0; }
         case C_DELETE: { for (int id : c.units) if (Unit* u = mine(id)) Kill(*u, -1); if (c.target >= 0) if (Building* b = Bd(c.target)) if (b->owner == c.player) Raze(*b, -1); return true; }
+        case C_PAUSE: {   // a pause of up to 60 s (3 a player); the one who paused, or anyone once 10 s have passed, resumes it
+            if (Paused()) { if (pausedBy == c.player || pauseLeft < 50) { pausedBy = -1; Emit(EV_DIPLO, {0, 0}, c.player, -1, 20); return true; } return false; }
+            if (pausesLeft[c.player] <= 0) return false; pausesLeft[c.player]--; pausedBy = c.player; pauseLeft = 60; Emit(EV_DIPLO, {0, 0}, c.player, -1, 21); return true; }
+        case C_PING: { Emit(EV_PING, c.at, c.player, c.a); return true; }   // (attack here, defend here, danger: drawn for the sender's allies)
         case C_RESIGN: { P.alive = false; P.eliminated = true; for (auto& u : units) if (u.owner == c.player) u.dead = true; for (auto& b : buildings) if (b.owner == c.player) Raze(b, -1); Emit(EV_ELIM, {0, 0}, c.player); return true; }
         case C_ULTIMATE: case C_ABILITY: case C_CARD: case C_CONVERT: case C_OFFER: return FactionAbility(c.player, c.units.empty() ? -1 : c.units[0], c.kind * 100 + c.a);
         case C_HIRE: case C_BID: case C_TRIBE: {   // the neutral powers (fathoms_neutral.cpp reads these through FactionAbility's sibling)

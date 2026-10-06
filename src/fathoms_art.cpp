@@ -347,6 +347,7 @@ float TileY(const World& w, float x, float y) {
 }
 static Color TileCol(const World& w, int k, uint32_t hsh) {
     float n = 0.92f + 0.12f * ((hsh % 97) / 97.0f);
+    if (w.isle[k] >= 0 && w.isle[k] < (int)w.islands.size() && w.islands[w.isle[k]].kind == I_VOLCANO && w.tile[k] == T_HILL) { float up = std::clamp((w.height[k] - 0.3f) / 7.0f, 0.0f, 1.0f); return Sh(Mix({110, 104, 84, 255}, {74, 64, 62, 255}, up * 1.4f), n); }   // (ash and black rock toward the crater)
     switch (w.tile[k]) {
         case T_BEACH: return Sh({214, 194, 146, 255}, n); case T_GRASS: return Sh({112, 152, 78, 255}, n); case T_JUNGLE: return Sh({62, 108, 58, 255}, n);
         case T_HILL: return Sh({140, 146, 92, 255}, n); case T_MOUNTAIN: return Sh({126, 118, 112, 255}, n); case T_LAVA: return {255, 120, 40, 255};

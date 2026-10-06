@@ -36,6 +36,7 @@ void ArcadeBetFrame();
 static void DrawBetResult();
 
 fa::Settings gFaSettings;   // (the arcade's picks for a Fathoms game: solo or hosted)
+bool gFaResume = false;      // (hosting reloads fathoms_autosave.bin)
 namespace {
 int gNoMode = 0, gNoCrowd = 1, gNoCrew = 0, gNoBar = 0, gNoSeason = -1; bool gNoPvp = true, gNoCloak = false;   // (A Night Off: the host's mode, crowd and fights; who you go ashore as)
 
@@ -294,7 +295,7 @@ void DrawReels(Game& g) {
             gError.clear();
             if (k == 0) {
                 std::string err;
-                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason) : selGame == G_SCUFFLE ? ScuffleOpts(5, 0, 2) : selGame == G_WARP ? wd::WarpOpts(gWarpArena, 1, gWarpFill) : selGame == G_FOWL ? fp::FowlOpts(gFowlMode, 1, 6) : selGame == G_NOCLIP ? nc::NoclipOpts(0, gNcMode) : selGame == G_BALLPIT ? bp::BallPitOpts(gBallPitMode, 1, gBallPitFill) : selGame == G_FATHOMS ? fa::FathomsOpts(gFaSettings) : ""; }
+                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : selGame == G_FLIGHT ? FlOpts() : selGame == G_MOUTHFUL ? MouthfulOpts(15, 0, 12) : selGame == G_NIGHT_OFF ? NightOffOpts(gNoMode, gNoCrowd, gNoPvp, gNoBar, gNoSeason) : selGame == G_SCUFFLE ? ScuffleOpts(5, 0, 2) : selGame == G_WARP ? wd::WarpOpts(gWarpArena, 1, gWarpFill) : selGame == G_FOWL ? fp::FowlOpts(gFowlMode, 1, 6) : selGame == G_NOCLIP ? nc::NoclipOpts(0, gNcMode) : selGame == G_BALLPIT ? bp::BallPitOpts(gBallPitMode, 1, gBallPitFill) : selGame == G_FATHOMS ? fa::FathomsOpts(gFaSettings) + (gFaResume ? " resume" : "") : ""; }
                 else gError = "Couldn't host: " + err;
             } else if (k == 1) { gMode = MODE_JOIN; gJoinFocus = true; }
             else gMode = MODE_BROWSE;
@@ -414,7 +415,8 @@ void DrawReels(Game& g) {
         DrawTextCentered("Host or Join for friends (the sides above fill up with bots)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (selGame == G_FATHOMS) {   // solo: you against AI captains (Host or Join for friends: up to six, AI in the empty seats)
-        static int faPlayers = 2, faFac = 0, faAi = 1, faMap = 0, faWin = 0, faCap = 1, faStart = 0;
+        static int faPlayers = 2, faFac = 0, faAi = 1, faMap = 0, faWin = 0, faCap = 1, faStart = 0, faTeams = 0;
+        static const char* TEAMS[4] = {"free for all", "teams of two", "teams of three", "three teams of two"};
         static const char* FAC[7] = {"Nautilus Crew", "Islanders", "Crustacean Brood", "Merfolk of the Weeds", "Atlantean Lost Ones", "Clockwork Foundry", "a random faction"};
         static const char* AIL[4] = {"Deckhand rivals", "Mate rivals", "Captain rivals", "Admiral rivals"};
         static const char* MAP[4] = {"an archipelago", "twin continents", "a ring of isles", "scattered isles"};
@@ -435,9 +437,15 @@ void DrawReels(Game& g) {
         row(c.y + 90, WIN[faWin], faWin, 3, 0);
         row(c.y + 116, CAP[faCap] ? TextFormat("%d-minute cap", CAP[faCap]) : "no time cap", faCap, 4, 0);
         row(c.y + 142, START[faStart], faStart, 3, 0);
+        row(c.y + 168, TEAMS[faTeams], faTeams, 4, 0);
+        if (faTeams == 1 && faPlayers % 2) faPlayers++; if (faTeams == 2) faPlayers = 6; if (faTeams == 3) faPlayers = 6; faPlayers = std::min(faPlayers, 6);
         fa::Settings& st = gFaSettings; st.players = faPlayers; st.mapType = faMap; st.victory = faWin == 0 ? 7 : faWin == 1 ? 1 : 0; st.timeCap = CAP[faCap] * 60; st.start = faStart;
-        for (int k = 0; k < fa::MAX_PLAYERS; k++) { st.faction[k] = k == 0 ? (faFac == 6 ? -1 : faFac) : -1; st.aiLevelOf[k] = faAi; st.ai[k] = k > 0; }
+        for (int k = 0; k < fa::MAX_PLAYERS; k++) { st.faction[k] = k == 0 ? (faFac == 6 ? -1 : faFac) : -1; st.aiLevelOf[k] = faAi; st.ai[k] = k > 0; st.team[k] = faTeams == 0 ? k : faTeams == 3 ? k % 3 : k % 2; }
+        st.teams = faTeams;
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Set sail (solo)", true, 15)) { fa::Settings s = st; s.seed = (uint32_t)GetRandomValue(1, 1 << 30); uint32_t h = s.seed; for (int k = 0; k < fa::MAX_PLAYERS; k++) if (s.faction[k] < 0) { h = h * 1103515245u + 12345u; s.faction[k] = (int)((h >> 16) % 6); } StartFathoms(g, s); return; }
+        { static int known = -1; if (known < 0) { FILE* f = std::fopen("fathoms_autosave.bin", "rb"); known = f ? 1 : 0; if (f) std::fclose(f); }
+          if (known == 1 && Button({c.x + 120, c.y + 236, 150, 36}, "Resume save", true, 15)) { if (ResumeFathoms(g)) return; known = 0; }
+          if (known == 1 && Button({c.x - 270, c.y + 236, 150, 36}, gFaResume ? "Host: the save" : "Host: a new map", true, 13)) gFaResume = !gFaResume; }
         DrawTextCentered("Host or Join for friends (AI captains take the empty seats)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (selGame == G_BALLPIT) {   // solo: you and the bots (Host or Join above for friends: up to twelve)

@@ -309,8 +309,41 @@ static void Stage7() {
     int carrier = c.SpawnUnit(0, B().Unit("rifleman"), c.sites[ruin].p); Run(c, 0.2f, false); Check(c.U(carrier) && c.U(carrier)->relic == 1, "a unit picks up an unguarded relic");
     Building* hb = FirstB(c, 0, "harbor"); c.U(carrier)->p = Vector2Add(hb->Centre(), {3, 0}); Command g = Cmd(C_GARRISON, 0); g.target = hb->id; g.units = {carrier}; c.Apply(g); Run(c, 5, false);
     Check(hb->relics == 1, "garrisoned in the Harbor, it counts toward the Relic victory");
-    // weather
-    World wx; wx.Init(Duel(45)); bool weather = false; for (int i = 0; i < 6; i++) { Run(wx, 181, false); if (wx.weather) weather = true; } Check(weather, "the weather turns every 3 minutes");
+    // save and load: the whole match comes back and plays on
+    { World a; Settings as = Duel(57, 2, 5, true, true); a.Init(as); Run(a, 8 * 60);
+      bool saved = SaveFathoms(a, "fathoms_test_save.bin"); World b; bool loaded = saved && LoadFathoms("fathoms_test_save.bin", b);
+      Check(saved && loaded, "a match saves and loads");
+      if (loaded) {
+          int ua = 0, ub = 0; for (auto& u : a.units) ua += !u.dead; for (auto& u : b.units) ub += !u.dead;
+          char b3[128]; std::snprintf(b3, sizeof b3, "units %d/%d, buildings %d/%d, food %.0f/%.0f", ua, ub, (int)a.buildings.size(), (int)b.buildings.size(), a.players[0].res[R_FOOD], b.players[0].res[R_FOOD]);
+          Check(ua == ub && a.buildings.size() == b.buildings.size() && fabsf(a.players[0].res[R_FOOD] - b.players[0].res[R_FOOD]) < 1 && b.t == a.t, b3);
+          int ex = 0; for (uint8_t e : b.players[0].explored) ex += e; Check(ex > 500, "the explored chart comes back");
+          Run(b, 180); int ub2 = 0; for (auto& u : b.units) ub2 += !u.dead; Check(b.t > a.t + 170 && ub2 > 10, "and the loaded match plays on");
+      }
+      std::remove("fathoms_test_save.bin"); }
+    // pauses: three each, up to 60 s, nothing moves meanwhile
+    { World p; p.Init(Duel(59)); Command c = Cmd(C_PAUSE, 0); Check(p.Apply(c) && p.Paused() && p.pausesLeft[0] == 2, "a player pauses the game (two pauses left)");
+      Command mv = Cmd(C_MOVE, 1); for (auto& u : p.units) if (u.owner == 1) { mv.units = {u.id}; break; } mv.at = {5, 5}; Check(!p.Apply(mv), "no orders while paused");
+      for (int i = 0; i < 61 * 20; i++) p.TickPause(STEP); Check(!p.Paused(), "the pause ends itself after 60 s"); }
+    // diplomacy: locked teams are allied; in open diplomacy a human must accept a better stance
+    { World d; Settings ds; ds.players = 4; ds.teams = 1; for (int k = 0; k < 4; k++) { ds.team[k] = k % 2; ds.ai[k] = false; } ds.seed = 51; d.Init(ds);
+      Check(d.Allied(0, 2) && d.Enemies(0, 1) && !d.Enemies(1, 3), "teams of two: 0 and 2 are allied, 1 and 3 too"); }
+    { World d; Settings ds = Duel(53); ds.diplomacy = 1; d.Init(ds);
+      Command o = Cmd(C_DIPLO, 0); o.a = 1; o.b = DP_PEACE; Check(d.Apply(o) && d.players[0].stance[1] == DP_WAR && d.players[1].offerFrom[0] == DP_PEACE, "an offer of peace waits for the other player");
+      Command a2 = Cmd(C_DIPLO, 1); a2.a = 0; a2.b = DP_PEACE; Check(d.Apply(a2) && d.players[0].stance[1] == DP_PEACE && d.players[1].stance[0] == DP_PEACE, "accepted, both are at peace");
+      Command br = Cmd(C_DIPLO, 0); br.a = 1; br.b = DP_WAR; d.Apply(br); Check(d.players[0].stance[1] == DP_WAR && d.players[0].tradePauseT > 50, "breaking the peace is one-sided and pauses the betrayer's trade"); }
+    // the volcano's altar: reachable on foot, claimed by standing on it 45 s once the Sun God is dead
+    { World v; Settings vs = Duel(47); vs.victory = 4; v.Init(vs); int alt = -1; for (size_t i = 0; i < v.sites.size(); i++) if (v.sites[i].kind == S_ALTAR) alt = (int)i;
+      Check(alt >= 0, "the map has a volcano altar");
+      if (alt >= 0) {
+          for (auto& u : v.units) if (u.home == alt) v.Kill(u, 0); v.Step();
+          Vector2 shore = v.sites[alt].p; for (int r = 2; r < 20; r++) { Vector2 q = Vector2Add(v.sites[alt].p, {(float)r, 0}); if (v.TileAt(q) == T_BEACH) { shore = q; break; } }
+          int id = v.SpawnUnit(0, B().Unit("rifleman"), shore); Command c = Cmd(C_MOVE, 0); c.units = {id}; c.at = v.sites[alt].p; v.Apply(c);
+          Run(v, 60, false); const Unit* u = v.U(id); char b2[96]; std::snprintf(b2, sizeof b2, "a soldier walks up the cone to the altar (%.1f tiles off)", u ? Vector2Distance(u->p, v.sites[alt].p) : 99.0f); Check(u && Vector2Distance(u->p, v.sites[alt].p) < 2.5f, b2);
+          Run(v, 50, false); Check(v.sites[alt].holder == 0, "after 45 s uncontested the altar is held");
+          Run(v, 245, false); Check(v.over && v.winner == 0, "holding it through the countdown wins Volcano Ascension");
+      } }
+    // weather    World wx; wx.Init(Duel(45)); bool weather = false; for (int i = 0; i < 6; i++) { Run(wx, 181, false); if (wx.weather) weather = true; } Check(weather, "the weather turns every 3 minutes");
 }
 
 int RunFathomsTest(int stage) {

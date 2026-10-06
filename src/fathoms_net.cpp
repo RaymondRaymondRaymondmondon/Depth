@@ -46,7 +46,7 @@ template <class IO> void VisitUnit(IO& io, Unit& u, int viewer) {
     io.h(u.stunT); io.h(u.bleedT); io.h(u.poisonT); io.h(u.weakT); io.h(u.strongT); io.h(u.cocoonT); io.h(u.hiddenT); io.h(u.cool); io.h(u.life); io.h(u.fastT); io.h(u.slowT); io.h(u.hasteT);
     io.i(u.molts); io.i(u.relic); io.i(u.hire); io.i(u.home); io.b(u.converted); io.h(u.chan); io.i(u.target); io.i(u.targetKind); io.i(u.inside); io.i(u.garrisoned);
     int nc = (int)u.cargo.size(); io.i(nc); if (io.reading()) u.cargo.assign(std::clamp(nc, 0, 20), -1); for (auto& c : u.cargo) io.i(c);
-    if (viewer < 0 || u.owner == viewer) { io.h(u.xp); io.h(u.abilityT); uint8_t st = (uint8_t)u.stance; io.u8(st); u.stance = (Stance)st; io.f(u.landedT); }
+    if (viewer < 0 || u.owner == viewer) { io.h(u.xp); io.h(u.abilityT); uint8_t st = (uint8_t)u.stance; io.u8(st); u.stance = (Stance)st; io.f(u.landedT); io.p(u.patrolA); io.p(u.patrolB); io.i(u.lastNode); io.f(u.spawnT); }
 }
 template <class IO> void VisitBuilding(IO& io, Building& b, int viewer) {
     io.i(b.id); io.i(b.owner); io.i(b.def); io.i(b.x); io.i(b.y); io.i(b.size); io.h(b.hp); int pr = (int)lroundf(b.progress * 1000); io.i(pr); b.progress = pr / 1000.0f;
@@ -70,16 +70,20 @@ template <class IO> void VisitPlayer(IO& io, Player& p, int viewer) {
         for (int k = 0; k < 3; k++) { int m = (int)lroundf(p.exchange[k] * 1000); io.i(m); p.exchange[k] = m / 1000.0f; }
         for (int k = 0; k < MAX_PLAYERS; k++) io.f(p.intelUntil[k]);
         io.h(p.tradePauseT); io.b(p.coalShort); io.b(p.krakenInk); io.f(p.noTownT);
+        for (int k = 0; k < MAX_PLAYERS; k++) io.i(p.offerFrom[k]);
+        int ns = (int)p.cardsSeen.size(); io.i(ns); if (io.reading()) p.cardsSeen.assign(std::clamp(ns, 0, 16), 0); for (auto& c : p.cardsSeen) io.i(c); io.f(p.upkeepAcc); io.f(p.devotion);
     }
 }
 template <class IO> void VisitSite(IO& io, Site& s, int viewer) {
     io.i(s.kind); io.i(s.island); io.i(s.owner); io.p(s.p); io.h(s.hp); io.h(s.maxHp); io.f(s.t); io.f(s.t2); io.i(s.count); io.i(s.state); io.i(s.relic); io.h(s.holdT); io.i(s.holder); io.i(s.large);
     for (int k = 0; k < MAX_PLAYERS; k++) io.i(s.peace[k]);
+    if (viewer < 0) { for (int v = 0; v < MAX_PLAYERS; v++) { io.f(s.rep[v]); io.f(s.tributeT[v]); } io.i(s.lastAttacker); return; }   // (a save: everyone's standing)
     int v = std::clamp(viewer, 0, MAX_PLAYERS - 1); int r = (int)lroundf(s.rep[v]); io.i(r); s.rep[v] = (float)r; io.f(s.tributeT[v]);
 }
 template <class IO> void VisitHead(IO& io, World& w) {
     io.f(w.t); io.i(w.winner); io.b(w.over); io.i(w.relicsTotal); io.i(w.weather); io.p(w.weatherAt); io.h(w.weatherR); io.h(w.weatherLeft);
     io.f(w.relicCountT); io.f(w.volcanoCountT); io.i(w.relicLeader); io.i(w.volcanoLeader);
+    io.i(w.pausedBy); io.f(w.pauseLeft); for (int k = 0; k < MAX_PLAYERS; k++) io.i(w.pausesLeft[k]);
     int nw = (int)w.winners.size(); io.i(nw); if (io.reading()) w.winners.assign(std::clamp(nw, 0, MAX_PLAYERS), 0); for (auto& x : w.winners) io.i(x);
 }
 bool UnitVisible(const World& w, const Unit& u, int v) {
@@ -197,15 +201,18 @@ bool ParseFathomsOpts(const std::string& str, Settings& s) {
 namespace {
 class FathomsHost : public arcade::GameHost {
 public:
-    World W; Settings S; std::vector<int> seatPlayer; float acc = 0; uint32_t evTotal = 0; std::vector<Command> cmds;
-    void Configure(const std::string& opts) override { Settings s; if (ParseFathomsOpts(opts, s)) S = s; }
+    World W; Settings S; std::vector<int> seatPlayer; float acc = 0, saveT = 0; uint32_t evTotal = 0; std::vector<Command> cmds; bool resume = false;
+    void Configure(const std::string& opts) override { Settings s; if (ParseFathomsOpts(opts, s)) S = s; resume = opts.find(" resume") != std::string::npos; }
     void Start(int players, uint32_t seed) override {
         Settings s = S; s.players = std::clamp(std::max(players, S.players), 2, MAX_PLAYERS); s.seed = seed;
         uint32_t h = seed * 2654435761u;
         for (int k = 0; k < MAX_PLAYERS; k++) { s.ai[k] = k >= players; if (s.faction[k] < 0) { h ^= h << 13; h ^= h >> 17; h ^= h << 5; s.faction[k] = (int)(h % 6); } }
         static const char* BOTS[6] = {"Admiral Vane", "Captain Orla", "Mate Brisket", "Old Pell", "Quill", "Tamsin"};
         for (int k = 0; k < MAX_PLAYERS; k++) s.names[k] = k < players ? "Seat " + std::to_string(k + 1) : BOTS[k];
-        W.Init(s); seatPlayer.assign(players, -1); for (int k = 0; k < players && k < s.players; k++) seatPlayer[k] = k;
+        bool loaded = resume && LoadFathoms("fathoms_autosave.bin", W);   // (the host reloads the saved match; everyone rejoins by seat)
+        if (loaded) { for (auto& p : W.players) p.ai = p.id >= players; }
+        else W.Init(s);
+        seatPlayer.assign(players, -1); for (int k = 0; k < players && k < (int)W.players.size(); k++) seatPlayer[k] = k;
         evTotal = 0; W.events.clear();
     }
     bool Act(int seat, Reader& r) override {
@@ -216,6 +223,7 @@ public:
         return W.Apply(c);
     }
     bool Tick(float dt, uint32_t ai) override {
+        if (W.Paused()) { W.TickPause(dt); acc = 0; return true; }
         acc += std::min(dt, 0.25f); bool any = false;
         while (acc >= STEP) {
             for (auto& p : W.players) {
@@ -224,6 +232,7 @@ public:
                 cmds.clear(); AiThink(W, p.id, cmds); for (auto& c : cmds) W.Apply(c);
             }
             W.Step(); acc -= STEP; any = true; evTotal = W.evCount;
+            saveT += STEP; if (saveT >= 180) { saveT = 0; SaveFathoms(W, "fathoms_autosave.bin"); }   // (the doc: the host saves every 3 minutes)
         }
         return any;
     }
@@ -331,6 +340,28 @@ int RunFathomsNetLoop(int lagMs, bool forceMemory) {
     if (real) net::Shutdown();
     std::printf(fails ? "net-loop fathoms: %d FAILED\n" : "net-loop fathoms: passed\n", fails);
     return fails ? 1 : 0;
+}
+
+// ---------------------------------------------------------------- save and load (the doc's autosave: the host saves the match every 3 minutes)
+bool SaveFathoms(const World& w, const std::string& path) {
+    Writer o; o.U32(0x48544146u); o.U32(1);   // "FATH", version 1
+    o.U32(w.rng); o.I32(w.nextBuilding);
+    WriteWorld(w, o, -1, w.evCount, false);
+    // each player's explored chart, run-length coded
+    o.VarU((uint32_t)w.players.size());
+    for (const auto& p : w.players) { uint8_t cur = 0; uint32_t run = 0; std::vector<uint32_t> runs; for (uint8_t b : p.explored) { if ((b != 0) != (cur != 0)) { runs.push_back(run); run = 0; cur = b ? 1 : 0; } run++; } runs.push_back(run); o.VarU((uint32_t)runs.size()); for (uint32_t r : runs) o.VarU(r); }
+    FILE* f = std::fopen(path.c_str(), "wb"); if (!f) return false; bool ok = std::fwrite(o.b.data(), 1, o.b.size(), f) == o.b.size(); std::fclose(f); return ok;
+}
+bool LoadFathoms(const std::string& path, World& w) {
+    FILE* f = std::fopen(path.c_str(), "rb"); if (!f) return false; std::vector<uint8_t> b; uint8_t buf[65536]; size_t n; while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) b.insert(b.end(), buf, buf + n); std::fclose(f);
+    Reader r(b); if (r.U32() != 0x48544146u || r.U32() != 1) return false;
+    uint32_t rng = r.U32(); int nb = r.I32(); uint32_t ev = 0;
+    w = World{}; if (!ReadWorld(r, w, &ev)) return false;
+    w.rng = rng; w.nextBuilding = std::max(nb, 1); for (const auto& bd : w.buildings) w.nextBuilding = std::max(w.nextBuilding, bd.id + 1);
+    uint32_t np = r.VarU(); if (np != w.players.size()) return false;
+    for (auto& p : w.players) { uint32_t nr = r.VarU(); size_t at = 0; uint8_t cur = 0; for (uint32_t i = 0; i < nr && !r.bad; i++) { uint32_t run = r.VarU(); for (uint32_t k = 0; k < run && at < p.explored.size(); k++) p.explored[at++] = cur; cur = cur ? 0 : 1; } }
+    w.UpdateTerritory(); w.UpdateFog(); w.Score();
+    return !r.bad;
 }
 
 }  // namespace fa

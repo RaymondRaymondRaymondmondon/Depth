@@ -145,11 +145,12 @@ struct Player {
     float exchange[3] = {1, 1, 1};         // the Exchange's price multipliers (Food, Brass, Coal)
     int wonder = -1; float relicHeldT = 0, altarT = 0; bool coalShort = false; float upkeepAcc = 0, tradePauseT = 0; int kills = 0, losses = 0, built = 0, trained = 0; float eraAt[3] = {0, -1, -1};
     float intelUntil[MAX_PLAYERS] = {}; bool krakenInk = false; std::vector<int> cardsSeen;
+    int offerFrom[MAX_PLAYERS] = {-1, -1, -1, -1, -1, -1};   // a better stance another player has offered this one (waiting for an answer)
 };
 
 // ---------------------------------------------------------------- commands (every action is one)
 enum CmdKind : uint8_t { C_MOVE, C_ATTACK_MOVE, C_ATTACK, C_GATHER, C_BUILD, C_REPAIR, C_TRAIN, C_RESEARCH, C_CANCEL, C_GARRISON, C_UNGARRISON, C_BOARD, C_UNLOAD,
-                         C_STOP, C_STANCE, C_PATROL, C_ERA, C_EXCHANGE, C_RALLY, C_DIPLO, C_HIRE, C_BID, C_TRIBUTE, C_TRIBE, C_CARD, C_ABILITY, C_ULTIMATE, C_RESIGN, C_DELETE, C_TRADE, C_CONVERT, C_OFFER };
+                         C_STOP, C_STANCE, C_PATROL, C_ERA, C_EXCHANGE, C_RALLY, C_DIPLO, C_HIRE, C_BID, C_TRIBUTE, C_TRIBE, C_CARD, C_ABILITY, C_ULTIMATE, C_RESIGN, C_DELETE, C_TRADE, C_CONVERT, C_OFFER, C_PING, C_PAUSE };
 struct Command {
     uint8_t kind = C_MOVE; int player = 0; std::vector<int> units; int target = -1, def = -1, x = 0, y = 0, a = 0, b = 0; Vector2 at{}; float amount = 0;
 };
@@ -157,7 +158,7 @@ struct Command {
 // ---------------------------------------------------------------- the world
 struct Event { int kind; Vector2 at; int a, b, c; };
 enum EventKind { EV_HIT = 1, EV_DIE, EV_BUILT, EV_TRAINED, EV_RESEARCHED, EV_ERA, EV_SHOT, EV_RAZED, EV_CLAIM, EV_ATTACKED, EV_IDLE, EV_ERUPT, EV_TREMOR, EV_WEATHER, EV_PIRATE_WARN, EV_PIRATE_ARRIVE,
-                 EV_TRIBE_RAID, EV_TRIBE_ALLY, EV_RELIC, EV_KRAKEN, EV_GHOST, EV_VICTORY, EV_ELIM, EV_DIPLO, EV_CHAT, EV_MOLT, EV_CONVERT, EV_ULTIMATE, EV_HERO, EV_CARD, EV_LAND, EV_GATHER };
+                 EV_TRIBE_RAID, EV_TRIBE_ALLY, EV_RELIC, EV_KRAKEN, EV_GHOST, EV_VICTORY, EV_ELIM, EV_DIPLO, EV_CHAT, EV_MOLT, EV_CONVERT, EV_ULTIMATE, EV_HERO, EV_CARD, EV_LAND, EV_GATHER, EV_PING, EV_OFFER };
 struct Projectile { Vector2 a, b; float t = 0, T = 0.3f; int kind = 0; float h = 1; };   // (only to draw: damage is applied when it lands)
 struct Pending { int attacker, owner, target, targetKind; float dmg; DmgType type; float t; Vector2 at; float splash; uint32_t bonusVs; };
 struct Settings {
@@ -188,6 +189,9 @@ struct World {
         for (int cy = y0; cy <= y1; cy++) for (int cx = x0; cx <= x1; cx++) for (int i = gridHead[cy * gridW + cx]; i >= 0; i = gridNext[i]) if (i < (int)units.size()) f(units[i]);
     }
     int moraleTick = 0, fogTick = 0, scoreTick = 0;
+    int pausedBy = -1; float pauseLeft = 0; int pausesLeft[MAX_PLAYERS] = {3, 3, 3, 3, 3, 3};   // (each player: 3 pauses of up to 60 s)
+    bool Paused() const { return pausedBy >= 0; }
+    void TickPause(float dt) { if (pausedBy >= 0) { pauseLeft -= dt; if (pauseLeft <= 0) pausedBy = -1; } }
     // setup and the step
     void Init(const Settings& s);
     void Step();
@@ -262,6 +266,8 @@ bool CheckFairness(const World& w, std::string* why);
 void AiThink(World& w, int player, std::vector<Command>& out);
 // tests and tools (fathoms_test.cpp)
 int RunFathomsTest(int stage);                 // --fathoms-test [stage]
+bool SaveFathoms(const World& w, const std::string& path);   // the whole match (fathoms_net.cpp: the snapshot of everything)
+bool LoadFathoms(const std::string& path, World& w);
 int RunFathomsBalance();                       // --fathoms-balance: the doc's equal-cost fights
 int RunFathomsSim(int matches, int players, int minutes, int ai);   // --fathoms-sim
 const char* FactionName(int f);

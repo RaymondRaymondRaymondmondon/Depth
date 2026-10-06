@@ -913,6 +913,7 @@ void DebugBallPitShot(Game& g, int which);
 namespace fa { struct Settings; }
 void SceneFathoms(Game& g);      // Fathoms, the arcade's island strategy game (fathoms_game.cpp)
 void StartFathoms(Game& g, const fa::Settings& s);
+bool ResumeFathoms(Game& g);   // the solo autosave (fathoms_autosave.bin next to the exe)
 void StartFathomsNet(Game& g, arcade::Session* net, const char* name);
 void LeaveFathoms(Game& g);
 bool FathomsActive();
