@@ -25,13 +25,13 @@ Vector2 Rot(Vector2 v, float a) { float c = cosf(a), s = sinf(a); return {v.x * 
 struct FightK {
     float speedK = 2.5f;             // m/s of free swimming at full pull
     float restEffort = 0.65f;        // between bursts
-    float tearK = 0.030f;            // hook pull-out per second of head-shaking, times (tension / rating)^2
-    float lightHookTear = 0.08f;     // per second of head-shaking, for a lightly set hook
+    float tearK = 0.018f;            // (the playtest, 2026-10-06: fishing still too hard; was 0.030)            // hook pull-out per second of head-shaking, times (tension / rating)^2
+    float lightHookTear = 0.04f;     // per second of head-shaking, for a lightly set hook
     float lightHook[3] = {0.2f, 0.08f, 0.12f};   // chance a set is light: small, circle, treble
     float bottomChafe = 0.0025f;     // up to this much of the line's rating per second, rubbing on a rough bottom
     float dragStartup = 1.5f;        // the jerk as the drag breaks loose
     float leanRad = 0.6f;            // how far the rod swings the pull off the line
-    float throwChance = 0.4f;        // a jump without a bow
+    float throwChance = 0.15f;       // a jump without a bow (was 0.4)
     float bowedThrow = 0.005f;       // a jump even with a good bow
     float jumpAbove = 0.5f;          // stamina fraction below which it has no leaps left
     float alongside = 4.0f;          // metres from the tip that count as alongside
@@ -229,11 +229,11 @@ void Fight::Step(float dt) {
     float rating = TackleOf(tackle).strength;
     // a drag that starts to slip from rest jerks the line: its static friction and the spool's inertia
     float peak = tension * (slipT > 0 && slipT < 0.25f && stillT0 > 0.3f ? k.dragStartup : 1.0f);
-    if (peak > Strength() && t >= noSnapUntil) { overT += dt; if (overT > ld.shock) { end = FightEnd::Snapped; return; } }
+    if (peak > Strength() && t >= std::max(noSnapUntil, 3.0f)) { overT += dt; if (overT > ld.shock) { end = FightEnd::Snapped; return; } }
     else overT = 0;
     if (tension < 0.05f * rating) {
         slackT += dt;
-        if (slackT > 1.5f * (holderUps >> UP_LIGHTTOUCH & 1u ? 2.0f : 1.0f) && hook == Hook::Circle) { end = FightEnd::SlackHook; return; }   // (Light Touch: 3 s)
+        if (slackT > 2.5f * (holderUps >> UP_LIGHTTOUCH & 1u ? 2.0f : 1.0f) && hook == Hook::Circle) { end = FightEnd::SlackHook; return; }   // (Light Touch: 3 s)
     } else slackT = 0;
     if (inCover) {
         chafe += 0.05f * dt;                             // the line rasps on the rock or the wreck
@@ -324,13 +324,16 @@ void Bite::Start(const FishSpec* f, bool wary, bool angler, uint32_t seed) {
     auto R = [&]() { rng = rng * 1664525u + 1013904223u; return (rng >> 8) * (1.0f / 16777216.0f); };
     t = 0.8f + R() * 1.7f;
     nibbles = 1 + (int)(R() * 4) % 4;
-    window = (wary ? 0.5f : 0.7f) + (angler ? 0.25f : 0);   // (the doc said 250 ms; the playtest found that unplayable: the take now holds for most of a second)
+    window = (wary ? 0.9f : 1.2f) + (angler ? 0.25f : 0);   // (2026-10-06: still too tight at 0.7 s; now 1.2 s, wary 0.9 s)   // (the doc said 250 ms; the playtest found that unplayable: the take now holds for most of a second)
 }
 int Bite::Step(float dt, bool strike, bool reelingCircle) {
     auto R = [&]() { rng = rng * 1664525u + 1013904223u; return (rng >> 8) * (1.0f / 16777216.0f); };
     switch (stage) {
         case BiteStage::Inspect: case BiteStage::Nibble:
-            if (strike) { stage = BiteStage::Gone; return -1; }   // striking early spooks it (and the school learns)
+            if (strike) {   // striking early: it usually only backs off and comes again, warier (one time in three it's gone)
+                if (R() < 0.33f) { stage = BiteStage::Gone; return -1; }
+                stage = BiteStage::Inspect; t = 0.8f + R() * 1.2f; nibbles = 1 + (int)(R() * 3); return 0;
+            }
             t -= dt;
             if (t <= 0) {
                 if (stage == BiteStage::Inspect || nibbles > 0) {
@@ -816,8 +819,10 @@ int RunTrawlRodTest() {
         Bite b; b.Start(sn, false, false, 5);
         int res = 0; float t = 0;
         while (b.stage != BiteStage::Nibble && t < 10) { res = b.Step(dt, false, false); t += dt; }
-        res = b.Step(dt, true, false);
-        check(res < 0, "striking on a nibble spooks the fish");
+        (void)res;
+        int spooked = 0, stayed = 0;   // (2026-10-06: an early strike spooks it one time in three; otherwise it backs off and comes again)
+        for (int i = 0; i < 300; i++) { Bite e2; e2.Start(sn, false, false, 3000 + i); float t2 = 0; while (e2.stage != BiteStage::Nibble && t2 < 10) { e2.Step(dt, false, false); t2 += dt; } int r2 = e2.Step(dt, true, false); if (r2 < 0) spooked++; else if (e2.stage == BiteStage::Inspect) stayed++; }
+        check(spooked > 60 && spooked < 140 && spooked + stayed == 300, TextFormat("striking on a nibble spooks it about a third of the time (%d/300), else it backs off", spooked));
         int hooked = 0, circle = 0, missed = 0;
         for (int i = 0; i < 200; i++) {
             Bite c; c.Start(sn, false, false, 100 + i);
@@ -830,14 +835,14 @@ int RunTrawlRodTest() {
             circle += rr > 0;
             Bite m; m.Start(sn, true, false, 400 + i);
             rr = 0; t = 0; float late = -1;
-            while (rr == 0 && t < 20) { if (m.stage == BiteStage::Take && late < 0) late = 0; if (late >= 0) late += dt; rr = m.Step(dt, late > 0.6f, false); t += dt; }
+            while (rr == 0 && t < 20) { if (m.stage == BiteStage::Take && late < 0) late = 0; if (late >= 0) late += dt; rr = m.Step(dt, late > 1.0f, false); t += dt; }
             missed += rr < 0;
         }
         check(hooked == 200, TextFormat("striking in the take's window hooks it (%d/200)", hooked));
         check(circle == 200, TextFormat("a circle hook sets itself if the angler just reels (%d/200)", circle));
-        check(missed == 200, TextFormat("a wary fish's 0.5 s window is missed at 0.6 s (%d/200)", missed));   // (the playtest's windows: 0.7 s, wary 0.5 s)
+        check(missed == 200, TextFormat("a wary fish's 0.9 s window is missed at 1.0 s (%d/200)", missed));   // (the playtest's windows: 1.2 s, wary 0.9 s)
         Bite a; a.Start(sn, true, true, 7);
-        check(fabsf(a.window - 0.75f) < 0.001f, "an Angler gets +0.25 s on the hook-set window");
+        check(fabsf(a.window - 1.15f) < 0.001f, "an Angler gets +0.25 s on the hook-set window");
     }
     // a fish on the Gannet's rod: bites come, the fight pulls her toward the fish and heels her, and it lands
     {
@@ -890,12 +895,12 @@ int RunTrawlRodTest() {
 // ---------------------------------------------------------------- --trawl-fight
 namespace {
 struct Target { const char* fish; Tackle tackle; LineType line; Hook hook; float tLo, tHi, land; };
-const Target TARGETS[] = {   // design doc, "Target fights (sensible bot angler, matched tackle)"
-    {"snapper", Tackle::Light, LineType::Mono, Hook::Small, 20, 40, 0.85f},
-    {"lingcod", Tackle::Medium, LineType::Mono, Hook::Small, 60, 120, 0.75f},
-    {"yellowfin", Tackle::Heavy, LineType::Mono, Hook::Small, 180, 300, 0.60f},
-    {"sturgeon", Tackle::DeepDrop, LineType::Braid, Hook::Small, 600, 1200, 0.45f},
-    {"marlin", Tackle::Chair, LineType::Mono, Hook::Treble, 480, 720, 0.40f},
+const Target TARGETS[] = {   // design doc, "Target fights (sensible bot angler, matched tackle)", raised after the playtest (2026-10-06: fishing too hard; the doc had 85/75/60/45/40%)
+    {"snapper", Tackle::Light, LineType::Mono, Hook::Small, 20, 40, 0.90f},
+    {"lingcod", Tackle::Medium, LineType::Mono, Hook::Small, 60, 120, 0.78f},
+    {"yellowfin", Tackle::Heavy, LineType::Mono, Hook::Small, 180, 300, 0.69f},
+    {"sturgeon", Tackle::DeepDrop, LineType::Braid, Hook::Small, 600, 1200, 0.54f},
+    {"marlin", Tackle::Chair, LineType::Mono, Hook::Treble, 480, 720, 0.56f},
 };
 struct Result { int n = 0, landed = 0; double tLanded = 0, tAll = 0; int ends[8] = {}; };
 Result RunMany(const FishSpec& fs, Tackle tk, LineType ln, Hook hk, int N, Skill sk, bool trace) {

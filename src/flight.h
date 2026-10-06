@@ -244,6 +244,7 @@ struct Founder {
     int carrySp = -1, carrySize = 0, carryTwigs = 0;
     // the strike: a slow-motion half second steering the talons onto a fish
     float strikeT = 0, strikeLen = 0.5f; Vector3 strikeAt{}, strikeAim{}; float strikeSpeed = 0;
+    int missStreak = 0;                   // (misses since the last catch: each one makes the next strike surer)
     float struggleT = 0; int struggleSp = -1, struggleAgent = -1;
     float underT = 0, faintT = 0, respawnT = 0;
     bool chick = false; int chickFish = 0;      // the chick-leader after a death: half speed and carry until 3 fish

@@ -23,6 +23,7 @@ const float GLUT_PER_10KG = 0.03f;
 const float OVERNIGHT_ICED = 0.75f;      // fish kept overnight in ice lose 25%; un-iced fish rot
 const int TOKENS_PER_DEADLINE = 10;
 const float NIGHT_END = 540;             // 05:00
+const float NIGHT_RATE = 540.0f / 660.0f;   // clock minutes a real second: 20:00 to 05:00 takes 11 real minutes (was 9)
 }
 
 const char* PhaseName(Phase p) { static const char* N[] = {"dock", "sailing out", "night", "the count", "repossessed"}; return N[(int)p]; }
@@ -988,7 +989,7 @@ void Session::Step(float dt) {
             }
             break;
         case Phase::Night: {
-            clock += dt * (shake.on ? (shake.step >= 8 ? 4.0f : 1.5f) : 1.0f);   // the shakedown is a short night, and runs to 05:00 fast once the lesson is done
+            clock += dt * (shake.on ? (shake.step >= 8 ? 4.0f : 1.5f) : NIGHT_RATE);   // (the night runs 11 real minutes: the user, 2026-10-06)   // the shakedown is a short night, and runs to 05:00 fast once the lesson is done
             if (shake.on && shake.step < 8) clock = std::min(clock, 470.0f);         // (and it waits at 03:50 for a slow learner)
             if (shake.on) ShakeStep(dt);
             // total loss: every hand dead, or the Gannet gone down (design doc, "Death, injury, and ghosts")
@@ -1360,8 +1361,12 @@ void Session::ShakeStep(float dt) {
             break;
         }
         case 3: {
-            bool done = false; for (const auto& h : g.hold) if (h.gutted && h.iced) done = true;
+            bool done = false, any = false; for (const auto& h : g.hold) { if (h.gutted && h.iced) done = true; if (!h.junk && !h.bycatch) any = true; }
             if (done) advance();
+            else if (!any && s.stepT > 3) {   // (the fish went back over the rail, or a gull had it: the lesson can't finish, so land another)
+                s.step = 2; s.stepT = 0; s.line = SHAKE_LINES[2]; g.landedBig = 0;
+                aside("Kess: Lost it over the side. Land another, and club it (the priest) before it flops for the rail.");
+            }
             break;
         }
         case 4: if (!g.sonar.marks.empty()) advance(); break;
@@ -1467,7 +1472,9 @@ int RunTrawlShakedownTest() {
                 else { g.boat.telegraph = 0; fish(st == 1 ? hand : port, st == 1 ? handRod : portRod); }
                 break;
             }
-            case 3: g.boat.telegraph = 0; for (auto& r : g.rods) r.botAngler = false; me.p = Stations()[gut].at; me.station = gut; g.Primary(0, true, dt); break;
+            case 3: g.boat.telegraph = 0; for (auto& r : g.rods) r.botAngler = false; me.p = Stations()[gut].at; me.station = gut; g.Primary(0, true, dt);
+                if (getenv("DEPTH_TRACE") && fmodf(t, 10) < dt) { int gi = 0; for (const auto& h : g.hold) gi += h.gutted; printf("      hold %d gutted %d rods %d/%d\n", (int)g.hold.size(), gi, (int)g.rods[handRod].state, (int)g.rods[portRod].state); }
+                break;
             case 4: me.p = Stations()[sonar].at; me.station = sonar; if (g.sonar.cool <= 0) g.SonarPing(0); if (!g.sonar.ret.empty()) g.SonarMarkAt(0, g.boat.ToDeck({g.sonar.ret[0].p.x, g.sonar.ret[0].p.y})); break;
             case 5: {
                 me.p = Stations()[winch].at; me.station = winch;

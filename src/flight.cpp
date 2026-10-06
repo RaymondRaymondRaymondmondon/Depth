@@ -238,17 +238,20 @@ void World::ResolveStrike() {
     const FounderDef& d = Def();
     eco.AddNoise(me.strikeAim, 2);   // (every dive is a splash the web hears)
     me.pos = {me.strikeAim.x, -0.4f, me.strikeAim.z};
-    float reach = 1.2f + std::min(me.strikeSpeed, 35.0f) * 0.045f;   // (a plunge from high goes deeper)
-    int fi = FishNear(me.strikeAim, 3.0f, reach);
+    // (the playtest, 2026-10-05: fishing was far too hard to start a round on. The talons reach wider and deeper,
+    // the odds are kinder, and every miss makes the next strike surer until a catch)
+    float reach = 2.2f + std::min(me.strikeSpeed, 35.0f) * 0.06f;   // (a plunge from high goes deeper)
+    int fi = FishNear(me.strikeAim, 4.5f, reach);
     bool hit = false;
     if (fi >= 0) {
         const rt::Agent& a = eco.agents[fi];
         const rt::Species& s = eco.map->species[a.sp];
         float dist = Vector2Distance({a.pos.x, a.pos.z}, {me.strikeAim.x, me.strikeAim.z});
         float clarity = eco.ZoneAt(a.pos) >= 0 && eco.map->zones[eco.ZoneAt(a.pos)].name == "The Blue" ? 0.9f : 1.0f;
-        float chance = 0.62f * d.talon * (1.15f - 0.1f * s.size) * std::clamp(me.strikeSpeed / 20, 0.6f, 1.25f) * clarity * (1 - dist / 3.2f);
-        if (d.key == "beaked") chance *= 0.85f;
-        hit = forceHit || Rand() < std::clamp(chance, 0.05f, 0.95f);
+        float chance = 0.85f * d.talon * (1.15f - 0.08f * s.size) * std::clamp(me.strikeSpeed / 18, 0.75f, 1.25f) * clarity * (1 - 0.6f * dist / 4.5f);
+        if (d.key == "beaked") chance *= 0.9f;
+        chance += 0.15f * me.missStreak + (fishCaught < 3 ? 0.15f : 0);   // (a run of misses, and the first fish of the match, come easier)
+        hit = forceHit || Rand() < std::clamp(chance, 0.3f, 0.97f);
         if (getenv("DEPTH_TRACE")) printf("    strike: %s at %.1f m from the aim, depth %.1f, speed %.0f, chance %.2f -> %s\n", s.name.c_str(), dist, a.pos.y, me.strikeSpeed, chance, hit ? "hit" : "miss");
         if (hit) {
             if (s.size <= me.Carry(d)) {
@@ -256,7 +259,7 @@ void World::ResolveStrike() {
     if (float pd = PerkSum(me.perks).pearl; pd > 0 && Rand() < pd) { col.pearls++; Say("The Founder dives the oyster beds: a pearl."); }   // (Pearl Diver)
                 eco.agents[fi].alive = false;   // (out of the sea: in the talons)
                 if (a.sp < (int)eco.deathsBySpecies.size()) eco.deathsBySpecies[a.sp]++;
-                fishCaught++;
+                fishCaught++; me.missStreak = 0;
                 me.st = FState::Fly; me.airspeed = 9; me.pitch = 0.55f; me.pos.y = 0.4f;
                 Say("Got it: a " + s.name + " (size " + std::to_string(s.size) + ").");
                 return;
@@ -269,7 +272,7 @@ void World::ResolveStrike() {
         }
     }
     if (getenv("DEPTH_TRACE") && fi < 0) { int n = 0; FishNear(me.strikeAim, 8, 6, &n); printf("    strike: nothing within 3 m (reach %.1f m); %d within 8 m and 6 m deep\n", reach, n); }
-    fishMissed++;
+    fishMissed++; me.missStreak = std::min(me.missStreak + 1, 4);
     me.st = FState::Under; me.underT = 0.6f;
     Say(fi >= 0 ? "Missed." : "Nothing there.");
 }
@@ -437,7 +440,11 @@ void World::StrikeStep(float realDt, const FounderInput& in) {
     if (me.st != FState::Strike) return;
     me.strikeT += realDt;
     Vector3 right{-sinf(me.yaw), 0, cosf(me.yaw)}, fwd{cosf(me.yaw), 0, sinf(me.yaw)};
-    Vector3 aim = Vector3Add(me.strikeAt, Vector3Add(Vector3Scale(right, std::clamp(in.steer.x, -1.0f, 1.0f) * 2.6f), Vector3Scale(fwd, std::clamp(in.steer.y, -1.0f, 1.0f) * 2.6f)));
+    Vector3 aim = Vector3Add(me.strikeAt, Vector3Add(Vector3Scale(right, std::clamp(in.steer.x, -1.0f, 1.0f) * 3.5f), Vector3Scale(fwd, std::clamp(in.steer.y, -1.0f, 1.0f) * 3.5f)));
+    {   // the talons home on the nearest fish in reach (a gentle pull: the steering still decides between two)
+        int near = FishNear(aim, 5.0f, 2.2f + std::min(me.strikeSpeed, 35.0f) * 0.06f);
+        if (near >= 0) { Vector3 fp = eco.agents[near].pos; aim = Vector3Lerp(aim, {fp.x, 0, fp.z}, 0.45f); }
+    }
     me.strikeAim = Vector3Lerp(me.strikeAim, aim, std::min(1.0f, realDt * 10));
     float k = std::min(1.0f, me.strikeT / me.strikeLen);
     me.pos = Vector3Lerp(me.pos, {me.strikeAim.x, 0.5f * (1 - k), me.strikeAim.z}, std::min(1.0f, realDt * 3));

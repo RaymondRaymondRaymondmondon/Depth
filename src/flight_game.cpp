@@ -1376,6 +1376,25 @@ void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
         Color tint = a.wound > 0.3f ? Color{255, (unsigned char)(255 - a.wound * 120), (unsigned char)(255 - a.wound * 120), 255} : WHITE;
         rt::DrawCreature(cm, a.pos, yaw, pitch, 1.0f, S.t * cm.freq * (0.6f + inten * 0.6f) + (a.rng % 1000) * 0.01f, inten, tint);
     }
+    // where the fish are: a catchable fish near the top stirs the surface (a pale boil, flickering), so they can be
+    // found from the air before a dive (the playtest: fishing was too hard to start a round on)
+    {
+        static Model boil = LoadModelFromMesh(GenMeshSphere(1, 8, 14));
+        for (int i = 0; i < (int)w.eco.agents.size(); i++) {
+            const rt::Agent& a = w.eco.agents[i];
+            if (!a.alive || a.diver >= 0 || a.pos.y < -3.2f || a.pos.y > 0.5f) continue;
+            const rt::Species& sp = w.eco.map->species[a.sp];
+            if (sp.isDiver || sp.isEnemy || sp.tier >= 4 || sp.size > 4 || sp.Has("protected")) continue;
+            if (Vector3Distance(a.pos, cam.position) > 220) continue;
+            if (cam.position.y < 4) continue;   // (from the strike itself the fish show plainly)
+            for (int k = 0; k < 3; k++) {   // nervous water: a few flickering sparkles over the fish, wider for a bigger one
+                float ph = S.t * (3 + k) + i * 1.7f + k * 2.1f, fl = 0.5f + 0.5f * sinf(ph);
+                if (fl < 0.35f) continue;
+                float spread = 0.4f + 0.2f * sp.size, ox = sinf(ph * 0.37f + k) * spread, oz = cosf(ph * 0.29f + k * 1.3f) * spread, r = 0.12f + 0.04f * sp.size;
+                rt::DrawStaticGlow(boil, MatrixMultiply(MatrixScale(r, 0.01f, r), MatrixTranslate(a.pos.x + ox, 0.06f, a.pos.z + oz)), Color{220, 240, 250, 255}, 0.25f * fl);
+            }
+        }
+    }
     DrawBird(w, dt);
 }
 
@@ -1440,7 +1459,7 @@ void DrawHud(const fl::World& w) {
         DrawRing(a, 16, 19, 0, 360, 24, Color{255, 230, 120, 230});
         DrawLineEx({a.x - 26, a.y}, {a.x - 10, a.y}, 2, Color{255, 230, 120, 230}); DrawLineEx({a.x + 10, a.y}, {a.x + 26, a.y}, 2, Color{255, 230, 120, 230});
         for (const auto& ag : w.eco.agents) {
-            if (!ag.alive || ag.diver >= 0 || ag.pos.y < -3) continue;
+            if (!ag.alive || ag.diver >= 0 || ag.pos.y < -(2.2f + std::min(f.strikeSpeed, 35.0f) * 0.06f)) continue;
             if (Vector2Distance({ag.pos.x, ag.pos.z}, {f.strikeAim.x, f.strikeAim.z}) > 4.5f) continue;
             Vector2 p = GetWorldToScreenEx(ag.pos, S.cam, SCREEN_W, SCREEN_H);
             bool lift = w.eco.map->species[ag.sp].size <= f.Carry(d);
@@ -1450,6 +1469,17 @@ void DrawHud(const fl::World& w) {
         float k = 1 - f.strikeT / std::max(0.01f, f.strikeLen);
         DrawRectangle(SCREEN_W / 2 - 120, 132, (int)(240 * k), 6, Color{255, 236, 160, 220});
         DrawTextCentered("steer the talons with the mouse (or WASD)", SCREEN_W / 2.0f, 144, 15, dim);
+    }
+    // diving at the water: where the talons will meet it, ringed on the surface (green with a fish in reach)
+    if (f.st == fl::FState::Fly && f.vel.y < -2 && f.pos.y > 0.5f && f.pos.y < 120 && f.carrySp < 0 && !w.LandAt(f.pos.x, f.pos.z)) {
+        float tI = f.pos.y / -f.vel.y; Vector3 at{f.pos.x + f.vel.x * tI, 0.05f, f.pos.z + f.vel.z * tI};
+        float reach = 2.2f + std::min(Vector3Length(f.vel), 35.0f) * 0.06f;
+        bool fish = w.FishNear(at, 4.5f, reach) >= 0;
+        Vector2 p = GetWorldToScreenEx(at, S.cam, SCREEN_W, SCREEN_H);
+        float rr = 14 + 10 * std::clamp(f.pos.y / 40, 0.0f, 1.0f);
+        Color rc = fish ? Color{140, 255, 170, 230} : Color{255, 255, 255, 140};
+        DrawRing(p, rr, rr + 2.5f, 0, 360, 28, rc);
+        if (fish) DrawTextCentered("fish below", p.x, p.y + rr + 4, 14, rc);
     }
     // the other people's Founders, named
     for (const auto& n : gNames) {
