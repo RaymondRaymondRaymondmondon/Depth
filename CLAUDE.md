@@ -393,7 +393,11 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   by rarity), the Wardrobe page (Red Tide's Locker room, the arcade's Trawl reel), `--skins-test`.
 - **Costumes (the user: outfits that change the look; the skins stay):** 20 per game (8/6/4/2), `tools/artgen/costumes.py`
   on the shared crew rig, `fig::DrawCostume`, the Wardrobe's Costumes tab with a live preview (`skins::gPreview`), Trawl
-  sync via `CMD_WARDROBE` + `Crew::skin/costume`. **Send the user gallery shots whenever skins or costumes change:**
+  sync via `CMD_WARDROBE` + `Crew::skin/costume`. **Second design (2026-10-06, the user: the mascot suits "wouldn't be
+  something my friends would wear"):** `tools/artgen/costumes_v2.py` builds every costume as an outfit (armour plates,
+  helmets with visors, coats with skirts, capes, glowing seams, a held weapon or tool; the Lobster Knight, Kraken Lord,
+  Captain Nemo...) on the same files and ids; `costumes.py` keeps the kit (NOCLIP imports it). `DEPTH_CZOOM=1|2` with
+  `costumes_gallery_redtide` is a close-up of one row. **Send the user gallery shots whenever skins or costumes change:**
   `skins_gallery_*` (`DEPTH_SKINPAGE=0..7`), `costumes_gallery_*` (`0..1`), `costumes_wardrobe_*`.
 - **First-person hands (both games): a real viewmodel, not the headless body** (the user found the IK'd body arms out of
   proportion): `tools/artgen/rt_fphands.py` -> `assets/shared/divers/fp_<diver|sailor>.glb`, placed by `rt::DrawVmArms`

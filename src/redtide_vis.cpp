@@ -714,6 +714,8 @@ void DrawRedTideStudio(int which, float t) {
         int page = getenv("DEPTH_SKINPAGE") ? atoi(getenv("DEPTH_SKINPAGE")) : 0;
         const auto& cat = skins::Costumes(skins::REDTIDE);
         cam.position = {0, 1.0f, 9.6f}; cam.target = {0, 0.85f, 0}; cam.fovy = 40;
+        int zoom = getenv("DEPTH_CZOOM") ? atoi(getenv("DEPTH_CZOOM")) : 0;   // (1 or 2: a close-up of that row)
+        if (zoom) { float y = zoom == 1 ? 1.15f + 0.75f : -1.55f + 0.75f; cam.position = {0, y + 0.2f, 6.2f}; cam.target = {0, y, 0}; cam.fovy = 34; }
         lamp({-3, 5, 8}, {0, 1, 0});
         RenderBegin(cam, L);
         for (int k = 0; k < 10; k++) {
