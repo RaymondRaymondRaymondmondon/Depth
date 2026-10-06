@@ -90,7 +90,7 @@ void DrawPerson(const Model* m, const Clothes& c, Vector3 feet, float yaw, fig::
 const char* CostumeOfShape(const std::string& s) {
     static const std::pair<const char*, const char*> M[] = {{"fish", "fish"}, {"sack", "sack"}, {"claws", "lobster"}, {"crab", "crab"}, {"sheet", "ghost"},
         {"tail", "mermaid"}, {"pirate", "pirate"}, {"gullsuit", "gull"}, {"board", "sandwich"}, {"ring", "lifebuoy"}, {"straw", "scarecrow"},
-        {"barnacles", "barnacle"}, {"lure", "angler"}, {"tentacles", "octopus"}, {"bell", "divingbell"}};
+        {"barnacles", "barnacle"}, {"lure", "angler"}, {"tentacles", "octopus"}, {"bell", "divingbell"}, {"coat", "captain"}};
     for (const auto& m : M) if (s == m.first) return m.second;
     return nullptr;
 }
@@ -1462,8 +1462,11 @@ bool NightCloakroomPage() {
     Clothes cl = ShoreClothes(me.crew);
     if (me.skin >= 0 && me.skin < (int)SK.size()) { cl.top = SK[me.skin].top; cl.trousers = SK[me.skin].trousers; cl.hat = SK[me.skin].hat; }
     bool hidden = me.skin >= 0 && me.skin < (int)SK.size() && (SK[me.skin].shape == "sack" || SK[me.skin].shape == "sheet" || SK[me.skin].shape == "bottle");
-    if (!hidden) DrawPerson(CrewModel(me.crew), cl, {0, 0, 0}, me.yaw, P, 0, 0, false);
-    DrawSkin(me, 0);
+    const char* cos = me.skin >= 0 && me.skin < (int)SK.size() ? CostumeOfShape(SK[me.skin].shape) : nullptr;   // (the full-body costumes, as on the floor)
+    if (!(cos && DrawPersonCostume(CrewModel(me.crew), {0, 0, 0}, me.yaw, P, 0, 0, cos))) {
+        if (!hidden) DrawPerson(CrewModel(me.crew), cl, {0, 0, 0}, me.yaw, P, 0, 0, false);
+        DrawSkin(me, 0);
+    }
     rt::RenderEnd();
     // ---- the panels
     Color ink{250, 238, 214, 255}, dim{210, 190, 160, 255}, brass{230, 190, 110, 255};

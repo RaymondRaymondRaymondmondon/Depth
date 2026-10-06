@@ -734,6 +734,62 @@ def o_seamine(k):   # Demolitions: v2's suit, the horns with lead caps, a chain 
     for i in range(12): k.lathe(f"mchain{i}", [(0.02, -0.006), (0.025, 0.0), (0.02, 0.006)], (-0.26 - 0.01 * i, 0.15 - 0.025 * i, 1.48 - 0.04 * i), "iron", "chest", 8, 1.0, 0.5)
 
 
+def o_captain(k):   # the Captain (the user's reference, 2026-10-06): a navy double-breasted greatcoat with a camel shearling
+    # collar and lapels, brass buttons, gold epaulettes and cuff rings, medal ribbons, a white peaked cap with a gold badge,
+    # a shirt and tie; a stern old face with white hair at the temples
+    base(k, "navy", 1.04)
+    k.ell("coatchest", (0.015, 0, 1.22), (0.185, 0.23, 0.27), "navy", "chest", 30)
+    k.ell("coatwaist", (0.0, 0, 1.04), (0.168, 0.205, 0.14), "navy", "spine", 28)
+    coat_skirt(k, "navy", "navyd", 0.55, 0.26, 0.195, 0.232)
+    # the open neck: a white shirt and a navy tie, framed by wide shearling lapels and a big collar
+    k.ell("shirt", (0.15, 0, 1.36), (0.06, 0.07, 0.1), "shirt", "chest", 18)
+    k.tube("tie", [V(0.205, 0, 1.43), V(0.215, 0, 1.36), V(0.212, 0, 1.28)], 0.017, "navyd", "chest")
+    k.ell("knot", (0.205, 0, 1.435), (0.018, 0.022, 0.018), "navyd", "chest", 10)
+    for s in (1, -1):
+        k.box(f"lapel{s}", (0.02, 0.075, 0.24), (0.192, s * 0.075, 1.33), "camel", "chest", rot=(-s * 0.32, -0.28, 0), bevel=0.01)
+    ring(k, "collar", (-0.02, 0, 1.47), 0.12, 0.09, "camel", "chest", 26, 0.035)
+    for i in range(3):   # double-breasted: two rows of brass buttons
+        for s in (1, -1):
+            k.ell(f"btn{i}{s}", (0.205 - i * 0.004, s * 0.075, 1.22 - i * 0.075), (0.012, 0.017, 0.017), "brass", "chest" if i < 2 else "spine", 10)
+    for j, c in enumerate(("ribr", "ribb", "riby")):   # medal ribbons over the left breast, a medal under them
+        k.box(f"rib{j}", (0.012, 0.03, 0.018), (0.2, 0.065 + j * 0.032, 1.34), c, "chest", bevel=0.003)
+    k.ell("medal", (0.205, 0.1, 1.31), (0.008, 0.013, 0.013), "brass", "chest", 10)
+    for s, sd in SIDES:   # sleeves with two gold rings at the cuff, shoulders, epaulettes with fringes
+        ua, fa, h = k.j(f"upperarm.{sd}"), k.j(f"forearm.{sd}"), k.j(f"hand.{sd}")
+        k.cone(f"slv{sd}", ua - (fa - ua) * 0.05, fa, 0.098, 0.086, "navy", f"upperarm.{sd}", 16)
+        k.cone(f"slvl{sd}", fa, h + (h - fa).normalized() * 0.02, 0.086, 0.08, "navy", f"forearm.{sd}", 16)
+        for r in range(2):
+            p = h - (h - fa) * (0.14 + r * 0.09)
+            k.cone(f"cring{sd}{r}", p, p + (h - fa).normalized() * 0.014, 0.084, 0.084, "gold", f"forearm.{sd}", 16)
+        k.ell(f"shoulder{sd}", tuple(ua + V(0, s * 0.01, 0.03)), (0.1, 0.1, 0.08), "navy", f"upperarm.{sd}", 18)
+        k.ell(f"epaul{sd}", tuple(ua + V(0, s * 0.01, 0.08)), (0.09, 0.07, 0.022), "gold", f"upperarm.{sd}", 18)
+        for f in range(7):
+            a = -0.7 + f * 0.23
+            k.tube(f"fringe{sd}{f}", [ua + V(0.075 * math.sin(a), s * 0.075, 0.075), ua + V(0.075 * math.sin(a), s * 0.085, 0.01)], 0.006, "gold", f"upperarm.{sd}")
+    trousers(k, "navy"); boots(k, "black", tall=False)
+    k.mitts("skin")
+    # the face: skin, small dark eyes under white brows, a nose, ears, a firm mouth, white hair at the sides and back
+    k.ell("face", tuple(HC + V(0.01, 0, -0.01)), (0.12, 0.112, 0.135), "skin", "head", 28)
+    k.ell("jaw", tuple(HC + V(0.03, 0, -0.08)), (0.09, 0.095, 0.07), "skin", "head", 20)
+    k.ell("nose", tuple(HC + V(0.125, 0, -0.01)), (0.025, 0.018, 0.03), "skin", "head", 12)
+    for s in (1, -1):
+        k.ell(f"eye{s}", tuple(HC + V(0.112, s * 0.042, 0.025)), (0.008, 0.012, 0.009), "black", "head", 10)
+        k.ell(f"brow{s}", tuple(HC + V(0.115, s * 0.045, 0.05)), (0.012, 0.028, 0.009), "hairw", "head", 10)
+        k.ell(f"ear{s}", tuple(HC + V(-0.005, s * 0.11, 0.0)), (0.025, 0.018, 0.035), "skin", "head", 10)
+        k.ell(f"temple{s}", tuple(HC + V(-0.01, s * 0.1, 0.035)), (0.055, 0.022, 0.045), "hairw", "head", 14)
+    k.ell("nape", tuple(HC + V(-0.045, 0, 0.01)), (0.085, 0.105, 0.07), "hairw", "head", 18)
+    k.ell("mouth", tuple(HC + V(0.112, 0, -0.065)), (0.006, 0.03, 0.005), "lipd", "head", 10)
+    has_head(k)
+    # the cap: a white crown wider than the head, a navy band, a black peak, a gold badge and chin cord
+    k.lathe("capcrown", [(0.125, 0.0), (0.15, 0.04), (0.19, 0.075), (0.185, 0.095), (0.001, 0.1)], tuple(HC + V(-0.01, 0, 0.095)), "capw", "head", 32)
+    k.lathe("capband", [(0.128, -0.005), (0.134, 0.05)], tuple(HC + V(-0.01, 0, 0.095)), "navyd", "head", 32)
+    k.ell("peak", tuple(HC + V(0.13, 0, 0.095)), (0.075, 0.125, 0.012), "black", "head", 18)
+    k.ell("badge", tuple(HC + V(0.13, 0, 0.125)), (0.01, 0.035, 0.024), "gold", "head", 12)
+    for s in (1, -1):
+        k.tube(f"wreath{s}", [HC + V(0.125, s * 0.012, 0.105), HC + V(0.12, s * 0.05, 0.115), HC + V(0.115, s * 0.06, 0.135)], 0.005, "gold", "head")
+    k.tube("cord", [HC + V(0.12, 0.11, 0.105), HC + V(0.14, 0.0, 0.11), HC + V(0.12, -0.11, 0.105)], 0.005, "gold", "head")
+
+
 def o_divingbell(k): V2.o_divingbell(k)
 def o_sack(k): V2.o_sack(k)
 def o_sandwich(k): V2.o_sandwich(k)
@@ -769,6 +825,10 @@ for name, (fn, cols) in V2.OUTFITS.items():
     mine = globals().get("o_" + name)
     c = dict(cols); c.update(EXTRA.get(name, {}))
     OUTFITS[name] = (mine or fn, c)
+OUTFITS["captain"] = (o_captain, {"navy": COL(0.03, 0.05, 0.15, 0.65), "navyd": COL(0.015, 0.025, 0.08, 0.6), "camel": COL(0.62, 0.46, 0.27, 0.95),
+                                  "shirt": COL(0.92, 0.92, 0.9, 0.6), "capw": COL(0.93, 0.93, 0.91, 0.45), "skin": COL(0.82, 0.6, 0.48, 0.6),
+                                  "hairw": COL(0.86, 0.86, 0.84, 0.9), "lipd": COL(0.45, 0.25, 0.22, 0.6), "black": COL(0.02, 0.02, 0.025, 0.4),
+                                  "ribr": COL(0.7, 0.08, 0.06, 0.6), "ribb": COL(0.1, 0.25, 0.65, 0.6), "riby": COL(0.9, 0.7, 0.1, 0.6)})
 
 
 def build(name, out):

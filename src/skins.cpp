@@ -193,7 +193,7 @@ int RunSkinsTest() {
             if (!FileExists(path.c_str()) && !FileExists((std::string("assets/shared/costumes/costume_") + c.model + ".glb").c_str())) { models = false; printf("  (no model for %s)\n", c.id); }
         }
         std::sort(ids.begin(), ids.end());
-        check(Costumes(g).size() == 20 && n[COMMON] == 8 && n[RARE] == 6 && n[SUPER] == 4 && n[LEGEND] == 2, TextFormat("%s: 20 costumes, 8/6/4/2", g ? "Red Tide" : "the Trawl"));
+        { int leg = g ? 2 : 3; check(Costumes(g).size() == (size_t)(18 + leg) && n[COMMON] == 8 && n[RARE] == 6 && n[SUPER] == 4 && n[LEGEND] == leg, TextFormat("%s: %d costumes, 8/6/4/%d", g ? "Red Tide" : "the Trawl", 18 + leg, leg)); }   // (the Trawl has a third legend: the Captain)
         check(std::adjacent_find(ids.begin(), ids.end()) == ids.end() && models, "costume ids unique, every model built");
     }
     {

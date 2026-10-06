@@ -240,6 +240,7 @@ static const std::vector<Costume> TRAWL_COSTUMES = {
     K("tc_kraken", "kraken", "Kraken Lord", SUPER, 1000, 0x7a1414, "Black plate, a cloak of crimson arms, a crown of horns"),
     K("tc_gannet", "gannet", "Ironclad Skipper", LEGEND, 1500, 0x1e2c4a, "A riveted steel coat, a funnel helm venting light, a ship's wheel"),
     K("tc_matriarch", "orca", "Orca Commander", LEGEND, 1500, 0x101012, "Black-and-white plate, a dorsal blade, a lance lit like the deep"),
+    K("tc_captain", "captain", "The Captain", LEGEND, 1500, 0x0c1430, "A double-breasted greatcoat with a shearling collar, gold braid and a white peaked cap"),
 };
 #undef K
 const std::vector<Costume>& Costumes(int game) { static const std::vector<Costume> T = HalfCostumes(TRAWL_COSTUMES), R = HalfCostumes(REDTIDE_COSTUMES); return game == REDTIDE ? R : T; }
