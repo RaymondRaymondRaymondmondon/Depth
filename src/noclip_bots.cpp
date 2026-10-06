@@ -130,6 +130,7 @@ int RunNoclipGen(int level, uint32_t seed) {
 }
 
 int RunNoclipTest() {
+    std::setvbuf(stdout, nullptr, _IONBF, 0);   // (unbuffered: a crash still shows how far the checks got)
     gFails = 0; std::printf("NOCLIP tests\n"); const Data& d = D();
     Check(d.levels.size() == 20 && d.entities.size() >= 20 && d.items.size() >= 22 && d.suits.size() == 6 && d.labUps.size() == 7 && d.contracts.size() == 8 && d.cosmetics.size() == 41, "the data: 20 levels, the entities, 22 items, 6 suits, 7 Lab upgrades, 8 contracts, 41 cosmetics (40 and the Orange)", Fm("%.0f levels, %.0f entities, %.0f items", d.levels.size(), d.entities.size(), d.items.size()));
     // every level generates and every Lab reaches every exit, over several days' seeds

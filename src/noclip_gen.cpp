@@ -193,10 +193,10 @@ void KitCorridors(Gen& g, uint16_t wallFlag, int rooms, int roomMin, int roomMax
     // side rooms off the corridors, through doors
     for (int k = 0, made = 0; k < rooms * 20 && made < rooms; k++) {
         int x = g.RI(3, L.w - 8), z = g.RI(3, L.h - 8), w = g.RI(roomMin, roomMax), h = g.RI(roomMin, roomMax);
-        bool clear = true; for (int zz = z - 1; zz <= z + h; zz++) for (int xx = x - 1; xx <= x + w; xx++) if (g.T(xx, zz) != T_WALL) clear = false;
+        bool clear = true; for (int zz = z - 1; zz <= z + h; zz++) for (int xx = x - 1; xx <= x + w; xx++) if (L.At(xx, zz) != T_WALL || !g.In(xx, zz)) clear = false;   // (At: off the map reads as void, so a room never touches the edge)
         if (!clear) continue;
         // a door to the nearest corridor cell on any side
-        int doorX = -1, doorZ = -1; for (int d = 2; d < 6 && doorX < 0; d++) { if (g.T(x + w / 2, z - d) == T_FLOOR) { doorX = x + w / 2; doorZ = z - 1; for (int q = z - d + 1; q < z; q++) g.T(doorX, q) = T_FLOOR; } else if (g.T(x + w / 2, z + h - 1 + d) == T_FLOOR) { doorX = x + w / 2; doorZ = z + h; for (int q = z + h + 1; q < z + h - 1 + d; q++) g.T(doorX, q) = T_FLOOR; } }
+        int doorX = -1, doorZ = -1; for (int d = 2; d < 6 && doorX < 0; d++) { if (L.At(x + w / 2, z - d) == T_FLOOR) { doorX = x + w / 2; doorZ = z - 1; for (int q = z - d + 1; q < z; q++) g.T(doorX, q) = T_FLOOR; } else if (L.At(x + w / 2, z + h - 1 + d) == T_FLOOR) { doorX = x + w / 2; doorZ = z + h; for (int q = z + h + 1; q < z + h - 1 + d; q++) g.T(doorX, q) = T_FLOOR; } }
         if (doorX < 0) continue;
         g.Rect(x, z, x + w - 1, z + h - 1, T_FLOOR); g.RectFlag(x, z, x + w - 1, z + h - 1, CF_ROOM); g.T(doorX, doorZ) = T_DOOR; made++;
     }
