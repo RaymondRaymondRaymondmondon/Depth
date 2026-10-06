@@ -506,30 +506,56 @@ def cucumber(K):
 
 @plan("croc")
 def croc(K):
-    # a saltwater crocodile: a long armoured body, the tail flattened, the snout long with teeth showing, splayed legs
+    # a saltwater crocodile (the playtest, 2026-10-06: "still just geometry"): a heavy armoured body, a broad flat skull
+    # with raised eye turrets and a nostril knob, a long snout with interlocking teeth and a dark lip line, rows of bony
+    # osteoderms down the back, a deep tail flattened side to side under a double then single crest of keeled scutes,
+    # and thick splayed legs with clawed toes
     zs = [0.5, 0.22, 0.02, -0.18, -0.34, -0.5]
     spine(K, zs)
-    body = [(0.5, 0.03, 0.02, -0.01), (0.42, 0.045, 0.03, 0.0), (0.3, 0.06, 0.04, 0.0), (0.24, 0.08, 0.06, 0.01), (0.12, 0.11, 0.07, 0.01),
-            (0.0, 0.12, 0.075, 0.01), (-0.12, 0.1, 0.07, 0.01), (-0.24, 0.06, 0.06, 0.01), (-0.36, 0.035, 0.05, 0.01), (-0.5, 0.01, 0.025, 0.01)]
-    K.loft_body("body", body, "back", [f"s{k}" for k in range(5)], zs, 24)
-    K.loft_body("belly", [(z, hw * 0.85, hh * 0.45, yc - hh * 0.5) for (z, hw, hh, yc) in body[1:-1]], "belly", [f"s{k}" for k in range(5)], zs, 18)
-    for k in range(16):   # the scutes in two rows down the back, and a ridge up the tail
-        z = 0.2 - k * 0.042
-        bn = "s1" if z > 0.02 else "s2" if z > -0.18 else "s3" if z > -0.34 else "s4"
-        for s in ((-1, 1) if k < 9 else (0,)):
-            K.ell(f"scute{k}{s}", (s * 0.035, 0.075 - max(0, k - 8) * 0.004, z), (0.016, 0.015, 0.018), "fin", bn, 8)
+    body = [(0.5, 0.028, 0.022, -0.005), (0.45, 0.04, 0.028, 0.0), (0.36, 0.05, 0.034, 0.0), (0.3, 0.075, 0.05, 0.008), (0.24, 0.085, 0.058, 0.012),
+            (0.17, 0.1, 0.07, 0.012), (0.08, 0.14, 0.085, 0.012), (-0.02, 0.15, 0.09, 0.012), (-0.12, 0.13, 0.085, 0.012), (-0.2, 0.085, 0.08, 0.014),
+            (-0.3, 0.05, 0.07, 0.016), (-0.4, 0.03, 0.05, 0.016), (-0.5, 0.008, 0.02, 0.016)]
+    K.loft_body("body", body, "back", [f"s{k}" for k in range(5)], zs, 28)
+    K.loft_body("belly", [(z, hw * 0.88, hh * 0.5, yc - hh * 0.48) for (z, hw, hh, yc) in body[1:-1]], "belly", [f"s{k}" for k in range(5)], zs, 20)
+    def bn_at(z):
+        return "s0" if z > 0.22 else "s1" if z > 0.02 else "s2" if z > -0.18 else "s3" if z > -0.34 else "s4"
+    # the head: eye turrets, the nostril knob, the jaws' lip line, teeth top and bottom
     for s, sd in ((1, "L"), (-1, "R")):
-        K.ell(f"eye{sd}", (s * 0.035, 0.045, 0.27), (0.016, 0.016, 0.018), "fin", "s0", 10)
-        K.ell(f"pupil{sd}", (s * 0.04, 0.052, 0.282), (0.008, 0.009, 0.006), "eye", "s0", 8)
-        for k in range(6):
-            K.limb(f"tooth{sd}{k}", (s * 0.04, 0.0, 0.46 - k * 0.03), (s * 0.044, -0.022, 0.46 - k * 0.03), 0.005, 0.0, "belly", "s0", 4)
-        for (nm, z, bn) in (("F", 0.13, "s1"), ("R", -0.1, "s2")):
+        K.ell(f"turret{sd}", (s * 0.04, 0.05, 0.28), (0.024, 0.022, 0.03), "back", "s0", 12)
+        K.ell(f"eye{sd}", (s * 0.046, 0.06, 0.29), (0.014, 0.014, 0.016), "fin", "s0", 10)
+        K.ell(f"pupil{sd}", (s * 0.05, 0.064, 0.298), (0.005, 0.011, 0.005), "eye", "s0", 8)
+        K.ell(f"lip{sd}", (s * 0.04, -0.004, 0.39), (0.004, 0.005, 0.12), "eye", "s0", 8)
+        for k in range(9):
+            z = 0.485 - k * 0.022; w = 0.022 + k * 0.0035
+            up = k % 2 == 0
+            K.limb(f"tooth{sd}{k}", (s * w, -0.002, z), (s * (w + 0.003), -0.02 if up else 0.016, z), 0.005, 0.0, "belly", "s0", 4)
+        for (nm, z, bn) in (("F", 0.14, "s1"), ("R", -0.13, "s2")):
             leg = f"leg{nm}{sd}"
-            K.bone(leg, (s * 0.1, 0.0, z), (s * 0.2, -0.07, z + 0.03), bn)
-            K.limb(leg + "u", (s * 0.09, 0.0, z), (s * 0.18, -0.04, z + 0.02), 0.03, 0.022, "back", leg, 8)
-            K.limb(leg + "l", (s * 0.18, -0.04, z + 0.02), (s * 0.2, -0.075, z + 0.05), 0.02, 0.016, "back", leg, 8)
-            K.ell(leg + "foot", (s * 0.21, -0.08, z + 0.07), (0.03, 0.01, 0.04), "back", leg, 10)
-
+            K.bone(leg, (s * 0.12, 0.0, z), (s * 0.24, -0.08, z + 0.03), bn)
+            K.limb(leg + "u", (s * 0.1, 0.005, z), (s * 0.2, -0.03, z + 0.02), 0.04, 0.03, "back", leg, 10)
+            K.ell(leg + "knee", (s * 0.2, -0.03, z + 0.02), (0.03, 0.03, 0.03), "back", leg, 10)
+            K.limb(leg + "l", (s * 0.2, -0.03, z + 0.02), (s * 0.23, -0.08, z + 0.05), 0.027, 0.02, "back", leg, 10)
+            K.ell(leg + "foot", (s * 0.24, -0.088, z + 0.07), (0.035, 0.012, 0.045), "back", leg, 12)
+            for t in range(4):   # clawed toes, fanned
+                a = -0.6 + t * 0.4
+                K.limb(leg + f"toe{t}", (s * 0.24, -0.088, z + 0.08), (s * (0.24 + 0.05 * math.sin(a)), -0.09, z + 0.08 + 0.05 * math.cos(a)), 0.007, 0.0015, "fin", leg, 5)
+    K.ell("nostril", (0, 0.022, 0.475), (0.016, 0.012, 0.018), "back", "s0", 10)
+    # osteoderms: four rows of bony bumps across the back from the neck to the hips
+    for k in range(14):
+        z = 0.22 - k * 0.031
+        for c in (-0.06, -0.022, 0.022, 0.06):
+            if abs(c) > 0.05 and (z > 0.18 or z < -0.15):
+                continue
+            wid = next(hw for (zz, hw, hh, yc) in body if zz <= z) if z > -0.5 else 0.05
+            y = 0.012 + 0.085 * math.sqrt(max(0.0, 1 - (c / max(0.06, wid)) ** 2))
+            K.limb(f"osteo{k}_{c}", (c, y - 0.006, z), (c, y + 0.012, z - 0.004), 0.012, 0.004, "fin", bn_at(z), 6)
+    # the tail's crest: two rows of tall keeled scutes from the hips, merging into one along the last half
+    for k in range(16):
+        z = -0.17 - k * 0.02
+        hh = next(hh for (zz, hw, hh, yc) in body if zz <= z) if z > -0.5 else 0.02
+        h = 0.03 * (1 - k / 18)
+        for s in ((-1, 1) if k < 7 else (0,)):
+            K.limb(f"crest{k}{s}", (s * 0.018, 0.016 + hh * 0.9, z), (s * 0.018, 0.016 + hh * 0.9 + h, z - 0.008), 0.009, 0.001, "fin", bn_at(z), 4)
 
 @plan("frog")
 def frog(K):

@@ -300,6 +300,42 @@ static void ShipDressing(); void BuildLevelModel() {
             int ua = axis == 0 ? 1 : 0, va = axis == 2 ? 1 : 2;
             for (int side = 0; side < 2; side++) FaceWithHoles(mb, axis, side ? (&hi.x)[axis] : (&lo.x)[axis], {(&lo.x)[ua], (&lo.x)[va]}, {(&hi.x)[ua], (&hi.x)[va]}, {}, c);
         }
+        // a passage that runs between decks of different heights (the playtest: "holes in the ground"): its floor was
+        // only the tunnel's bottom, a pit between the rooms. A stair climbs from one room's floor to the other's; a
+        // shaft or a drop gets a railed coaming round its mouth on the upper floor instead
+        if (k != 1 && fabsf(A.lo.y - B.lo.y) > 0.8f) {
+            bool aFirst = (&A.hi.x)[k] <= (&B.lo.x)[k];
+            float y0 = aFirst ? A.lo.y : B.lo.y, y1 = aFirst ? B.lo.y : A.lo.y;   // (the floor at a0, and at a1)
+            int ox = k == 0 ? 2 : 0;
+            float w0 = (&lo.x)[ox], w1 = (&hi.x)[ox];
+            bool drop = l.passage.find("shaft") != std::string::npos || l.passage.find("drop") != std::string::npos;
+            Color tread = map.zones[l.from].deck == "Upper" || map.zones[l.to].deck == "Upper" ? Color{120, 84, 54, 255} : Color{86, 90, 92, 255};
+            if (!drop) {
+                int n = std::max(4, (int)(fabsf(a1 - a0) / 0.35f));
+                for (int i = 0; i < n; i++) {
+                    float u0 = a0 + (a1 - a0) * i / n, u1 = a0 + (a1 - a0) * (i + 1) / n, top = y0 + (y1 - y0) * (i + 0.5f) / n, bot = std::min(y0, y1) - 0.05f;
+                    Vector3 cc, hh;
+                    (&cc.x)[k] = (u0 + u1) / 2; (&hh.x)[k] = fabsf(u1 - u0) / 2;
+                    (&cc.x)[ox] = (w0 + w1) / 2; (&hh.x)[ox] = (w1 - w0) / 2;
+                    cc.y = (top + bot) / 2; hh.y = std::max(0.02f, (top - bot) / 2);
+                    mb.Box(cc, hh, i % 2 ? tread : Color{(unsigned char)(tread.r * 0.85f), (unsigned char)(tread.g * 0.85f), (unsigned char)(tread.b * 0.85f), 255});
+                }
+                for (int sd = 0; sd < 2; sd++) {   // a handrail up each side
+                    float wv = sd ? w1 - 0.12f : w0 + 0.12f;
+                    Vector3 p0, p1; (&p0.x)[k] = a0; (&p1.x)[k] = a1; (&p0.x)[ox] = (&p1.x)[ox] = wv; p0.y = y0 + 1.0f; p1.y = y1 + 1.0f;
+                    mb.Tube({p0, p1}, 0.04f, 0.04f, 6, Color{170, 130, 70, 255}, Color{170, 130, 70, 255}, 0);
+                }
+            } else {
+                float yt = std::max(y0, y1);
+                for (int e = 0; e < 4; e++) {   // a coaming and a rail round the shaft's mouth
+                    Vector3 cc, hh; bool alongK = e < 2;
+                    if (alongK) { (&cc.x)[k] = (a0 + a1) / 2; (&hh.x)[k] = fabsf(a1 - a0) / 2 + 0.08f; (&cc.x)[ox] = e == 0 ? w0 : w1; (&hh.x)[ox] = 0.08f; }
+                    else { (&cc.x)[ox] = (w0 + w1) / 2; (&hh.x)[ox] = (w1 - w0) / 2 + 0.08f; (&cc.x)[k] = e == 2 ? a0 : a1; (&hh.x)[k] = 0.08f; }
+                    cc.y = yt + 0.2f; hh.y = 0.2f; mb.Box(cc, hh, Color{90, 70, 50, 255});
+                    cc.y = yt + 1.0f; hh.y = 0.03f; mb.Box(cc, hh, Color{170, 130, 70, 255});
+                }
+            }
+        }
     }
     // portholes: a short tunnel through the hull and a brass ring on the inside
     for (const auto& w : map.windows) {
@@ -1676,24 +1712,26 @@ static void DrawLineup() {
     L.moonK = 0.5f; L.ambK = 0.7f; L.skyAmb = {90, 140, 150, 255}; L.seaAmb = {20, 40, 46, 255};
     CreatureBudget(40);
     RenderBegin(cam, L);
-    int per = 20, first = S.lineup * per, cols = 5;
-    for (int k = 0; k < per && first + k < (int)ship.species.size(); k++) {
-        const Species& sp = ship.species[first + k];
+    const char* lmk = getenv("DEPTH_LINEUPMAP"); std::string lkey = lmk && *lmk ? lmk : "ship";   // (shots: another map's species)
+    const MapData& lm = lkey != "ship" ? Map(lkey) : ship;
+    int per = 20, first = (S.lineup + (getenv("DEPTH_LINEUPPAGE") ? atoi(getenv("DEPTH_LINEUPPAGE")) : 0)) * per, cols = 5;
+    for (int k = 0; k < per && first + k < (int)lm.species.size(); k++) {
+        const Species& sp = lm.species[first + k];
         if (sp.isEnemy || sp.isDiver) continue;
-        const CreatureModel& cm = Creature("ship", sp.name);
+        const CreatureModel& cm = Creature(lkey, sp.name);
         int cx = k % cols, cy = k / cols;
         Vector3 at{(cx - (cols - 1) * 0.5f) * 2.3f, (1.5f - cy) * 2.0f, 0};
         float sc = 0.95f / std::max(0.05f, cm.extent);
         if (!DrawCreaturePbr(cm, at, 1.5708f, 0, sc, S.time * cm.freq, 0.8f, WHITE)) DrawCreature(cm, at, 1.5708f, 0, sc, S.time * cm.freq, 0.8f);
     }
     RenderEnd();
-    for (int k = 0; k < per && first + k < (int)ship.species.size(); k++) {
-        const Species& sp = ship.species[first + k];
+    for (int k = 0; k < per && first + k < (int)lm.species.size(); k++) {
+        const Species& sp = lm.species[first + k];
         if (sp.isEnemy || sp.isDiver) continue;
         int cx = k % cols, cy = k / cols;
         Vector3 at{(cx - (cols - 1) * 0.5f) * 2.3f, (1.5f - cy) * 2.0f - 0.85f, 0};
         Vector2 sc = GetWorldToScreenEx(at, cam, SCREEN_W, SCREEN_H);
-        DrawTextCentered(TextFormat("%s (%s)", sp.name.c_str(), Creature("ship", sp.name).plan.c_str()), sc.x, sc.y, 13, Color{230, 222, 200, 255});
+        DrawTextCentered(TextFormat("%s (%s)", sp.name.c_str(), Creature(lkey, sp.name).plan.c_str()), sc.x, sc.y, 13, Color{230, 222, 200, 255});
     }
 }
 
@@ -2941,7 +2979,7 @@ void DebugRedTideShot(Game& g, int which) {
     };
     switch (which) {
         case 10: place("Bridge", {1.5f, 2.2f, 1.5f}, 0.3f, -0.05f); break;                  // the start pocket, the Gannet rack, the Salon door
-        case 11: place("Grand Salon", {2, 3, 2}, 0.0f, 0.05f); break;                        // the salon: pillars, the air pocket, the croc
+        case 11: place("Grand Salon", {2, 3, 2}, 0.0f, 0.05f); if (getenv("DEPTH_STAIRSHOT")) { d.pos = {26, 12.6f, 7.5f}; d.yaw = 0; d.pitch = -0.45f; } break;   // the salon: pillars, the air pocket, the croc (DEPTH_STAIRSHOT: down the companionway)
         case 12: place("Engine Room", {12.5f, 3, 11}, 0.0f, -0.05f); break;                  // the engine room and the Goliath, from across it
         case 13: place("The Keel & Sand", {6, 3, 4}, 0.4f, 0.12f); break;                    // outside: the sand, the mast, the hull
         case 14: {                                                                            // the HUD in a fight: a Wrecker Hunt
