@@ -50,8 +50,12 @@ namespace Deep
             return lo;
         }
 
+        // on a crewmate's PC the host's sea does the hearing: sounds made here go to it (Net.cs sets this)
+        public static System.Action<Vector3, float, Band, float, string> Forward;
+
         public void Emit(Vector3 pos, float db, Band band, float seconds = 0.5f, string what = null)
         {
+            if (Forward != null) { Forward(pos, db, band, seconds, what); return; }
             sounds.Add(new Sound { pos = pos, db = db, band = band, until = now + seconds, what = what });
             AddWake(pos, db, seconds);
         }

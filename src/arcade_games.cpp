@@ -68,7 +68,7 @@ const GameInfo& Info(int g) {
         {"Fowl Play", 1, 6, true, 20, true, false},
         {"NOCLIP", 1, 6, true, 15, true, false},
         {"Ball Pit Brawl", 2, 12, true, 20, true, false},
-        {"The Deep", 1, 4, true, 20, false},   // (a Unity game launched as its own program: games/TheDeep; the lobby hand-off comes with its stage 6)
+        {"The Deep", 1, 4, false, 0, true, false},   // (a Unity game launched as its own program: games/TheDeep; the lobby only hands off)
     };
     static const GameInfo DRIFT = {"Drift (test)", 2, 6, true, 20, true};
     static const GameInfo NONE = {"?", 2, 2, false, 0, false};
@@ -122,6 +122,18 @@ public:
 };
 
 // ---- Drift: every player steers a dot; AI dots wander. Real time, 20 snapshots a second, over after 20 s.
+// ---- The Deep: the lobby gathers the crew, then each PC starts the Unity game (host or join) and the lobby is done.
+// The one snapshot tells each player their seat (the crew's places in the raft, their suit colours) and the crew size.
+class DeepHost : public GameHost {
+public:
+    uint32_t seed = 1; int n = 0;
+    void Start(int players, uint32_t s) override { n = players; seed = s; }
+    bool Act(int, Reader&) override { return false; }
+    bool Tick(float, uint32_t) override { return false; }
+    void Snapshot(int viewer, Writer& w) const override { w.U8(1); w.U32(seed); w.U8((uint8_t)(viewer < 0 ? 0 : viewer)); w.U8((uint8_t)n); }
+    bool Over() const override { return false; }
+};
+
 class DriftHost : public GameHost {
 public:
     struct Dot { float x = 0, y = 0, vx = 0, vy = 0; };
@@ -195,6 +207,7 @@ std::unique_ptr<GameHost> MakeGameHost(int g) {
         case G_BALLPIT: return bp::MakeBallPitHost();
         case G_FATHOMS: return fa::MakeFathomsHost();
         case G_TEST_DRIFT: return std::make_unique<DriftHost>();
+        case G_DEEP: return std::make_unique<DeepHost>();
         default: return nullptr;   // Flats Duel, the Trawl, Fathoms and the fifth game come aboard in stages 12-14 and later
     }
 }

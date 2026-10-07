@@ -460,7 +460,7 @@ void DrawReels(Game& g) {
             std::string err;
             if (LaunchDeep("solo", "", gProfile.name, &err)) { deepMsg = ""; MinimizeWindow(); wasRunning = true; } else deepMsg = err;
         }
-        DrawTextCentered(deepMsg.empty() ? "Host and Join for a crew of four come with the game's multiplayer stage" : deepMsg.c_str(), c.x, c.y + 280, 13, deepMsg.empty() ? SCREEN_DIM : Color{255, 170, 140, 255});
+        DrawTextCentered(deepMsg.empty() ? "Host or Join above for a crew of up to four: The Deep opens on every PC" : deepMsg.c_str(), c.x, c.y + 280, 13, deepMsg.empty() ? SCREEN_DIM : Color{255, 170, 140, 255});
     }
     if (selGame == G_BALLPIT) {   // solo: you and the bots (Host or Join above for friends: up to twelve)
         static int bpSkill = 1;
@@ -874,7 +874,7 @@ void DrawLobby() {
     if (host) {
         std::string why;
         bool can = gSess.CanLaunch(&why);
-        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : gSess.game == G_MOUTHFUL ? "Into the water" : gSess.game == G_NIGHT_OFF ? "Go ashore" : gSess.game == G_SCUFFLE ? "Fight!" : gSess.game == G_WARP ? "Play ball" : gSess.game == G_FOWL ? "Open the gates" : gSess.game == G_NOCLIP ? "Through the portal" : gSess.game == G_BALLPIT ? "Into the pit" : gSess.game == G_FATHOMS ? "Set sail" : "Start the race";
+        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : gSess.game == G_FLIGHT ? "Take wing" : gSess.game == G_MOUTHFUL ? "Into the water" : gSess.game == G_NIGHT_OFF ? "Go ashore" : gSess.game == G_SCUFFLE ? "Fight!" : gSess.game == G_WARP ? "Play ball" : gSess.game == G_FOWL ? "Open the gates" : gSess.game == G_NOCLIP ? "Through the portal" : gSess.game == G_BALLPIT ? "Into the pit" : gSess.game == G_FATHOMS ? "Set sail" : gSess.game == G_DEEP ? "Dive together" : "Start the race";
         if (Button({p.x + p.width - 250, p.y + p.height - 66, 220, 50}, go, can, 20)) { std::string w2; gSess.Launch(&w2); }
         if (!can) Txt(why, p.x + 30, p.y + p.height - 50, 15, SCREEN_DIM);
     } else if (gSess.mySeat >= 0) {
@@ -1281,6 +1281,30 @@ void DrawTable(Game& g) {
     }
     if (gShowRules) DrawRules();
 }
+// The Deep: once the host starts, every PC opens the Unity game (the host's as host, the others joining the host's
+// address on The Deep's own port) and waits, minimised, until it closes; then back to the reels.
+void DrawDeepHandoff() {
+    static int launchedVer = -1; static bool running = false; static std::string msg;
+    Rectangle p{340, 230, 600, 240};
+    DrawScreenPanel(p);
+    DrawTextCenteredBold("THE DEEP", p.x + p.width / 2, p.y + 26, 26, SCREEN_INK);
+    if (launchedVer != gSess.stateVersion && !gSess.Snapshot().empty() && !running) {
+        Reader r(gSess.Snapshot());
+        r.U8(); r.U32(); int seat = (int)r.U8(); int crew = (int)r.U8();
+        bool host = gSess.role == R_HOST;
+        std::string addr;
+        if (!host) { addr = gSess.hostAddr; size_t colon = addr.rfind(':'); if (colon != std::string::npos) addr = addr.substr(0, colon); }
+        std::string err;
+        if (LaunchDeep(host ? "host" : "join", addr, gProfile.name, &err, seat, DEEP_PORT)) { running = true; msg = TextFormat("Diving with a crew of %d (seat %d)", crew, seat + 1); MinimizeWindow(); }
+        else msg = err;
+        launchedVer = gSess.stateVersion;
+    }
+    if (running && !DeepRunning()) { running = false; RestoreWindow(); msg = "Back from the deep."; }
+    DrawTextCentered(msg.c_str(), p.x + p.width / 2, p.y + 86, 17, SCREEN_DIM);
+    DrawTextCentered(running ? "The Deep is open on every PC in the crew." : "", p.x + p.width / 2, p.y + 116, 15, SCREEN_DIM);
+    if (!running && Button({p.x + p.width / 2 - 120, p.y + 160, 240, 46}, "Back to the reels", true, 18)) { gSess.Leave(); gMode = MODE_MENU; launchedVer = -1; }
+}
+
 void DrawRoom(Game& g) {
     switch (gSess.stage) {
         case S_CONNECTING: {
@@ -1303,6 +1327,7 @@ void DrawRoom(Game& g) {
             if (gSess.game == G_BALLPIT) { StartBallPitNet(g, &gSess, gProfile.name.c_str()); return; }
             if (gSess.game == G_FATHOMS) { StartFathomsNet(g, &gSess, gProfile.name.c_str()); return; }
             if (gSess.game == G_NOCLIP) { StartNoclipNet(g, &gSess, gProfile.name.c_str()); return; }                              // into the ring (host or guest)
+            if (gSess.game == G_DEEP) { DrawDeepHandoff(); return; }                                                                // The Deep opens on every PC
             DrawTable(g);
             break;
         case S_ENDED: {

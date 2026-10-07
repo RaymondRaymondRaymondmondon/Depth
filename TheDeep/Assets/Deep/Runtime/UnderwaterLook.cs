@@ -54,7 +54,7 @@ namespace Deep
         {
             if (!cam) return;
             var p = cam.transform.position;
-            float surf = Waves.Height(p.x, p.z, Time.time);
+            float surf = Waves.Height(p.x, p.z, Waves.T);
             Underwater = p.y < surf - 0.02f;
             CamDepth = Mathf.Max(0, -p.y);
             float day = clock.Daylight;

@@ -36,7 +36,7 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
    Fabrication Bay and stations; the doc's recipes; the knife, Starter Drill, Spear Gun and Heated Blade; the first two
    hull upgrades; the Kite-Sub.
 5. **The opening (done):** the night raft, the storm, boarding the Nautilus and restoring power.
-6. **Multiplayer:** host-authoritative Netcode, 1-4 players, Depth's lobby handing off.
+6. **Multiplayer (done):** host-authoritative Netcode, 1-4 players, Depth's lobby handing off.
 7. **Campaign and polish:** saves, death rules, sound, the Artisan Bench, performance on this PC.
 
 ## Stage 2 so far (2026-10-07)
@@ -200,3 +200,39 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
 - Shots: `opening_raft`, `opening_board`, `opening_storm`, `opening_hunt`.
 - Simpler than the doc for now: one raft seat is used (the raft has four, for stage 6's crew); there's no sound yet
   (the sound stage); the steam engine remains later progression (the opening's "restore power" is the breakers).
+
+## Stage 6, multiplayer (2026-10-07)
+- **The hand-off:** in Depth's Deep Arcade, The Deep's reel now has Host / Join / Browse like the other games (a crew of
+  1-4; `DeepHost` in arcade_games.cpp). When the host presses "Dive together", every PC starts The Deep
+  (`DrawDeepHandoff` in arcade.cpp): the host's with `-role host`, the others with `-role join -addr <host>`, each with
+  its `-seat` (0-3) and The Deep's own port `-port 47779` (`DEEP_PORT`; Depth's session keeps 47778). Depth waits,
+  minimised, and comes back when The Deep closes.
+- **The netcode** (`Runtime/Net/`): Unity Netcode for GameObjects over Unity Transport, used for its connection,
+  approval and named messages only (no networked prefabs: the world is built at runtime from the seed). `Net.cs` is the
+  protocol (see its header for every message); `Mate.cs` a crewmate as another PC sees them; `NetBuf.cs` the byte
+  writer/reader and `Interp<T>` (samples drawn 0.1 s behind, between the two either side).
+- **The host is the authority** for the world: it builds it from its seed; a crewmate's PC connects first, receives the
+  seed and the state (the welcome: clock, storm, the opening, her repairs and crush depth, the Kite-Sub, the stores,
+  plants and deposits already taken) and builds the same world. Then the host streams the divers, the raft and the
+  Kite-Sub (15 Hz), the ship (20 Hz: pose, helm, power, battery, fuel, breakers, flood levels, breaches), the animals
+  near each crewmate (10 Hz, far ones every other tick), the clock and weather (2 Hz) and the stores (on change).
+- **Each diver is their own PC's** (moving, breathing, the pack, dying). Crewmates' actions on shared things go to the
+  host: the helm and telegraph while manned, the switchboard, the breakers, patching, pinging, stoking, the engine
+  repair, hull upgrades, the Kite-Sub, rowing (each seat's oars add up), strikes on animals (the strike feels immediate
+  and the host decides), sounds for the sea, plants and deposits taken, and changes to her stores (applied at once
+  locally, re-laid over the host's copy until it confirms them).
+- **The sea senses the whole crew** (`Life.ISense`: the diver here and every `Mate`): it gathers animals round each
+  diver, hunts and bites whoever is nearest, is lit by everyone's lamp; a bite on a crewmate is sent to their PC. The
+  Kite-Sub has one pilot at a time; the raft a seat each. The waves share one clock (`Waves.T`).
+- **The crew on screen:** a Verne-era diver for each crewmate (`tools/artgen/deep_diver.py` -> `Vehicles/diver.glb`,
+  posed in code: swimming with a flutter kick, treading water, walking, climbing, rowing, working a station), the suit
+  tinted by seat (Deep/Lit `_Tint` on vertex alpha), their helmet lamp lighting the water, names over helmets and a
+  crew list (top right). A crewmate's PC shows "Calling the Nautilus..." until welcomed, and closes 8 s after the host
+  leaves.
+- **Check:** `tools\deep.ps1 nettest` runs a host and two crewmates on this PC (headless, over UDP) through 19 checks
+  (connecting and seats, swimming seen, the ship in the same place on all three, the helm from a crewmate's PC, a plant
+  and the stores shared, the same animal in the same place, a strike and a bite, a breach seen and patched, the raft
+  rowed, a crewmate leaving): "DEEP NETTEST: 19 passed, 0 failed". `windowed` as the argument shows the three windows.
+- Shots: `crew_sea`, `crew_aboard`, `crew_raft`.
+- Simpler than the doc for now: no voice chat in The Deep itself (Depth's arcade voice isn't carried over), no
+  rejoining a dive in progress with your old place (you come aboard fresh), and the host's departure ends the dive.

@@ -10,8 +10,16 @@ using UnityEngine;
 
 namespace Deep
 {
-    public class Diver : MonoBehaviour
+    public class Diver : MonoBehaviour, ISense
     {
+        // what the sea senses of this diver (Life.ISense)
+        public Vector3 Eye => EyeWorld;
+        public bool Inside => aboard || piloting != null;
+        public Vector3 Velocity => vel;
+        public bool Lamp => lampOn && !aboard;
+        public Vector3 Look => cam ? cam.transform.forward : transform.forward;
+        public int raftSeatNow => raftSeat;
+
         public Camera cam;
         public Transform head;
         public CharacterController cc;
@@ -83,8 +91,8 @@ namespace Deep
             else if (aboard && manning != null) ManStep(dt);
             else if (aboard) WalkStep(dt); else SwimStep(dt);
             Uses();
-            if (ship && ship.groundedMsg != null) { if (aboard) Toast(ship.groundedMsg); ship.groundedMsg = null; }
-            if (ship && ship.sys && ship.sys.alert != null) { if (aboard) Toast(ship.sys.alert); ship.sys.alert = null; }
+            if (ship && ship.groundedMsg != null) { if (aboard) Toast(ship.groundedMsg); Net.Alert(ship.groundedMsg); ship.groundedMsg = null; }
+            if (ship && ship.sys && ship.sys.alert != null) { if (aboard) Toast(ship.sys.alert); Net.Alert(ship.sys.alert); ship.sys.alert = null; }
             // F9 (testing): hole the room you're standing in
             if (inputEnabled && aboard && ship && ship.sys && Input.GetKeyDown(KeyCode.F9))
             {
@@ -174,7 +182,7 @@ namespace Deep
         void SwimStep(float dt)
         {
             var p = transform.position;
-            float surf = Waves.Height(p.x, p.z, Time.time);
+            float surf = Waves.Height(p.x, p.z, Waves.T);
             bool atSurface = p.y + EyeHeight > surf - 0.15f;
             Vector3 wish = head.forward * Axis(KeyCode.W, KeyCode.S) + head.right * Axis(KeyCode.D, KeyCode.A)
                          + Vector3.up * ((Down(KeyCode.Space, KeyCode.Space) ? 1 : 0) - (Down(KeyCode.LeftControl, KeyCode.C) ? 1 : 0));
@@ -190,7 +198,7 @@ namespace Deep
                 vel.y += (want - p.y) * 3f * dt;
             }
             cc.Move(vel * dt);
-            bool headUnder = transform.position.y + EyeHeight < Waves.Height(p.x, p.z, Time.time) - 0.05f;
+            bool headUnder = transform.position.y + EyeHeight < Waves.Height(p.x, p.z, Waves.T) - 0.05f;
             oxygen = headUnder ? Mathf.Max(0, oxygen - dt) : Mathf.Min(oxygenMax, oxygen + dt * 12f);
         }
 
@@ -346,6 +354,7 @@ namespace Deep
                             if (sy.resetT >= 1f)
                             {
                                 sy.breakersTripped = false; sy.state = PowerState.Silent; ship.power = true;
+                                Net.Cmd(Net.C_BREAKERS);
                                 Toast("The breakers clunk home. The batteries hold: lamps, life support, the ballast pumps. Silent running.");
                             }
                         }
@@ -364,7 +373,7 @@ namespace Deep
                         bool stoke = sy != null && sy.engineRepaired && can != null && hands != null && (hands.pack.Has(can) || ship.store.Has(can));
                         hint = sy == null ? "The boiler" : !sy.engineRepaired ? "E  The boiler: the steam engine needs repairing" : stoke ? $"E  Stoke the boiler with a Synthetic Fuel Canister (fuel {sy.fuel * 100:0}%)" : $"The boiler: fuel {sy.fuel * 100:0}%  (stoke it with Synthetic Fuel Canisters)";
                         if (e && sy != null && !sy.engineRepaired) GetComponent<CraftUI>()?.Open("craft", "boiler");
-                        else if (e && stoke) { if (!hands.pack.Remove(can)) ship.store.Remove(can); sy.fuel = Mathf.Min(1f, sy.fuel + 0.35f); Toast("The firebox roars."); }
+                        else if (e && stoke) { if (!hands.pack.Remove(can)) ship.store.Remove(can); sy.fuel = Mathf.Min(1f, sy.fuel + 0.35f); Net.Cmd(Net.C_STOKE); Toast("The firebox roars."); }
                         break;
                     }
                     case "airlock":
@@ -372,7 +381,9 @@ namespace Deep
                         if (e) foreach (var hk in ship.L.hatches) if (hk.kind == "airlock") LeaveTo(Nautilus.G(hk.outside), "The airlock floods and the outer door swings open");
                         break;
                     case "moonpool":
-                        if (KiteSub.I != null && KiteSub.I.docked)
+                        if (KiteSub.I != null && KiteSub.I.docked && KiteSub.I.TakenByOther)
+                            hint = "Someone is in the Kite-Sub's seat";
+                        else if (KiteSub.I != null && KiteSub.I.docked)
                         {
                             hint = $"E  Board the Kite-Sub (battery {KiteSub.I.battery * 100:0}%)    or drop into the moonpool to dive";
                             if (e) EnterKiteSub(KiteSub.I);
@@ -408,11 +419,11 @@ namespace Deep
             if (Raft.I != null && (Raft.I.transform.position - transform.position).magnitude < 3.2f)
             {
                 hint = Raft.I.flipped ? "E  Right the raft" : "E  Climb into the raft";
-                if (e) { if (Raft.I.flipped) Raft.I.Right(); else EnterRaft(Raft.I, 0); }
+                if (e) { if (Raft.I.flipped) Raft.I.Right(); else EnterRaft(Raft.I, Net.MySeat); }
                 return;
             }
             // in the sea: the Kite-Sub where it was left, the airlock's outer door, the deck hatch, the moonpool from below
-            if (KiteSub.I != null && !KiteSub.I.docked && (KiteSub.I.transform.position - transform.position).magnitude < 3.5f)
+            if (KiteSub.I != null && !KiteSub.I.docked && !KiteSub.I.TakenByOther && (KiteSub.I.transform.position - transform.position).magnitude < 3.5f)
             {
                 hint = "E  Climb into the Kite-Sub";
                 if (e) EnterKiteSub(KiteSub.I);
@@ -473,7 +484,7 @@ namespace Deep
                         else if (want == PowerState.Silent && n.sys.battery <= 0) Toast("The batteries are flat.");
                         else
                         {
-                            n.sys.state = want;
+                            n.sys.state = want; Net.Cmd(Net.C_POWER, st);
                             Toast(want == PowerState.Engine ? "The boiler roars and the dynamo takes the load." : want == PowerState.Silent ? "Silent running: battery drive, a quarter speed." : "Dead in the water. The lamps die and the air goes still.");
                         }
                     }

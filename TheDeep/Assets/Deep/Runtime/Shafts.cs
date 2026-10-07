@@ -52,7 +52,7 @@ namespace Deep
             }
             mpb.SetFloatArray("_Fade", fades);
             var rp = new RenderParams(mat) { matProps = mpb, shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off, receiveShadows = false, worldBounds = new Bounds(c, Vector3.one * 200) };
-            Graphics.RenderMeshInstanced(rp, strip, 0, mats);
+            if (SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null) Graphics.RenderMeshInstanced(rp, strip, 0, mats);
         }
     }
 }

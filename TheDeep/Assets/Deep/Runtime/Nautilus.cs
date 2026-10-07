@@ -318,6 +318,17 @@ namespace Deep
                 lampCol[n] = new Vector4(col.r, col.g, col.b, lp.water ? 1 : 0);
                 n++;
             }
+            // the crewmates' helmet lamps (a point of light a little ahead of each helmet, out in the water)
+            foreach (var m in Net.Crew())
+            {
+                if (n >= 24) break;
+                if (!m.LampLight(out var at, out var dir)) continue;
+                var w = at + dir * 2.5f;
+                if ((w - c).sqrMagnitude > 90f * 90f) continue;
+                lampPos[n] = new Vector4(w.x, w.y, w.z, 11f);
+                lampCol[n] = new Vector4(1.0f, 0.93f, 0.78f, 1);
+                n++;
+            }
             Shader.SetGlobalVectorArray("_DeepLampPos", lampPos);
             Shader.SetGlobalVectorArray("_DeepLampCol", lampCol);
             Shader.SetGlobalFloat("_DeepLampCount", n);
@@ -365,7 +376,8 @@ namespace Deep
             return bed.SampleY(p.x, p.z) + Radius * taper - 0.45f;
         }
 
-        void Update() { Sail(Mathf.Min(Time.deltaTime, 0.05f)); }
+        public bool mirror;          // a crewmate's PC: the host sails her and Net.cs moves this copy
+        void Update() { if (!mirror) Sail(Mathf.Min(Time.deltaTime, 0.05f)); }
 
         public void Sail(float dt)
         {

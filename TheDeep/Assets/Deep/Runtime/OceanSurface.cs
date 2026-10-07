@@ -42,7 +42,7 @@ namespace Deep
 
         void LateUpdate()
         {
-            Waves.Upload(Time.time);
+            Waves.Upload(Waves.T);
             GetComponent<MeshRenderer>().enabled = !Shots.HideOcean;
             var cam = Camera.main; if (!cam) return;
             var p = cam.transform.position;

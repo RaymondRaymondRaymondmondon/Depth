@@ -19,9 +19,22 @@ namespace Deep
 {
     public enum CState { Dormant, Alert, Hunting, Frenzy, Territorial, Fleeing }
 
+    // a diver the sea can sense: this PC's own (Diver) or a crewmate's, seen through the network (Mate)
+    public interface ISense
+    {
+        Vector3 Eye { get; }          // the eye, in the world
+        bool Inside { get; }          // aboard the Nautilus or in the Kite-Sub: out of reach
+        Vector3 Velocity { get; }
+        bool Lamp { get; }            // the helmet lamp is on, in the water
+        Vector3 Look { get; }         // where the eye is looking
+    }
+
     public class Creature
     {
+        public int id;            // the same animal on every PC (the host numbers them)
         public SpeciesDef sp; public Vector3 pos, vel, fwd = Vector3.forward, goal, home, nest;
+        public ISense diverT;     // the diver it's after, when targetDiver
+        public Vector3 netPos, netVel, netFwd; public float netT, seenT;   // a crewmate's PC: the host's last word on it
         public CState state; public float hunger, health = 1f, stateT, thinkT, biteCool, displayT, size;
         public Creature target; public bool targetDiver, hasNest, alive = true, persistent;
         public int group;
@@ -39,6 +52,10 @@ namespace Deep
         public const float Radius = 150f, Despawn = 195f;
         public int maxLive = 420;
         Seabed bed; Clock clock; Diver diver; Nautilus ship;
+        public readonly List<ISense> divers = new List<ISense>();   // everyone in the crew (the host's sea senses them all)
+        public bool mirror;       // a crewmate's PC: the host runs the sea; this one draws what it's told (Net.cs)
+        public readonly Dictionary<int, Creature> byId = new Dictionary<int, Creature>();
+        int nextId = 1;
         readonly Dictionary<SpeciesDef, (Mesh mesh, Material mat)> looks = new Dictionary<SpeciesDef, (Mesh, Material)>();
         readonly List<Matrix4x4> batch = new List<Matrix4x4>(1023);
         float spawnT, scentT, ecoT, hullT; int nextGroup = 1;
@@ -46,11 +63,11 @@ namespace Deep
 
         class DiverNoise : Acoustics.ISource
         {
-            public Diver d;
+            public ISense d;
             public bool Sounding(out Vector3 pos, out float db, out Band band)
             {
-                pos = d.EyeWorld; band = Band.Low;
-                float v = d.aboard ? 0 : d.vel.magnitude;
+                pos = d.Eye; band = Band.Low;
+                float v = d.Inside ? 0 : d.Velocity.magnitude;
                 db = v < 0.4f ? 0 : 38f + v * 4f;        // flippers: low-frequency displacement stalkers can track
                 return db > 0;
             }
@@ -109,11 +126,37 @@ namespace Deep
             l.eco = Ecology.FirstBuild();
             l.sound = new Acoustics(Seabed.Size);
             l.scent = new Scent(Seabed.Size);
-            l.sound.sources.Add(new DiverNoise { d = diver });
+            l.AddDiver(diver);
             if (ship) l.sound.sources.Add(new ShipNoise { n = ship });
             l.SpawnLeviathans();
             l.MakeMotes();
             return l;
+        }
+
+        // a crewmate joins the sea (or leaves it)
+        public void AddDiver(ISense d)
+        {
+            if (d == null || divers.Contains(d)) return;
+            divers.Add(d); sound.sources.Add(new DiverNoise { d = d });
+        }
+        public void RemoveDiver(ISense d)
+        {
+            divers.Remove(d);
+            sound.sources.RemoveAll(s => s is DiverNoise dn && dn.d == d);
+            foreach (var c in live) if (c.diverT == d) { c.diverT = null; c.targetDiver = false; }
+        }
+
+        // the nearest diver out in the water within range of a point (or null)
+        ISense NearDiver(Vector3 p, float range)
+        {
+            ISense best = null; float bd = range * range;
+            foreach (var d in divers)
+            {
+                if (d == null || d.Inside) continue;
+                float dd = (d.Eye - p).sqrMagnitude;
+                if (dd < bd) { bd = dd; best = d; }
+            }
+            return best;
         }
 
         // ---- looks ----------------------------------------------------------------------------------------------
@@ -224,7 +267,8 @@ namespace Deep
 
         Creature Make(SpeciesDef s, Vector3 p, int group)
         {
-            var c = new Creature { sp = s, pos = p, home = p, goal = p, group = group, size = s.size * (0.85f + 0.3f * (float)rnd.NextDouble()) };
+            var c = new Creature { id = nextId++, sp = s, pos = p, home = p, goal = p, group = group, size = s.size * (0.85f + 0.3f * (float)rnd.NextDouble()) };
+            byId[c.id] = c;
             c.fwd = Quaternion.Euler(0, (float)rnd.NextDouble() * 360f, 0) * Vector3.forward;
             c.hunger = 0.2f + 0.3f * (float)rnd.NextDouble();
             c.thinkT = (float)rnd.NextDouble() * 0.3f;
@@ -283,10 +327,11 @@ namespace Deep
         float LuxAt(Vector3 p)
         {
             float lux = 0;
-            if (diver && diver.lampOn && !diver.aboard)
+            foreach (var dv in divers)
             {
-                var cam = diver.cam.transform; var d = p - cam.position; float r = d.magnitude;
-                if (r < 40f && Vector3.Dot(d / Mathf.Max(0.01f, r), cam.forward) > 0.82f) lux += 1000f / Mathf.Max(1f, r * r) * Mathf.Exp(-r * 0.05f);
+                if (dv == null || !dv.Lamp || dv.Inside) continue;
+                var d = p - dv.Eye; float r = d.magnitude;
+                if (r < 40f && Vector3.Dot(d / Mathf.Max(0.01f, r), dv.Look) > 0.82f) lux += 1000f / Mathf.Max(1f, r * r) * Mathf.Exp(-r * 0.05f);
             }
             if (ship && ship.powerK > 0.5f)
             {
@@ -297,7 +342,9 @@ namespace Deep
         }
 
         // ---- the senses and the states -------------------------------------------------------------------------
-        bool DiverIn(Creature c, float range) => diver && !diver.aboard && (diver.EyeWorld - c.pos).sqrMagnitude < range * range;
+        bool DiverIn(Creature c, float range) => NearDiver(c.pos, range) != null;
+        // the diver this one is after is within range of it
+        bool TargetIn(Creature c, float range) => c.diverT != null && !c.diverT.Inside && (c.diverT.Eye - c.pos).sqrMagnitude < range * range;
 
         Creature Nearest(Creature c, float range, System.Func<Creature, bool> ok)
         {
@@ -327,11 +374,13 @@ namespace Deep
             {
                 Creature threat = Nearest(c, perceive * 0.6f, o => o.sp.Eats(s) && (o.state == CState.Hunting || o.state == CState.Frenzy || o.sp.IsLeviathan));
                 bool rumble = s.level < 3 && sound.Hear(c.pos, 1u, out _, out _) > 90f;
-                bool diverScare = s.level == 1 && diver && !diver.aboard && DiverIn(c, 3f + s.size * 2f) && diver.vel.magnitude > 2.5f;
+                var near = NearDiver(c.pos, 3f + s.size * 2f);
+                bool diverScare = s.level == 1 && near != null && near.Velocity.magnitude > 2.5f;
                 bool blinded = s.e.light == "repelled" && LuxAt(c.pos) > 20f;
                 if (c.health < 0.25f || threat != null || rumble || diverScare || blinded)
                 {
-                    var from = threat != null ? threat.pos : diverScare || blinded ? diver.EyeWorld : heardAt;
+                    var lit = blinded ? NearDiver(c.pos, 40f) : null;
+                var from = threat != null ? threat.pos : diverScare ? near.Eye : lit != null ? lit.Eye : heardAt;
                     var away = c.pos - from; away.y *= 0.3f; if (away.sqrMagnitude < 0.01f) away = -c.fwd;
                     c.goal = c.pos + away.normalized * 25f + Vector3.down * 4f;
                     // bait fish ball up and rise (the doc's bait balls); everything else runs for cover - and a pack of
@@ -352,7 +401,8 @@ namespace Deep
             if (s.level >= 2 && smell > Scent.Frenzy)
             {
                 c.target = Nearest(c, perceive, o => o.sp.size < c.size * 1.6f && o.sp != s);
-                c.targetDiver = c.target == null && DiverIn(c, perceive);
+                c.diverT = c.target == null ? NearDiver(c.pos, perceive) : null;
+                c.targetDiver = c.diverT != null;
                 c.goal = c.pos + grad * 10f;
                 Set(c, CState.Frenzy, "blood");
                 return;
@@ -362,17 +412,18 @@ namespace Deep
             // only what comes within 15 m of where it hangs; a grouper booms its warning)
             bool ignoresDivers = Has(s, "Reef-Crusher");
             float nestR = Has(s, "Tangle-Serpent") ? 15f + c.size * 0.3f : s.IsLeviathan ? 100f : 25f;
-            if (c.hasNest && !ignoresDivers && diver && !diver.aboard && (diver.EyeWorld - c.nest).sqrMagnitude < nestR * nestR)
+            var intruder = c.hasNest && !ignoresDivers ? NearDiver(c.nest, nestR) : null;
+            if (intruder != null)
             {
                 if (c.state != CState.Territorial) c.displayT = 0;
-                c.targetDiver = true; c.target = null;
+                c.targetDiver = true; c.diverT = intruder; c.target = null;
                 Set(c, CState.Territorial, "an intruder near its nest");
                 return;
             }
             bool wraps = Has(s, "Tangle-Serpent") && ship && (ship.Body.position - c.pos).sqrMagnitude < Mathf.Pow(15f + Nautilus.Radius + c.size * 0.3f, 2);
             if (wraps || (s.IsLeviathan && ship && ship.sys && ship.sys.NoiseDb > 70f && !Has(s, "Tangle-Serpent") && (ship.Body.position - c.nest).sqrMagnitude < 400f * 400f))
             {
-                c.targetDiver = false; c.target = null; c.goal = ship.Body.position;
+                c.targetDiver = false; c.diverT = null; c.target = null; c.goal = ship.Body.position;
                 Set(c, CState.Territorial, "an engine in its territory");
                 return;
             }
@@ -391,16 +442,16 @@ namespace Deep
             {
                 float reach = Ambusher(s) && !starving ? 2.5f + c.size : perceive;
                 var prey = Nearest(c, reach, o => s.Eats(o.sp) && o.size < c.size * 1.3f);
-                bool diverPrey = (s.lethal || starving) && s.level >= 2 && DiverIn(c, perceive) && (c.hunger > 0.8f || starving);
-                if (prey != null || diverPrey)
+                var dp = (s.lethal || starving) && s.level >= 2 && (c.hunger > 0.8f || starving) ? NearDiver(c.pos, perceive) : null;
+                if (prey != null || dp != null)
                 {
-                    c.target = prey; c.targetDiver = prey == null;
+                    c.target = prey; c.targetDiver = prey == null; c.diverT = prey == null ? dp : null;
                     Set(c, CState.Hunting, prey != null ? prey.sp.e.name : "the diver");
                     return;
                 }
                 if (starving && ship && s.level >= 2 && s.size >= 0.8f && (ship.Body.position - c.pos).sqrMagnitude < perceive * perceive)
                 {
-                    c.target = null; c.targetDiver = false; c.goal = ship.Body.position;
+                    c.target = null; c.targetDiver = false; c.diverT = null; c.goal = ship.Body.position;
                     Set(c, CState.Hunting, "the Nautilus's larder");
                     return;
                 }
@@ -415,9 +466,10 @@ namespace Deep
                 Set(c, CState.Alert, "blood far off");
                 return;
             }
-            if (s.e.light == "attracted" && !s.bottom && LuxAt(c.pos) > 1f && diver)
+            var lamp = s.e.light == "attracted" && !s.bottom && LuxAt(c.pos) > 1f ? NearDiver(c.pos, 45f) : null;
+            if (lamp != null)
             {
-                c.goal = diver.EyeWorld + diver.cam.transform.forward * 4f;
+                c.goal = lamp.Eye + lamp.Look * 4f;
                 Set(c, CState.Alert, "the light");
                 return;
             }
@@ -427,7 +479,8 @@ namespace Deep
             int need = s.level == 3 ? 3 : s.level == 2 ? 2 : s.level == 4 ? 1 : 9;
             if (tier >= need && c.state != CState.Alert && rnd.NextDouble() < 0.05)
             {
-                c.goal = ship && ship.sys && ship.sys.NoiseDb > 40f ? ship.Body.position : diver ? diver.EyeWorld : c.pos;
+                var loud = NearDiver(c.pos, 400f);
+                c.goal = ship && ship.sys && ship.sys.NoiseDb > 40f ? ship.Body.position : loud != null ? loud.Eye : c.pos;
                 Set(c, CState.Alert, $"the Wake (tier {tier})");
                 return;
             }
@@ -483,11 +536,11 @@ namespace Deep
                 case CState.Hunting: case CState.Frenzy:
                     speed = s.burst;
                     if (c.target != null && c.target.alive) aim = c.target.pos + c.target.vel * 0.5f;
-                    else if (c.targetDiver && diver) aim = diver.EyeWorld;
+                    else if (c.targetDiver && c.diverT != null) aim = c.diverT.Eye;
                     break;
                 case CState.Territorial:
                     c.displayT += dt;
-                    var foe = c.targetDiver && diver ? diver.EyeWorld : c.goal;
+                    var foe = c.targetDiver && c.diverT != null ? c.diverT.Eye : c.goal;
                     if (c.displayT < 4f)
                     {
                         // the warning display: circling the intruder at a distance
@@ -552,7 +605,7 @@ namespace Deep
             float reach = c.size * 0.55f + 0.35f;
             if ((c.state == CState.Hunting || c.state == CState.Frenzy) && c.target != null && c.target.alive && (c.target.pos - c.pos).sqrMagnitude < (reach + c.target.size * 0.4f) * (reach + c.target.size * 0.4f))
                 Eat(c, c.target);
-            else if ((c.state == CState.Hunting || c.state == CState.Frenzy || (c.state == CState.Territorial && c.displayT >= 4f)) && c.targetDiver && DiverIn(c, reach + 0.9f))
+            else if ((c.state == CState.Hunting || c.state == CState.Frenzy || (c.state == CState.Territorial && c.displayT >= 4f)) && c.targetDiver && TargetIn(c, reach + 0.9f))
                 Bite(c);
             else if (ship && (c.state == CState.Hunting || c.state == CState.Frenzy || c.state == CState.Territorial) && c.target == null && !c.targetDiver)
             {
@@ -574,9 +627,11 @@ namespace Deep
         void Bite(Creature c)
         {
             float dmg = Mathf.Clamp(c.size * 9f, 4f, 70f) * (c.state == CState.Frenzy ? 1.4f : 1f);
-            diver.Hurt(dmg, c.sp.e.name);
-            scent.Emit(diver.EyeWorld, 1.8f);
-            sound.BloodSpill(diver.EyeWorld, 1f);
+            var who = c.diverT; if (who == null) return;
+            if (who is Diver dv) dv.Hurt(dmg, c.sp.e.name);
+            else Net.HurtMate(who, dmg, c.sp.e.name);
+            scent.Emit(who.Eye, 1.8f);
+            sound.BloodSpill(who.Eye, 1f);
             c.biteCool = 1.6f + c.size * 0.2f;
             c.hunger = Mathf.Max(0, c.hunger - 0.25f);
             if (c.state == CState.Territorial) { c.displayT = 0; Set(c, CState.Dormant, null); c.goal = c.nest; }
@@ -598,7 +653,8 @@ namespace Deep
         void Update()
         {
             float dt = Mathf.Min(Time.deltaTime, 0.05f);
-            Tick(dt, diver ? diver.EyeWorld : Vector3.zero);
+            if (mirror) Follow(dt);
+            else Tick(dt, diver ? diver.EyeWorld : Vector3.zero);
             Draw();
             Motes();
         }
@@ -609,7 +665,15 @@ namespace Deep
             scentT += dt; if (scentT >= 0.2f) { scent.hour = clock ? clock.hour : 10f; scent.Step(scentT); scentT = 0; }
             ecoT += dt; if (ecoT >= 1f) { eco.Step(ecoT / Clock.RealSecondsPerDay, clock ? clock.Daylight : 0.47f); ecoT = 0; }
             hullT -= dt;
-            spawnT -= dt; if (spawnT <= 0) { spawnT = 0.5f; Populate(eye); }
+            spawnT -= dt;
+            if (spawnT <= 0)
+            {
+                spawnT = 0.5f;
+                // round each diver in the water in turn (the one in the tests and shots if there's no one else)
+                int k = 0; foreach (var d in divers) if (d != null && !(d is Diver)) k++;
+                if (k == 0) Populate(eye);
+                else { var d = divers[popTurn++ % divers.Count]; if (d != null) Populate(d is Diver ? eye : d.Eye); }
+            }
 
             groups.Clear();
             foreach (var c in live)
@@ -629,11 +693,55 @@ namespace Deep
                 Move(c, dt);
             }
             // let go of what's out of range (back into the pool), and the dead
-            live.RemoveAll(c => !c.alive || (!c.persistent && (c.pos - eye).sqrMagnitude > Despawn * Despawn));
+            live.RemoveAll(c =>
+            {
+                bool gone = !c.alive || (!c.persistent && FarFromAll(c.pos, eye));
+                if (gone) byId.Remove(c.id);
+                return gone;
+            });
+        }
+
+        int popTurn;
+        bool FarFromAll(Vector3 p, Vector3 eye)
+        {
+            if ((p - eye).sqrMagnitude <= Despawn * Despawn) return false;
+            foreach (var d in divers) if (d != null && !(d is Diver) && (p - d.Eye).sqrMagnitude <= Despawn * Despawn) return false;
+            return true;
+        }
+
+        // ---- a crewmate's PC: the animals the host says are near, moved smoothly between its words -----------------
+        public void Heard(int id, SpeciesDef s, Vector3 pos, Vector3 vel, Vector3 fwd, float size, CState st, float health, float t)
+        {
+            if (!byId.TryGetValue(id, out var c))
+            {
+                if (dead.Contains(id)) return;
+                c = new Creature { id = id, sp = s, pos = pos, fwd = fwd, size = size, home = pos, goal = pos };
+                byId[id] = c; live.Add(c);
+            }
+            c.netPos = pos; c.netVel = vel; c.netFwd = fwd; c.netT = t; c.seenT = Time.time;
+            c.state = st; c.health = health; c.size = size;
+        }
+        readonly HashSet<int> dead = new HashSet<int>();     // killed here, before the host has heard (don't bring them back)
+
+        void Follow(float dt)
+        {
+            float now = Net.Now;
+            for (int i = live.Count - 1; i >= 0; i--)
+            {
+                var c = live[i];
+                if (!c.alive || Time.time - c.seenT > 1.2f) { byId.Remove(c.id); live.RemoveAt(i); continue; }
+                var want = c.netPos + c.netVel * Mathf.Clamp(now - c.netT, 0f, 0.5f);
+                if ((want - c.pos).sqrMagnitude > 64f) c.pos = want;
+                else c.pos = Vector3.Lerp(c.pos, want, 1 - Mathf.Exp(-dt * 8f));
+                c.vel = c.netVel;
+                if (c.netFwd.sqrMagnitude > 0.01f) c.fwd = Vector3.Slerp(c.fwd, c.netFwd, 1 - Mathf.Exp(-dt * 6f)).normalized;
+            }
+            if (dead.Count > 200) dead.Clear();
         }
 
         void Draw()
         {
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return;   // (the headless self-test)
             var cam = Camera.main; if (!cam) return;
             var planes = GeometryUtility.CalculateFrustumPlanes(cam);
             float far = cam.farClipPlane;
@@ -686,6 +794,14 @@ namespace Deep
         // returns true if it died
         public bool Wound(Creature c, float damage, Vector3 from, bool cauterise, string how)
         {
+            if (mirror)
+            {
+                Net.SendWound(c.id, damage, from, cauterise, how);
+                c.health -= damage / HitPoints(c);
+                if (c.health > 0f) return false;
+                c.alive = false; dead.Add(c.id);
+                return true;
+            }
             c.health -= damage / HitPoints(c);
             float blood = cauterise ? 0.4f : 1.5f + c.size;
             scent.Emit(c.pos, blood);
@@ -703,6 +819,8 @@ namespace Deep
             if (c.sp.level >= 2 && c.sp.aggression > 0.35f && c.health > 0.25f)
             {
                 c.targetDiver = true; c.target = null; c.hunger = Mathf.Max(c.hunger, 0.9f);
+                c.diverT = NearDiver(from, 30f);
+                c.targetDiver = c.diverT != null;
                 Set(c, CState.Hunting, "wounded by the diver");
             }
             else

@@ -10,7 +10,7 @@ namespace Deep
     {
         public static bool HideOcean;
         static readonly string[] All = { "debugdown", "debugair", "reef", "kelp", "up", "above", "night", "drop", "meadow",
-            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral", "life_light", "life_engine", "life_moon", "wreck_galleon", "wreck_dreadnought", "deposit", "craft", "pack", "kitesub", "kitesub_fly", "opening_raft", "opening_board", "opening_storm", "opening_hunt" };
+            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral", "life_light", "life_engine", "life_moon", "wreck_galleon", "wreck_dreadnought", "deposit", "craft", "pack", "kitesub", "kitesub_fly", "opening_raft", "opening_board", "opening_storm", "opening_hunt", "crew_sea", "crew_aboard", "crew_raft" };
 
         public void Run(string which, string dir) { StartCoroutine(Go(which, dir)); }
 
@@ -317,6 +317,51 @@ namespace Deep
                     Debug.Log($"DEEP STARVE: shallows hunters starving={pool.Starving(2)} hunger={pool.Hunger(2):0.00}; hull breaches {breaches} -> {ship.sys.breaches.Count}");
                     LogLife(b);
                     Look(eye, ship.WorldPoint(Nautilus.G(2, 0, 0)));
+                    return true;
+                }
+                case "crew_sea":
+                case "crew_aboard":
+                case "crew_raft":
+                {
+                    // crewmates as another PC draws them (Mate.cs), posed by hand
+                    foreach (var mm in Net.I.mates.Values) if (mm) Object.Destroy(mm.gameObject);
+                    Net.I.mates.Clear();
+                    Mate Crewmate(int seat, string nm, MatePose p)
+                    {
+                        var m = Mate.Make(seat, nm); p.health = 100; p.seat = (byte)seat; if (p.station == 0 && p.mode != 1) p.station = 255;
+                        m.Heard(Time.time - 0.5f, p); m.Heard(Time.time, p);
+                        Net.I.mates[seat] = m; return m;
+                    }
+                    if (name == "crew_sea")
+                    {
+                        b.clock.hour = 10.5f; Power(false);
+                        var at = ship.WorldPoint(Nautilus.G(-6, -1, 11));
+                        Look(at + new Vector3(0, 0.5f, -6.5f), at + new Vector3(0, -0.4f, 0));
+                        var f = b.diver.cam.transform.forward; var rgt = b.diver.cam.transform.right;
+                        Crewmate(1, "Ann", new MatePose { mode = 0, pos = at - rgt * 1.6f, yaw = Mathf.Atan2(rgt.x, rgt.z) * Mathf.Rad2Deg, vel = rgt * 2.4f, flags = MatePose.Lamp, station = 255 });
+                        Crewmate(2, "Bo", new MatePose { mode = 0, pos = at + rgt * 1.6f + Vector3.up * 0.4f, yaw = Mathf.Atan2(-f.x, -f.z) * Mathf.Rad2Deg, vel = Vector3.zero, flags = MatePose.Lamp, station = 255 });
+                        Crewmate(3, "Cy", new MatePose { mode = 0, pos = at + f * 4f - rgt * 0.5f + Vector3.down * 0.6f, yaw = Mathf.Atan2(-rgt.x, -rgt.z) * Mathf.Rad2Deg + 30f, pitch = 20f, vel = Quaternion.Euler(20f, Mathf.Atan2(-rgt.x, -rgt.z) * Mathf.Rad2Deg + 30f, 0) * Vector3.forward * 3.5f, flags = MatePose.Sprint, station = 255 });
+                    }
+                    else if (name == "crew_aboard")
+                    {
+                        b.clock.hour = 11f; Power(true);
+                        b.diver.PlaceAboard(20.5f, 0.2f, Nautilus.Floor, 180f, 6f);
+                        float y = Nautilus.Floor + 0.82f;
+                        Crewmate(1, "Ann", new MatePose { mode = 1, pos = Nautilus.G(17.2f, y, 0.4f), yaw = 90f, vel = Nautilus.G(0, 0, 0) + new Vector3(0, 0, 0), station = 255 });
+                        Crewmate(2, "Bo", new MatePose { mode = 1, pos = Nautilus.G(15.4f, y, -0.9f), yaw = 70f, vel = new Vector3(0, 0, 2.2f), station = 255 });
+                    }
+                    else
+                    {
+                        b.clock.hour = 17.8f; Power(false);
+                        var at = ship.WorldPoint(Nautilus.G(4, 0, 22)); at.y = 0;
+                        var raft = Raft.I ? Raft.I : Raft.Spawn(at, ship.heading + 90f);
+                        raft.transform.position = at; raft.heading = ship.heading + 90f; raft.flipped = false;
+                        for (int i = 0; i < 30; i++) { raft.Oars(1, 1, 0); raft.Oars(3, 1, 0); }
+                        var hf = Quaternion.Euler(0, raft.heading, 0);
+                        Look(at + hf * new Vector3(4.5f, 1.8f, 3.5f), at + Vector3.up * 0.4f);
+                        Crewmate(1, "Ann", new MatePose { mode = 2, pos = raft.Seat(1), yaw = raft.heading, flags = MatePose.Row, station = 255 });
+                        Crewmate(3, "Cy", new MatePose { mode = 2, pos = raft.Seat(3), yaw = raft.heading, flags = MatePose.Row, station = 255 });
+                    }
                     return true;
                 }
                 case "crew":

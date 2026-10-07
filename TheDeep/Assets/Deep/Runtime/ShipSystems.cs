@@ -41,7 +41,9 @@ namespace Deep
             public Transform water;
         }
         public readonly List<Room> rooms = new List<Room>();
-        public class Breach { public int room; public Vector3 gen; public float size; public float patch; public ParticleSystem jet; }
+        public bool mirror;               // a crewmate's PC: the host runs her systems (Net.cs feeds this copy)
+        static int nextBreach = 1;
+        public class Breach { public int id; public int room; public Vector3 gen; public float size; public float patch; public ParticleSystem jet; }
         public readonly List<Breach> breaches = new List<Breach>();
         public float WaterTonnes { get { float t = 0; foreach (var r in rooms) t += r.level * r.area; return t * 1.025f; } }
         public float TrimMoment { get { float m = 0; foreach (var r in rooms) m += r.level * r.area * (r.r.x0 + r.r.x1) * 0.5f; return m * 1.025f; } }
@@ -107,11 +109,12 @@ namespace Deep
         public Breach AddBreach(int room, float size, System.Random rnd = null)
         {
             if (room < 0 || room >= rooms.Count) return null;
+            if (mirror) { Net.Cmd(Net.C_BREACH, room, size); return null; }
             rnd ??= new System.Random();
             var r = rooms[room].r;
             float side = rnd.Next(2) == 0 ? -1 : 1;
             var gen = new Vector3(Mathf.Lerp(r.x0 + 0.6f, r.x1 - 0.6f, (float)rnd.NextDouble()), r.floor + 0.4f + (float)rnd.NextDouble() * 0.9f, side * (r.half - 0.02f));
-            var b = new Breach { room = room, gen = gen, size = size, jet = MakeJet(gen, -side) };
+            var b = new Breach { id = nextBreach++, room = room, gen = gen, size = size, jet = MakeJet(gen, -side) };
             breaches.Add(b);
             return b;
         }
@@ -148,8 +151,19 @@ namespace Deep
         }
 
         // a hand working on a breach: three seconds of hammering closes it
+        // a breach the host has (on a crewmate's PC): made to match
+        public Breach MirrorBreach(int id, int room, Vector3 gen, float size)
+        {
+            float inward = gen.z > 0 ? -1 : 1;
+            var b = new Breach { id = id, room = room, gen = gen, size = size, jet = MakeJet(gen, inward) };
+            breaches.Add(b);
+            return b;
+        }
+        public void DropBreach(Breach b) { breaches.Remove(b); if (b.jet) Destroy(b.jet.gameObject); }
+
         public bool Patch(Breach b, float dt)
         {
+            if (mirror) Net.PatchWork(b.id, dt);
             b.patch += dt / 3f;
             if (b.patch < 1f) return false;
             breaches.Remove(b);
@@ -168,9 +182,13 @@ namespace Deep
         public bool Ping()
         {
             if (!LifeSupport || battery < 0.01f) { alert = "The sonar is dead: she has no power."; return false; }
-            battery -= 0.005f;
-            pingNoiseT = 1.5f;
-            if (Life.I != null) Life.I.sound.Emit(n.Body.position, 115f, Band.Ultra, 1.5f, "a sonar ping");
+            if (mirror) Net.Cmd(Net.C_PING);
+            else
+            {
+                battery -= 0.005f;
+                pingNoiseT = 1.5f;
+                if (Life.I != null) Life.I.sound.Emit(n.Body.position, 115f, Band.Ultra, 1.5f, "a sonar ping");
+            }
             var bed = DeepBoot.I ? DeepBoot.I.seabed : null; if (!bed) return false;
             if (!sonarMap) { sonarMap = new Texture2D(SonarRes, SonarRes, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp }; }
             var c = n.Body.position; float keel = c.y - Nautilus.Radius;
@@ -219,6 +237,27 @@ namespace Deep
 
         public void Step(float dt)
         {
+            if (mirror)
+            {
+                // the host's numbers arrive by the network; here only the water and the jets are shown
+                n.power = state != PowerState.Dead;
+                sonarAge += dt;
+                foreach (var b in breaches)
+                {
+                    if (b.room < 0 || b.room >= rooms.Count || !b.jet) continue;
+                    var rm = rooms[b.room]; bool sub = rm.r.floor + rm.level > b.gen.y;
+                    var em0 = b.jet.emission; em0.rateOverTime = sub ? 60 : 220;
+                    var mn = b.jet.main; mn.gravityModifier = sub ? -0.15f : 0.6f;
+                }
+                foreach (var r in rooms)
+                {
+                    bool on = r.level > 0.02f;
+                    if (r.water.gameObject.activeSelf != on) r.water.gameObject.SetActive(on);
+                    if (on) r.water.localPosition = Nautilus.G((r.r.x0 + r.r.x1) / 2, r.r.floor + r.level, 0);
+                }
+                pumpsManned = false;
+                return;
+            }
             float spd = Mathf.Abs(n.speed);
             // power
             if (state == PowerState.Engine)
@@ -301,7 +340,7 @@ namespace Deep
                 if (on) r.water.localPosition = Nautilus.G((r.r.x0 + r.r.x1) / 2, r.r.floor + r.level, 0);
             }
         }
-        bool pumpsRunning;
+        public bool pumpsRunning;
         float crushT; bool creakWarned;
     }
 }

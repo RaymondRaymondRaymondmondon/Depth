@@ -28,13 +28,14 @@ static std::string FindExe()
 
 static std::string Quote(const std::string& s) { std::string o = "\""; for (char c : s) { if (c == '"') o += '\\'; o += c; } return o + "\""; }
 
-bool LaunchDeep(const std::string& role, const std::string& addr, const std::string& name, std::string* err)
+bool LaunchDeep(const std::string& role, const std::string& addr, const std::string& name, std::string* err, int seat, int port)
 {
     if (DeepRunning()) { if (err) *err = "The Deep is already running"; return false; }
     std::string exe = FindExe();
     if (exe.empty()) { if (err) *err = "The Deep isn't built yet (tools\\deep.ps1 build makes games\\TheDeep\\TheDeep.exe)"; return false; }
     std::string cmd = Quote(exe) + " -role " + role + " -name " + Quote(name.empty() ? "Diver" : name);
     if (!addr.empty()) cmd += " -addr " + Quote(addr);
+    cmd += " -seat " + std::to_string(seat) + " -port " + std::to_string(port);
     std::string wdir = exe.substr(0, exe.find_last_of("\\/"));
     STARTUPINFOA si{}; si.cb = sizeof(si);
     PROCESS_INFORMATION pi{};

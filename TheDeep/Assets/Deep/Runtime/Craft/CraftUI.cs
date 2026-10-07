@@ -197,6 +197,7 @@ namespace Deep
             {
                 h.pack.Remove(it); Store?.Remove(it);
                 KiteSub.Spawn(d.ship);
+                Net.Cmd(Net.C_KITE);
                 d.Toast("The Kite-Sub is lowered into the moonpool's cradle.");
                 Close();
                 return;
@@ -206,6 +207,7 @@ namespace Deep
             {
                 h.pack.Remove(it); Store?.Remove(it);
                 d.ship.sys.engineRepaired = true;
+                Net.Cmd(Net.C_ENGINE);
                 d.Toast("The steam engine turns over. The switchboard can give her the Engine now.");
                 Close();
                 return;
@@ -217,6 +219,7 @@ namespace Deep
                     if (string.Equals(u.name, it.name, System.StringComparison.OrdinalIgnoreCase) && u.crushDepthM > d.ship.crushDepth)
                     {
                         d.ship.crushDepth = u.crushDepthM;
+                        Net.Cmd(Net.C_HULL, Mathf.RoundToInt(u.crushDepthM));
                         h.pack.Remove(it); Store?.Remove(it);
                         d.Toast($"{it.name} fitted: she can dive to {u.crushDepthM:0} m.");
                         return;

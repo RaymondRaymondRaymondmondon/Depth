@@ -29,6 +29,7 @@ namespace Deep
         Transform beacon; Material beaconMat;
         Creature hunter; float huntT, nextRam;
         public const float StormFull = 600f, HuntAfter = 480f;
+        public Vector3 shipStart;             // where she wallowed when it began (the raft is placed from it)
 
         public static Opening Begin(DeepBoot b)
         {
@@ -44,6 +45,7 @@ namespace Deep
             ship.sys.state = PowerState.Dead; ship.sys.breakersTripped = true; ship.sys.battery = 0.3f;
             ship.power = false; ship.powerK = 0;
             ship.depthOrder = 3.3f;
+            o.shipStart = ship.Body.position;
             // the raft a few hundred metres off, facing her lights
             var fromShip = (b.diver.transform.position - ship.Body.position); fromShip.y = 0;
             if (fromShip.magnitude < 150f) fromShip = fromShip.normalized * 260f;
@@ -51,7 +53,8 @@ namespace Deep
             var at = ship.Body.position + fromShip; at.y = 0;
             float heading = Mathf.Atan2(-fromShip.x, -fromShip.z) * Mathf.Rad2Deg;
             o.raft = Raft.Spawn(at, heading);
-            b.diver.EnterRaft(o.raft, 0);
+            o.raft.mirror = Net.IsGuest;
+            b.diver.EnterRaft(o.raft, Net.MySeat);
             b.diver.yaw = heading; b.diver.pitch = 2f;
             o.MakeBeacon();
             b.diver.Toast("Night. A dark shape on the swell ahead, red lights failing on her back. Row to her (W, A/D).");
@@ -91,8 +94,8 @@ namespace Deep
             if (done) return;
             float dt = Time.deltaTime;
             t += dt;
-            // the storm builds through the opening
-            wx.target = Mathf.Clamp01(t / StormFull) * 1.0f;
+            // the storm builds through the opening (the host's storm, on a crewmate's PC)
+            if (!Net.IsGuest) wx.target = Mathf.Clamp01(t / StormFull) * 1.0f;
             // the beacon stutters like a dying lamp until her power is back
             float flick = powered ? 0f : (Mathf.PerlinNoise(t * 3f, 0.3f) > 0.35f ? 1f : 0.35f) * (0.6f + 0.4f * Mathf.Sin(t * 2.2f));
             if (beaconMat) beaconMat.SetFloat("_Intensity", flick * 7f);
@@ -104,13 +107,22 @@ namespace Deep
             if (powered && ship.Depth > 15f)
             {
                 done = true;
-                wx.target = 0f;
+                if (!Net.IsGuest) wx.target = 0f;
                 if (beacon) Destroy(beacon.gameObject);
                 ReleaseHunter();
                 diver.Toast("The Nautilus slips under. Above you the storm rages on, and the sea goes quiet. The campaign begins.");
                 return;
             }
-            Hunt(dt);
+            if (!Net.IsGuest) Hunt(dt);
+        }
+
+        // a crewmate joining after the opening is over (or a host who skipped it): no raft, aboard at once
+        public void EndForLateJoin()
+        {
+            done = true;
+            if (beacon) Destroy(beacon.gameObject);
+            if (raft && diver.onRaft == raft) diver.LeaveRaft();
+            foreach (var s in ship.L.stations) if (s.kind == "lockers") { diver.Board(ship.StandLocal(s), Nautilus.FacingYaw(s), "You come aboard the Nautilus."); break; }
         }
 
         // the surface hunter: the Shallows' leviathan rises after eight minutes if anything is still on the surface
@@ -129,9 +141,12 @@ namespace Deep
             huntT += dt;
             // what's on the surface: the raft, a diver in the water, or her if she hasn't dived
             Vector3 prey;
-            bool diverUp = !diver.aboard && diver.piloting == null && diver.EyeWorld.y > -3f;
-            if (raft && !raft.flipped && diver.onRaft == raft) prey = raft.transform.position;
-            else if (diverUp) prey = diver.EyeWorld;
+            ISense swimmer = null;
+            if (Life.I != null) foreach (var d in Life.I.divers) if (d != null && !d.Inside && d.Eye.y > -3f && !(d is Diver dv && dv.onRaft != null) && !(d is Mate m && m.OnRaft)) swimmer = d;
+            bool inRaft = raft && !raft.flipped && raft.occupied != 0;
+            bool diverUp = swimmer != null;
+            if (inRaft) prey = raft.transform.position;
+            else if (diverUp) prey = swimmer.Eye;
             else prey = ship.Body.position;
             // it circles once, wide and shallow, then comes straight in from below
             float circle = Mathf.Clamp01(1f - huntT / 22f);
@@ -143,8 +158,8 @@ namespace Deep
             if (nextRam <= 0 && (hunter.pos - prey).magnitude < reach)
             {
                 nextRam = 14f;
-                if (raft && diver.onRaft == raft) raft.Flip("The leviathan rises under you and throws the raft over!");
-                else if (diverUp) diver.Hurt(45f, hunter.sp.e.name);
+                if (inRaft) { raft.Flip("The leviathan rises under you and throws the raft over!"); Net.Alert("The leviathan rises under the raft and throws it over!"); }
+                else if (diverUp) { if (swimmer is Diver dv2) dv2.Hurt(45f, hunter.sp.e.name); else Net.HurtMate(swimmer, 45f, hunter.sp.e.name); }
                 else if (ship.sys != null)
                 {
                     ship.sys.AddBreach(ship.sys.RoomIndexAt(new Vector3(2.5f, 0, 0)), 0.04f);
@@ -162,7 +177,7 @@ namespace Deep
             if (done || boarded || !raft) return false;
             raft.Right();
             diver.health = 70f; diver.oxygen = diver.oxygenMax;
-            diver.EnterRaft(raft, 0);
+            diver.EnterRaft(raft, Net.MySeat);
             diver.Toast("You come to, coughing, in the raft.");
             return true;
         }

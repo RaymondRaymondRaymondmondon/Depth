@@ -139,7 +139,17 @@ namespace Deep
             return false;
         }
 
-        public void Take(Node n) { n.taken = true; n.back = Time.time + (n.by == "salvage" ? 3600f : 2400f); }
+        public static System.Action<int, float> OnTake;   // (Net.cs passes it to the crew)
+        public void Take(Node n)
+        {
+            n.taken = true; n.back = Time.time + (n.by == "salvage" ? 3600f : 2400f);
+            OnTake?.Invoke(nodes.IndexOf(n), n.back - Time.time);
+        }
+        public void TakeIndex(int i, float seconds)
+        {
+            if (i < 0 || i >= nodes.Count) return;
+            nodes[i].taken = true; nodes[i].back = Time.time + seconds;
+        }
 
         void Update()
         {
@@ -152,6 +162,8 @@ namespace Deep
         void Draw(Camera cam)
         {
             if (!cam) return;
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return;   // (the headless self-test)
+
             var planes = GeometryUtility.CalculateFrustumPlanes(cam);
             var by = new Dictionary<string, List<Matrix4x4>>();
             foreach (var n in nodes)

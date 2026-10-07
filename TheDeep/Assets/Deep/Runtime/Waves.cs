@@ -14,7 +14,9 @@ namespace Deep
             new Vector4(-0.4f, 1.0f, 11f, 0.12f),
             new Vector4(0.9f, 0.9f, 5.5f, 0.08f),
         };
-        public static float Calm = 1f;   // 0 glassy .. 1 normal .. 2.5 a storm (the opening's weather)
+        public static float Calm = 1f;
+        public static float TimeOffset;                         // a crewmate's PC: the host's clock minus ours (Net.cs)
+        public static float T => Time.time + TimeOffset;        // the sea's time, the same on every PC   // 0 glassy .. 1 normal .. 2.5 a storm (the opening's weather)
 
         // the displaced position of the surface point that started at (x, z)
         public static Vector3 Displace(float x, float z, float t)

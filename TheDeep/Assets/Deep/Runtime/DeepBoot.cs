@@ -52,13 +52,40 @@ namespace Deep
             return n;
         }
 
+        bool waiting; GameObject waitCam;
+
         void Awake()
         {
             I = this;
             Application.targetFrameRate = 60;
             QualitySettings.vSyncCount = 0;
+            Application.runInBackground = true;      // (the crew keep sailing while this window isn't in front)
             Args.Parse();
+            Net.Begin();
+            // a crewmate's PC waits for the host's welcome: the world is built from the host's seed
+            if (Net.IsGuest)
+            {
+                waiting = true;
+                waitCam = new GameObject("Waiting");
+                var c = waitCam.AddComponent<Camera>(); c.clearFlags = CameraClearFlags.SolidColor; c.backgroundColor = new Color(0.01f, 0.04f, 0.06f);
+                return;
+            }
+            BuildWorld(Args.Seed);
+        }
 
+        void Update()
+        {
+            if (!waiting || Net.I == null || Net.I.welcome == null) return;
+            waiting = false;
+            Destroy(waitCam);
+            BuildWorld(Net.I.welcomeSeed);
+            Net.I.ApplyWelcome();
+            if (Args.NetTest) Net.I.StartTest();
+        }
+
+        void BuildWorld(int seed)
+        {
+            Args.Seed = seed;
             clock = gameObject.AddComponent<Clock>();
             clock.hour = Args.Hour >= 0 ? Args.Hour : 9.5f;
 
@@ -78,8 +105,10 @@ namespace Deep
             Survival.Attach(diver);
             CraftUI.Attach(diver);
             weather = Weather.Make();
+            weather.mirror = Net.IsGuest;
             // the opening: the night raft, the storm, boarding her (not in the screenshot harness unless asked)
             if (!Args.SkipOpening && string.IsNullOrEmpty(Args.Shot)) Opening.Begin(this);
+            if (Net.IsHost) { Net.I.WorldReady(); if (Args.NetTest) Net.I.StartTest(); }
             look.Bind(diver.cam, clock);
             gameObject.AddComponent<Hud>().Bind(diver, clock);
             if (!string.IsNullOrEmpty(Args.Shot)) gameObject.AddComponent<Shots>().Run(Args.Shot, Args.ShotDir);

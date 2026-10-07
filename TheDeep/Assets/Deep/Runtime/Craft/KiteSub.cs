@@ -14,6 +14,8 @@ namespace Deep
         public static KiteSub I;
         public Nautilus ship; public bool docked = true;
         public float battery = 1f, hull = 1f, yaw, pitch, roll;
+        public int pilotSeat = -1;          // who's in its seat (-1: no one), across the crew (Net.cs)
+        public bool TakenByOther => pilotSeat >= 0 && pilotSeat != Net.MySeat;
         public Vector3 vel;
         public const float CrushDepth = 200f, MaxSpeed = 6.5f, Boost = 9f;
         Transform model;
@@ -97,7 +99,7 @@ namespace Deep
             var bed = DeepBoot.I.seabed;
             float floor = bed.SampleY(p.x, p.z) + 1.0f;
             if (p.y < floor) { p.y = floor; if (vel.y < 0) vel.y = 0; if (vel.magnitude > 4f) Bump(d, vel.magnitude); }
-            float surf = Waves.Height(p.x, p.z, Time.time) - 0.6f;
+            float surf = Waves.Height(p.x, p.z, Waves.T) - 0.6f;
             if (p.y > surf) { p.y = surf; vel.y = Mathf.Min(vel.y, 0); }
             var lp = ship.Body.InverseTransformPoint(p);
             var axis = new Vector3(0, 0, Mathf.Clamp(lp.z, Nautilus.SternX, Nautilus.BowX));

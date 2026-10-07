@@ -255,8 +255,11 @@ namespace Deep
         }
 
         // take it: it's gone until it regrows (out of sight, after `seconds`)
+        public static System.Action<string, long, Vector3, float> OnTake;   // (Net.cs passes it to the crew)
+
         public void Take(Picked p, float seconds)
         {
+            OnTake?.Invoke(p.kind, p.key, p.pos, seconds);
             foreach (var k in kinds)
             {
                 if (k.name != p.kind || !k.cells.TryGetValue(p.key, out var list) || p.index >= list.Count) continue;
@@ -265,6 +268,53 @@ namespace Deep
                 Total--;
                 return;
             }
+        }
+
+        // the plant standing nearest a point (the network self-test)
+        public bool NearestPlant(Vector3 at, out Picked best)
+        {
+            best = default; float bd = float.MaxValue; bool found = false;
+            int cx = Mathf.FloorToInt(at.x / CellSize), cz = Mathf.FloorToInt(at.z / CellSize);
+            foreach (var k in kinds)
+                for (int dx = -2; dx <= 2; dx++)
+                    for (int dz = -2; dz <= 2; dz++)
+                    {
+                        long key = Key(cx + dx, cz + dz);
+                        if (!k.cells.TryGetValue(key, out var list)) continue;
+                        for (int i = 0; i < list.Count; i++)
+                        {
+                            Vector3 p = list[i].GetColumn(3); float d = (p - at).sqrMagnitude;
+                            if (d < bd) { bd = d; found = true; best = new Picked { kind = k.name, key = key, index = i, pos = p, scale = list[i].GetColumn(0).magnitude }; }
+                        }
+                    }
+            return found;
+        }
+
+        // a crewmate took one: the plant of that kind in that cell standing at that point (its base)
+        public bool TakeAt(string kind, long key, Vector3 at, float seconds)
+        {
+            foreach (var k in kinds)
+            {
+                if (k.name != kind || !k.cells.TryGetValue(key, out var list)) continue;
+                int best = -1; float bd = 4f;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    Vector3 p = list[i].GetColumn(3);
+                    float d = new Vector2(p.x - at.x, p.z - at.z).sqrMagnitude;
+                    if (d < bd) { bd = d; best = i; }
+                }
+                if (best < 0) return false;
+                regrow.Add(new Regrow { k = k, key = key, m = list[best], at = Time.time + seconds });
+                list[best] = list[list.Count - 1]; list.RemoveAt(list.Count - 1);
+                Total--;
+                return true;
+            }
+            return false;
+        }
+        // what's been taken and not grown back yet (for a crewmate joining): kind, cell, where, seconds left
+        public System.Collections.Generic.IEnumerable<(string kind, long key, Vector3 pos, float left)> Taken()
+        {
+            foreach (var r in regrow) yield return (r.k.name, r.key, (Vector3)r.m.GetColumn(3), Mathf.Max(0, r.at - Time.time));
         }
 
         void Update()
@@ -283,6 +333,7 @@ namespace Deep
 
         void LateUpdate()
         {
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return;   // (the headless self-test)
             var cam = Camera.main; if (!cam) return;
             var c = cam.transform.position;
             var planes = GeometryUtility.CalculateFrustumPlanes(cam);

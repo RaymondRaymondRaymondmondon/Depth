@@ -14,6 +14,7 @@ namespace Deep
         public float flash;                   // the last lightning's glare, fading
         public Vector2 windDir = new Vector2(0.8f, 0.6f).normalized;
         float nextBolt = 8f;
+        public bool mirror;                   // a crewmate's PC: the host's storm (Net.cs sets storm and flash)
         ParticleSystem rain;
 
         public static float Storm => I ? I.storm : 0f;
@@ -54,7 +55,7 @@ namespace Deep
             storm = Mathf.MoveTowards(storm, target, dt / 80f);
             Waves.Calm = 1f + 0.7f * storm;
             flash = Mathf.MoveTowards(flash, 0, dt * 4f);
-            if (storm > 0.55f)
+            if (storm > 0.55f && !mirror)
             {
                 nextBolt -= dt;
                 if (nextBolt <= 0) { flash = 1f; nextBolt = Random.Range(5f, 14f) / storm; }

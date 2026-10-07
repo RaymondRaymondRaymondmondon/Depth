@@ -14,8 +14,13 @@ namespace Deep
         public Vector3 vel;
         public bool flipped;
         Transform model, oarL, oarR;
-        float stroke;                         // 0..1 through an oar stroke while rowing
+        public float stroke;                  // 0..1 through an oar stroke while rowing
         float pitchV, rollV;
+        public bool mirror;                   // a crewmate's PC: the host moves it (Net.cs feeds `netPos`...)
+        public Vector3 netPos, netVel; public float netHeading;
+        // each seat's oars: the crew row together (the host adds every seat's pull)
+        public readonly float[] row = new float[4], turn = new float[4], inT = new float[4];
+        public int occupied;                  // which seats have someone in them (a bit each; the host works it out)
 
         public static Raft Spawn(Vector3 at, float heading)
         {
@@ -47,12 +52,26 @@ namespace Deep
         {
             float dt = Mathf.Min(Time.deltaTime, 0.05f);
             var p = transform.position;
-            // the wind and the water's drag
-            var wind = Weather.Wind;
-            vel += new Vector3(wind.x, 0, wind.y) * 0.04f * dt;
-            vel *= Mathf.Exp(-dt * 0.45f);
-            p += vel * dt;
-            float t = Time.time;
+            if (mirror)
+            {
+                // where the host says it is, smoothly
+                var want = netPos;
+                if ((want - p).sqrMagnitude > 25f) p = want; else p = Vector3.Lerp(p, want, 1 - Mathf.Exp(-dt * 6f));
+                heading = Mathf.LerpAngle(heading, netHeading, 1 - Mathf.Exp(-dt * 6f));
+                vel = netVel;
+                var d0 = DeepBoot.I ? DeepBoot.I.diver : null;
+                if (flipped && d0 != null && d0.onRaft == this) { d0.LeaveRaft(); d0.Toast("The raft goes over! You're in the water."); }
+            }
+            else
+            {
+                Pull(dt);
+                // the wind and the water's drag
+                var wind = Weather.Wind;
+                vel += new Vector3(wind.x, 0, wind.y) * 0.04f * dt;
+                vel *= Mathf.Exp(-dt * 0.45f);
+                p += vel * dt;
+            }
+            float t = Waves.T;
             p.y = Waves.Height(p.x, p.z, t) + (flipped ? 0.05f : 0.08f);
             // tilt with the swell
             var f = Quaternion.Euler(0, heading, 0) * Vector3.forward; var rgt = Quaternion.Euler(0, heading, 0) * Vector3.right;
@@ -62,7 +81,7 @@ namespace Deep
             pitchV = Mathf.Lerp(pitchV, tp, 1 - Mathf.Exp(-dt * 5f)); rollV = Mathf.Lerp(rollV, tr, 1 - Mathf.Exp(-dt * 5f));
             transform.SetPositionAndRotation(p, Quaternion.Euler(pitchV, heading, rollV + (flipped ? 180f : 0f)));
             // a storm sea can flip it: steep water and a wild chance
-            if (!flipped && Weather.Storm > 0.7f && Mathf.Abs(tr) > 24f && Random.value < dt * 0.25f) Flip("A breaking wave flips the raft!");
+            if (!mirror && !flipped && Weather.Storm > 0.7f && Mathf.Abs(tr) > 24f && Random.value < dt * 0.25f) Flip("A breaking wave flips the raft!");
             // the oars sweep while rowing, rest otherwise
             if (oarL && oarR)
             {
@@ -80,27 +99,41 @@ namespace Deep
             var d = DeepBoot.I ? DeepBoot.I.diver : null;
             if (d != null && d.onRaft == this) { d.LeaveRaft(); d.Toast(why + " You're in the water."); }
         }
-        public void Right() { flipped = false; }
+        public void Right() { flipped = false; if (mirror) Net.Cmd(Net.C_RIGHTRAFT); }
 
-        // rowed by the diver in it
+        // rowed by the diver in it: this seat's oars (on a crewmate's PC they go to the host)
         public void Drive(Diver d, float dt)
         {
             if (flipped) return;
-            float row = d.inputEnabled && !d.uiOpen ? (Input.GetKey(KeyCode.W) ? 1 : 0) - (Input.GetKey(KeyCode.S) ? 1 : 0) : 0;
-            float turn = d.inputEnabled && !d.uiOpen ? (Input.GetKey(KeyCode.D) ? 1 : 0) - (Input.GetKey(KeyCode.A) ? 1 : 0) : 0;
-            if (row != 0 || turn != 0)
+            float r = d.inputEnabled && !d.uiOpen ? (Input.GetKey(KeyCode.W) ? 1 : 0) - (Input.GetKey(KeyCode.S) ? 1 : 0) : 0;
+            float tn = d.inputEnabled && !d.uiOpen ? (Input.GetKey(KeyCode.D) ? 1 : 0) - (Input.GetKey(KeyCode.A) ? 1 : 0) : 0;
+            Oars(d.raftSeatNow, r, tn);
+            if (mirror) Net.RaftOars(d.raftSeatNow, r, tn);
+        }
+        public void Oars(int seat, float r, float tn)
+        {
+            if (seat < 0 || seat > 3) return;
+            row[seat] = r; turn[seat] = tn; inT[seat] = Time.time;
+        }
+
+        // every seat's pull: two rowers drive it harder (but not twice as hard); the oars sweep while anyone rows
+        void Pull(float dt)
+        {
+            float r = 0, tn = 0; int n = 0;
+            for (int i = 0; i < 4; i++)
+                if (Time.time - inT[i] < 0.35f && (row[i] != 0 || turn[i] != 0)) { r += row[i]; tn += turn[i]; n++; }
+            if (n == 0) return;
+            r = Mathf.Clamp(r, -1.6f, 1.6f); tn = Mathf.Clamp(tn, -1.4f, 1.4f);
+            float before = stroke;
+            stroke = Mathf.Repeat(stroke + dt / 1.1f, 1f);
+            // the pull is in the first half of each stroke
+            if (stroke < 0.5f)
             {
-                float before = stroke;
-                stroke = Mathf.Repeat(stroke + dt / 1.1f, 1f);
-                // the pull is in the first half of each stroke
-                if (stroke < 0.5f)
-                {
-                    var f = Quaternion.Euler(0, heading, 0) * Vector3.forward;
-                    vel += f * row * 2.1f * dt;
-                    heading += turn * 32f * dt * (row == 0 ? 1.4f : 1f);
-                }
-                if (before > stroke && Life.I != null) Life.I.sound.Emit(transform.position, 34f, Band.Mid, 0.3f, "oars");
+                var f = Quaternion.Euler(0, heading, 0) * Vector3.forward;
+                vel += f * r * 2.1f * dt;
+                heading += tn * 32f * dt * (r == 0 ? 1.4f : 1f);
             }
+            if (before > stroke && Life.I != null) Life.I.sound.Emit(transform.position, 34f, Band.Mid, 0.3f, "oars");
         }
     }
 }
