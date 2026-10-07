@@ -10,7 +10,7 @@ namespace Deep
     {
         public static bool HideOcean;
         static readonly string[] All = { "debugdown", "debugair", "reef", "kelp", "up", "above", "night", "drop", "meadow",
-            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm" };
+            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar" };
 
         public void Run(string which, string dir) { StartCoroutine(Go(which, dir)); }
 
@@ -53,7 +53,11 @@ namespace Deep
                 var d = to - from;
                 b.diver.Place(from, Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg, -Mathf.Atan2(d.y, new Vector2(d.x, d.z).magnitude) * Mathf.Rad2Deg);
             }
-            void Power(bool on) { ship.power = on; ship.powerK = on ? 1 : 0; }
+            void Power(bool on)
+            {
+                ship.sys.state = on ? PowerState.Engine : PowerState.Dead; ship.sys.fuel = 0.6f; ship.sys.battery = 0.6f;
+                ship.power = on; ship.powerK = on ? 1 : 0;
+            }
             switch (name)
             {
                 case "nautilus": { b.clock.hour = 11f; Power(false); Look(ship.WorldPoint(Nautilus.G(34, 6, 24)), ship.WorldPoint(Nautilus.G(6, 0, 0))); return true; }
@@ -79,6 +83,24 @@ namespace Deep
                     for (int i = 0; i < 400; i++) ship.Sail(0.05f);
                     foreach (var st in ship.L.stations) if (st.kind == "helm") b.diver.Man(st);
                     b.diver.pitch = 4; b.diver.head.localRotation = Quaternion.Euler(4, 0, 0);
+                    return true;
+                }
+                case "flooding":
+                {
+                    // a breach in the Fabrication Bay, 90 s of the sea coming in (the electric pumps losing), the
+                    // water running through the doors; looking along the flooded salon at the jet
+                    b.clock.hour = 11f; Power(true);
+                    var br = ship.sys.AddBreach(ship.sys.RoomIndexAt(new Vector3(12f, 0f, 0f)), 0.06f, new System.Random(3));
+                    for (int i = 0; i < 1800; i++) { ship.sys.Step(0.05f); }
+                    Debug.Log($"DEEP FLOOD: {ship.sys.WaterTonnes:0} t; levels " + string.Join(" ", ship.sys.rooms.ConvertAll(r => $"{r.r.id}={r.level:0.00}")));
+                    b.diver.PlaceAboard(7.2f, 0f, Nautilus.Floor, Nautilus.FacingYaw(new NLStation { facing = new[] { 1f, 0f, Mathf.Sign(br.gen.z) * 0.35f } }), 10f);
+                    return true;
+                }
+                case "sonar":
+                {
+                    b.clock.hour = 11f; Power(true);
+                    foreach (var st in ship.L.stations) if (st.kind == "sonar") b.diver.Man(st);
+                    ship.sys.Ping();
                     return true;
                 }
                 case "dark": { b.clock.hour = 11f; Power(false); b.diver.lampOn = true; b.diver.PlaceAboard(7.0f, 0.3f, Nautilus.Floor, 0f, 2f); return true; }

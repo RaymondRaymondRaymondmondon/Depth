@@ -19,7 +19,9 @@ namespace Deep
         public static readonly Vector3 ProxyOrigin = new Vector3(0, 5000, 0);
         public NautilusLayout L;
         public Transform Body, Proxy;
-        public bool power;
+        public bool power;            // set by ShipSystems from her power state
+        public ShipSystems sys;
+        float strikeCool;
         public float powerK;          // eased 0..1, what the lamps and globes show
         public const float Floor = -1.6f, Radius = 4f, ShaftX = 20.95f, ShaftHalf = 0.47f;
 
@@ -54,6 +56,7 @@ namespace Deep
             n.RoomColliders();
             n.Lamps();
             n.MoonpoolWater();
+            n.sys = ShipSystems.Attach(n);
             return n;
         }
 
@@ -213,6 +216,15 @@ namespace Deep
                 Across(x, door.z + door.w / 2, hw, Floor, top);
                 Across(x, door.z - door.w / 2, door.z + door.w / 2, Floor + door.h, top);
             }
+            // the stations' fittings stand in the way (a box in front of where the hand stands; the boiler is big)
+            foreach (var st in L.stations)
+            {
+                if (st.kind == "moonpool" || st.kind == "airlock") continue;
+                if (st.kind == "boiler") { AddBox(Proxy, (-21.4f, Floor + 1.15f, -1.3f), (2.45f, 1.15f, 1.2f)); continue; }
+                float fx = st.facing[0], fz = st.facing[2];
+                var c = (st.pos[0] + fx * 0.75f, st.pos[1] + 0.6f, st.pos[2] + fz * 0.75f);
+                AddBox(Proxy, c, Mathf.Abs(fx) > Mathf.Abs(fz) ? (0.32f, 0.6f, 0.42f) : (0.42f, 0.6f, 0.32f));
+            }
             // the shaft from the Bridge's ceiling up to the pilot house's floor
             var pilot = L.Room("pilot"); float shaftTop = pilot != null ? pilot.floor : 3.6f;
             Across(ShaftX - ShaftHalf - 0.08f, -ShaftHalf, ShaftHalf, 2.2f, shaftTop);
@@ -339,8 +351,7 @@ namespace Deep
         public void Sail(float dt)
         {
             if (!sailingInit) InitSailing();
-            bool engine = powerK > 0.95f;
-            float want = engine ? TeleSpeed[telegraph] : 0f;
+            float want = TeleSpeed[telegraph] * (sys ? sys.SpeedFactor : 0f) * Mathf.Clamp01(powerK * 1.05f);
             float acc = Mathf.Abs(want) > Mathf.Abs(speed) && Mathf.Sign(want) == Mathf.Sign(speed + 1e-4f) ? 0.22f : 0.35f;
             speed = Mathf.MoveTowards(speed, want, acc * dt);
 
@@ -350,7 +361,9 @@ namespace Deep
             heading = Mathf.Repeat(heading + yawRate * dt, 360f);
 
             // ballast: toward the depth ordered (a depth hold), or held level
-            float wantV = engine || powerK > 0.2f ? Mathf.Clamp((depthOrder - Depth) * 0.12f, -0.75f, 0.75f) : 0f;
+            // the ballast pumps need power; flood water weighs her down regardless (about 0.1 m/s for every 40 tonnes)
+            float flood = sys ? sys.WaterTonnes : 0f;
+            float wantV = (power ? Mathf.Clamp((depthOrder - Depth) * 0.12f, -0.75f, 0.75f) : 0f) + flood / 400f;
             vSpeed = Mathf.MoveTowards(vSpeed, wantV, 0.12f * dt);
 
             var rot = Quaternion.Euler(0, heading, 0);
@@ -367,7 +380,16 @@ namespace Deep
             {
                 if (floorBow > pos.y + 0.6f && Mathf.Abs(speed) > 0.8f)
                 {
-                    speed *= 0.3f; groundedMsg = "She strikes the bottom!";
+                    // a hard strike: a breach in the foremost (or aftmost) compartment
+                    if (strikeCool <= 0 && sys && Mathf.Abs(speed) > 1.6f)
+                    {
+                        int room = speed > 0 ? sys.RoomIndexAt(new Vector3(24f, 0f, 0f)) : sys.RoomIndexAt(new Vector3(-27f, 0f, 0f));
+                        sys.AddBreach(room, 0.03f + Mathf.Abs(speed) * 0.006f);
+                        groundedMsg = "She strikes the bottom! Water's coming in!";
+                        strikeCool = 4f;
+                    }
+                    else groundedMsg = "She strikes the bottom!";
+                    speed *= 0.3f;
                 }
                 pos.y = need; vSpeed = Mathf.Min(vSpeed, 0);
                 if (depthOrder > Depth + 0.5f) depthOrder = -pos.y;
@@ -379,10 +401,11 @@ namespace Deep
             if (onBottom && Mathf.Abs(speed) < 0.3f) { tp = restPitch; tr = restRoll; }
             else
             {
-                tp = Mathf.Clamp(vSpeed * 9f, -9f, 9f) + (onBottom ? Mathf.Atan2(floorStern - floorBow, 60f) * Mathf.Rad2Deg * Mathf.Sign(speed + 1e-4f) : 0);
+                tp = Mathf.Clamp(vSpeed * 9f, -9f, 9f) + (sys ? Mathf.Clamp(sys.TrimMoment / 260f, -12f, 12f) : 0) + (onBottom ? Mathf.Atan2(floorStern - floorBow, 60f) * Mathf.Rad2Deg * Mathf.Sign(speed + 1e-4f) : 0);
                 tr = -yawRate * 0.9f + Mathf.Sin(Time.time * 0.37f) * 0.4f;
                 if (!onBottom) { restPitch = Mathf.Lerp(restPitch, 0, dt * 0.2f); restRoll = Mathf.Lerp(restRoll, 0, dt * 0.2f); }
             }
+            strikeCool -= dt;
             pitchV = Mathf.Lerp(pitchV, tp, 1 - Mathf.Exp(-dt * 0.8f));
             rollV = Mathf.Lerp(rollV, tr, 1 - Mathf.Exp(-dt * 0.8f));
             Body.SetPositionAndRotation(pos, Quaternion.Euler(pitchV, heading, rollV));

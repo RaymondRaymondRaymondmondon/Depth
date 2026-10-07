@@ -63,5 +63,15 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
   lamps without power).
 - Shots: `nautilus`, `nautilus_side`, `nautilus_stern`, `salon`, `bridge`, `pilothouse`, `engine`, `moonpool`,
   `dark`, `underway` (50 s of sailing), `helm`. `tools\deep.ps1 shots "<names>"`.
-- **Still to do in stage 2:** sonar (active and passive), hull breaches, flooding and pumps, power as a resource
-  (the boiler), the station fittings turning (wheel, telegraph handle, gauges), sound aboard, furniture collisions.
+- **Ship systems** (`ShipSystems.cs`, the doc's table): power states at the switchboard (Engine: full speed, battery
+  recharging, 85-110 dB, burns the boiler's fuel; Silent running: a quarter speed on the battery, 15-25 dB; Dead in
+  the water: no screw, lamps, life support or sonar, 0 dB), `NoiseDb` for the Wake (stage 3); breaches (a hard
+  grounding opens one; F9 holes your room for testing) let the sea in by the pressure at her depth, water runs room
+  to room through the doors, electric pumps run while she has power and the hand pumps when someone mans them; the
+  water's weight sinks her and trims her; hold E at a breach for 3 s to patch it; wading slows you and deeper water
+  is swum (the tank drains with your head under). The Bridge's sonar: Space pings (a 115 dB crack, 0.5% battery)
+  and paints a 260 m depth chart, ground standing over her keel in orange; passive listening waits for stage 3's
+  creatures. Station boxes keep you out of the fittings.
+- Shots added: `flooding` (90 s after a breach), `sonar`.
+- **Still to do in stage 2:** the station fittings turning (wheel, telegraph handle, gauges), the passive sonar's
+  contacts (with stage 3), stoking the boiler (with stage 4's items), sound aboard (stage 7).

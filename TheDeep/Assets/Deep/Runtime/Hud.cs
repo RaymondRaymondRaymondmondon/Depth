@@ -37,6 +37,33 @@ namespace Deep
             }
         }
 
+        // the sonar's screen: the last ping's chart (north up, fading), the ship at the centre, her heading
+        void SonarPanel(Nautilus n)
+        {
+            var sy = n.sys; float size = 300;
+            var r = new Rect(Screen.width / 2 - size / 2, Screen.height / 2 - size / 2 - 20, size, size);
+            GUI.color = new Color(0.01f, 0.05f, 0.03f, 0.9f); GUI.DrawTexture(new Rect(r.x - 10, r.y - 10, r.width + 20, r.height + 44), Texture2D.whiteTexture);
+            if (sy.sonarMap && sy.sonarAge < 40f)
+            {
+                GUI.color = new Color(1, 1, 1, Mathf.Clamp01(1.2f - sy.sonarAge / 40f));
+                // the chart is drawn with world +z up; flip so north is up on the screen
+                GUI.DrawTextureWithTexCoords(r, sy.sonarMap, new Rect(0, 0, 1, 1));
+            }
+            GUI.color = new Color(0.4f, 1f, 0.6f);
+            var c = r.center;
+            float hd = n.heading * Mathf.Deg2Rad;
+            for (int k = 0; k < 12; k++)
+            {
+                var d = new Vector2(Mathf.Sin(hd), -Mathf.Cos(hd)) * (k * 4);
+                GUI.DrawTexture(new Rect(c.x + d.x - 1.5f, c.y + d.y - 1.5f, 3, 3), Texture2D.whiteTexture);
+            }
+            GUI.DrawTexture(new Rect(c.x - 3, c.y - 3, 6, 6), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+            var st = new GUIStyle(small); st.normal.textColor = new Color(0.5f, 1f, 0.65f);
+            GUI.Label(new Rect(r.x - 60, r.yMax + 6, r.width + 160, 22), sy.sonarAge < 999f ? $"Ping {sy.sonarAge:0} s ago   {ShipSystems.SonarRange:0} m   orange: ground standing over her keel" : "Space: ping", st);
+            GUI.Label(new Rect(r.x, r.y - 34, r.width + 200, 22), "Passive: nothing on the headphones but the sea.", st);
+        }
+
         void OnGUI()
         {
             if (hidden || !diver) return;
@@ -63,9 +90,25 @@ namespace Deep
             {
                 var g = Nautilus.FromLocal(diver.ship.Proxy.InverseTransformPoint(diver.transform.position));
                 var room = diver.ship.L.RoomAt(g);
-                GUI.Label(new Rect(24, 86, 400, 22), "Aboard the Nautilus" + (room != null ? ": " + room.name : "") + (diver.ship.power ? "" : "  (no power)"), small);
+                var sy = diver.ship.sys;
+                GUI.Label(new Rect(24, 86, 500, 22), "Aboard the Nautilus" + (room != null ? ": " + room.name : ""), small);
+                if (sy != null)
+                {
+                    string ps = sy.state == PowerState.Engine ? "Engine" : sy.state == PowerState.Silent ? "Silent running" : "Dead in the water";
+                    GUI.Label(new Rect(24, 106, 500, 22), $"{ps}   battery {sy.battery * 100:0}%   fuel {sy.fuel * 100:0}%   {sy.NoiseDb:0} dB", small);
+                    float wt = sy.WaterTonnes;
+                    if (wt > 0.5f || sy.breaches.Count > 0)
+                    {
+                        var warn = new GUIStyle(small); warn.normal.textColor = new Color(1f, 0.55f, 0.45f);
+                        GUI.Label(new Rect(24, 126, 500, 22), $"Flooding: {wt:0} t of water aboard, {sy.breaches.Count} breach{(sy.breaches.Count == 1 ? "" : "es")} open", warn);
+                    }
+                }
             }
-            if (diver.manning != null && diver.ship) HelmPanel(diver.ship, diver.manning.kind == "helm");
+            if (diver.manning != null && diver.ship)
+            {
+                if (diver.manning.kind == "sonar") SonarPanel(diver.ship);
+                else if (diver.manning.kind == "helm" || diver.manning.kind == "telegraph") HelmPanel(diver.ship, diver.manning.kind == "helm");
+            }
             var mid = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter, fontSize = 16 };
             if (!string.IsNullOrEmpty(diver.hint)) GUI.Label(new Rect(Screen.width / 2 - 300, Screen.height / 2 + 40, 600, 24), diver.hint, mid);
             if (!string.IsNullOrEmpty(diver.toast)) GUI.Label(new Rect(Screen.width / 2 - 300, Screen.height - 190, 600, 24), diver.toast, mid);

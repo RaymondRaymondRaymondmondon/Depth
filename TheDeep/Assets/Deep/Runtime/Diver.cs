@@ -21,6 +21,7 @@ namespace Deep
         public bool inputEnabled = true;
         public bool aboard, lampOn = true, climbing;
         public Nautilus ship;
+        public bool HeadUnderAboard;     // aboard, with the head under flood water
         public NLStation manning;        // the station this hand is working (the helm, the telegraph...)
         public string hint = "";
         public string toast = ""; float toastT;
@@ -63,6 +64,13 @@ namespace Deep
             else if (aboard) WalkStep(dt); else SwimStep(dt);
             Uses();
             if (ship && ship.groundedMsg != null) { if (aboard) Toast(ship.groundedMsg); ship.groundedMsg = null; }
+            if (ship && ship.sys && ship.sys.alert != null) { if (aboard) Toast(ship.sys.alert); ship.sys.alert = null; }
+            // F9 (testing): hole the room you're standing in
+            if (inputEnabled && aboard && ship && ship.sys && Input.GetKeyDown(KeyCode.F9))
+            {
+                var gg = Nautilus.FromLocal(ship.Proxy.InverseTransformPoint(transform.position));
+                if (ship.sys.AddBreach(ship.sys.RoomIndexAt(gg), 0.05f) != null) Toast("A plate gives way! The sea is coming in!");
+            }
             if (toastT > 0) toastT -= dt; else toast = "";
         }
 
@@ -115,16 +123,32 @@ namespace Deep
             var wish = transform.forward * fwd + transform.right * side;
             if (wish.sqrMagnitude > 1) wish.Normalize();
             float speed = Down(KeyCode.LeftShift, KeyCode.LeftShift) ? Run : Walk;
+            // flood water: wading slows you; deeper than your chest you swim (Space up to the air, Ctrl down)
+            float surf = ship.sys ? ship.sys.SurfaceAt(g) : float.NegativeInfinity;
+            float feet = g.y - cc.height / 2;
+            float wet = surf - feet;
+            if (wet > 0.3f) speed *= Mathf.Lerp(0.8f, 0.55f, Mathf.Clamp01((wet - 0.3f) / 0.8f));
             var h = Vector3.Lerp(new Vector3(vel.x, 0, vel.z), wish * speed, 1 - Mathf.Exp(-dt * 12f));
             vel.x = h.x; vel.z = h.z;
-            if (cc.isGrounded)
+            if (wet > 1.15f)
+            {
+                float swimUp = (Down(KeyCode.Space, KeyCode.Space) ? 1 : 0) - (Down(KeyCode.LeftControl, KeyCode.C) ? 1 : 0);
+                float floatAt = surf - EyeHeight + 0.1f;   // the head just out of the water
+                vel.y = Mathf.Lerp(vel.y, swimUp != 0 ? swimUp * 2f : Mathf.Clamp((floatAt - g.y) * 2f, -0.6f, 0.8f), 1 - Mathf.Exp(-dt * 4f));
+                if (g.y > floatAt && vel.y > 0) vel.y = 0;
+            }
+            else if (cc.isGrounded)
             {
                 vel.y = -1f;
                 if (inputEnabled && Input.GetKeyDown(KeyCode.Space)) vel.y = 3.4f;
             }
             else vel.y -= 9.8f * dt;
             cc.Move(vel * dt);
-            oxygen = Mathf.Min(oxygenMax, oxygen + dt * 12f);
+            // air aboard: her life support refills the tank, unless your head is under the flood
+            bool headUnder = g.y + EyeHeight < surf - 0.05f;
+            HeadUnderAboard = headUnder;
+            if (headUnder) oxygen = Mathf.Max(0, oxygen - dt);
+            else if (ship.sys == null || ship.sys.LifeSupport) oxygen = Mathf.Min(oxygenMax, oxygen + dt * 12f);
             // down the moonpool's well: out into the sea under her keel
             var mp = ship.L.moonpool;
             g = Nautilus.FromLocal(ship.Proxy.InverseTransformPoint(transform.position));
@@ -153,6 +177,15 @@ namespace Deep
                     if (e) manning = null;
                     return;
                 }
+                // a breach in reach: hold E to patch it
+                var sy = ship.sys;
+                var br = sy != null ? sy.BreachNear(g + Vector3.up * 0.3f) : null;
+                if (br != null)
+                {
+                    hint = $"Hold E  Patch the breach  {br.patch * 100:0}%";
+                    if (inputEnabled && Input.GetKey(KeyCode.E) && sy.Patch(br, Time.deltaTime)) Toast("The breach is patched.");
+                    return;
+                }
                 var s = ship.StationNear(transform.position);
                 if (s == null) return;
                 switch (s.kind)
@@ -163,8 +196,13 @@ namespace Deep
                         if (e) Man(s);
                         break;
                     case "power":
-                        hint = ship.power ? "E  Throw the main breaker (lights out)" : "E  Close the main breaker (power the lamps)";
-                        if (e) { ship.power = !ship.power; Toast(ship.power ? "The dynamo takes the load. The lamps come up." : "The lamps die."); }
+                    case "sonar":
+                    case "pumps":
+                        hint = "E  Take " + StationName(s.kind).ToLowerInvariant();
+                        if (e) Man(s);
+                        break;
+                    case "boiler":
+                        hint = sy != null ? $"The boiler: fuel {sy.fuel * 100:0}%  (stoking it with blubber or coal comes with crafting)" : "The boiler";
                         break;
                     case "airlock":
                         hint = "E  Cycle the airlock and swim out";
@@ -205,14 +243,48 @@ namespace Deep
         {
             Board(ship.StandLocal(s), Nautilus.FacingYaw(s));
             manning = s;
-            if (s.kind == "helm") Toast(ship.power ? "A/D rudder, W/S telegraph, Space/C depth, H hold heading, X centre the rudder" : "The wheel turns, but nothing answers: she has no power.");
-            else Toast("W/S ring the telegraph");
+            switch (s.kind)
+            {
+                case "helm": Toast(ship.power ? "A/D rudder, W/S telegraph, Space/C depth, H hold heading, X centre the rudder" : "The wheel turns, but nothing answers: she has no power."); break;
+                case "telegraph": Toast("W/S ring the telegraph"); break;
+                case "power": Toast("W/S choose her power: Dead in the water, Silent running, Engine"); break;
+                case "sonar": Toast("Space: ping (loud: everything hungry hears it). The headphones listen."); break;
+                case "pumps": Toast("You work the pump handles."); break;
+            }
         }
 
         void ManStep(float dt)
         {
             if (!inputEnabled) return;
             var n = ship;
+            switch (manning.kind)
+            {
+                case "power":
+                {
+                    int st = (int)n.sys.state;
+                    if (Input.GetKeyDown(KeyCode.W)) st++;
+                    if (Input.GetKeyDown(KeyCode.S)) st--;
+                    st = Mathf.Clamp(st, 0, 2);
+                    if (st != (int)n.sys.state)
+                    {
+                        var want = (PowerState)st;
+                        if (want == PowerState.Engine && n.sys.fuel <= 0) Toast("The boiler's bunker is empty.");
+                        else if (want == PowerState.Silent && n.sys.battery <= 0) Toast("The batteries are flat.");
+                        else
+                        {
+                            n.sys.state = want;
+                            Toast(want == PowerState.Engine ? "The boiler roars and the dynamo takes the load." : want == PowerState.Silent ? "Silent running: battery drive, a quarter speed." : "Dead in the water. The lamps die and the air goes still.");
+                        }
+                    }
+                    return;
+                }
+                case "sonar":
+                    if (Input.GetKeyDown(KeyCode.Space) && n.sys.Ping()) Toast("PING");
+                    return;
+                case "pumps":
+                    n.sys.pumpsManned = true;
+                    return;
+            }
             if (Input.GetKeyDown(KeyCode.W)) n.Telegraph(1);
             if (Input.GetKeyDown(KeyCode.S)) n.Telegraph(-1);
             if (manning.kind != "helm") return;
@@ -232,7 +304,7 @@ namespace Deep
                 case "fabricator": return "The fabricator"; case "forge": return "The forge"; case "planter": return "The planter";
                 case "larder": return "The larder"; case "grill": return "The galley grill"; case "desalinator": return "The desalinator";
                 case "lockers": return "The suit lockers"; case "oxygen": return "The oxygen rack"; case "boiler": return "The boiler";
-                case "pumps": return "The bilge pumps";
+                case "pumps": return "The bilge pumps"; case "power": return "The switchboard";
             }
             return kind;
         }
@@ -260,7 +332,7 @@ namespace Deep
 
         void LateUpdate()
         {
-            UnderwaterLook.Aboard = aboard;
+            UnderwaterLook.Aboard = aboard && !HeadUnderAboard;
             if (aboard && ship) cam.transform.SetPositionAndRotation(ship.ToWorld(head.position), ship.RotToWorld(head.rotation));
             else cam.transform.SetPositionAndRotation(head.position, head.rotation);
             // the helmet lamp, a little above and ahead of the eye

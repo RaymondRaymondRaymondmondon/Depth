@@ -77,7 +77,7 @@ Shader "Deep/Lit"
                 float gloss = (1 - rough) * (1 - rough) * lerp(0.5, 1.6, metal);
                 float3 albedo = base.rgb * lerp(1, 0.8, metal);
                 float3 c = _Interior > 0.5 ? DeepLightInside(i.ws, n, albedo, gloss, i.ao) : DeepLight(i.ws, n, albedo, 0, gloss, i.ao);
-                c += base.rgb * _Emit * _DeepPower * 3.0;
+                c += base.rgb * _Emit * _DeepPower * 1.3;
                 c = MixFog(c, i.fog);
                 return float4(c, 1);
             }
