@@ -660,6 +660,57 @@ namespace Deep
             }
         }
 
+        // ---- the diver's weapons ---------------------------------------------------------------------------------
+        // the animal nearest along a ray (a strike or a spear's flight), within maxDist
+        public Creature PickCreature(Vector3 o, Vector3 dir, float maxDist, float slack = 0.3f)
+        {
+            Creature best = null; float bt = maxDist;
+            foreach (var c in live)
+            {
+                if (!c.alive) continue;
+                float t = Vector3.Dot(c.pos - o, dir);
+                if (t < 0 || t > bt) continue;
+                float perp = (o + dir * t - c.pos).magnitude;
+                if (perp > c.size * 0.4f + slack) continue;
+                bt = t; best = c;
+            }
+            return best;
+        }
+
+        // hit points: a small fish dies to one knife stroke, a shark takes a dozen, a leviathan shrugs it off
+        public static float HitPoints(Creature c) => 6f + 14f * Mathf.Pow(c.size, 1.3f) * (c.sp.level == 3 ? 3f : 1f);
+
+        // a wound: blood in the water (less if the blade cauterises), noise, and the animal flees or turns on the diver;
+        // returns true if it died
+        public bool Wound(Creature c, float damage, Vector3 from, bool cauterise, string how)
+        {
+            c.health -= damage / HitPoints(c);
+            float blood = cauterise ? 0.4f : 1.5f + c.size;
+            scent.Emit(c.pos, blood);
+            sound.BloodSpill(c.pos, cauterise ? 0.3f : 1f);
+            sound.Emit(c.pos, 50f + c.size * 4f, Band.Mid, 0.6f, how);
+            if (c.health <= 0f)
+            {
+                c.alive = false;
+                var pool = eco.Of(c.sp.biome);
+                if (pool != null) eco.Harvest(c.sp.biome, Mathf.Min(c.sp.level, 4), c.sp.mass);
+                scent.Emit(c.pos, 2f + c.size);
+                return true;
+            }
+            // the hurt: small things bolt; anything bold enough turns on what hurt it
+            if (c.sp.level >= 2 && c.sp.aggression > 0.35f && c.health > 0.25f)
+            {
+                c.targetDiver = true; c.target = null; c.hunger = Mathf.Max(c.hunger, 0.9f);
+                Set(c, CState.Hunting, "wounded by the diver");
+            }
+            else
+            {
+                var away = c.pos - from; away.y *= 0.3f;
+                c.goal = c.pos + away.normalized * 30f; Set(c, CState.Fleeing, "wounded");
+            }
+            return false;
+        }
+
         // ---- for the sonar and the HUD ----------------------------------------------------------------------------
         public struct Contact { public float bearing, range, size, speed; public Creature c; }
         // what the passive sonar's headphones pick up: big or loud animals within range, with bearings

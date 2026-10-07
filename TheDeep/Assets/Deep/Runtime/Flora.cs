@@ -216,6 +216,71 @@ namespace Deep
             }
         }
 
+        // ---- gathering: the plant the diver is looking at, taking it, and its regrowth ------------------------------
+        public struct Picked { public string kind; public long key; public int index; public Vector3 pos; public float scale; }
+        struct Regrow { public Kind k; public long key; public Matrix4x4 m; public float at; }
+        readonly List<Regrow> regrow = new List<Regrow>();
+
+        // the nearest planted thing along a ray (within maxDist), of the kinds ok() accepts
+        public bool Pick(Vector3 o, Vector3 dir, float maxDist, System.Func<string, bool> ok, out Picked best)
+        {
+            best = default; float bt = float.MaxValue; bool found = false;
+            int c0x = Mathf.FloorToInt((o.x - maxDist - 4) / CellSize), c1x = Mathf.FloorToInt((o.x + maxDist + 4) / CellSize);
+            int c0z = Mathf.FloorToInt((o.z - maxDist - 4) / CellSize), c1z = Mathf.FloorToInt((o.z + maxDist + 4) / CellSize);
+            foreach (var k in kinds)
+            {
+                if (!ok(k.name)) continue;
+                for (int x = c0x; x <= c1x; x++)
+                    for (int z = c0z; z <= c1z; z++)
+                    {
+                        long key = Key(x, z);
+                        if (!k.cells.TryGetValue(key, out var list)) continue;
+                        for (int i = 0; i < list.Count; i++)
+                        {
+                            var m = list[i];
+                            Vector3 p = m.GetColumn(3);
+                            float s = m.GetColumn(0).magnitude;
+                            // a kelp stalk is hit anywhere along its height; everything else round its middle
+                            Vector3 aim = p + Vector3.up * (k.name == "kelp" ? Mathf.Clamp(o.y - p.y, 0, 30f * m.GetColumn(1).magnitude) : 0.35f * s);
+                            float t = Vector3.Dot(aim - o, dir);
+                            if (t < 0 || t > maxDist || t >= bt) continue;
+                            float perp = (o + dir * t - aim).magnitude;
+                            if (perp > 0.45f + 0.35f * s) continue;
+                            bt = t; found = true;
+                            best = new Picked { kind = k.name, key = key, index = i, pos = aim, scale = s };
+                        }
+                    }
+            }
+            return found;
+        }
+
+        // take it: it's gone until it regrows (out of sight, after `seconds`)
+        public void Take(Picked p, float seconds)
+        {
+            foreach (var k in kinds)
+            {
+                if (k.name != p.kind || !k.cells.TryGetValue(p.key, out var list) || p.index >= list.Count) continue;
+                regrow.Add(new Regrow { k = k, key = p.key, m = list[p.index], at = Time.time + seconds });
+                list[p.index] = list[list.Count - 1]; list.RemoveAt(list.Count - 1);
+                Total--;
+                return;
+            }
+        }
+
+        void Update()
+        {
+            if (regrow.Count == 0) return;
+            var cam = Camera.main; var c = cam ? cam.transform.position : Vector3.zero;
+            for (int i = regrow.Count - 1; i >= 0; i--)
+            {
+                var r = regrow[i];
+                if (Time.time < r.at || ((Vector3)r.m.GetColumn(3) - c).sqrMagnitude < 40f * 40f) continue;
+                if (!r.k.cells.TryGetValue(r.key, out var list)) r.k.cells[r.key] = list = new List<Matrix4x4>();
+                list.Add(r.m); Total++;
+                regrow.RemoveAt(i);
+            }
+        }
+
         void LateUpdate()
         {
             var cam = Camera.main; if (!cam) return;

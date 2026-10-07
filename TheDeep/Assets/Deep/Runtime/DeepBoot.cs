@@ -72,6 +72,9 @@ namespace Deep
             ship = PlaceNautilus(seabed, diver.transform.position);
             diver.ship = ship;
             life = Life.Build(seabed, clock, diver, ship, Args.Seed);
+            Hands.Attach(diver);
+            Survival.Attach(diver);
+            CraftUI.Attach(diver);
             look.Bind(diver.cam, clock);
             gameObject.AddComponent<Hud>().Bind(diver, clock);
             if (!string.IsNullOrEmpty(Args.Shot)) gameObject.AddComponent<Shots>().Run(Args.Shot, Args.ShotDir);

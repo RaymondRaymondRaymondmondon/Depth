@@ -24,6 +24,8 @@ namespace Deep
         public bool aboard, lampOn = true, climbing;
         public Nautilus ship;
         public bool HeadUnderAboard;     // aboard, with the head under flood water
+        public bool uiOpen;
+        public KiteSub piloting;         // in the Kite-Sub's seat              // a screen is open (CraftUI): the diver stands still and the mouse is free
         public NLStation manning;        // the station this hand is working (the helm, the telegraph...)
         public string hint = "";
         public string toast = ""; float toastT;
@@ -63,8 +65,8 @@ namespace Deep
             float dt = Time.deltaTime;
             if (inputEnabled)
             {
-                if (Input.GetMouseButtonDown(0)) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
-                if (Input.GetKeyDown(KeyCode.Escape)) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
+                if (!uiOpen && Input.GetMouseButtonDown(0)) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
+                if (!uiOpen && Input.GetKeyDown(KeyCode.Escape)) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
                 if (Cursor.lockState == CursorLockMode.Locked)
                 {
                     yaw += Input.GetAxisRaw("Mouse X") * 2.2f;
@@ -74,7 +76,8 @@ namespace Deep
             }
             transform.rotation = Quaternion.Euler(0, yaw, 0);
             head.localRotation = Quaternion.Euler(pitch, 0, 0);
-            if (aboard && manning != null) ManStep(dt);
+            if (piloting != null) { piloting.Drive(this, dt); oxygen = Mathf.Min(oxygenMax, oxygen + dt * 12f); }
+            else if (aboard && manning != null) ManStep(dt);
             else if (aboard) WalkStep(dt); else SwimStep(dt);
             Uses();
             if (ship && ship.groundedMsg != null) { if (aboard) Toast(ship.groundedMsg); ship.groundedMsg = null; }
@@ -90,7 +93,7 @@ namespace Deep
 
         // keys (SimHold lets the tests and shots hold one down)
         public KeyCode SimHold = KeyCode.None;
-        bool Key(KeyCode k) => inputEnabled && (Input.GetKey(k) || SimHold == k);
+        bool Key(KeyCode k) => inputEnabled && !uiOpen && (Input.GetKey(k) || SimHold == k);
         float Axis(KeyCode pos, KeyCode neg) => (Key(pos) ? 1 : 0) - (Key(neg) ? 1 : 0);
         bool Down(KeyCode a, KeyCode b) => Key(a) || Key(b);
         public void SimStep(float dt) { if (aboard) WalkStep(dt); else SwimStep(dt); }
@@ -228,12 +231,43 @@ namespace Deep
             if (mp != null && g.y < mp.y - 0.6f && g.x > mp.x0 && g.x < mp.x1) LeaveTo(Nautilus.G((mp.x0 + mp.x1) / 2, -Nautilus.Radius - 1.6f, (mp.z0 + mp.z1) / 2), "Out through the moonpool");
         }
 
+        // the Kite-Sub: into its seat (it undocks if it's in the moonpool), and out again (docking it if it's under her)
+        public void EnterKiteSub(KiteSub k)
+        {
+            if (k.docked) k.Undock();
+            piloting = k; aboard = false; manning = null; climbing = false;
+            cc.enabled = false; transform.position = k.Seat; cc.enabled = true;
+            yaw = k.transform.eulerAngles.y; pitch = 0;
+            Toast($"The Kite-Sub: mouse steers, W/S thrust, Space/Ctrl up and down, Shift burst, E to leave. Battery {k.battery * 100:0}%");
+        }
+        public void LeaveKiteSub(bool forced)
+        {
+            var k = piloting; if (k == null) return;
+            piloting = null;
+            if (!forced && ship && (k.transform.position - k.UnderDock).magnitude < 5f)
+            {
+                k.Dock();
+                foreach (var s in ship.L.stations) if (s.kind == "moonpool") { Board(ship.StandLocal(s), Nautilus.FacingYaw(s), "The Kite-Sub docks; you climb out into the moonpool room."); break; }
+                return;
+            }
+            cc.enabled = false; transform.position = k.transform.position + k.transform.right * 2.2f + Vector3.up * 0.5f; cc.enabled = true;
+            vel = Vector3.zero;
+            Toast("You leave the Kite-Sub where it is.");
+        }
+
         // E: what's in front of you
         void Uses()
         {
             hint = "";
             if (!ship) return;
-            bool e = inputEnabled && Input.GetKeyDown(KeyCode.E);
+            bool e = inputEnabled && !uiOpen && Input.GetKeyDown(KeyCode.E);
+            if (piloting != null)
+            {
+                bool atDock = (piloting.transform.position - piloting.UnderDock).magnitude < 5f;
+                hint = atDock ? "E  Dock in the moonpool" : $"E  Leave the Kite-Sub    battery {piloting.battery * 100:0}%   hull {piloting.hull * 100:0}%";
+                if (e) LeaveKiteSub(false);
+                return;
+            }
             if (aboard)
             {
                 var g = Nautilus.FromLocal(ship.Proxy.InverseTransformPoint(transform.position));
@@ -279,17 +313,45 @@ namespace Deep
                         if (e) Man(s);
                         break;
                     case "boiler":
-                        hint = sy != null ? $"The boiler: fuel {sy.fuel * 100:0}%  (stoking it with blubber or coal comes with crafting)" : "The boiler";
+                    {
+                        var hands = GetComponent<Hands>();
+                        var can = ItemDB.Get("Synthetic Fuel Canister");
+                        bool stoke = sy != null && sy.engineRepaired && can != null && hands != null && (hands.pack.Has(can) || ship.store.Has(can));
+                        hint = sy == null ? "The boiler" : !sy.engineRepaired ? "E  The boiler: the steam engine needs repairing" : stoke ? $"E  Stoke the boiler with a Synthetic Fuel Canister (fuel {sy.fuel * 100:0}%)" : $"The boiler: fuel {sy.fuel * 100:0}%  (stoke it with Synthetic Fuel Canisters)";
+                        if (e && sy != null && !sy.engineRepaired) GetComponent<CraftUI>()?.Open("craft", "boiler");
+                        else if (e && stoke) { if (!hands.pack.Remove(can)) ship.store.Remove(can); sy.fuel = Mathf.Min(1f, sy.fuel + 0.35f); Toast("The firebox roars."); }
                         break;
+                    }
                     case "airlock":
                         hint = "E  Cycle the airlock and swim out";
                         if (e) foreach (var hk in ship.L.hatches) if (hk.kind == "airlock") LeaveTo(Nautilus.G(hk.outside), "The airlock floods and the outer door swings open");
                         break;
                     case "moonpool":
-                        hint = "Drop into the moonpool to dive";
+                        if (KiteSub.I != null && KiteSub.I.docked)
+                        {
+                            hint = $"E  Board the Kite-Sub (battery {KiteSub.I.battery * 100:0}%)    or drop into the moonpool to dive";
+                            if (e) EnterKiteSub(KiteSub.I);
+                        }
+                        else
+                        {
+                            hint = KiteSub.I == null ? "E  The moonpool's cradle: build the Kite-Sub    (or drop in to dive)" : "The Kite-Sub is out (drop into the moonpool to dive)";
+                            if (e && KiteSub.I == null) GetComponent<CraftUI>()?.Open("craft", "moonpool");
+                        }
                         break;
                     case "cabin":
                         hint = "A cabin, yours to make your own (furnishing it comes with the campaign)";
+                        break;
+                    case "fabricator": case "forge": case "grill": case "desalinator": case "planter":
+                        hint = "E  Use " + StationName(s.kind).ToLowerInvariant();
+                        if (e) GetComponent<CraftUI>()?.Open("craft", s.kind);
+                        break;
+                    case "lockers": case "larder":
+                        hint = "E  Open " + StationName(s.kind).ToLowerInvariant() + " (her stores)";
+                        if (e) GetComponent<CraftUI>()?.Open("store", s.kind);
+                        break;
+                    case "oxygen":
+                        hint = ship.sys != null && ship.sys.LifeSupport ? "E  Refill your tank" : "The oxygen rack (she has no power to charge it)";
+                        if (e && ship.sys != null && ship.sys.LifeSupport) { oxygen = oxygenMax; Toast("Tank full."); }
                         break;
                     default:
                         hint = StationName(s.kind) + "  (comes alive in the next build)";
@@ -297,7 +359,13 @@ namespace Deep
                 }
                 return;
             }
-            // in the sea: the airlock's outer door, the deck hatch, the moonpool from below
+            // in the sea: the Kite-Sub where it was left, the airlock's outer door, the deck hatch, the moonpool from below
+            if (KiteSub.I != null && !KiteSub.I.docked && (KiteSub.I.transform.position - transform.position).magnitude < 3.5f)
+            {
+                hint = "E  Climb into the Kite-Sub";
+                if (e) EnterKiteSub(KiteSub.I);
+                return;
+            }
             var lp = Nautilus.FromLocal(ship.Body.InverseTransformPoint(transform.position));
             foreach (var hk in ship.L.hatches)
             {
@@ -348,7 +416,8 @@ namespace Deep
                     if (st != (int)n.sys.state)
                     {
                         var want = (PowerState)st;
-                        if (want == PowerState.Engine && n.sys.fuel <= 0) Toast("The boiler's bunker is empty.");
+                        if (want == PowerState.Engine && !n.sys.engineRepaired) Toast("The steam engine is wrecked: repair it at the boiler (Titanium and a Synthetic Fuel Canister).");
+                        else if (want == PowerState.Engine && n.sys.fuel <= 0) Toast("The boiler's bunker is empty.");
                         else if (want == PowerState.Silent && n.sys.battery <= 0) Toast("The batteries are flat.");
                         else
                         {
@@ -412,8 +481,9 @@ namespace Deep
 
         void LateUpdate()
         {
-            UnderwaterLook.Aboard = aboard && !HeadUnderAboard;
-            if (aboard && ship) cam.transform.SetPositionAndRotation(ship.ToWorld(head.position), ship.RotToWorld(head.rotation));
+            UnderwaterLook.Aboard = (aboard && !HeadUnderAboard) || piloting != null;
+            if (piloting != null) { transform.position = piloting.Seat; cam.transform.SetPositionAndRotation(piloting.Seat, piloting.transform.rotation); }
+            else if (aboard && ship) cam.transform.SetPositionAndRotation(ship.ToWorld(head.position), ship.RotToWorld(head.rotation));
             else cam.transform.SetPositionAndRotation(head.position, head.rotation);
             // the helmet lamp, a little above and ahead of the eye
             var c = cam.transform;
@@ -423,7 +493,7 @@ namespace Deep
             Shader.SetGlobalVector("_DeepHeadCol", new Vector4(1.0f, 0.95f, 0.82f, aboard ? 0 : 1));
         }
 
-        public Vector3 EyeWorld => aboard && ship ? ship.ToWorld(head.position) : head.position;
+        public Vector3 EyeWorld => piloting != null ? piloting.Seat : aboard && ship ? ship.ToWorld(head.position) : head.position;
         public float Depth => Mathf.Max(0, -EyeWorld.y);
 
         public void Place(Vector3 eye, float yawDeg, float pitchDeg)

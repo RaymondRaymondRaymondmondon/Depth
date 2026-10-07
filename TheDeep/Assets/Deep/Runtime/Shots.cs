@@ -71,7 +71,7 @@ namespace Deep
             }
             void Power(bool on)
             {
-                ship.sys.state = on ? PowerState.Engine : PowerState.Dead; ship.sys.fuel = 0.6f; ship.sys.battery = 0.6f;
+                ship.sys.state = on ? PowerState.Engine : PowerState.Dead; ship.sys.fuel = 0.6f; ship.sys.battery = 0.6f; ship.sys.engineRepaired = true;
                 ship.power = on; ship.powerK = on ? 1 : 0;
             }
             switch (name)
@@ -81,7 +81,7 @@ namespace Deep
                 case "nautilus_stern": { b.clock.hour = 10f; Power(false); Look(ship.WorldPoint(Nautilus.G(-46, 4, -14)), ship.WorldPoint(Nautilus.G(-20, 0, 0))); return true; }
                 case "salon": { b.clock.hour = 11f; Power(true); b.diver.PlaceAboard(20.5f, 1.2f, Nautilus.Floor, -90f, 4f); return true; }
                 case "bridge": { b.clock.hour = 11f; Power(true); b.diver.PlaceAboard(27.3f, 0.6f, Nautilus.Floor, 8f, 6f); return true; }
-                case "pilothouse": { b.clock.hour = 11f; Power(true); b.diver.PlaceAboard(Nautilus.ShaftX + 0.8f, 0f, 3.6f, 0f, 8f); return true; }
+                case "pilothouse": { b.clock.hour = 11f; Power(true); b.diver.PlaceAboard(Nautilus.ShaftX + 1.6f, 0f, 3.7f, 0f, 6f); return true; }
                 case "engine": { b.clock.hour = 11f; Power(true); b.diver.PlaceAboard(-15.5f, 0.5f, Nautilus.Floor, 186f, 4f); return true; }
                 case "moonpool": { b.clock.hour = 11f; Power(true); b.diver.PlaceAboard(-8.6f, -1.2f, Nautilus.Floor, 230f, 28f); return true; }
                 case "underway":

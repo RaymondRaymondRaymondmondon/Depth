@@ -87,10 +87,10 @@ namespace Deep
             if (Underwater)
             {
                 RenderSettings.fogColor = WaterColor;
-                RenderSettings.fogDensity = 1.6f / vis;
+                RenderSettings.fogDensity = 1.3f / vis;     // (eased in the playtest: the helm couldn't see where she was going)
                 RenderSettings.ambientLight = WaterColor * 1.6f + new Color(0.02f, 0.03f, 0.04f);
                 cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = WaterColor;
-                cam.farClipPlane = Mathf.Min(400f, vis * 2.4f);
+                cam.farClipPlane = Mathf.Min(400f, vis * 2.8f);
                 vignette.intensity.value = 0.32f;
                 grade.colorFilter.value = Color.Lerp(Color.white, new Color(0.85f, 1f, 1f), 0.6f);
             }

@@ -28,13 +28,40 @@ S = 8.0            # the Crew Quarters' section, let in at x = 6: everything for
 CREW_X0, CREW_X1 = 6.0, 6.0 + S
 FLOOR, CEIL = -1.6, 2.2
 # the pilot house on the back over the Bridge: its floor, size, the eye height of its ports, the shaft and ladder
-PH_X, PH_HX, PH_HZ, PH_H = 21.8 + S, 1.3, 0.95, 2.25
-PH_FLOOR = 3.6
+# The pilot house is a glazed observation cupola (the user's reference: a bridge walled in tall glass between slim
+# mullions): its front is a three-faceted bay, glass from a waist-high sill to the roof all round but the back wall.
+PH_X, PH_HX, PH_HZ, PH_H = 29.6, 2.5, 1.7, 2.7
+PH_FLOOR = 3.7
 PH_EYE = PH_FLOOR + 1.62
-PH_SHAFT = 20.95 + S
-PH_PORTS = [(PH_X + PH_HX, 0.0, 'x', 0.34), (PH_X + PH_HX, 0.55, 'x', 0.2), (PH_X + PH_HX, -0.55, 'x', 0.2),
-            (PH_X + 0.4, PH_HZ, 'z', 0.24), (PH_X + 0.4, -PH_HZ, 'z', 0.24), (PH_X - 0.6, PH_HZ, 'z', 0.24), (PH_X - 0.6, -PH_HZ, 'z', 0.24),
-            (PH_X - PH_HX, 0.0, 'x', 0.24)]
+PH_SHAFT = PH_X - PH_HX + 0.75          # the shaft up from the Bridge comes in at the cupola's back
+PH_CHAMFER = 1.0                        # the bay's angled panes
+PH_SILL = 0.8                           # glass from here (above the floor) to the roof
+
+
+def ph_plan():
+    """The cupola's plan (generator x, z), counter-clockwise from the back's port corner."""
+    x0, x1, hz, c = PH_X - PH_HX, PH_X + PH_HX, PH_HZ, PH_CHAMFER
+    return [(x0, -hz), (x1 - c, -hz), (x1, -hz + c), (x1, hz - c), (x1 - c, hz), (x0, hz)]
+
+
+def panel(a, b, y0, y1, t, mat, name="panel"):
+    """A thin upright slab from plan point a to b, y0..y1, t thick (any angle)."""
+    dx, dz = b[0] - a[0], b[1] - a[1]
+    L = math.hypot(dx, dz)
+    nx, nz = -dz / L * t / 2, dx / L * t / 2
+    vs = []
+    for (px, pz) in (a, b):
+        for sgn in (-1, 1):
+            for y in (y0, y1):
+                vs.append((px + sgn * nx, y, pz + sgn * nz))
+    # vertex order: a-, a-top, a+, a+top, b-, b-top, b+, b+top
+    faces = [(0, 4, 5, 1), (2, 3, 7, 6), (0, 1, 3, 2), (4, 6, 7, 5), (1, 5, 7, 3), (0, 2, 6, 4)]
+    return B.quads(vs, faces, mat, name)
+
+
+def pane(a, b, y0, y1, mat="glass"):
+    """A flat glass pane from a to b."""
+    return B.quads([(a[0], y0, a[1]), (b[0], y0, b[1]), (b[0], y1, b[1]), (a[0], y1, a[1])], [(0, 1, 2, 3)], mat, "pane")
 
 
 def r_at(x):
@@ -222,18 +249,34 @@ def exterior():
     pts = [(-4.0 + 0.6 * math.cos(a), 0.0 + 1.0 * math.sin(a), R + 0.05) for a in [i * 2 * math.pi / 24 for i in range(25)]]
     B.rod(pts, 0.06, "brass", 8)
 
-    # the pilot house: Verne's iron cabin on the back over the Bridge, lenticular ports all round at eye height; the
-    # helmsman steers from inside it, looking out over the bow (its inside is part of the interior model)
-    # four iron wall panels (separate solids cut cleanly; a hollowed box left plugs in some ports)
-    yc, hy, t = PH_FLOOR + PH_H / 2, PH_H / 2, 0.05
-    walls = [B.box((PH_X + s * (PH_HX - t), yc, 0), (t, hy, PH_HZ), "hull_clean", 0.0) for s in (-1, 1)]
-    walls += [B.box((PH_X, yc, s * (PH_HZ - t)), (PH_HX - 2 * t, hy, t), "hull_clean", 0.0) for s in (-1, 1)]
-    for (px_, pz_, ax, rad) in PH_PORTS:
-        for wl in walls:
-            boolean_cut(wl, cutter_ellipse((px_, PH_EYE, pz_), ax, rad, rad, 0.8))
-        B.disc((px_, PH_EYE, pz_), ax, rad + 0.07, 0.1, "brass", 24, rad)
-        B.put(cutter_ellipse((px_, PH_EYE, pz_), ax, rad, rad, 0.02), "glass")
-    B.box((PH_X, PH_FLOOR + PH_H + 0.05, 0), (PH_HX + 0.1, 0.06, PH_HZ + 0.1), "hull_clean", 0.04)
+    # the pilot house: a glazed observation cupola on her back over the Bridge - an iron sill all round, tall glass
+    # panes between slim mullions from the sill to the roof (all but the back), a three-faceted bay at the front, an
+    # iron roof with a brass rim. The helmsman sees the sea ahead and to both sides. (Its inside is in the interior.)
+    plan = ph_plan()
+    fy, top = PH_FLOOR, PH_FLOOR + PH_H
+    for i in range(len(plan)):
+        a, b = plan[i], plan[(i + 1) % len(plan)]
+        back = i == len(plan) - 1
+        if back:
+            panel(a, b, fy - 0.35, top, 0.1, "hull_clean")
+            continue
+        panel(a, b, fy - 0.35, fy + PH_SILL, 0.12, "hull_clean")                       # the sill
+        panel(a, b, top - 0.14, top, 0.12, "hull_clean")                              # the head
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        n = max(1, int(round(L / 1.1)))
+        for k in range(n):
+            p0 = (a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n)
+            p1 = (a[0] + (b[0] - a[0]) * (k + 1) / n, a[1] + (b[1] - a[1]) * (k + 1) / n)
+            pane(p0, p1, fy + PH_SILL, top - 0.14)
+            B.cyl((p0[0], fy + PH_SILL, p0[1]), (p0[0], top - 0.14, p0[1]), 0.045, "hull_clean", 8)   # the mullions
+        B.rod([(a[0], fy + PH_SILL + 0.02, a[1]), (b[0], fy + PH_SILL + 0.02, b[1])], 0.035, "brass", 8)
+    B.cyl((plan[-1][0], fy, plan[-1][1]), (plan[-1][0], top, plan[-1][1]), 0.05, "hull_clean", 8)
+    # the roof: an iron plate over the plan, a brass rim, a squat vent
+    cx = sum(q[0] for q in plan) / len(plan)
+    roof = [(q[0], top + 0.08, q[1]) for q in plan] + [(cx, top + 0.25, 0)]
+    B.quads(roof, [(i, (i + 1) % len(plan), len(plan)) for i in range(len(plan))], "hull_clean", "roof")
+    B.rod([(q[0], top + 0.08, q[1]) for q in plan] + [(plan[0][0], top + 0.08, plan[0][1])], 0.05, "brass", 8)
+    B.cyl((cx - 0.4, top + 0.2, 0), (cx - 0.4, top + 0.55, 0), 0.18, "hull_clean", 12)
     LAYOUT["lights"].append({"kind": "pilothouse", "pos": [PH_X, PH_EYE, 0]})
     # the lantern: a dome on the back with a great lens looking forward (the sub's searchlight)
     lx = 12.5 + S
@@ -325,25 +368,35 @@ def bulkhead(x, hw_a, hw_b, ceil_a, ceil_b, door=True, ports=None):
 
 
 def pilot_house():
-    """The pilot house from inside: a floor over the shaft, walls with the same ports as the shell, the helm wheel's
-    pedestal facing the bow; the shaft down to the Bridge with its ladder. (The Bridge's ceiling has the shaft's hole.)"""
-    LAYOUT["rooms"].append({"id": "pilot", "name": "The Pilot House", "x0": PH_X - PH_HX, "x1": PH_X + PH_HX, "half": PH_HZ - 0.1,
+    """The cupola from inside: a teak floor over the shaft (its hole at the back), walnut wainscot under the glass, a
+    walnut ceiling, the back wall; the helm at the front of the bay with a compass binnacle and the depth gauge; the
+    shaft down to the Bridge with its ladder. (The Bridge's ceiling has the shaft's hole.)"""
+    x0, x1, hz, c = PH_X - PH_HX, PH_X + PH_HX, PH_HZ, PH_CHAMFER
+    LAYOUT["rooms"].append({"id": "pilot", "name": "The Pilot House", "x0": x0, "x1": x1, "half": hz - 0.12,
                             "floor": PH_FLOOR, "ceil": PH_FLOOR + PH_H})
-    ix, iz = PH_HX - 0.08, PH_HZ - 0.08
-    # the floor, leaving the shaft open
+    plan = ph_plan()
+    inset = [(q[0] + (0.1 if q[0] < PH_X else -0.1), q[1] - math.copysign(0.1, q[1])) for q in plan]
+    fy = PH_FLOOR
+    # the floor: round the shaft's hole at the back, and the bay's trapezoid at the front
     s0, s1 = PH_SHAFT - 0.45, PH_SHAFT + 0.45
-    B.box(((PH_X - ix + s0) / 2, PH_FLOOR - 0.05, 0), ((s0 - (PH_X - ix)) / 2, 0.05, iz), "teak", 0.0)
-    B.box(((s1 + PH_X + ix) / 2, PH_FLOOR - 0.05, 0), ((PH_X + ix - s1) / 2, 0.05, iz), "teak", 0.0)
-    for s in (-1, 1):
-        B.box((PH_SHAFT, PH_FLOOR - 0.05, s * (0.45 + (iz - 0.45) / 2)), (0.45, 0.05, (iz - 0.45) / 2), "teak", 0.0)
-    B.box((PH_X, PH_FLOOR + PH_H - 0.05, 0), (ix, 0.05, iz), "walnut", 0.0)
-    # the walls, the ports cut through them
-    walls = [B.box((PH_X + s * ix, PH_FLOOR + PH_H / 2, 0), (0.04, PH_H / 2, iz), "walnut", 0.0) for s in (-1, 1)]
-    walls += [B.box((PH_X, PH_FLOOR + PH_H / 2, s * iz), (ix, PH_H / 2, 0.04), "walnut", 0.0) for s in (-1, 1)]
-    for (px_, pz_, ax, rad) in PH_PORTS:
-        for wl in walls:
-            boolean_cut(wl, cutter_ellipse((px_, PH_EYE, pz_), ax, rad, rad, 0.6))
-        B.disc((px_ - (0.06 if ax == 'x' and px_ > PH_X else -0.06 if ax == 'x' else 0), PH_EYE, pz_ - (0.06 if ax == 'z' and pz_ > 0 else -0.06 if ax == 'z' else 0)), ax, rad + 0.06, 0.04, "brass", 24, rad)
+    B.box(((x0 + s0) / 2, fy - 0.05, 0), ((s0 - x0) / 2, 0.05, hz - 0.05), "teak", 0.0)
+    B.box(((s1 + x1 - c) / 2, fy - 0.05, 0), ((x1 - c - s1) / 2, 0.05, hz - 0.05), "teak", 0.0)
+    for sd in (-1, 1):
+        B.box((PH_SHAFT, fy - 0.05, sd * (0.45 + (hz - 0.45) / 2)), (0.45, 0.05, (hz - 0.45) / 2), "teak", 0.0)
+    B.quads([(x1 - c, fy, -hz), (x1, fy, -hz + c), (x1, fy, hz - c), (x1 - c, fy, hz)], [(0, 1, 2, 3)], "teak", "bay floor")
+    # the wainscot under the glass, the back wall, the ceiling
+    for i in range(len(inset)):
+        a, b = inset[i], inset[(i + 1) % len(inset)]
+        if i == len(inset) - 1:
+            panel(a, b, fy, fy + PH_H, 0.05, "walnut")
+        else:
+            panel(a, b, fy, fy + PH_SILL, 0.05, "walnut")
+            B.rod([(a[0], fy + PH_SILL + 0.03, a[1]), (b[0], fy + PH_SILL + 0.03, b[1])], 0.03, "brass", 8)
+    ccx = sum(q[0] for q in inset) / len(inset)
+    B.quads([(q[0], fy + PH_H - 0.12, q[1]) for q in inset] + [(ccx, fy + PH_H - 0.12, 0)],
+            [(i, len(inset), (i + 1) % len(inset)) for i in range(len(inset))], "walnut", "cupola ceiling")
+    B.lathe((PH_X, fy + PH_H - 0.5, 0), [(0.02, 0.0), (0.14, 0.06), (0.16, 0.14), (0.12, 0.22), (0.04, 0.24)], "lamp", 16)
+    LAYOUT["lamps"].append({"room": "pilot", "pos": [PH_X, fy + PH_H - 0.4, 0.0]})
     # the shaft's walls from the Bridge's ceiling up to the pilot house's floor, and the ladder up it
     for s in (-1, 1):
         B.box((PH_SHAFT + s * 0.47, (CEIL + PH_FLOOR) / 2, 0), (0.03, (PH_FLOOR - CEIL) / 2, 0.47), "iron_in", 0.0)
@@ -355,16 +408,18 @@ def pilot_house():
         B.cyl((PH_SHAFT - 0.32, y, -0.26), (PH_SHAFT - 0.32, y, 0.26), 0.022, "brass", 8)
         y += 0.32
     LAYOUT["ladders"].append({"x": PH_SHAFT - 0.32, "z": 0.0, "y0": FLOOR, "y1": PH_FLOOR + 0.05, "hatch": ""})
-    # the helm: a pedestal and the wheel (the wheel itself is its own model so it can turn)
-    B.cyl((PH_X + 0.85, PH_FLOOR, 0), (PH_X + 0.85, PH_FLOOR + 1.05, 0), 0.08, "brass", 12)
-    B.box((PH_X + 0.95, PH_FLOOR + 1.05, 0), (0.12, 0.08, 0.1), "brass", 0.02)
-    LAYOUT["helmWheel"] = [PH_X + 0.88, PH_FLOOR + 1.12, 0.0]
-    station("helm", "helm", (PH_X + 0.2, PH_FLOOR, 0.0), (1, 0, 0), "pilot")
-    # a compass binnacle and the depth gauge beside the wheel
-    B.lathe((PH_X + 0.75, PH_FLOOR, 0.6), [(0.12, 0.0), (0.12, 0.9), (0.16, 0.95), (0.16, 1.05), (0.06, 1.12)], "brass", 16)
-    B.disc((PH_X + 1.18, PH_FLOOR + 1.25, -0.6), 'x', 0.18, 0.04, "brass", 20)
-    B.disc((PH_X + 1.16, PH_FLOOR + 1.25, -0.6), 'x', 0.15, 0.01, "dial", 20)
-    LAYOUT["gauges"] = {"depth": [PH_X + 1.15, PH_FLOOR + 1.25, -0.6]}
+    # the helm at the front of the bay: a pedestal and the wheel (the wheel is its own model so it can turn)
+    hx = PH_X + PH_HX - 1.05
+    B.cyl((hx + 0.07, PH_FLOOR, 0), (hx + 0.07, PH_FLOOR + 1.05, 0), 0.08, "brass", 12)
+    B.box((hx + 0.15, PH_FLOOR + 1.05, 0), (0.12, 0.08, 0.1), "brass", 0.02)
+    LAYOUT["helmWheel"] = [hx + 0.08, PH_FLOOR + 1.12, 0.0]
+    station("helm", "helm", (hx - 0.9, PH_FLOOR, 0.0), (1, 0, 0), "pilot")
+    # a compass binnacle beside the wheel, and the depth gauge on a little console to port
+    B.lathe((hx - 0.1, PH_FLOOR, 0.75), [(0.12, 0.0), (0.12, 0.9), (0.16, 0.95), (0.16, 1.05), (0.06, 1.12)], "brass", 16)
+    B.box((hx + 0.25, PH_FLOOR + 0.55, -0.75), (0.12, 0.55, 0.22), "walnut", 0.02)
+    B.disc((hx + 0.12, PH_FLOOR + 1.25, -0.75), 'x', 0.18, 0.04, "brass", 20)
+    B.disc((hx + 0.1, PH_FLOOR + 1.25, -0.75), 'x', 0.15, 0.01, "dial", 20)
+    LAYOUT["gauges"] = {"depth": [hx + 0.09, PH_FLOOR + 1.25, -0.75]}
 
 
 CABIN_XS = (CREW_X0 + S * 0.25, CREW_X0 + S * 0.75)    # the cabins' middles along her (two each side)

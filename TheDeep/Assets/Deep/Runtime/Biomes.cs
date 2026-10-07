@@ -13,8 +13,8 @@ namespace Deep
     {
         public static readonly BiomeDef[] All =
         {
-            new BiomeDef { name = "The Sunlit Shallows", top = 0, bottom = 50, water = new Color(0.10f, 0.42f, 0.46f), visibility = 70, absorb = 0.005f },
-            new BiomeDef { name = "The Kelp Labyrinth", top = 50, bottom = 150, water = new Color(0.10f, 0.32f, 0.26f), visibility = 48, absorb = 0.038f },
+            new BiomeDef { name = "The Sunlit Shallows", top = 0, bottom = 50, water = new Color(0.10f, 0.42f, 0.46f), visibility = 90, absorb = 0.005f },
+            new BiomeDef { name = "The Kelp Labyrinth", top = 50, bottom = 150, water = new Color(0.10f, 0.32f, 0.26f), visibility = 60, absorb = 0.038f },
             new BiomeDef { name = "The Bioluminescent Caverns", top = 150, bottom = 300, water = new Color(0.02f, 0.06f, 0.12f), visibility = 30, absorb = 0.005f, echo = true },
             new BiomeDef { name = "The Thermal Vents", top = 300, bottom = 500, water = new Color(0.08f, 0.05f, 0.05f), visibility = 30, absorb = 0.005f },
             new BiomeDef { name = "The Drowned Forest", top = 500, bottom = 700, water = new Color(0.04f, 0.06f, 0.04f), visibility = 25, absorb = 0.01f },

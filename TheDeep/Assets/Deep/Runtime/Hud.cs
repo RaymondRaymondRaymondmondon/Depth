@@ -101,6 +101,41 @@ namespace Deep
             GUI.DrawTexture(new Rect(r.x, r.y, r.width * f, r.height), Texture2D.whiteTexture);
             GUI.color = Color.white;
             GUI.Label(new Rect(r.x, r.y - 22, 300, 22), $"Oxygen {diver.oxygen:0} s", small);
+            var sv = diver.GetComponent<Survival>();
+            if (sv != null)
+            {
+                void Small(float y, float v, Color c, string n)
+                {
+                    var b = new Rect(r.x, y, 220, 6);
+                    GUI.color = new Color(0, 0, 0, 0.5f); GUI.DrawTexture(b, Texture2D.whiteTexture);
+                    GUI.color = c; GUI.DrawTexture(new Rect(b.x, b.y, b.width * Mathf.Clamp01(v), b.height), Texture2D.whiteTexture);
+                    GUI.color = Color.white; GUI.Label(new Rect(b.xMax + 6, y - 8, 160, 20), n, small);
+                }
+                Small(r.y - 90, sv.hunger / 100f, new Color(0.95f, 0.7f, 0.3f), "food");
+                Small(r.y - 78, sv.thirst / 100f, new Color(0.4f, 0.75f, 1f), "water");
+                Small(r.y - 66, (sv.bodyC - 28f) / 9.5f, sv.Shivering ? new Color(0.5f, 0.7f, 1f) : new Color(1f, 0.6f, 0.4f), sv.Shivering ? $"{sv.bodyC:0.0} C shivering" : $"{sv.bodyC:0.0} C");
+            }
+            var hands = diver.GetComponent<Hands>();
+            if (hands != null && !diver.aboard)
+            {
+                var bar = hands.Hotbar();
+                float bx = Screen.width / 2 - 5 * 66 / 2;
+                for (int k = 0; k < 5; k++)
+                {
+                    var br = new Rect(bx + k * 66, Screen.height - 58, 62, 40);
+                    GUI.color = new Color(0, 0, 0, 0.45f); GUI.DrawTexture(br, Texture2D.whiteTexture);
+                    if (k < bar.Count)
+                    {
+                        var it = ItemDB.Get(hands.pack.slots[bar[k]].id);
+                        GUI.color = bar[k] == hands.held ? new Color(1f, 0.85f, 0.5f) : Color.white;
+                        GUI.Label(new Rect(br.x + 3, br.y + 1, br.width - 4, br.height), $"{k + 1} {it?.name}", small);
+                    }
+                    GUI.color = Color.white;
+                }
+                if (!string.IsNullOrEmpty(hands.aimHint))
+                    GUI.Label(new Rect(Screen.width / 2 - 300, Screen.height / 2 + 18, 600, 22), hands.aimHint, new GUIStyle(small) { alignment = TextAnchor.MiddleCenter });
+                if (hands.useT > 0) { GUI.color = new Color(1, 1, 1, 0.7f); GUI.DrawTexture(new Rect(Screen.width / 2 - 40, Screen.height / 2 + 42, 80 * hands.useT, 4), Texture2D.whiteTexture); GUI.color = Color.white; }
+            }
             var hb = new Rect(r.x, r.y - 52, 220, 8);
             GUI.color = new Color(0, 0, 0, 0.5f); GUI.DrawTexture(hb, Texture2D.whiteTexture);
             GUI.color = diver.health > 35 ? new Color(0.55f, 0.9f, 0.5f) : new Color(1f, 0.35f, 0.3f);

@@ -21,6 +21,7 @@ namespace Deep
         public PowerState state = PowerState.Dead;
         public float battery = 0.35f;     // 0..1
         public float fuel = 0.4f;         // the boiler's bunker, 0..1
+        public bool engineRepaired;       // the derelict's steam engine must be repaired at the boiler first (the doc: "restore primary power")
         public float NoiseDb;             // what she's putting into the water now (the Wake system reads it, stage 3)
         public float pingNoiseT;          // a sonar ping's crack is still ringing out
         public bool pumpsManned;          // someone is working the pump handles this frame
@@ -222,6 +223,21 @@ namespace Deep
             if (pingNoiseT > 0) NoiseDb = Mathf.Max(NoiseDb, 115f);
             sonarAge += dt;
 
+            // past her crush depth the hull groans, then plates give way (faster the deeper she goes)
+            float over = n.Depth - n.crushDepth;
+            if (over > 0)
+            {
+                crushT += dt * (1f + over / 5f);
+                if (crushT > 12f)
+                {
+                    crushT = 0;
+                    AddBreach(Random.Range(0, rooms.Count), 0.02f + over * 0.002f);
+                    alert = $"The hull buckles! She's {over:0} m past her crush depth ({n.crushDepth:0} m).";
+                }
+                else if (crushT > 6f && !creakWarned) { creakWarned = true; alert = "The hull groans under the pressure."; }
+            }
+            else { crushT = Mathf.Max(0, crushT - dt); creakWarned = false; }
+
             // the sea coming in: through each breach at the pressure of her depth (and slower once the room is filling)
             float depth = Mathf.Max(0, n.Depth);
             foreach (var b in breaches)
@@ -270,5 +286,6 @@ namespace Deep
             }
         }
         bool pumpsRunning;
+        float crushT; bool creakWarned;
     }
 }

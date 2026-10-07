@@ -21,6 +21,8 @@ namespace Deep
         public Transform Body, Proxy;
         public bool power;            // set by ShipSystems from her power state
         public ShipSystems sys;
+        public Inventory store = new Inventory(48);   // her lockers and larder (the crew's shared stores)
+        public float crushDepth = 30f;                // the derelict's hull holds to 30 m; each phase's hull upgrade raises it
         float strikeCool;
         public float powerK;          // eased 0..1, what the lamps and globes show
         public const float Floor = -1.6f, Radius = 4f, ShaftHalf = 0.47f;
@@ -149,7 +151,8 @@ namespace Deep
             var cap = gameObject.AddComponent<CapsuleCollider>();
             cap.direction = 2; cap.radius = Radius; cap.height = BowX - SternX - 8f; cap.center = new Vector3(0, 0, (BowX + SternX) / 2f);
             AddBox(Body, (-12f, 4.15f, 0f), (17f, 0.25f, 1.2f));          // the deck
-            AddBox(Body, (ShaftX + 0.85f, 4.9f, 0f), (1.35f, 1.1f, 1.0f));          // the pilot house
+            var pr = L.Room("pilot");                                         // the pilot house's glazed cupola
+            if (pr != null) AddBox(Body, ((pr.x0 + pr.x1) / 2f, (pr.floor + pr.ceil) / 2f + 0.1f, 0f), ((pr.x1 - pr.x0) / 2f + 0.15f, (pr.ceil - pr.floor) / 2f + 0.4f, pr.half + 0.25f));
         }
 
         static void AddBox(Transform parent, (float x, float y, float z) c, (float x, float y, float z) half)
