@@ -12,6 +12,7 @@ public static class DeepSetup
             "com.unity.netcode.gameobjects",
             "com.unity.transport",
             "com.unity.test-framework",
+            "com.unity.cloud.gltfast",
         }, null);
         while (!req.IsCompleted) System.Threading.Thread.Sleep(200);
         if (req.Status == StatusCode.Success)

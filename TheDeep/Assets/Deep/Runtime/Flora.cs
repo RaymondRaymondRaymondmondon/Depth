@@ -87,6 +87,19 @@ namespace Deep
             Total++;
         }
 
+        // clear the plants out from under something placed on the seabed (the Nautilus): every plant whose root lies in
+        // the box (local half extents about a transform)
+        public void Clear(Transform t, Vector3 half)
+        {
+            foreach (var k in kinds)
+                foreach (var list in k.cells.Values)
+                    Total -= list.RemoveAll(m =>
+                    {
+                        var p = t.InverseTransformPoint(m.GetColumn(3));
+                        return Mathf.Abs(p.x) < half.x && Mathf.Abs(p.y) < half.y && Mathf.Abs(p.z) < half.z;
+                    });
+        }
+
         void LateUpdate()
         {
             var cam = Camera.main; if (!cam) return;

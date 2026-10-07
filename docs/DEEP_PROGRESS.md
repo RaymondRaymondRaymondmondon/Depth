@@ -38,3 +38,30 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
 5. **The opening:** the night raft, the storm, boarding the Nautilus and restoring power.
 6. **Multiplayer:** host-authoritative Netcode, 1-4 players, Depth's lobby handing off.
 7. **Campaign and polish:** saves, death rules, sound, the Artisan Bench, performance on this PC.
+
+## Stage 2 so far (2026-10-07)
+- **The model:** `tools/artgen/deep_nautilus.py` (+ `deep_tiles.py`: fouled riveted iron, walnut, teak, interior
+  iron) builds Verne's Nautilus in Blender: `nautilus_hull.glb` (the 76 m cigar with a 12 cm plate thickness, the
+  salon windows, the airlock, the moonpool, the deck, the lantern, floods, fins and screw, and the pilot house built
+  from four cut panels), `nautilus_interior.glb` (seven rooms bow to stern plus the pilot house up its shaft) and
+  `nautilus_layout.json` (rooms, doors, stations, lamps, hatches, ladders, windows, moonpool, lights) into
+  `TheDeep/Assets/Deep/Resources/Models`. Run: `blender -b --factory-startup -P tools/artgen/deep_nautilus.py --
+  --out TheDeep/Assets/Deep/Resources/Models [--part hull|interior]`. Lessons: a boolean through a closed solid
+  leaves a pocket with a floor (give skins a thickness); bevelled thin panels can refuse a cut; two coaxial
+  cylinders drop faces (build sleeves directly).
+- **In Unity:** glTFast 6.20 imports the models; `Nautilus.cs` swaps their materials for `Deep/Lit` (the baked
+  textures, a derivative-frame normal map, vertex-colour AO, lit by DeepWater.hlsl; `_Interior` for no sun inside,
+  `_Emit` for lamp globes, `_Cull` one-sided outside) and `Deep/Glass` (windows, the moonpool's water).
+  `DeepWater.hlsl` now has `DeepLamps` (up to 24 lamps near the camera plus the helmet lamp, absorbed through water),
+  used by every Deep shader. The generator frame maps to the ship's frame by `Nautilus.G` (x bow -> z).
+- **Walking aboard while she moves:** the Body (visible, with hull colliders for swimmers) and the Proxy (invisible
+  room colliders built from the layout, fixed at y 5000); the diver walks in the Proxy and the camera is mapped onto
+  the Body. Ladders, the airlock, the deck hatch and the moonpool board and leave her.
+- **Sailing:** `Nautilus.Sail` (telegraph, rudder, heading hold, depth order, grounding, deck-awash surface, pitch
+  and heel), worked from the pilot house's helm (A/D rudder, W/S telegraph, Space/C depth, H hold, X centre) or the
+  Bridge telegraph; the switchboard in the engine room switches her power (lamps come up unevenly; emergency red
+  lamps without power).
+- Shots: `nautilus`, `nautilus_side`, `nautilus_stern`, `salon`, `bridge`, `pilothouse`, `engine`, `moonpool`,
+  `dark`, `underway` (50 s of sailing), `helm`. `tools\deep.ps1 shots "<names>"`.
+- **Still to do in stage 2:** sonar (active and passive), hull breaches, flooding and pumps, power as a resource
+  (the boiler), the station fittings turning (wheel, telegraph handle, gauges), sound aboard, furniture collisions.

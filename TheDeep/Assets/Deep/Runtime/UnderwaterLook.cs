@@ -14,6 +14,7 @@ namespace Deep
     public class UnderwaterLook : MonoBehaviour
     {
         public static bool Underwater;
+        public static bool Aboard;   // the eye is inside the Nautilus (in her air)
         public static float CamDepth;
         public static Color WaterColor;
         Camera cam; Clock clock; Light sun; UniversalAdditionalLightData sunData;
@@ -121,8 +122,9 @@ namespace Deep
             Shader.SetGlobalFloat("_DeepCamDepth", d);
             Shader.SetGlobalFloat("_DeepUnderwater", Underwater ? 1 : 0);
 
-            shafts.Tick(cam, clock, Underwater ? Mathf.Clamp01(day * 1.2f) * Mathf.Clamp01(1 - d / 70f) : 0);
-            var em = snow.emission; em.enabled = Underwater;
+            shafts.Tick(cam, clock, Underwater && !Aboard ? Mathf.Clamp01(day * 1.2f) * Mathf.Clamp01(1 - d / 70f) : 0);
+            var em = snow.emission; em.enabled = Underwater && !Aboard;
+            if (Aboard && snow.particleCount > 0) snow.Clear();
             snow.transform.position = p;
             var main = snow.main; main.startColor = Color.Lerp(new Color(0.6f, 0.7f, 0.7f, 0.5f), new Color(0.9f, 0.95f, 0.9f, 0.7f), day);
         }
