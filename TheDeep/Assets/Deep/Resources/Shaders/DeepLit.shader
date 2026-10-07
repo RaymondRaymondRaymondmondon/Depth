@@ -16,6 +16,7 @@ Shader "Deep/Lit"
         _NormalScale ("Normal strength", Float) = 1
         _HasBump ("Has normal map", Float) = 0
         _UseVC ("Vertex colour is AO", Float) = 1
+        _VCAlbedo ("Vertex colour is the colour (Blender-built props)", Float) = 0
         _Interior ("Interior", Float) = 0
         _Emit ("Glow with power", Float) = 0
         _Cull ("Cull (0 off, 2 back)", Float) = 2
@@ -40,11 +41,11 @@ Shader "Deep/Lit"
             TEXTURE2D(_BumpMap); SAMPLER(sampler_BumpMap);
             TEXTURE2D(_MRMap); SAMPLER(sampler_MRMap);
             CBUFFER_START(UnityPerMaterial)
-                float4 _BaseMap_ST; float4 _BaseColor; float _Metallic, _Roughness, _NormalScale, _HasBump, _UseVC, _Interior, _Emit;
+                float4 _BaseMap_ST; float4 _BaseColor; float _Metallic, _Roughness, _NormalScale, _HasBump, _UseVC, _Interior, _Emit, _VCAlbedo;
             CBUFFER_END
             float _DeepPower;
             struct A { float4 pos : POSITION; float3 n : NORMAL; float2 uv : TEXCOORD0; float4 col : COLOR; UNITY_VERTEX_INPUT_INSTANCE_ID };
-            struct V { float4 cs : SV_POSITION; float3 ws : TEXCOORD0; float3 n : TEXCOORD1; float2 uv : TEXCOORD2; float ao : TEXCOORD3; float fog : TEXCOORD4; };
+            struct V { float4 cs : SV_POSITION; float3 ws : TEXCOORD0; float3 n : TEXCOORD1; float2 uv : TEXCOORD2; float ao : TEXCOORD3; float fog : TEXCOORD4; float3 vc : TEXCOORD5; };
             V vert(A i)
             {
                 UNITY_SETUP_INSTANCE_ID(i);
@@ -53,7 +54,8 @@ Shader "Deep/Lit"
                 o.cs = TransformWorldToHClip(o.ws);
                 o.n = TransformObjectToWorldNormal(i.n);
                 o.uv = TRANSFORM_TEX(i.uv, _BaseMap);
-                o.ao = _UseVC > 0.5 ? saturate(dot(i.col.rgb, float3(0.333, 0.334, 0.333))) : 1;
+                o.ao = _UseVC > 0.5 && _VCAlbedo < 0.5 ? saturate(dot(i.col.rgb, float3(0.333, 0.334, 0.333))) : 1;
+                o.vc = _VCAlbedo > 0.5 ? i.col.rgb : float3(1, 1, 1);
                 o.fog = ComputeFogFactor(o.cs.z);
                 return o;
             }
@@ -71,7 +73,7 @@ Shader "Deep/Lit"
                     float im = rsqrt(max(max(dot(t, t), dot(b, b)), 1e-12));
                     n = normalize(t * im * tn.x + b * im * tn.y + n * tn.z);
                 }
-                float4 base = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv) * _BaseColor;
+                float4 base = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv) * _BaseColor * float4(i.vc, 1);
                 float4 mr = SAMPLE_TEXTURE2D(_MRMap, sampler_MRMap, i.uv);
                 float rough = saturate(mr.g * _Roughness), metal = saturate(mr.b * _Metallic);
                 float gloss = (1 - rough) * (1 - rough) * lerp(0.5, 1.6, metal);

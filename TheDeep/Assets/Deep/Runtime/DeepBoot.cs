@@ -72,6 +72,7 @@ namespace Deep
             ship = PlaceNautilus(seabed, diver.transform.position);
             diver.ship = ship;
             life = Life.Build(seabed, clock, diver, ship, Args.Seed);
+            Deposits.Build(seabed, flora, diver.transform.position, Args.Seed);
             Hands.Attach(diver);
             Survival.Attach(diver);
             CraftUI.Attach(diver);

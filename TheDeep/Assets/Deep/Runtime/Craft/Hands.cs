@@ -83,10 +83,35 @@ namespace Deep
             var prey = life != null ? life.PickCreature(o, dir, reach) : null;
             Flora.Picked plant = default; bool hasPlant = flora && flora.Pick(o, dir, 2.6f, k => Entry(k) != null, out plant);
             if (hasPlant && prey != null && Vector3.Distance(o, prey.pos) < Vector3.Distance(o, plant.pos)) hasPlant = false;
+            var dep = Deposits.I != null ? Deposits.I.Pick(o, dir, 2.8f) : null;
+            if (dep != null && hasPlant && Vector3.Distance(o, dep.pos) > Vector3.Distance(o, plant.pos)) dep = null;
+            if (dep != null) { hasPlant = false; prey = null; }
             bool locked = Cursor.lockState == CursorLockMode.Locked;
             bool fire = locked && Input.GetMouseButton(0);
             bool click = locked && Input.GetMouseButtonDown(0);
 
+            if (dep != null)
+            {
+                var item = ItemDB.Get(dep.item);
+                bool works = Deposits.Works(dep, tool, out string need);
+                string what = dep.by == "hand" ? "A loose chunk of titanium ore" : dep.by == "drill" ? "A titanium ore node" : $"{dep.item} ({dep.where})";
+                aimHint = works ? $"{what}  (hold LMB: take it)" : $"{what}  - needs {need}";
+                if (works && fire)
+                {
+                    float need2 = tool == "drill" ? 2.2f : dep.by == "hand" ? 0.5f : 1.4f;
+                    useT += Time.deltaTime / need2;
+                    if (tool == "drill" && life != null && Time.frameCount % 15 == 0) life.sound.Emit(dep.pos, 70f, Band.Mid, 0.3f, "a drill");
+                    if (useT >= 1f)
+                    {
+                        useT = 0;
+                        if (item == null) d.Toast(dep.item + ": unknown item");
+                        else if (pack.Add(item, dep.yield) > 0) d.Toast("Your pack is full.");
+                        else { d.Toast($"+{dep.yield} {item.name}"); Deposits.I.Take(dep); }
+                    }
+                }
+                else useT = 0;
+                return;
+            }
             if (hasPlant)
             {
                 var f = Entry(plant.kind);

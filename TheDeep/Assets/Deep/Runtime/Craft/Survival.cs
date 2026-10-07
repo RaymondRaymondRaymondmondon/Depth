@@ -77,7 +77,14 @@ namespace Deep
         // eat or drink something from the pack
         public bool Consume(ItemDef it)
         {
-            if (it?.effects == null || !it.Edible) return false;
+            if (it == null || !it.Edible) return false;
+            if (it.Raw)
+            {
+                // the doc: raw fish causes food poisoning unless it's grilled
+                hunger = Mathf.Clamp(hunger + 12f, 0, 100); thirst = Mathf.Max(0, thirst - 5f); d.health = Mathf.Max(1f, d.health - 12f);
+                d.Toast($"The raw {it.name.Substring(4)} turns your stomach. (Grill it.)");
+                return true;
+            }
             hunger = Mathf.Clamp(hunger + it.effects.hunger, 0, 100);
             thirst = Mathf.Clamp(thirst + it.effects.thirst, 0, 100);
             d.health = Mathf.Clamp(d.health + it.effects.health, 0, 100);

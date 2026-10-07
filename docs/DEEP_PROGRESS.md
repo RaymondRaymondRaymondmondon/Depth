@@ -146,3 +146,39 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
   states and the reasons ("DEEP WHY").
 - **Left for later:** the Stalker-Hounds stealing tools and the wreck interactions (with stage 4's items and the
   wrecks), the Tangle-Serpent's 95 dB constriction sound and all other sound (the sound stage).
+
+## The helm's cupola (playtest, 2026-10-07)
+- The user's reference (a bridge walled in tall glass): the pilot house is now a glazed observation cupola, 5 x 3.4 m,
+  a three-faceted bay at the front, glass between slim iron mullions from a waist-high sill to the roof on every side
+  but the back; the helm at the front of the bay. The fog was thinned (visibility 90 m in the Shallows, 60 in the
+  Kelp; density 1.3/vis; far clip 2.8 x vis) so the helm can see where she's going.
+
+## Stage 4, survival and crafting (2026-10-07)
+- **Data:** `Resources/Data/items.json` (transcribed from the doc's pages 3-4, 12, 36, 120-135): 152 resources (each
+  with its source and the tools that take it), 98 items with recipes and stations, 10 hull upgrades, 12 stations; the
+  doc gives no rates for the survival meters (only what food and drink restore).
+- **Code** (`Runtime/Craft/`): `Items.cs` (ItemDB, Inventory: stacks, crafting from the pack and her stores together,
+  the doc's station names mapped onto her rooms), `Hands.cs` (the hotbar 1-5/0, the held tool drawn in front of the
+  eye, gathering by the resource table's tools, the knife / Heated Blade (cauterises) / spear gun on animals, kills
+  loot the table's parts, the drill's 70 dB in the Wake), `Survival.cs` (hunger 2.2/min, thirst 3.0/min, warmth: the
+  sea's temperature by depth and night, her cabins warm with life support and cool when she's dead; raw fish poisons),
+  `CraftUI.cs` (Tab the pack; E at a station its recipes; her lockers and larder; the desalinator's 2 minutes a cup),
+  `Deposits.cs` (titanium nodes on the Shallows' rocky slopes and in the kelp clearings for the drill, loose chunks by
+  hand; the wrecks), `KiteSub.cs`.
+- **Design calls (the doc's loops):** loose titanium chunks are picked up by hand so the first Starter Drill can be made
+  (the doc puts Titanium Ore behind the drill, which needs titanium); "restore primary power" is repairing the Steam
+  engine at the boiler (1 Titanium, 1 Synthetic Fuel Canister) - until then she has only her batteries; Synthetic
+  Fuel Canisters stoke the boiler; the stations are all there, derelict but working (the Abyssal Forge and the Thermal
+  Desalinator's costs were circular in the doc); her crush depth is 30 m until the Bio-Polymer Hull Patches (50 m),
+  then the Titanium Hull Plates (150 m); past it the hull groans and plates give way.
+- **Blender:** `deep_wrecks.py` (the Sunken Pirate Galleon broken in two in the Shallows, the tangled dreadnought in the
+  Kelp, with JSON salvage spots and collider boxes), `deep_minerals.py` (ore nodes, quartz, calcite, salvage piles),
+  `deep_vehicles.py` (the Kite-Sub). Deep/Lit has `_VCAlbedo` for vertex-coloured props.
+- **The Kite-Sub:** made at the moonpool (4 Titanium, 2 Reinforced Glass, 2 Glow-Bulb Cells, 1 Kelplet Float Bladder),
+  docks in the well and charges there; mouse steers, W/S, A/D, Space/Ctrl, Shift; its own battery; crush depth 200 m.
+- The sonar's ping marks deposits (white) and wrecks (yellow).
+- Tests (`CraftTests`): stacks, crafting from pack and stores, the tables loading, and every phase 1-2 recipe's raw
+  ingredients gatherable somewhere in the world. Shots: `craft`, `pack`, `deposit`, `wreck_galleon`,
+  `wreck_dreadnought`, `kitesub`, `kitesub_fly`.
+- **Left for later:** the equipment the doc gives no recipe for (flares, decoys, traps), the Artisan Bench's furniture
+  placed in the cabins (with decorating), a proper brass-and-paper UI, the Blender pass on the hand tools.

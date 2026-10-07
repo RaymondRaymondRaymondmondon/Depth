@@ -1,0 +1,102 @@
+{
+ "salvage": [
+  {
+   "kind": "galleon_wood",
+   "item": "Salvaged Galleon Wood",
+   "pos": [
+    -2.5,
+    0.2,
+    -5.0
+   ]
+  },
+  {
+   "kind": "galleon_wood",
+   "item": "Salvaged Galleon Wood",
+   "pos": [
+    3.5,
+    0.2,
+    -3.0
+   ]
+  },
+  {
+   "kind": "galleon_wood",
+   "item": "Salvaged Galleon Wood",
+   "pos": [
+    1.5,
+    0.5,
+    9.0
+   ]
+  },
+  {
+   "kind": "galleon_wood",
+   "item": "Salvaged Galleon Wood",
+   "pos": [
+    -3.0,
+    0.4,
+    -14.0
+   ]
+  },
+  {
+   "kind": "galleon_wood",
+   "item": "Salvaged Galleon Wood",
+   "pos": [
+    6.0,
+    0.2,
+    2.0
+   ]
+  },
+  {
+   "kind": "galleon_brass",
+   "item": "Salvaged Galleon Brass",
+   "pos": [
+    -1.5,
+    0.2,
+    -16.0
+   ]
+  },
+  {
+   "kind": "galleon_brass",
+   "item": "Salvaged Galleon Brass",
+   "pos": [
+    -5.0,
+    0.2,
+    -9.0
+   ]
+  },
+  {
+   "kind": "galleon_brass",
+   "item": "Salvaged Galleon Brass",
+   "pos": [
+    -4.0,
+    0.2,
+    1.0
+   ]
+  }
+ ],
+ "boxes": [
+  {
+   "c": [
+    -1.5,
+    2.5,
+    5.5
+   ],
+   "h": [
+    4.0,
+    2.6,
+    9.5
+   ]
+  },
+  {
+   "c": [
+    -2.0,
+    2.5,
+    -10.5
+   ],
+   "h": [
+    4.0,
+    2.6,
+    4.8
+   ]
+  }
+ ]
+}

@@ -10,7 +10,7 @@ namespace Deep
     {
         public static bool HideOcean;
         static readonly string[] All = { "debugdown", "debugair", "reef", "kelp", "up", "above", "night", "drop", "meadow",
-            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral", "life_light", "life_engine", "life_moon" };
+            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral", "life_light", "life_engine", "life_moon", "wreck_galleon", "wreck_dreadnought", "deposit", "craft", "pack", "kitesub", "kitesub_fly" };
 
         public void Run(string which, string dir) { StartCoroutine(Go(which, dir)); }
 
@@ -23,6 +23,8 @@ namespace Deep
             foreach (var name in list)
             {
                 bool ok;
+                var ui0 = boot.diver.GetComponent<CraftUI>(); if (ui0 != null && ui0.mode != null) ui0.Close();
+                if (boot.diver.piloting != null) boot.diver.LeaveKiteSub(true);
                 try { ok = Setup(name, boot); }
                 catch (System.Exception ex) { Debug.LogError("DEEP SHOT: " + name + " failed: " + ex); continue; }
                 if (!ok) { Debug.LogWarning("DEEP SHOT: unknown " + name); continue; }
@@ -163,6 +165,57 @@ namespace Deep
                     if (lv == null) return false;
                     b.life.WarmUp(lv.pos, 5f);
                     Look(lv.pos + Quaternion.LookRotation(lv.fwd) * new Vector3(28f, 8f, 10f), lv.pos);
+                    return true;
+                }
+                case "wreck_galleon":
+                case "wreck_dreadnought":
+                {
+                    var w = Deposits.I.wrecks.Find(x => x.name.Contains(name == "wreck_galleon" ? "Galleon" : "dreadnought"));
+                    if (w.t == null) return false;
+                    b.clock.hour = 11f;
+                    var eye = w.t.TransformPoint(new Vector3(18f, 9f, -14f));
+                    eye.y = Mathf.Max(eye.y, bed.SampleY(eye.x, eye.z) + 3f);
+                    Look(eye, w.t.position + Vector3.up * 2f);
+                    return true;
+                }
+                case "deposit":
+                {
+                    b.clock.hour = 11f;
+                    Deposits.Node best = null;
+                    foreach (var n in Deposits.I.nodes) if (n.by == "drill" && -n.pos.y < 45f) { best = n; break; }
+                    if (best == null) return false;
+                    var eye = best.pos + new Vector3(2.2f, 1.4f, -1.2f);
+                    b.diver.Place(eye, 0, 0); Look(eye, best.pos + Vector3.up * 0.3f);
+                    var h = b.diver.GetComponent<Hands>(); var drill = ItemDB.Get("Starter Drill");
+                    if (h != null && drill != null) { h.pack.Add(drill); h.held = h.pack.slots.FindIndex(sl => sl.id == drill.id); }
+                    return true;
+                }
+                case "craft":
+                case "pack":
+                {
+                    b.clock.hour = 11f; Power(true);
+                    foreach (var st in ship.L.stations) if (st.kind == "fabricator") b.diver.PlaceAboard(st.pos[0], st.pos[2], Nautilus.Floor, Nautilus.FacingYaw(st), 10f);
+                    var h = b.diver.GetComponent<Hands>();
+                    foreach (var (n, k) in new[] { ("Titanium Ore", 6), ("Solar-Carpet Algae", 5), ("Calcite Algae Flakes", 3), ("Crest Reed Shafts", 2), ("Golden Moss Filament", 2), ("Ribbon Grass Fiber", 3), ("Raw Chromis Glider", 2) })
+                    { var it = ItemDB.Get(n); if (it != null) h.pack.Add(it, k); }
+                    var ui = b.diver.GetComponent<CraftUI>();
+                    if (name == "craft") { ui.Open("craft", "fabricator"); } else ui.Open("pack");
+                    return true;
+                }
+                case "kitesub":
+                {
+                    b.clock.hour = 11f; Power(true);
+                    KiteSub.Spawn(ship);
+                    Look(ship.WorldPoint(Nautilus.G(-12, -8, 7)), KiteSub.I.transform.position);
+                    return true;
+                }
+                case "kitesub_fly":
+                {
+                    b.clock.hour = 10.5f; Power(true);
+                    if (KiteSub.I == null) KiteSub.Spawn(ship);
+                    b.diver.EnterKiteSub(KiteSub.I);
+                    b.diver.yaw = KiteSub.I.transform.eulerAngles.y + 60f; b.diver.pitch = 8f;
+                    for (int i = 0; i < 120; i++) KiteSub.I.Drive(b.diver, 1f / 60f);
                     return true;
                 }
                 case "life_light":

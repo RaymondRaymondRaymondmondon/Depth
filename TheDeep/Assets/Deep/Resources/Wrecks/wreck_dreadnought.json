@@ -1,0 +1,111 @@
+{
+ "salvage": [
+  {
+   "kind": "military_titanium",
+   "item": "Military-Grade Titanium",
+   "pos": [
+    7.2,
+    1.2,
+    6.0
+   ]
+  },
+  {
+   "kind": "military_titanium",
+   "item": "Military-Grade Titanium",
+   "pos": [
+    -6.8,
+    1.0,
+    14.0
+   ]
+  },
+  {
+   "kind": "military_titanium",
+   "item": "Military-Grade Titanium",
+   "pos": [
+    0.0,
+    8.6,
+    22.0
+   ]
+  },
+  {
+   "kind": "military_titanium",
+   "item": "Military-Grade Titanium",
+   "pos": [
+    6.5,
+    0.3,
+    -18.0
+   ]
+  },
+  {
+   "kind": "iron_scrap",
+   "item": "Rusted Iron Scrap",
+   "pos": [
+    0.0,
+    7.2,
+    6.5
+   ]
+  },
+  {
+   "kind": "iron_scrap",
+   "item": "Rusted Iron Scrap",
+   "pos": [
+    -7.5,
+    0.3,
+    2.0
+   ]
+  },
+  {
+   "kind": "iron_scrap",
+   "item": "Rusted Iron Scrap",
+   "pos": [
+    7.5,
+    0.3,
+    -6.0
+   ]
+  },
+  {
+   "kind": "iron_scrap",
+   "item": "Rusted Iron Scrap",
+   "pos": [
+    0.0,
+    7.2,
+    -25.0
+   ]
+  },
+  {
+   "kind": "iron_scrap",
+   "item": "Rusted Iron Scrap",
+   "pos": [
+    -7.0,
+    0.3,
+    -28.0
+   ]
+  }
+ ],
+ "boxes": [
+  {
+   "c": [
+    0,
+    3.5,
+    0
+   ],
+   "h": [
+    6.0,
+    3.8,
+    35.0
+   ]
+  },
+  {
+   "c": [
+    0,
+    9.5,
+    3.5
+   ],
+   "h": [
+    3.2,
+    2.6,
+    4.0
+   ]
+  }
+ ]
+}

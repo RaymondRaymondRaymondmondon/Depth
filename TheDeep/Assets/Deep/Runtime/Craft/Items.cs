@@ -41,7 +41,8 @@ namespace Deep
         public List<(ItemDef item, int count)> recipe = new List<(ItemDef, int)>();
         public ItemEffects effects;
         public int MaxStack => category == "tool" || category == "weapon" || category == "equipment" || category == "vehicle" || category == "hull_upgrade" ? 1 : 20;
-        public bool Edible => effects != null && (effects.hunger != 0 || effects.thirst != 0 || effects.health != 0 || effects.oxygen != 0);
+        public bool Raw => name.StartsWith("Raw ");
+        public bool Edible => Raw || (effects != null && (effects.hunger != 0 || effects.thirst != 0 || effects.health != 0 || effects.oxygen != 0));
         public override string ToString() => name;
     }
 

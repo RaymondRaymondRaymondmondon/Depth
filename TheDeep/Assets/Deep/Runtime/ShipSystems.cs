@@ -189,6 +189,20 @@ namespace Deep
                     col.a = 1;
                     px[j * SonarRes + i] = col;
                 }
+            // resources: the ping highlights deposits (white) and wrecks (yellow)
+            if (Deposits.I != null)
+            {
+                void Mark(Vector3 w, Color32 col, int r)
+                {
+                    float u = (w.x - c.x) / SonarRange, v = (w.z - c.z) / SonarRange;
+                    if (u * u + v * v > 1) return;
+                    int i0 = (int)((u * 0.5f + 0.5f) * SonarRes), j0 = (int)((v * 0.5f + 0.5f) * SonarRes);
+                    for (int dj = -r; dj <= r; dj++) for (int di = -r; di <= r; di++)
+                    { int ii = i0 + di, jj = j0 + dj; if (ii >= 0 && jj >= 0 && ii < SonarRes && jj < SonarRes) px[jj * SonarRes + ii] = col; }
+                }
+                foreach (var nd in Deposits.I.nodes) if (!nd.taken && nd.by != "hand") Mark(nd.pos, new Color32(255, 255, 255, 255), 0);
+                foreach (var w in Deposits.I.wrecks) Mark(w.t.position, new Color32(255, 220, 60, 255), 2);
+            }
             sonarMap.SetPixels32(px); sonarMap.Apply();
             sonarAge = 0; sonarHeading = n.heading;
             return true;

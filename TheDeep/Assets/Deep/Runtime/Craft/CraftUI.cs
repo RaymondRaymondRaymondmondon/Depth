@@ -173,8 +173,24 @@ namespace Deep
             GUI.enabled = true;
         }
 
+        // stations that take time: the desalinator boils a cup of seawater in two minutes (the doc), with power
+        readonly System.Collections.Generic.Dictionary<string, float> busyUntil = new System.Collections.Generic.Dictionary<string, float>();
+        public static float Minutes(ItemDef it)
+        {
+            var o = it.effects?.other; if (string.IsNullOrEmpty(o)) return 0;
+            var m = System.Text.RegularExpressions.Regex.Match(o, @"(\d+(\.\d+)?) minutes? each");
+            return m.Success ? float.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) : 0;
+        }
+
         void Make(ItemDef it)
         {
+            float mins = Minutes(it);
+            if (mins > 0)
+            {
+                if (d.ship && !d.ship.power) { d.Toast("The desalinator needs power."); return; }
+                if (busyUntil.TryGetValue(station, out float t) && Time.time < t) { d.Toast($"Still boiling: {t - Time.time:0} s"); return; }
+                busyUntil[station] = Time.time + mins * 60f;
+            }
             if (!h.pack.Make(it, Store)) return;
             // the Kite-Sub is launched into her moonpool's cradle
             if (it.name.IndexOf("Kite-Sub", System.StringComparison.OrdinalIgnoreCase) >= 0 && it.category == "vehicle" && d.ship)

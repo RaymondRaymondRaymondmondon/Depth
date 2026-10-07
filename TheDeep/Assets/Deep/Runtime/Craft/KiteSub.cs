@@ -28,7 +28,7 @@ namespace Deep
             var glass = ModelLibrary.Get("Vehicles/kite_sub", "kite_sub_glass");
             if (body)
             {
-                var mat = new Material(Shader.Find("Deep/Lit")); mat.SetFloat("_UseVC", 1); mat.SetFloat("_Roughness", 0.55f); mat.SetFloat("_Metallic", 0.5f); mat.SetFloat("_Cull", 0);
+                var mat = new Material(Shader.Find("Deep/Lit")); mat.SetFloat("_UseVC", 1); mat.SetFloat("_VCAlbedo", 1); mat.SetFloat("_Roughness", 0.55f); mat.SetFloat("_Metallic", 0.5f); mat.SetFloat("_Cull", 0);
                 Part(k.model, "body", body, mat, true);
             }
             if (glass)
