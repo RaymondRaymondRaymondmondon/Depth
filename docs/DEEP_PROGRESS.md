@@ -115,6 +115,34 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
   fish: hunters come, two frenzy), `life_starve` (75% of the grazers netted: hunters hunt and ram the hull).
 - Tests (`SeaTests`): the sound law, Wake tiers and cooling, hearing by band, scent drifting downstream and
   fading, the web holding its balance, over-harvesting starving the hunters.
-- **Still to do in stage 3:** Blender bodies for the leviathans and key species (the code bodies are placeholders),
-  the flora table placed in the world, species interactions (cleaning stations, the snapper-moray partnership, bait
-  balls), light as a channel (lamps attracting and blinding), the full moon's plankton blooms.
+- **Blender bodies** (`tools/artgen/deep_creatures.py` -> `Resources/Creatures/creatures_<biome>.glb`, 3.4 MB): every
+  species of both rosters built from its body plan and its name - lofted bodies with real profiles, membrane fins
+  with rays, eyes, mouths and gill slits, jointed legs and claws, arms and tentacles, spiral shells, valves, stars,
+  tube worms with crowns; palettes and patterns (countershading, bars, lateral stripes, spots, mottling, the orca's
+  markings, scutes) in vertex colours (no textures). The leviathans: the Reef-Crusher's battering crest and four eyes,
+  the Coral-Crusher's grinding plates and coral crusts, the Tangle-Serpent's barbels and glowing spots, the Shroud
+  Serpent's veil; jaws, teeth, scute rows, fin pairs and flukes. UV0 carries the swim. Contact sheets: render with the
+  gallery script (see the build log in the session) into `shots/deep/gallery_*.png`.
+- **Flora** (`tools/artgen/deep_flora.py` -> `Resources/Flora/flora_<biome>.glb`): all 40 plants of the two flora
+  tables; Iron-Kelp stays the code-built stalk. `Flora.cs` plants them by habitat: sea-grass meadows with reeds at
+  their sandy edges, thick reefs (corals, sponges, anemones, ferns, kelplets, blooms, algae), filaments and moss on
+  steep rock, and in the Labyrinth the kelp stalks with glow bulbs at their feet, holdfasts, shelves, bladders, pods,
+  tubeworms, spongeweed and vine curtains up them, canopy vines on the tall ones, and moss, sponges, tubeworms, pods
+  and tendrils on the clearings' floor (about 180,000 plants). Each kind has a group (reef, meadow, rock, kelp, floor):
+  reef fish spawn over the reef and kelp species among the stalks, never in plain sight.
+- **The seabed's heightmap fixed:** 769 samples is not 2^n + 1, so Unity rounded it and the drawn terrain no longer
+  matched `Seabed.H` (up to 70 m off: the stage 1 kelp stood in mid-water). Now 1025.
+- **The doc's named behaviours:** light as a channel (a dive lamp ~1,000 lux at 1 m in its beam, the floods: light-drawn
+  species come to it, light-shy ones flee; the plankton - pool biomass, not individuals - shows as motes gathering in
+  the beam at night); the full moon's plankton bloom (bait fish and open-water hunters crowd the top 25 m); bait balls
+  pulling tight and rising under attack; cleaning stations (well-fed hunters visit the cleaner shrimp and wrasse and stay
+  calm while cleaned); snapper packs driving their prey toward the morays; ambushers striking only what comes within a
+  body length or two; carrion-crabs clicking to call the scavengers; fin-sharks, dogfish and stalker-hounds smelling
+  blood fifty times fainter (300 m); groupers booming; the Wake's tiers drawing scavengers, then mesopredators, then
+  the apex; noises approached only to a standoff (grazers keep 30 m off); the Reef-Crusher ignoring silent divers but
+  ramming her over 70 dB within 400 m; the Tangle-Serpent wrapping anything that passes within 15 m.
+- Shots added: `life_coral` (the densest reef), `life_light` (night, the lamp), `life_engine` (two minutes at full
+  ahead: Wake tier 3, the Reef-Crusher comes and rams), `life_moon` (the full-moon bloom). `LogLife` prints the
+  states and the reasons ("DEEP WHY").
+- **Left for later:** the Stalker-Hounds stealing tools and the wreck interactions (with stage 4's items and the
+  wrecks), the Tangle-Serpent's 95 dB constriction sound and all other sound (the sound stage).

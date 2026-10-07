@@ -26,6 +26,8 @@ namespace Deep
         public Creature target; public bool targetDiver, hasNest, alive = true, persistent;
         public int group;
         public string why;      // what set the current state off (for the tests and the HUD)
+        public float visitT;    // time spent at a cleaning station
+        public Creature station;
     }
 
     public class Life : MonoBehaviour
@@ -62,6 +64,41 @@ namespace Deep
             }
         }
 
+        ParticleSystem motes;
+
+        // the plankton the lamp draws (the doc: light attracts light-drawn species): copepods and larvae aren't
+        // individuals here (they're the pools' biomass), so a cloud of glinting motes gathers in the beam, thick at night
+        void MakeMotes()
+        {
+            var go = new GameObject("Lamp motes");
+            motes = go.AddComponent<ParticleSystem>();
+            motes.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = motes.main; main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.startLifetime = 6f; main.startSpeed = 0.15f; main.startSize = new ParticleSystem.MinMaxCurve(0.012f, 0.04f); main.maxParticles = 900;
+            var em = motes.emission; em.rateOverTime = 0;
+            var sh = motes.shape; sh.shapeType = ParticleSystemShapeType.Cone; sh.angle = 18f; sh.radius = 0.3f; sh.length = 12f;
+            sh.shapeType = ParticleSystemShapeType.ConeVolume;
+            var noise = motes.noise; noise.enabled = true; noise.strength = 0.25f; noise.frequency = 0.6f;
+            var col = motes.colorOverLifetime; col.enabled = true;
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(new Color(0.85f, 1f, 0.9f), 0), new GradientColorKey(new Color(0.6f, 0.9f, 1f), 1) },
+                      new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.25f), new GradientAlphaKey(1, 0.7f), new GradientAlphaKey(0, 1) });
+            col.color = g;
+            var r = go.GetComponent<ParticleSystemRenderer>(); r.sharedMaterial = new Material(Resources.Load<Shader>("Shaders/Snow")); r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            motes.Play();
+        }
+
+        void Motes()
+        {
+            if (!motes) return;
+            bool on = diver && diver.lampOn && !diver.aboard && UnderwaterLook.Underwater;
+            var pool = eco.Of(diver && diver.Depth > 50f ? "kelp" : "shallows");
+            float rich = pool != null ? Mathf.Clamp(pool.Abundance(1), 0.2f, 2f) : 1f;
+            var em = motes.emission; em.rateOverTime = on ? (clock.Night ? 140f : 25f) * rich : 0f;
+            var c = diver.cam.transform;
+            motes.transform.SetPositionAndRotation(c.position + c.forward * 0.8f, c.rotation);
+        }
+
         public static Life Build(Seabed bed, Clock clock, Diver diver, Nautilus ship, int seed)
         {
             SpeciesBook.Load();
@@ -74,6 +111,7 @@ namespace Deep
             l.sound.sources.Add(new DiverNoise { d = diver });
             if (ship) l.sound.sources.Add(new ShipNoise { n = ship });
             l.SpawnLeviathans();
+            l.MakeMotes();
             return l;
         }
 
@@ -102,6 +140,7 @@ namespace Deep
             float lo = s.e.depthMin, hi = s.e.depthMax;
             if (clock.Night && s.level >= 2 && s.biome == "kelp") lo = Mathf.Max(5f, lo - 45f);
             if (clock.Night && s.level == 1 && s.night && !s.bottom) lo = Mathf.Max(2f, lo * 0.6f);
+            if (clock.Night && clock.MoonFullness > 0.8f && (BaitFish(s) || (s.level == 2 && s.e.habitat == "open"))) { lo = 2f; hi = Mathf.Max(lo + 6f, Mathf.Min(hi, 25f)); }
             return new Vector2(lo, hi);
         }
 
@@ -211,7 +250,8 @@ namespace Deep
                 if (s.resident || s.plankton) continue;
                 var pool = eco.Of(s.biome);
                 float abundance = pool != null ? pool.Abundance(Mathf.Min(s.level, 4)) : 1f;
-                float want = s.density * area * abundance * (Active(s) ? 1f : 0.35f) * 0.12f;
+                float bloom = clock.Night && clock.MoonFullness > 0.8f ? (BaitFish(s) ? 2.2f : s.level == 2 && s.e.habitat == "open" ? 1.5f : 1f) : 1f;
+                float want = s.density * area * abundance * (Active(s) ? 1f : 0.35f) * 0.12f * bloom;
                 near.TryGetValue(s, out int have);
                 if (have >= want || (have > 0 && have + s.groupMin > want * 1.5f)) continue;
                 if (rnd.NextDouble() > Mathf.Clamp01(want - have)) continue;
@@ -226,6 +266,33 @@ namespace Deep
                 }
                 k++;
             }
+        }
+
+        // ---- the doc's named behaviours (see the tables' "interactions") ----------------------------------------
+        static bool Has(SpeciesDef s, params string[] words) { foreach (var w in words) if (s.e.name.Contains(w)) return true; return false; }
+        static bool Cleaner(SpeciesDef s) => Has(s, "Cleaner Shrimp", "Gleaner Shrimp", "Moss-Nibbler Wrasse");
+        static bool Ambusher(SpeciesDef s) => Has(s, "Moray", "Scorpion-Lurker", "Sponge-Mimic", "Bulb-Lure", "Mantis");
+        static bool Bloodhound(SpeciesDef s) => Has(s, "Fin-Shark", "Tangle Dogfish", "Stalker-Hound");     // smell blood from 300 m
+        static bool Clicker(SpeciesDef s) => Has(s, "Carrion-Crab");
+        static bool Boomer(SpeciesDef s) => Has(s, "Maw Grouper", "Grouper Titan");
+        static bool BaitFish(SpeciesDef s) => s.level == 1 && s.schooling && !s.bottom;
+
+        // the light on a creature: the diver's helmet lamp (the doc: about 1,000 lux at 1 m) in its beam, and the
+        // Nautilus's floods; lux falls off with the square of the distance and the water takes its share
+        float LuxAt(Vector3 p)
+        {
+            float lux = 0;
+            if (diver && diver.lampOn && !diver.aboard)
+            {
+                var cam = diver.cam.transform; var d = p - cam.position; float r = d.magnitude;
+                if (r < 40f && Vector3.Dot(d / Mathf.Max(0.01f, r), cam.forward) > 0.82f) lux += 1000f / Mathf.Max(1f, r * r) * Mathf.Exp(-r * 0.05f);
+            }
+            if (ship && ship.powerK > 0.5f)
+            {
+                var bow = ship.WorldPoint(Nautilus.G(Nautilus.BowX - 10f, -2.3f, 0)); float r = (p - bow).magnitude;
+                if (r < 60f) lux += 4000f / Mathf.Max(1f, r * r) * Mathf.Exp(-r * 0.05f);
+            }
+            return lux;
         }
 
         // ---- the senses and the states -------------------------------------------------------------------------
@@ -259,12 +326,21 @@ namespace Deep
                 Creature threat = Nearest(c, perceive * 0.6f, o => o.sp.Eats(s) && (o.state == CState.Hunting || o.state == CState.Frenzy || o.sp.IsLeviathan));
                 bool rumble = s.level < 3 && sound.Hear(c.pos, 1u, out _, out _) > 90f;
                 bool diverScare = s.level == 1 && diver && !diver.aboard && DiverIn(c, 3f + s.size * 2f) && diver.vel.magnitude > 2.5f;
-                if (c.health < 0.25f || threat != null || rumble || diverScare)
+                bool blinded = s.e.light == "repelled" && LuxAt(c.pos) > 20f;
+                if (c.health < 0.25f || threat != null || rumble || diverScare || blinded)
                 {
-                    var from = threat != null ? threat.pos : diverScare ? diver.EyeWorld : heardAt;
+                    var from = threat != null ? threat.pos : diverScare || blinded ? diver.EyeWorld : heardAt;
                     var away = c.pos - from; away.y *= 0.3f; if (away.sqrMagnitude < 0.01f) away = -c.fwd;
                     c.goal = c.pos + away.normalized * 25f + Vector3.down * 4f;
-                    Set(c, CState.Fleeing, threat != null ? "a hunter" : rumble ? "a rumble" : c.health < 0.25f ? "hurt" : "the diver");
+                    // bait fish ball up and rise (the doc's bait balls); everything else runs for cover - and a pack of
+                    // snappers drives its prey toward the morays waiting in the crevices
+                    if (BaitFish(s) && threat != null) c.goal = c.pos + away.normalized * 8f + Vector3.up * 3f;
+                    if (threat != null && Has(threat.sp, "Reef-Snapper"))
+                    {
+                        var moray = Nearest(c, 30f, o => Has(o.sp, "Moray"));
+                        if (moray != null) c.goal = Vector3.Lerp(c.goal, moray.pos, 0.6f);
+                    }
+                    Set(c, CState.Fleeing, threat != null ? "a hunter" : rumble ? "a rumble" : blinded ? "the light" : c.health < 0.25f ? "hurt" : "the diver");
                     return;
                 }
             }
@@ -280,25 +356,39 @@ namespace Deep
                 return;
             }
 
-            // territorial: an intruder near the nest
-            if (c.hasNest && diver && !diver.aboard && (diver.EyeWorld - c.nest).sqrMagnitude < 50f * 50f * (s.IsLeviathan ? 4f : 0.25f))
+            // territorial: an intruder near the nest (the Reef-Crusher ignores a silent diver; the Tangle-Serpent strikes
+            // only what comes within 15 m of where it hangs; a grouper booms its warning)
+            bool ignoresDivers = Has(s, "Reef-Crusher");
+            float nestR = Has(s, "Tangle-Serpent") ? 15f + c.size * 0.3f : s.IsLeviathan ? 100f : 25f;
+            if (c.hasNest && !ignoresDivers && diver && !diver.aboard && (diver.EyeWorld - c.nest).sqrMagnitude < nestR * nestR)
             {
                 if (c.state != CState.Territorial) c.displayT = 0;
                 c.targetDiver = true; c.target = null;
                 Set(c, CState.Territorial, "an intruder near its nest");
                 return;
             }
-            if (s.IsLeviathan && ship && ship.sys && ship.sys.NoiseDb > 80f && (ship.Body.position - c.nest).sqrMagnitude < 300f * 300f)
+            bool wraps = Has(s, "Tangle-Serpent") && ship && (ship.Body.position - c.pos).sqrMagnitude < Mathf.Pow(15f + Nautilus.Radius + c.size * 0.3f, 2);
+            if (wraps || (s.IsLeviathan && ship && ship.sys && ship.sys.NoiseDb > 70f && !Has(s, "Tangle-Serpent") && (ship.Body.position - c.nest).sqrMagnitude < 400f * 400f))
             {
                 c.targetDiver = false; c.target = null; c.goal = ship.Body.position;
                 Set(c, CState.Territorial, "an engine in its territory");
                 return;
             }
 
-            // hunting: hungry and prey in its senses
+            // a cleaning station: the predators visiting the cleaners stay calm while they're cleaned
+            if (c.station != null && c.station.alive && c.visitT < 8f && !starving)
+            {
+                c.visitT += 0.25f; c.goal = c.station.pos + Vector3.up * (c.size * 0.6f);
+                Set(c, CState.Dormant, "being cleaned");
+                return;
+            }
+            c.station = null;
+
+            // hunting: hungry and prey in its senses (an ambusher waits in its crevice until prey is all but on it)
             if (c.hunger > 0.6f || starving)
             {
-                var prey = Nearest(c, perceive, o => s.Eats(o.sp) && o.size < c.size * 1.3f);
+                float reach = Ambusher(s) && !starving ? 2.5f + c.size : perceive;
+                var prey = Nearest(c, reach, o => s.Eats(o.sp) && o.size < c.size * 1.3f);
                 bool diverPrey = (s.lethal || starving) && s.level >= 2 && DiverIn(c, perceive) && (c.hunger > 0.8f || starving);
                 if (prey != null || diverPrey)
                 {
@@ -314,14 +404,49 @@ namespace Deep
                 }
             }
 
-            // alert: a sound 15 dB over the ambient, or a whiff of scent
+            // alert: a sound 15 dB over the ambient, a whiff of scent (a shark's nose finds a trace fifty times fainter:
+            // blood from 300 m), or a light it's drawn to
+            float notice = Bloodhound(s) ? Scent.Notice * 0.02f : Scent.Notice;
+            if (smell > notice && smell <= Scent.Notice && grad != Vector3.zero)
+            {
+                c.goal = c.pos + grad * 25f;
+                Set(c, CState.Alert, "blood far off");
+                return;
+            }
+            if (s.e.light == "attracted" && !s.bottom && LuxAt(c.pos) > 1f && diver)
+            {
+                c.goal = diver.EyeWorld + diver.cam.transform.forward * 4f;
+                Set(c, CState.Alert, "the light");
+                return;
+            }
+            // the Wake: hot water draws the curious grazers and scavengers (tier 1), the mesopredators (tier 2) and the
+            // biome's apex (tier 3) to the noisiest thing in it
+            int tier = Acoustics.Tier(sound.WakeAt(c.pos));
+            int need = s.level == 3 ? 3 : s.level == 2 ? 2 : s.level == 4 ? 1 : 9;
+            if (tier >= need && c.state != CState.Alert && rnd.NextDouble() < 0.05)
+            {
+                c.goal = ship && ship.sys && ship.sys.NoiseDb > 40f ? ship.Body.position : diver ? diver.EyeWorld : c.pos;
+                Set(c, CState.Alert, $"the Wake (tier {tier})");
+                return;
+            }
             if (heard > Acoustics.Ambient + 15f || smell > Scent.Notice)
             {
-                c.goal = smell > Scent.Notice && grad != Vector3.zero ? c.pos + grad * 12f : heardAt;
+                // they come closer to see - to a distance: grazers keep well off, hunters and scavengers come in
+                float standoff = s.level == 1 ? 30f : s.level == 4 ? 6f : 14f;
+                var off = c.pos - heardAt; off.y *= 0.3f;
+                c.goal = smell > Scent.Notice && grad != Vector3.zero ? c.pos + grad * 12f : heardAt + (off.sqrMagnitude > 0.01f ? off.normalized : Vector3.right) * standoff;
                 Set(c, CState.Alert, smell > Scent.Notice ? "scent" : heardWhat ?? "a noise");
                 return;
             }
 
+            // dormant: a well-fed hunter or a grazing giant sometimes visits a cleaning station nearby
+            if (s.level >= 2 && !Cleaner(s) && c.hunger < 0.5f && rnd.NextDouble() < 0.004)
+            {
+                var cl = Nearest(c, 40f, o => Cleaner(o.sp));
+                if (cl != null) { c.station = cl; c.visitT = 0; }
+            }
+            if (Boomer(s) && rnd.NextDouble() < 0.003) sound.Emit(c.pos, 72f, Band.Low, 1.2f, "a grouper's boom");
+            if (Clicker(s) && smell > 0.6f && rnd.NextDouble() < 0.05) sound.Emit(c.pos, 50f, Band.High, 0.4f, "a carrion-crab's clicking");
             // dormant: wander the home range, in the band for the hour
             Set(c, CState.Dormant, null);
             if ((c.goal - c.pos).sqrMagnitude < 4f || c.stateT > 12f || prev != CState.Dormant)
@@ -382,7 +507,7 @@ namespace Deep
             if (c.group != 0 && groups.TryGetValue(c.group, out var g) && g.n > 1 && c.state != CState.Hunting)
             {
                 var centre = g.sum / g.n; var avg = g.vel / g.n;
-                var toC = centre - c.pos; float spread = 1.2f + Mathf.Sqrt(g.n) * c.size * 1.4f;
+                var toC = centre - c.pos; float spread = (1.2f + Mathf.Sqrt(g.n) * c.size * 1.4f) * (c.state == CState.Fleeing && BaitFish(c.sp) ? 0.35f : 1f);
                 wantV += toC * (toC.magnitude > spread ? 0.6f : -0.2f) + (avg - c.vel) * 0.5f;
                 if (c.state == CState.Dormant) wantV = Vector3.Lerp(wantV, avg + toC * 0.3f, 0.5f);
             }
@@ -473,6 +598,7 @@ namespace Deep
             float dt = Mathf.Min(Time.deltaTime, 0.05f);
             Tick(dt, diver ? diver.EyeWorld : Vector3.zero);
             Draw();
+            Motes();
         }
 
         public void Tick(float dt, Vector3 eye)

@@ -10,7 +10,7 @@ namespace Deep
     {
         public static bool HideOcean;
         static readonly string[] All = { "debugdown", "debugair", "reef", "kelp", "up", "above", "night", "drop", "meadow",
-            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral" };
+            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral", "life_light", "life_engine", "life_moon" };
 
         public void Run(string which, string dir) { StartCoroutine(Go(which, dir)); }
 
@@ -43,6 +43,10 @@ namespace Deep
             foreach (var c in b.life.live) if (c.alive) { kinds.TryGetValue(c.sp.e.name, out int k); kinds[c.sp.e.name] = k + 1; }
             var top = new System.Collections.Generic.List<string>();
             foreach (var kv in kinds) top.Add($"{kv.Key} {kv.Value}");
+            var whys = new System.Collections.Generic.Dictionary<string, int>();
+            foreach (var c in b.life.live) if (c.alive && c.why != null) { whys.TryGetValue(c.why, out int w); whys[c.why] = w + 1; }
+            var wl = new System.Collections.Generic.List<string>(); foreach (var kv in whys) wl.Add($"{kv.Key} {kv.Value}");
+            Debug.Log("DEEP WHY: " + string.Join(", ", wl));
             Debug.Log($"DEEP LIFE: {b.life.live.Count} alive, {kinds.Count} species; dormant {b.life.Count(CState.Dormant)} alert {b.life.Count(CState.Alert)} hunting {b.life.Count(CState.Hunting)} fleeing {b.life.Count(CState.Fleeing)} frenzy {b.life.Count(CState.Frenzy)} territorial {b.life.Count(CState.Territorial)}; " + string.Join(", ", top));
         }
 
@@ -159,6 +163,38 @@ namespace Deep
                     if (lv == null) return false;
                     b.life.WarmUp(lv.pos, 5f);
                     Look(lv.pos + Quaternion.LookRotation(lv.fwd) * new Vector3(28f, 8f, 10f), lv.pos);
+                    return true;
+                }
+                case "life_light":
+                {
+                    // night on the reef with the helmet lamp on: light-drawn animals come to the beam, light-shy ones flee
+                    b.clock.hour = 23f; b.clock.day = 3; var p = Find(150, 420, 10, 18);
+                    b.diver.lampOn = true; b.diver.Place(p + Vector3.up * 3f, 80, 10);
+                    b.life.WarmUp(p + Vector3.up * 3f, 30f);
+                    LogLife(b);
+                    return true;
+                }
+                case "life_engine":
+                {
+                    // her engine run for two minutes at full ahead: the Wake heats and the Reef-Crusher comes to ram her
+                    b.clock.hour = 11f; Power(true); ship.telegraph = 5; ship.depthOrder = ship.Depth - 5f;
+                    var eye = ship.WorldPoint(Nautilus.G(0, 8, 14));
+                    for (int i = 0; i < 1200; i++) { ship.Sail(0.1f); ship.sys.Step(0.1f); b.life.Tick(0.1f, eye); }
+                    Debug.Log($"DEEP ENGINE: Wake at her {b.life.sound.WakeAt(ship.Body.position):0.0} (tier {Acoustics.Tier(b.life.sound.WakeAt(ship.Body.position))}), breaches {ship.sys.breaches.Count}");
+                    LogLife(b);
+                    Look(eye, ship.Body.position);
+                    return true;
+                }
+                case "life_moon":
+                {
+                    // a full moon: the plankton bloom brings the bait fish and their hunters up near the surface
+                    b.clock.hour = 23.5f; b.clock.day = 14; var p = Find(150, 420, 18, 30);
+                    var eye = new Vector3(p.x, -4f, p.z);
+                    b.life.WarmUp(eye, 30f);
+                    int high = 0, bait = 0; foreach (var c in b.life.live) if (c.alive && c.sp.schooling && c.sp.level == 1) { bait++; if (c.pos.y > -12f) high++; }
+                    Debug.Log($"DEEP MOON: {high} of {bait} bait fish in the top 12 m");
+                    b.diver.Place(eye, 80, 20);
+                    LogLife(b);
                     return true;
                 }
                 case "life_coral":
