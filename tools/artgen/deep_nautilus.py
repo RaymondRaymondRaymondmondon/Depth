@@ -22,21 +22,28 @@ import boat as B
 
 G = B.G
 R = 4.0            # the hull's radius amidships
-HALF = 35.0        # half the length (the spur reaches past it)
-MID = 14.0         # the parallel middle body runs |x| < MID
+HALF = 35.0        # half the length before the crew section was let in (the spur reaches past the bow)
+MID = 14.0         # the parallel middle body ran |x| < MID
+S = 8.0            # the Crew Quarters' section, let in at x = 6: everything forward of it sits S further toward the bow
+CREW_X0, CREW_X1 = 6.0, 6.0 + S
 FLOOR, CEIL = -1.6, 2.2
 # the pilot house on the back over the Bridge: its floor, size, the eye height of its ports, the shaft and ladder
-PH_X, PH_HX, PH_HZ, PH_H = 21.8, 1.3, 0.95, 2.25
+PH_X, PH_HX, PH_HZ, PH_H = 21.8 + S, 1.3, 0.95, 2.25
 PH_FLOOR = 3.6
 PH_EYE = PH_FLOOR + 1.62
-PH_SHAFT = 20.95
+PH_SHAFT = 20.95 + S
 PH_PORTS = [(PH_X + PH_HX, 0.0, 'x', 0.34), (PH_X + PH_HX, 0.55, 'x', 0.2), (PH_X + PH_HX, -0.55, 'x', 0.2),
             (PH_X + 0.4, PH_HZ, 'z', 0.24), (PH_X + 0.4, -PH_HZ, 'z', 0.24), (PH_X - 0.6, PH_HZ, 'z', 0.24), (PH_X - 0.6, -PH_HZ, 'z', 0.24),
             (PH_X - PH_HX, 0.0, 'x', 0.24)]
 
 
 def r_at(x):
-    """The hull's radius at x: a cylinder amidships, tapering to a point at the bow and to the screw shaft astern."""
+    """The hull's radius at x: a cylinder amidships (lengthened by the crew section), tapering to a point at the bow
+    and to the screw shaft astern."""
+    if x > S:
+        x -= S
+    elif x > 0:
+        x = 0.0
     if abs(x) <= MID:
         return R
     t = min(1.0, (abs(x) - MID) / (HALF - MID))
@@ -44,8 +51,9 @@ def r_at(x):
 
 
 ROOMS = [   # (id, name, x0 aft, x1 forward, ceiling)
-    ("bridge", "The Bridge", 18.5, 26.0, CEIL),
-    ("fab", "The Fabrication Bay", 6.0, 18.5, CEIL),
+    ("bridge", "The Bridge", 18.5 + S, 26.0 + S, CEIL),
+    ("fab", "The Fabrication Bay", 6.0 + S, 18.5 + S, CEIL),
+    ("crew", "Crew Quarters", CREW_X0, CREW_X1, CEIL),
     ("hydro", "Hydroponics & Larder", -1.0, 6.0, CEIL),
     ("dive", "Airlock & Dive Room", -8.0, -1.0, CEIL),
     ("moonpool", "The Moonpool", -16.0, -8.0, CEIL),
@@ -66,13 +74,13 @@ def room_half(x0, x1, ceil):
 
 
 LAYOUT = {"frame": "x bow, y up, z starboard (metres, about the hull's axis)", "rooms": [], "doors": [], "stations": [],
-          "lamps": [], "hatches": [], "ladders": [], "windows": [], "moonpool": {}, "lights": []}
+          "lamps": [], "hatches": [], "ladders": [], "windows": [], "moonpool": {}, "lights": [], "cabins": [], "walls": []}
 
 
 # ---------------------------------------------------------------- the hull
 def hull_mesh():
     """The skin: rings of 40 around the axis every half metre, cut later for the windows, the moonpool and the doors."""
-    xs = [-HALF + 0.5 * i for i in range(int(2 * HALF / 0.5) + 1)]
+    xs = [-HALF + 0.5 * i for i in range(int((2 * HALF + S) / 0.5) + 1)]
     segs = 40
     vs, faces = [], []
     for x in xs:
@@ -180,7 +188,7 @@ def cutter_ellipse(c, axis, ra, rb, depth):
 def exterior():
     h = hull_mesh()
     # the salon's great windows, both sides; the Bridge's three bow ports; the moonpool through the bottom
-    wins = [(10.0, 0.5), (15.0, 0.5)]
+    wins = [(10.0 + S, 0.5), (15.0 + S, 0.5)]
     for (x, y) in wins:
         for s in (-1, 1):
             boolean_cut(h, cutter_ellipse((x, y, s * R), 'z', 1.25, 0.75, 2.4))
@@ -189,12 +197,21 @@ def exterior():
     boolean_cut(h, cutter_box((PH_SHAFT, R - 0.4, 0.0), (0.45, 0.8, 0.45)))   # the pilot house's shaft through the back
     # the airlock's outer door (starboard, in the Dive Room) and the deck hatch (over the Dive Room)
     boolean_cut(h, cutter_ellipse((-4.0, 0.0, R), 'z', 0.55, 0.95, 2.0))
+    # a porthole for each cabin in the Crew Quarters
+    for cx in CABIN_XS:
+        for sd in (-1, 1):
+            boolean_cut(h, cutter_ellipse((cx, 0.55, sd * R), 'z', 0.32, 0.32, 2.0))
     B.put(h, "hull")
+    for cx in CABIN_XS:
+        for sd in (-1, 1):
+            pts = [(cx + 0.32 * math.cos(a), 0.55 + 0.32 * math.sin(a), sd * (R + 0.02)) for a in [i * 2 * math.pi / 20 for i in range(21)]]
+            B.rod(pts, 0.045, "brass", 8)
+            B.put(cutter_ellipse((cx, 0.55, sd * (R - 0.1)), 'z', 0.31, 0.31, 0.02), "glass")
 
     # the deck: a teak walkway along the back, on frames
-    for x0, x1 in ((-21.0, -6.0), (-3.0, 19.0)):
+    for x0, x1 in ((-21.0, -6.0), (-3.0, 19.0 + S)):
         B.box(((x0 + x1) / 2, R + 0.08, 0), ((x1 - x0) / 2, 0.08, 1.3), "teak", 0.02)
-    for x in range(-21, 20, 2):
+    for x in range(-21, 20 + int(S), 2):
         B.box((x, R - 0.05, 0), (0.06, 0.12, 1.35), "iron_in", 0.01)
     # the deck hatch: a brass coaming and a lid hinged open, over the ladder in the Dive Room
     B.lathe((-4.5, R - 0.1, 0), [(0.62, 0.0), (0.62, 0.32), (0.56, 0.34), (0.56, 0.05)], "brass", 24)
@@ -219,26 +236,26 @@ def exterior():
     B.box((PH_X, PH_FLOOR + PH_H + 0.05, 0), (PH_HX + 0.1, 0.06, PH_HZ + 0.1), "hull_clean", 0.04)
     LAYOUT["lights"].append({"kind": "pilothouse", "pos": [PH_X, PH_EYE, 0]})
     # the lantern: a dome on the back with a great lens looking forward (the sub's searchlight)
-    lx = 12.5
+    lx = 12.5 + S
     B.lathe((lx, R - 0.05, 0), [(0.75, 0.0), (0.75, 0.45), (0.6, 0.85), (0.3, 1.05), (0.05, 1.1)], "hull_clean", 28)
     B.disc((lx + 0.62, R + 0.45, 0), 'x', 0.42, 0.12, "brass", 24, 0.34)
     B.disc((lx + 0.66, R + 0.45, 0), 'x', 0.36, 0.06, "lens", 24)
     LAYOUT["lights"].append({"kind": "lantern", "pos": [lx + 0.8, R + 0.45, 0], "dir": [1, -0.12, 0]})
     # the floodlights under the bow
     for s in (-1, 1):
-        B.cyl((24.0, -2.2, s * 2.0), (24.6, -2.3, s * 2.0), 0.22, "brass", 16, 0.18)
-        B.disc((24.62, -2.3, s * 2.0), 'x', 0.17, 0.03, "lens", 16)
-        LAYOUT["lights"].append({"kind": "flood", "pos": [24.8, -2.3, s * 2.0], "dir": [1, -0.25, s * 0.15]})
+        B.cyl((24.0 + S, -2.2, s * 2.0), (24.6 + S, -2.3, s * 2.0), 0.22, "brass", 16, 0.18)
+        B.disc((24.62 + S, -2.3, s * 2.0), 'x', 0.17, 0.03, "lens", 16)
+        LAYOUT["lights"].append({"kind": "flood", "pos": [24.8 + S, -2.3, s * 2.0], "dir": [1, -0.25, s * 0.15]})
     # the spur: a long iron ram from the bow, ridged
-    B.cyl((33.5, 0, 0), (39.5, 0, 0), 0.55, "hull_clean", 12, 0.02)
-    B.box((36.0, 0.35, 0), (3.0, 0.08, 0.05), "hull_clean", 0.01)
+    B.cyl((33.5 + S, 0, 0), (39.5 + S, 0, 0), 0.55, "hull_clean", 12, 0.02)
+    B.box((36.0 + S, 0.35, 0), (3.0, 0.08, 0.05), "hull_clean", 0.01)
     # the stern: the shaft, the rudder above and below, the diving planes
     B.cyl((-34.5, 0, 0), (-37.2, 0, 0), 0.22, "iron_in", 16)
     fin([(-33.0, 0.4, 0.0), (-36.4, 0.4, 0.0), (-36.8, 3.4, 0.0), (-34.2, 3.2, 0.0)], 0.12, "hull_clean", "rudder_top")
     fin([(-33.0, -0.4, 0.0), (-36.4, -0.4, 0.0), (-36.8, -3.0, 0.0), (-34.2, -2.8, 0.0)], 0.12, "hull_clean", "rudder_bot")
     for s in (-1, 1):
         fin([(-31.0, 0.0, s * 1.6), (-34.6, 0.0, s * 0.9), (-35.4, 0.0, s * 3.4), (-32.6, 0.0, s * 3.6)], 0.1, "hull_clean", "plane")
-        fin([(22.0, -0.6, s * 3.6), (19.0, -0.6, s * 3.9), (19.4, -0.6, s * 5.2), (21.6, -0.6, s * 5.0)], 0.1, "hull_clean", "bowplane")
+        fin([(22.0 + S, -0.6, s * 3.6), (19.0 + S, -0.6, s * 3.9), (19.4 + S, -0.6, s * 5.2), (21.6 + S, -0.6, s * 5.0)], 0.1, "hull_clean", "bowplane")
     # brass frames round the salon windows, and their glass
     for w in LAYOUT["windows"]:
         pts = [(w["x"] + 1.25 * math.cos(a), w["y"] + 0.75 * math.sin(a), w["z"]) for a in [i * 2 * math.pi / 32 for i in range(33)]]
@@ -350,6 +367,72 @@ def pilot_house():
     LAYOUT["gauges"] = {"depth": [PH_X + 1.15, PH_FLOOR + 1.25, -0.6]}
 
 
+CABIN_XS = (CREW_X0 + S * 0.25, CREW_X0 + S * 0.75)    # the cabins' middles along her (two each side)
+
+
+def wall(x0, x1, z0, z1, mat="walnut"):
+    """A partition from (x0, z0) to (x1, z1), floor to ceiling, written to the layout for the game's colliders."""
+    if x1 - x0 < 0.01 or z1 - z0 < 0.01:
+        return
+    B.box(((x0 + x1) / 2, (FLOOR + CEIL) / 2, (z0 + z1) / 2), ((x1 - x0) / 2, (CEIL - FLOOR) / 2, (z1 - z0) / 2), mat, 0.0)
+    LAYOUT["walls"].append({"x0": x0, "x1": x1, "z0": z0, "z1": z1})
+
+
+def crew_quarters(hw):
+    """Four cabins, two each side of a central passage, for the crew to make their own: a bunk with a blanket, a small
+    desk and chair, a locker, a shelf, a porthole in the hull and a lamp. (The decorating comes later; the layout
+    lists each cabin's floor so things can be placed in it.)"""
+    cw = 0.65                       # half the passage's width
+    dw = 0.45                       # half a cabin door's width
+    t = 0.04
+    mid = (CREW_X0 + CREW_X1) / 2
+    for sd in (-1, 1):
+        # the passage wall on this side, with a door into each cabin
+        z = sd * cw
+        xs = [CREW_X0]
+        for cx in CABIN_XS:
+            xs += [cx - dw, cx + dw]
+        xs.append(CREW_X1)
+        for k in range(0, len(xs), 2):
+            wall(xs[k], xs[k + 1], z - t if sd > 0 else z - t, z + t)
+        for cx in CABIN_XS:   # the lintel over each door
+            B.box((cx, (FLOOR + 2.05 + CEIL) / 2, z), (dw, (CEIL - FLOOR - 2.05) / 2, t), "walnut", 0.0)
+            pts = [(cx - dw, FLOOR, z), (cx - dw, FLOOR + 2.05, z), (cx + dw, FLOOR + 2.05, z), (cx + dw, FLOOR, z)]
+            B.rod(pts, 0.03, "brass", 6)
+        # the wall between the two cabins on this side
+        z0, z1 = (cw, hw) if sd > 0 else (-hw, -cw)
+        wall(mid - t, mid + t, z0, z1)
+    n = 0
+    for sd in (-1, 1):
+        for cx in CABIN_XS:
+            n += 1
+            zi, zo = sd * cw, sd * hw              # the passage side and the hull side
+            x0, x1 = (CREW_X0, mid) if cx < mid else (mid, CREW_X1)
+            zlo, zhi = min(zi, zo), max(zi, zo)
+            LAYOUT["cabins"].append({"id": f"cabin{n}", "name": f"Cabin {n}", "x0": x0 + t, "x1": x1 - t, "z0": zlo + t, "z1": zhi - t,
+                                     "door": [cx, zi], "porthole": [cx, 0.55, sd * (hw + 0.05)]})
+            # the bunk along the inner wall (the bulkhead or the partition), the blanket and pillow
+            bx = x0 + 0.5 if cx < mid else x1 - 0.5
+            bz = (zi + zo) / 2 + sd * 0.25
+            B.box((bx, FLOOR + 0.25, bz), (0.45, 0.25, 0.95), "walnut", 0.02)
+            B.box((bx, FLOOR + 0.53, bz), (0.42, 0.06, 0.92), "rug", 0.04)
+            B.box((bx, FLOOR + 0.62, bz + sd * 0.7), (0.3, 0.06, 0.18), "chart", 0.04)
+            # the desk and chair under the porthole, a locker by the door, a shelf over the bunk
+            dx = x1 - 0.6 if cx < mid else x0 + 0.6
+            B.box((dx, FLOOR + 0.75, zo - sd * 0.32), (0.45, 0.03, 0.3), "walnut", 0.01)
+            B.box((dx, FLOOR + 0.37, zo - sd * 0.32), (0.4, 0.37, 0.02), "walnut", 0.0)
+            B.box((dx, FLOOR + 0.24, zo - sd * 0.9), (0.2, 0.24, 0.2), "leather", 0.05)
+            lx = x1 - 0.35 if cx < mid else x0 + 0.35
+            B.box((lx, FLOOR + 0.95, zi + sd * 0.3), (0.25, 0.95, 0.24), "iron_in", 0.02)
+            B.box((bx, FLOOR + 1.6, zo - sd * 0.12), (0.4, 0.02, 0.1), "walnut", 0.0)
+            B.box((bx, FLOOR + 1.72, zo - sd * 0.12), (0.3, 0.1, 0.07), "books", 0.01)
+            # a lamp of its own
+            B.cyl((cx, CEIL, (zi + zo) / 2), (cx, CEIL - 0.15, (zi + zo) / 2), 0.03, "brass", 8)
+            B.lathe((cx, CEIL - 0.36, (zi + zo) / 2), [(0.02, 0.0), (0.12, 0.05), (0.13, 0.12), (0.1, 0.18), (0.03, 0.2)], "lamp", 14)
+            LAYOUT["lamps"].append({"room": "crew", "pos": [cx, CEIL - 0.3, (zi + zo) / 2]})
+            station(f"cabin{n}", "cabin", (cx, FLOOR, zi + sd * 0.2), (0, 0, sd), "crew")
+
+
 def station(sid, kind, pos, facing, room):
     LAYOUT["stations"].append({"id": sid, "kind": kind, "pos": list(pos), "facing": list(facing), "room": room})
 
@@ -357,7 +440,7 @@ def station(sid, kind, pos, facing, room):
 def interior():
     hws, walls = {}, {}
     for (rid, name, x0, x1, ceil) in ROOMS:
-        wall = "walnut" if rid in ("bridge", "fab", "hydro") else "iron_in"
+        wall = "walnut" if rid in ("bridge", "fab", "hydro", "crew") else "iron_in"
         floor = "teak" if rid in ("bridge", "fab", "hydro", "dive") else "chequer"
         hole = (-14.0, -10.0, -1.5, 1.5) if rid == "moonpool" else None
         hws[rid], walls[rid] = room_shell(rid, name, x0, x1, ceil, wall, floor, hole)
@@ -378,38 +461,40 @@ def interior():
         tube_ring((w["x"], w["y"], zmid), 'z', w["ra"], w["rb"], R - hw + 0.2, 0.08, "brass")
 
     # ---- the Bridge: the engine telegraph, the sonar console, the chart table (the helm is up in the pilot house)
-    B.cyl((24.0, FLOOR, 1.5), (24.0, FLOOR + 1.05, 1.5), 0.13, "brass", 16)   # the telegraph's pedestal
-    B.disc((24.0, FLOOR + 1.22, 1.5), 'x', 0.26, 0.12, "brass", 24)
-    B.disc((24.07, FLOOR + 1.22, 1.5), 'x', 0.21, 0.02, "dial", 24)
-    station("telegraph", "telegraph", (23.4, FLOOR, 1.5), (1, 0, 0), "bridge")
-    B.box((23.6, FLOOR + 0.55, -1.6), (0.4, 0.55, 0.45), "iron_in", 0.03)     # the sonar console
-    B.box((23.95, FLOOR + 1.25, -1.6), (0.08, 0.32, 0.36), "brass", 0.02)
-    B.disc((24.04, FLOOR + 1.25, -1.6), 'x', 0.27, 0.02, "screen", 32)
-    station("sonar", "sonar", (23.0, FLOOR, -1.6), (1, 0, 0), "bridge")
-    B.box((19.7, FLOOR + 0.45, 0), (0.6, 0.45, 0.6), "walnut", 0.03)      # the chart table
-    B.box((19.7, FLOOR + 0.92, 0), (0.55, 0.02, 0.55), "chart", 0.005)
-    for (gx, gz) in ((19.0, 1.9), (19.0, -1.9)):                          # the depth gauge and the clock
+    B.cyl((24.0 + S, FLOOR, 1.5), (24.0 + S, FLOOR + 1.05, 1.5), 0.13, "brass", 16)   # the telegraph's pedestal
+    B.disc((24.0 + S, FLOOR + 1.22, 1.5), 'x', 0.26, 0.12, "brass", 24)
+    B.disc((24.07 + S, FLOOR + 1.22, 1.5), 'x', 0.21, 0.02, "dial", 24)
+    station("telegraph", "telegraph", (23.4 + S, FLOOR, 1.5), (1, 0, 0), "bridge")
+    B.box((23.6 + S, FLOOR + 0.55, -1.6), (0.4, 0.55, 0.45), "iron_in", 0.03)     # the sonar console
+    B.box((23.95 + S, FLOOR + 1.25, -1.6), (0.08, 0.32, 0.36), "brass", 0.02)
+    B.disc((24.04 + S, FLOOR + 1.25, -1.6), 'x', 0.27, 0.02, "screen", 32)
+    station("sonar", "sonar", (23.0 + S, FLOOR, -1.6), (1, 0, 0), "bridge")
+    B.box((19.7 + S, FLOOR + 0.45, 0), (0.6, 0.45, 0.6), "walnut", 0.03)      # the chart table
+    B.box((19.7 + S, FLOOR + 0.92, 0), (0.55, 0.02, 0.55), "chart", 0.005)
+    for (gx, gz) in ((19.0 + S, 1.9), (19.0 + S, -1.9)):                          # the depth gauge and the clock
         B.disc((gx, 0.8, gz + (0.02 if gz < 0 else -0.02)), 'z', 0.32, 0.05, "brass", 24)
         B.disc((gx, 0.8, gz + (0.05 if gz < 0 else -0.05)), 'z', 0.27, 0.01, "dial", 24)
-    LAYOUT["bridgeGauges"] = {"depth": [19.0, 0.8, -1.85], "clock": [19.0, 0.8, 1.85]}
+    LAYOUT["bridgeGauges"] = {"depth": [19.0 + S, 0.8, -1.85], "clock": [19.0 + S, 0.8, 1.85]}
 
     # ---- the Fabrication Bay (the old salon): the fabricator, a workbench, bookcases, the organ, a rug, chairs
     hw = hws["fab"]
-    B.box((12.5, FLOOR + 0.9, -(hw - 0.55)), (0.7, 0.9, 0.5), "brass", 0.05)            # the fabricator
-    B.lathe((12.5, FLOOR + 1.8, -(hw - 0.55)), [(0.45, 0.0), (0.42, 0.3), (0.25, 0.55), (0.05, 0.62)], "glass", 20)
-    B.box((12.5, FLOOR + 1.2, -(hw - 1.06)), (0.45, 0.25, 0.02), "screen", 0.005)
-    station("fabricator", "fabricator", (12.5, FLOOR, -(hw - 1.7)), (0, 0, -1), "fab")
-    B.box((16.6, FLOOR + 0.45, hw - 0.5), (1.2, 0.45, 0.45), "walnut", 0.03)            # the workbench (the Abyssal Forge's place)
-    B.box((16.6, FLOOR + 0.92, hw - 0.5), (1.25, 0.03, 0.5), "iron_in", 0.01)
-    station("forge", "forge", (16.6, FLOOR, hw - 1.4), (0, 0, 1), "fab")
-    for (bx, s) in ((7.4, 1), (7.4, -1), (17.6, -1)):                                  # bookcases
+    B.box((12.5 + S, FLOOR + 0.9, -(hw - 0.55)), (0.7, 0.9, 0.5), "brass", 0.05)            # the fabricator
+    B.lathe((12.5 + S, FLOOR + 1.8, -(hw - 0.55)), [(0.45, 0.0), (0.42, 0.3), (0.25, 0.55), (0.05, 0.62)], "glass", 20)
+    B.box((12.5 + S, FLOOR + 1.2, -(hw - 1.06)), (0.45, 0.25, 0.02), "screen", 0.005)
+    station("fabricator", "fabricator", (12.5 + S, FLOOR, -(hw - 1.7)), (0, 0, -1), "fab")
+    B.box((16.6 + S, FLOOR + 0.45, hw - 0.5), (1.2, 0.45, 0.45), "walnut", 0.03)            # the workbench (the Abyssal Forge's place)
+    B.box((16.6 + S, FLOOR + 0.92, hw - 0.5), (1.25, 0.03, 0.5), "iron_in", 0.01)
+    station("forge", "forge", (16.6 + S, FLOOR, hw - 1.4), (0, 0, 1), "fab")
+    for (bx, s) in ((7.4 + S, 1), (7.4 + S, -1), (17.6 + S, -1)):                                  # bookcases
         B.box((bx, FLOOR + 1.1, s * (hw - 0.25)), (0.75, 1.1, 0.22), "walnut", 0.02)
         for k in range(4):
             B.box((bx, FLOOR + 0.35 + k * 0.5, s * (hw - 0.3)), (0.7, 0.18, 0.16), "books", 0.01)
-    B.box((12.5, FLOOR + 0.006, 0), (3.5, 0.006, 1.6), "rug", 0.0)                       # the rug
-    for (cx, cz) in ((11.0, 0.9), (14.0, 0.9)):
+    B.box((12.5 + S, FLOOR + 0.006, 0), (3.5, 0.006, 1.6), "rug", 0.0)                       # the rug
+    for (cx, cz) in ((11.0 + S, 0.9), (14.0 + S, 0.9)):
         B.box((cx, FLOOR + 0.25, cz), (0.4, 0.25, 0.4), "leather", 0.08)
         B.box((cx - 0.3, FLOOR + 0.6, cz), (0.08, 0.35, 0.4), "leather", 0.06)
+
+    crew_quarters(hws["crew"])
 
     # ---- Hydroponics & Larder: planter troughs under grow lamps, larder shelves, the Pressure Grill and the desalinator
     hw = hws["hydro"]

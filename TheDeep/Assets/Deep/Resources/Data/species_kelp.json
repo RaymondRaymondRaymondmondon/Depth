@@ -1,0 +1,3414 @@
+{
+  "biome": "kelp",
+  "name": "The Kelp Labyrinth",
+  "depthMin": 50,
+  "depthMax": 150,
+  "absorptionDbPerM": 0.038,
+  "layout": "Iron-hard kelp stalks rise from the muddy floor to the surface in narrow mazes; ordinary kelp is cut with the Survival Knife, Iron-Kelp needs the Heated Blade. Clearings hold copper, quartz and titanium nodes; the tangled dreadnought hangs here.",
+  "look": "Shadowy emerald water, sunbeams filtered through the canopy, floating spores, dark shapes between giant rubbery trunks.",
+  "hazards": "Propeller tangles, very low visibility, and ambush predators disguised as kelp fronds (Wraiths, the Tangle-Serpent Leviathan).",
+  "foodWeb": "Iron-Kelp, other macro-algae and phytoplankton feed plankton, sluggish grazers (Kelp-Cow, Kelp-Grazer Manatee, Holdfast Hog) and armoured snails. These feed stalkers like the Stalker-Hound and Lancer Pike and suction hunters like the Suction-Maw Eel. Scavengers led by the Root-Marrow Worm recycle fallen kelp. The Tangle-Serpent Leviathan and Shroud Serpent ambush anything big that displaces water.",
+  "source": "The Deep Design Document.pdf, The ten ecosystems (flora and fauna tables) and Featured species",
+  "flora": [
+    {
+      "id": "iron_kelp",
+      "name": "Iron-Kelp",
+      "tier": 2,
+      "type": "Giant macro-alga",
+      "description": "Iron-hard stalks running floor to surface; fronds foul propellers",
+      "eatenBy": [
+        "Spinner-Fish",
+        "Kelp-Cow",
+        "Kelp-Grazer Manatee",
+        "Ironshell Snail",
+        "Stalk Urchin",
+        "Root-Marrow Worm"
+      ],
+      "yields": "Iron-Kelp Stalk; Iron-Kelp Frond; Iron-Kelp Fibers",
+      "use": "Stalk: hull ribs and Desalinator; Frond: food and biofuel; Fibers: High-Tensile Mesh and rugs",
+      "habitat": "kelp"
+    },
+    {
+      "id": "glow_bulb",
+      "name": "Glow Bulb",
+      "tier": 1,
+      "type": "Bioluminescent fruit",
+      "description": "Small fruits at kelp bases giving a soft green glow of about 5 lux",
+      "eatenBy": [
+        "Bulb-Picker Goby"
+      ],
+      "yields": "Glow-Bulb",
+      "use": "Glow-Bulb Cells (first battery)",
+      "habitat": "kelp"
+    },
+    {
+      "id": "tangle_vines",
+      "name": "Tangle Vines",
+      "tier": 1,
+      "type": "Creeping vine",
+      "description": "Wiry vines strung between stalks into snagging curtains",
+      "eatenBy": [
+        "Vine Abalone"
+      ],
+      "yields": "Tangle Fiber",
+      "use": "Cordage and salvage nets",
+      "habitat": "kelp"
+    },
+    {
+      "id": "rubbery_bracket",
+      "name": "Rubbery Bracket",
+      "tier": 1,
+      "type": "Shelf alga",
+      "description": "Springy shelf growths on stalks that bounce back when pressed",
+      "eatenBy": [
+        "Kelp-Cow"
+      ],
+      "yields": "Bracket Latex",
+      "use": "Seals, gaskets, suit patches",
+      "habitat": "kelp"
+    },
+    {
+      "id": "coil_tubeworm_flora",
+      "name": "Coil Tubeworm Flora",
+      "tier": 2,
+      "type": "Calcified tube colony",
+      "description": "Chalky spiral tubes winding up holdfasts like springs",
+      "eatenBy": [
+        "Vine Abalone"
+      ],
+      "yields": "Coil Calcite",
+      "use": "Cement and ceramic housings",
+      "habitat": "kelp"
+    },
+    {
+      "id": "strangle_spongeweed",
+      "name": "Strangle Spongeweed",
+      "tier": 2,
+      "type": "Sponge-alga",
+      "description": "Porous mass that smothers kelp stalks and slowly kills them",
+      "eatenBy": [
+        "Frond Chiton"
+      ],
+      "yields": "Strangle Sponge Filter",
+      "use": "Bio-Osmosis Filter",
+      "habitat": "kelp"
+    },
+    {
+      "id": "vascular_moss",
+      "name": "Vascular Moss",
+      "tier": 1,
+      "type": "Moss carpet",
+      "description": "Root carpet that pumps sap through visible veins",
+      "eatenBy": [
+        "Kelp-Cow",
+        "Spiral-Crown Snail",
+        "Moss-Nibbler Wrasse"
+      ],
+      "yields": "Moss Sap",
+      "use": "Medkits and bandage gel",
+      "habitat": "seabed"
+    },
+    {
+      "id": "shadow_tendril",
+      "name": "Shadow Tendril",
+      "tier": 3,
+      "type": "Light-absorbing filament",
+      "description": "Black filaments that swallow light; patches measure near 0 lux",
+      "eatenBy": [
+        "Tendril Limpet"
+      ],
+      "yields": "Shadow Pigment",
+      "use": "Stealth hull coating",
+      "habitat": "kelp"
+    },
+    {
+      "id": "emerald_pod",
+      "name": "Emerald Pod",
+      "tier": 1,
+      "type": "Float pod",
+      "description": "Green gas-filled pods bobbing on short stems",
+      "eatenBy": [
+        "Kelp-Grazer Manatee",
+        "Pod-Cracker Bream"
+      ],
+      "yields": "Emerald Pod Gel",
+      "use": "Food and fresh water",
+      "habitat": "kelp"
+    },
+    {
+      "id": "vine_lace",
+      "name": "Vine Lace",
+      "tier": 1,
+      "type": "Lattice alga",
+      "description": "Open net-like lattice hung between neighbouring stalks",
+      "eatenBy": [
+        "Moss-Nibbler Wrasse",
+        "Lattice Sea Hare"
+      ],
+      "yields": "Lace Mesh",
+      "use": "Intake screens and filters",
+      "habitat": "kelp"
+    },
+    {
+      "id": "root_kelp",
+      "name": "Root Kelp",
+      "tier": 2,
+      "type": "Holdfast kelp",
+      "description": "Huge gnarled holdfasts whose hollows hide caches and eels",
+      "eatenBy": [
+        "Stalk Urchin",
+        "Holdfast Hog",
+        "Root-Marrow Worm"
+      ],
+      "yields": "Holdfast Resin",
+      "use": "Bio-Polymer Glue, underwater adhesive",
+      "habitat": "seabed"
+    },
+    {
+      "id": "bulb_cluster",
+      "name": "Bulb Cluster",
+      "tier": 2,
+      "type": "Bladder alga",
+      "description": "Grape-like bunches of oxygen-rich bladders",
+      "eatenBy": [
+        "Pod-Cracker Bream"
+      ],
+      "yields": "Bulb Gas",
+      "use": "O2 tank refills",
+      "habitat": "kelp"
+    },
+    {
+      "id": "canopy_vines",
+      "name": "Canopy Vines",
+      "tier": 3,
+      "type": "Surface vine",
+      "description": "Thick vines weaving the surface canopy into a ceiling",
+      "eatenBy": [
+        "Kelp-Grazer Manatee",
+        "Canopy Halfbeak"
+      ],
+      "yields": "Canopy Cable",
+      "use": "Winch and tow cables",
+      "habitat": "surface"
+    },
+    {
+      "id": "rib_bracket",
+      "name": "Rib Bracket",
+      "tier": 2,
+      "type": "Ridged shelf alga",
+      "description": "Hard ribbed shelves climbing stalks like ladder rungs",
+      "eatenBy": [
+        "Ironshell Snail",
+        "Frond Chiton"
+      ],
+      "yields": "Rib Plate",
+      "use": "Light armor plating",
+      "habitat": "kelp"
+    },
+    {
+      "id": "gasp_tubeworm_flora",
+      "name": "Gasp Tubeworm Flora",
+      "tier": 2,
+      "type": "Venting tube colony",
+      "description": "Tubes that burp bubble bursts, briefly masking nearby noise",
+      "eatenBy": [
+        "Stalk Urchin"
+      ],
+      "yields": "Gasp Bladder",
+      "use": "Emergency air and noise decoy",
+      "habitat": "seabed"
+    },
+    {
+      "id": "silt_spongeweed",
+      "name": "Silt Spongeweed",
+      "tier": 1,
+      "type": "Floor sponge-alga",
+      "description": "Squat silt-caked mud sponges that puff clouds when stepped on",
+      "eatenBy": [
+        "Holdfast Hog"
+      ],
+      "yields": "Silt Pulp",
+      "use": "Thermal insulation",
+      "habitat": "seabed"
+    },
+    {
+      "id": "latch_moss",
+      "name": "Latch Moss",
+      "tier": 1,
+      "type": "Hooked moss",
+      "description": "Velcro-like moss whose tiny hooks grab anything brushing past",
+      "eatenBy": [
+        "Spiral-Crown Snail",
+        "Moss-Nibbler Wrasse"
+      ],
+      "yields": "Latch Burrs",
+      "use": "Grapple hook tips",
+      "habitat": "seabed"
+    },
+    {
+      "id": "spindle_tendril",
+      "name": "Spindle Tendril",
+      "tier": 3,
+      "type": "Rigid filament",
+      "description": "Needle-thin stiff spikes that vibrate with ultrasonic pulses",
+      "eatenBy": [
+        "Tendril Limpet"
+      ],
+      "yields": "Spindle Needle",
+      "use": "Passive Sonar Headset",
+      "habitat": "kelp"
+    },
+    {
+      "id": "bark_pod",
+      "name": "Bark Pod",
+      "tier": 2,
+      "type": "Woody seed pod",
+      "description": "Armoured brown pods that only open to heat or a drill",
+      "eatenBy": [
+        "Holdfast Hog",
+        "Pod-Cracker Bream"
+      ],
+      "yields": "Bark Pod Kernel",
+      "use": "High-calorie food, Synthetic Fuel Canisters",
+      "habitat": "seabed"
+    },
+    {
+      "id": "strand_lace",
+      "name": "Strand Lace",
+      "tier": 3,
+      "type": "Silk alga",
+      "description": "Fine silken strands streaming from the canopy tops",
+      "eatenBy": [
+        "Lattice Sea Hare"
+      ],
+      "yields": "Strand Silk",
+      "use": "Advanced dive-suit weave",
+      "habitat": "surface"
+    }
+  ],
+  "fauna": [
+    {
+      "id": "kelp_mote_copepod",
+      "name": "Kelp-Mote Copepod",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.002,
+      "sizeText": "2 mm",
+      "sound": "Silent",
+      "description": "Tiny copepod gathering in dense dusk clouds along kelp corridors.",
+      "diet": [
+        "phytoplankton"
+      ],
+      "predators": [
+        "Spinner-Fish",
+        "Glimmer Mysid",
+        "Lace Fan Worm",
+        "Holdfast Mussel"
+      ],
+      "schooling": true,
+      "groupSize": [
+        1000,
+        100000
+      ],
+      "habitat": "kelp",
+      "depthMin": 50,
+      "depthMax": 120,
+      "activity": "night",
+      "hearing": [
+        "low"
+      ],
+      "light": "attracted",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Drifts in dense clouds; no defence beyond numbers.",
+      "behavior": "Dense dusk clouds drifting through kelp corridors",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "holdfast_krill",
+      "name": "Holdfast Krill",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.02,
+      "sizeText": "2 cm",
+      "sound": "Silent",
+      "description": "Krill sheltering in kelp holdfasts.",
+      "diet": [
+        "phytoplankton",
+        "detritus"
+      ],
+      "predators": [
+        "Sieve-Mouth Basker",
+        "Veil-Fin Ray",
+        "Canopy Halfbeak",
+        "Frond Pipe-Dragon"
+      ],
+      "schooling": true,
+      "groupSize": [
+        200,
+        5000
+      ],
+      "habitat": "seabed",
+      "depthMin": 80,
+      "depthMax": 150,
+      "activity": "night",
+      "hearing": [
+        "low"
+      ],
+      "light": "repelled",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Hides among holdfasts by day; rises in swarms at night.",
+      "behavior": "Hides among holdfasts by day; rises in swarms at night",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "frond_spore_larva",
+      "name": "Frond-Spore Larva",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.001,
+      "sizeText": "1 mm",
+      "sound": "Silent",
+      "description": "Larval blooms that cloud the water after kelp spawning.",
+      "diet": [
+        "phytoplankton"
+      ],
+      "predators": [
+        "Stalk Barnacle Colony",
+        "Comb Siphon Tunicate",
+        "Frond Jelly"
+      ],
+      "schooling": true,
+      "groupSize": [
+        1000,
+        100000
+      ],
+      "habitat": "kelp",
+      "depthMin": 50,
+      "depthMax": 130,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Passive drift in seasonal blooms.",
+      "behavior": "Seasonal larval blooms after kelp spawning cloud the water",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "glimmer_mysid",
+      "name": "Glimmer Mysid",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.015,
+      "sizeText": "1.5 cm",
+      "sound": "Silent",
+      "description": "Small mysid that flashes blue light when disturbed.",
+      "diet": [
+        "Kelp-Mote Copepod",
+        "phytoplankton"
+      ],
+      "predators": [
+        "Bulb-Picker Goby",
+        "Frond Pipe-Dragon",
+        "Veil-Fin Ray",
+        "Bulb-Lure Angler"
+      ],
+      "schooling": true,
+      "groupSize": [
+        50,
+        500
+      ],
+      "habitat": "kelp",
+      "depthMin": 60,
+      "depthMax": 140,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Flashes blue (about 2 lux) when disturbed, giving away nearby divers.",
+      "behavior": "Flashes blue (about 2 lux) when disturbed, revealing nearby divers",
+      "yields": "Glimmer Luciferin",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "silt_drift_amphipod",
+      "name": "Silt-Drift Amphipod",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.008,
+      "sizeText": "8 mm",
+      "sound": "Silent",
+      "description": "Tiny amphipod drifting just above the mud floor.",
+      "diet": [
+        "detritus"
+      ],
+      "predators": [
+        "Glint Scallop",
+        "Quill Sculpin",
+        "Gulper Root-Eel"
+      ],
+      "schooling": true,
+      "groupSize": [
+        50,
+        1000
+      ],
+      "habitat": "seabed",
+      "depthMin": 130,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Hovers in shimmering low clouds over the mud floor.",
+      "behavior": "Hovers in shimmering low clouds above the mud floor",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "spinner_fish",
+      "name": "Spinner-Fish",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.15,
+      "sizeText": "15 cm",
+      "sound": "15 dB, High",
+      "description": "Small silver schooling fish eating copepods and kelp.",
+      "diet": [
+        "Kelp-Mote Copepod",
+        "Iron-Kelp"
+      ],
+      "predators": [
+        "Stalker-Hound",
+        "Lancer Pike",
+        "Surfline Sea Lion",
+        "Wraith"
+      ],
+      "schooling": true,
+      "groupSize": [
+        20,
+        80
+      ],
+      "habitat": "kelp",
+      "depthMin": 55,
+      "depthMax": 130,
+      "activity": "day",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Spinning silver schools swirl into a vortex that confuses predators.",
+      "behavior": "Spinning silver schools; swirling vortex confuses predators",
+      "yields": "Spinner-Fish Fillet",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "kelp_cow",
+      "name": "Kelp-Cow",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 2.5,
+      "sizeText": "2.5 m",
+      "sound": "10 dB, Low",
+      "description": "Huge 2.5 m sea-slug grazer of kelp, moss and brackets.",
+      "diet": [
+        "Iron-Kelp",
+        "Vascular Moss",
+        "Rubbery Bracket"
+      ],
+      "predators": [
+        "Tangle-Serpent Leviathan",
+        "Thicket Grouper Titan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "kelp",
+      "depthMin": 60,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Sluggish; leaves slime trails and curls up when touched.",
+      "behavior": "Sluggish sea-slug grazer; leaves slime trails, curls up when touched",
+      "yields": "Kelp-Cow Mucus",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "kelp_grazer_manatee",
+      "name": "Kelp-Grazer Manatee",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "mammal",
+      "sizeM": 4.0,
+      "sizeText": "4 m",
+      "sound": "20 dB, Mid",
+      "description": "Heavy, peaceful kelp-grazing manatee whose blubber makes lubricants and fuel.",
+      "diet": [
+        "Iron-Kelp",
+        "Emerald Pod",
+        "Canopy Vines"
+      ],
+      "predators": [
+        "Tangle-Serpent Leviathan",
+        "Shroud Serpent",
+        "Kelp-Stripe Orca"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "open",
+      "depthMin": 50,
+      "depthMax": 110,
+      "activity": "day",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Peaceful slow drifter in clearings; tolerates divers alongside.",
+      "behavior": "Peaceful drifter in clearings; tolerates divers alongside",
+      "yields": "Kelp-Grazer Blubber",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "ironshell_snail",
+      "name": "Ironshell Snail",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.4,
+      "sizeText": "40 cm",
+      "sound": "12 dB, Mid",
+      "description": "Large armoured snail rasping kelp stalks.",
+      "diet": [
+        "Iron-Kelp",
+        "Rib Bracket"
+      ],
+      "predators": [
+        "Snail-Cracker Wolffish",
+        "Bramble Sea Star",
+        "Thicket Grouper Titan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        6
+      ],
+      "habitat": "kelp",
+      "depthMin": 60,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Rasps stalks; armoured shell deflects most bites.",
+      "behavior": "Armored snail rasping stalks; shell deflects most bites",
+      "yields": "Ironshell Plate",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "spiral_crown_snail",
+      "name": "Spiral-Crown Snail",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.15,
+      "sizeText": "15 cm",
+      "sound": "Silent",
+      "description": "Small spiny-shelled snail grazing mosses.",
+      "diet": [
+        "Vascular Moss",
+        "Latch Moss"
+      ],
+      "predators": [
+        "Snail-Cracker Wolffish",
+        "Braid Octopus"
+      ],
+      "schooling": true,
+      "groupSize": [
+        4,
+        15
+      ],
+      "habitat": "kelp",
+      "depthMin": 60,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Climbs stalks in single-file lines; spiny crowned shell.",
+      "behavior": "Climbs stalks in single-file lines; spiny crowned shell",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "stalk_urchin",
+      "name": "Stalk Urchin",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "urchin",
+      "sizeM": 0.2,
+      "sizeText": "20 cm",
+      "sound": "10 dB, High",
+      "description": "Urchin that grazes holdfasts and stalks.",
+      "diet": [
+        "Root Kelp",
+        "Iron-Kelp",
+        "Gasp Tubeworm Flora"
+      ],
+      "predators": [
+        "Surfline Sea Lion",
+        "Stalk-Climber Crab"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        60
+      ],
+      "habitat": "seabed",
+      "depthMin": 110,
+      "depthMax": 150,
+      "activity": "night",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Herds gnaw holdfasts, toppling stalks and opening new clearings.",
+      "behavior": "Herds gnaw holdfasts, toppling stalks and opening new clearings",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "frond_chiton",
+      "name": "Frond Chiton",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.1,
+      "sizeText": "10 cm",
+      "sound": "Silent",
+      "description": "Chiton grazing brackets and spongeweed on stalks.",
+      "diet": [
+        "Rib Bracket",
+        "Strangle Spongeweed"
+      ],
+      "predators": [
+        "Stalk-Climber Crab",
+        "Mud-Spear Mantis Shrimp",
+        "Gulper Root-Eel"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        5
+      ],
+      "habitat": "kelp",
+      "depthMin": 60,
+      "depthMax": 150,
+      "activity": "night",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Clamps flat to stalks; nearly impossible to pry loose.",
+      "behavior": "Clamps flat to stalks; nearly impossible to pry loose",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "moss_nibbler_wrasse",
+      "name": "Moss-Nibbler Wrasse",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.3,
+      "sizeText": "30 cm",
+      "sound": "18 dB, Mid",
+      "description": "Wrasse picking moss and lace, and cleaning manatees.",
+      "diet": [
+        "Vascular Moss",
+        "Latch Moss",
+        "Vine Lace"
+      ],
+      "predators": [
+        "Lancer Pike",
+        "Wraith"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        10
+      ],
+      "habitat": "kelp",
+      "depthMin": 60,
+      "depthMax": 140,
+      "activity": "day",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Busy daytime picker; cleans parasites off resting manatees.",
+      "behavior": "Busy daytime picker; cleans parasites off resting manatees",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lattice_sea_hare",
+      "name": "Lattice Sea Hare",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.35,
+      "sizeText": "35 cm",
+      "sound": "Silent",
+      "description": "Sea hare grazing lattice and silk algae.",
+      "diet": [
+        "Vine Lace",
+        "Strand Lace"
+      ],
+      "predators": [
+        "Braid Octopus",
+        "Bramble Sea Star"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "kelp",
+      "depthMin": 50,
+      "depthMax": 120,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Squirts mildly toxic purple ink when threatened.",
+      "behavior": "Releases mildly toxic purple ink when threatened",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "bulb_picker_goby",
+      "name": "Bulb-Picker Goby",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.08,
+      "sizeText": "8 cm",
+      "sound": "10 dB, High",
+      "description": "Small goby eating Glow Bulbs and mysids.",
+      "diet": [
+        "Glow Bulb",
+        "Glimmer Mysid"
+      ],
+      "predators": [
+        "Bulb-Lure Angler",
+        "Frond Scorpionfish",
+        "Quill Sculpin"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "seabed",
+      "depthMin": 100,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Hops between kelp bases; glows faintly after feeding.",
+      "behavior": "Hops between kelp bases; glows faintly after feeding",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "holdfast_hog",
+      "name": "Holdfast Hog",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "mammal",
+      "sizeM": 2.0,
+      "sizeText": "2 m",
+      "sound": "25 dB, Low",
+      "description": "Slow mammal rooting the mud for holdfasts, sponges and pods.",
+      "diet": [
+        "Root Kelp",
+        "Silt Spongeweed",
+        "Bark Pod"
+      ],
+      "predators": [
+        "Tangle-Serpent Leviathan",
+        "Shroud Serpent",
+        "Kelp-Stripe Orca"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "seabed",
+      "depthMin": 120,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Sluggish mud-rooter; snorts telltale bubble plumes.",
+      "behavior": "Sluggish mammal rooting mud; snorts telltale bubble plumes",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "tendril_limpet",
+      "name": "Tendril Limpet",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.06,
+      "sizeText": "6 cm",
+      "sound": "Silent",
+      "description": "Limpet grazing Shadow and Spindle Tendrils.",
+      "diet": [
+        "Shadow Tendril",
+        "Spindle Tendril"
+      ],
+      "predators": [
+        "Stalk-Climber Crab",
+        "Braid Octopus"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        10
+      ],
+      "habitat": "kelp",
+      "depthMin": 60,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Grazing leaves glossy scars that mark trails on tendrils.",
+      "behavior": "Grazes tendrils, leaving glossy scars that mark trails",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "canopy_halfbeak",
+      "name": "Canopy Halfbeak",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.25,
+      "sizeText": "25 cm",
+      "sound": "15 dB, High",
+      "description": "Canopy-skimming halfbeak eating vines and krill.",
+      "diet": [
+        "Canopy Vines",
+        "Holdfast Krill"
+      ],
+      "predators": [
+        "Stalker-Hound",
+        "Lancer Pike",
+        "Surfline Sea Lion"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        30
+      ],
+      "habitat": "surface",
+      "depthMin": 50,
+      "depthMax": 65,
+      "activity": "day",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Skims the upper canopy; leaps clear of the water when startled.",
+      "behavior": "Skims the upper canopy; leaps clear of the water when startled",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "vine_abalone",
+      "name": "Vine Abalone",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.25,
+      "sizeText": "25 cm",
+      "sound": "Silent",
+      "description": "Abalone grazing vines and tubeworm flora.",
+      "diet": [
+        "Tangle Vines",
+        "Coil Tubeworm Flora"
+      ],
+      "predators": [
+        "Braid Octopus",
+        "Surfline Sea Lion"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "kelp",
+      "depthMin": 60,
+      "depthMax": 140,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Suction-clamps to stalks; nacre gleams under dive lights.",
+      "behavior": "Suction-clamps to stalks; nacre gleams under dive lights",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "pod_cracker_bream",
+      "name": "Pod-Cracker Bream",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.5,
+      "sizeText": "50 cm",
+      "sound": "22 dB, Mid",
+      "description": "Bream that cracks seed pods and bladders.",
+      "diet": [
+        "Bark Pod",
+        "Emerald Pod",
+        "Bulb Cluster"
+      ],
+      "predators": [
+        "Suction-Maw Eel",
+        "Tangle Dogfish",
+        "Thicket Grouper Titan"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        12
+      ],
+      "habitat": "kelp",
+      "depthMin": 80,
+      "depthMax": 150,
+      "activity": "day",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Noisy pod-crunching gives feeding groups away to predators.",
+      "behavior": "Loud pod-crunching gives feeding groups away to predators",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "stalk_barnacle_colony",
+      "name": "Stalk Barnacle Colony",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 1.0,
+      "sizeText": "1 m colony",
+      "sound": "Silent",
+      "description": "Barnacle colonies encrusting lower kelp stalks.",
+      "diet": [
+        "Frond-Spore Larva",
+        "phytoplankton"
+      ],
+      "predators": [
+        "Bramble Sea Star",
+        "Stalk-Climber Crab"
+      ],
+      "schooling": true,
+      "groupSize": [
+        50,
+        1000
+      ],
+      "habitat": "kelp",
+      "depthMin": 80,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Sessile; cirri sweep passing currents on lower stalks.",
+      "behavior": "Encrusts lower stalks; cirri sweep passing currents",
+      "yields": "Barnacle Cement",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lace_fan_worm",
+      "name": "Lace Fan Worm",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 0.2,
+      "sizeText": "20 cm",
+      "sound": "Silent",
+      "description": "Fan worm filtering copepods.",
+      "diet": [
+        "Kelp-Mote Copepod",
+        "detritus"
+      ],
+      "predators": [
+        "Frond Scorpionfish",
+        "Ribbon Cuttlefish"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        20
+      ],
+      "habitat": "kelp",
+      "depthMin": 60,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Feathery crown snaps into its tube at any vibration.",
+      "behavior": "Feathery crowns snap into tubes at any vibration",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "holdfast_mussel",
+      "name": "Holdfast Mussel",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.12,
+      "sizeText": "12 cm",
+      "sound": "Silent",
+      "description": "Mussels in dense beds among holdfasts.",
+      "diet": [
+        "Kelp-Mote Copepod",
+        "phytoplankton"
+      ],
+      "predators": [
+        "Snail-Cracker Wolffish",
+        "Bramble Sea Star"
+      ],
+      "schooling": true,
+      "groupSize": [
+        20,
+        500
+      ],
+      "habitat": "seabed",
+      "depthMin": 110,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Sessile beds bind holdfasts together with tough threads.",
+      "behavior": "Dense beds bind holdfasts together with tough threads",
+      "yields": "Mussel Byssus",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "frond_jelly",
+      "name": "Frond Jelly",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "jelly",
+      "sizeM": 0.5,
+      "sizeText": "50 cm",
+      "sound": "Silent",
+      "description": "Frond-mimicking jellyfish.",
+      "diet": [
+        "Frond-Spore Larva",
+        "phytoplankton"
+      ],
+      "predators": [
+        "Strangler Squid",
+        "Ribbon Cuttlefish"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        30
+      ],
+      "habitat": "kelp",
+      "depthMin": 50,
+      "depthMax": 120,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Translucent bell mimics a drifting frond; mild sting.",
+      "behavior": "Translucent bell mimics a drifting frond; mild sting",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sieve_mouth_basker",
+      "name": "Sieve-Mouth Basker",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "shark",
+      "sizeM": 7.0,
+      "sizeText": "7 m",
+      "sound": "30 dB, Low",
+      "description": "7 m filter-feeding basking shark.",
+      "diet": [
+        "Holdfast Krill",
+        "phytoplankton"
+      ],
+      "predators": [
+        "Tangle-Serpent Leviathan",
+        "Kelp-Stripe Orca"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "open",
+      "depthMin": 60,
+      "depthMax": 130,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Slow gaping cruiser of wide corridors; displaces a lot of water.",
+      "behavior": "Slow gaping cruiser of wide corridors; displaces lots of water",
+      "yields": "Basker Baleen",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "glint_scallop",
+      "name": "Glint Scallop",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.15,
+      "sizeText": "15 cm",
+      "sound": "12 dB, High",
+      "description": "Scallop with a mirror-bright shell.",
+      "diet": [
+        "Silt-Drift Amphipod",
+        "phytoplankton"
+      ],
+      "predators": [
+        "Stalker-Hound",
+        "Braid Octopus",
+        "Silt-Barb Stingray"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        20
+      ],
+      "habitat": "seabed",
+      "depthMin": 110,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "attracted",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Swims off by clapping its valves; mirror-bright shell.",
+      "behavior": "Mirror-bright shell; swims by clapping valves",
+      "yields": "Glint Nacre",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "comb_siphon_tunicate",
+      "name": "Comb Siphon Tunicate",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.3,
+      "sizeText": "30 cm",
+      "sound": "Silent",
+      "description": "Tunicate colonies lining clearing edges.",
+      "diet": [
+        "Frond-Spore Larva",
+        "phytoplankton"
+      ],
+      "predators": [
+        "Mud-Spear Mantis Shrimp",
+        "Stalk-Climber Crab"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        40
+      ],
+      "habitat": "seabed",
+      "depthMin": 90,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Squirts jets when touched.",
+      "behavior": "Colonies line clearing edges; squirt jets when touched",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "veil_fin_ray",
+      "name": "Veil-Fin Ray",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "ray",
+      "sizeM": 3.0,
+      "sizeText": "3 m",
+      "sound": "20 dB, Low",
+      "description": "3 m ray filtering krill and mysids.",
+      "diet": [
+        "Holdfast Krill",
+        "Glimmer Mysid"
+      ],
+      "predators": [
+        "Shroud Serpent",
+        "Thicket Grouper Titan",
+        "Kelp-Stripe Orca"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "open",
+      "depthMin": 80,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Glides between stalks; wingbeats stir up silt clouds.",
+      "behavior": "Glides between stalks; wingbeats stir up silt clouds",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "stalker_hound",
+      "name": "Stalker-Hound",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 2.0,
+      "sizeText": "2 m",
+      "sound": "40 dB, Mid",
+      "description": "Sleek barracuda-like canopy stalker obsessed with shiny metal.",
+      "diet": [
+        "Spinner-Fish",
+        "Canopy Halfbeak",
+        "Glint Scallop",
+        "Ribbon Cuttlefish"
+      ],
+      "predators": [
+        "Tangle-Serpent Leviathan",
+        "Shroud Serpent",
+        "Kelp-Stripe Orca"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "kelp",
+      "depthMin": 50,
+      "depthMax": 140,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "attracted",
+      "aggression": 0.55,
+      "lethalToDiver": false,
+      "tactics": "Stalks divers without attacking at once; steals tools and scrap, caching them in kelp roots.",
+      "behavior": "Barracuda-like; drawn to shiny metal and lights; steals tools and caches them in kelp roots",
+      "yields": "Stalker-Hound Adrenal Gland",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "wraith",
+      "name": "Wraith",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 3.0,
+      "sizeText": "3 m",
+      "sound": "Silent",
+      "description": "3 m frond-disguised ambush predator.",
+      "diet": [
+        "Spinner-Fish",
+        "Moss-Nibbler Wrasse"
+      ],
+      "predators": [
+        "Tangle-Serpent Leviathan",
+        "Thicket Grouper Titan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "kelp",
+      "depthMin": 50,
+      "depthMax": 140,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.7,
+      "lethalToDiver": true,
+      "tactics": "Hangs motionless disguised as kelp fronds; lunges at passing prey.",
+      "behavior": "Hangs motionless disguised as kelp fronds; lunges at passing prey",
+      "yields": "Wraith Chromatophore",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "suction_maw_eel",
+      "name": "Suction-Maw Eel",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 2.5,
+      "sizeText": "2.5 m",
+      "sound": "25 dB, Mid",
+      "description": "Large eel living in root hollows.",
+      "diet": [
+        "Pod-Cracker Bream",
+        "Gulper Root-Eel",
+        "Bulb-Lure Angler",
+        "Quill Sculpin",
+        "Slime-Knot Lamprey"
+      ],
+      "predators": [
+        "Thicket Grouper Titan",
+        "Shroud Serpent"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "crevice",
+      "depthMin": 100,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.5,
+      "lethalToDiver": false,
+      "tactics": "Hides in root hollows and vacuums prey with an explosive gulp.",
+      "behavior": "Hides in root hollows; vacuums prey with an explosive gulp",
+      "yields": "Suction-Maw Bladder",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "gulper_root_eel",
+      "name": "Gulper Root-Eel",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 1.5,
+      "sizeText": "1.5 m",
+      "sound": "15 dB, Mid",
+      "description": "Burrowing eel of the holdfast mud.",
+      "diet": [
+        "Silt-Drift Amphipod",
+        "Frond Chiton",
+        "Root-Marrow Worm",
+        "Holdfast Gleaner Shrimp"
+      ],
+      "predators": [
+        "Suction-Maw Eel",
+        "Tangle Dogfish"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "seabed",
+      "depthMin": 110,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.2,
+      "lethalToDiver": false,
+      "tactics": "Burrows among holdfasts; inhales small crustaceans from the mud.",
+      "behavior": "Burrows among holdfasts; inhales small crustaceans from mud",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lancer_pike",
+      "name": "Lancer Pike",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 1.8,
+      "sizeText": "1.8 m",
+      "sound": "35 dB, Mid",
+      "description": "Fast pike-like hunter of kelp corridors.",
+      "diet": [
+        "Spinner-Fish",
+        "Moss-Nibbler Wrasse",
+        "Canopy Halfbeak",
+        "Ribbon Cuttlefish",
+        "Frond Pipe-Dragon"
+      ],
+      "predators": [
+        "Shroud Serpent",
+        "Kelp-Stripe Orca"
+      ],
+      "schooling": true,
+      "groupSize": [
+        2,
+        6
+      ],
+      "habitat": "kelp",
+      "depthMin": 50,
+      "depthMax": 130,
+      "activity": "day",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.55,
+      "lethalToDiver": false,
+      "tactics": "Sprint hunter patrolling corridor edges in loose packs.",
+      "behavior": "Sprint hunter patrolling corridor edges in loose packs",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "frond_scorpionfish",
+      "name": "Frond Scorpionfish",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.4,
+      "sizeText": "40 cm",
+      "sound": "Silent",
+      "description": "Camouflaged scorpionfish on moss carpets.",
+      "diet": [
+        "Bulb-Picker Goby",
+        "Lace Fan Worm"
+      ],
+      "predators": [
+        "Strangler Squid",
+        "Tangle Dogfish"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "seabed",
+      "depthMin": 110,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.3,
+      "lethalToDiver": false,
+      "tactics": "Sits motionless on moss carpets; venomous spines sting careless hands.",
+      "behavior": "Sits still on moss carpets; venomous spines sting careless hands",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "snail_cracker_wolffish",
+      "name": "Snail-Cracker Wolffish",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 1.5,
+      "sizeText": "1.5 m",
+      "sound": "30 dB, Mid",
+      "description": "Wolffish specialised in crushing shelled prey.",
+      "diet": [
+        "Ironshell Snail",
+        "Spiral-Crown Snail",
+        "Holdfast Mussel",
+        "Bramble Sea Star",
+        "Kelp-Litter Crab",
+        "Carrion Whelk"
+      ],
+      "predators": [
+        "Thicket Grouper Titan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "seabed",
+      "depthMin": 100,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.45,
+      "lethalToDiver": false,
+      "tactics": "Crushing jaws crack armoured shells; gnaws hull seams.",
+      "behavior": "Crushing jaws crack armored shells; gnaws hull seams",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "braid_octopus",
+      "name": "Braid Octopus",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "octopus",
+      "sizeM": 1.2,
+      "sizeText": "1.2 m",
+      "sound": "Silent",
+      "description": "Octopus that weaves kelp dens.",
+      "diet": [
+        "Spiral-Crown Snail",
+        "Lattice Sea Hare",
+        "Vine Abalone",
+        "Glint Scallop",
+        "Tendril Limpet"
+      ],
+      "predators": [
+        "Thicket Seal",
+        "Surfline Sea Lion"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "kelp",
+      "depthMin": 70,
+      "depthMax": 150,
+      "activity": "night",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.2,
+      "lethalToDiver": false,
+      "tactics": "Braids kelp into dens; mimics stalk texture to evade.",
+      "behavior": "Braids kelp into dens; mimics stalk texture to evade",
+      "yields": "Braid Ink",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "stalk_climber_crab",
+      "name": "Stalk-Climber Crab",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.5,
+      "sizeText": "50 cm",
+      "sound": "15 dB, High",
+      "description": "Stalk-climbing predatory crab.",
+      "diet": [
+        "Stalk Urchin",
+        "Frond Chiton",
+        "Tendril Limpet",
+        "Stalk Barnacle Colony",
+        "Comb Siphon Tunicate"
+      ],
+      "predators": [
+        "Thicket Seal",
+        "Silt-Barb Stingray"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "kelp",
+      "depthMin": 60,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.35,
+      "lethalToDiver": false,
+      "tactics": "Climbs stalks hunting grazers; drops onto subs to pinch cables.",
+      "behavior": "Climbs stalks hunting grazers; drops onto subs to pinch cables",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "mud_spear_mantis_shrimp",
+      "name": "Mud-Spear Mantis Shrimp",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.35,
+      "sizeText": "35 cm",
+      "sound": "50 dB, High",
+      "description": "Burrowing spearing mantis shrimp.",
+      "diet": [
+        "Frond Chiton",
+        "Comb Siphon Tunicate",
+        "Holdfast Gleaner Shrimp"
+      ],
+      "predators": [
+        "Thicket Seal",
+        "Silt-Barb Stingray"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "seabed",
+      "depthMin": 120,
+      "depthMax": 150,
+      "activity": "day",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.6,
+      "lethalToDiver": true,
+      "tactics": "Spears from mud burrows; cracking strike can fracture visors.",
+      "behavior": "Spears from mud burrows; cracking strike can fracture visors",
+      "yields": "Mantis Club Chitin",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light"
+      ]
+    },
+    {
+      "id": "ribbon_cuttlefish",
+      "name": "Ribbon Cuttlefish",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "squid",
+      "sizeM": 0.6,
+      "sizeText": "60 cm",
+      "sound": "Silent",
+      "description": "Cuttlefish hunting small fish, worms and jellies.",
+      "diet": [
+        "Moss-Nibbler Wrasse",
+        "Lace Fan Worm",
+        "Frond Jelly",
+        "Frond Pipe-Dragon"
+      ],
+      "predators": [
+        "Lancer Pike",
+        "Stalker-Hound"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "kelp",
+      "depthMin": 60,
+      "depthMax": 140,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.3,
+      "lethalToDiver": false,
+      "tactics": "Rippling skin copies kelp shadows to hypnotise prey.",
+      "behavior": "Rippling skin patterns copy kelp shadows to hypnotize prey",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "bulb_lure_angler",
+      "name": "Bulb-Lure Angler",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.7,
+      "sizeText": "70 cm",
+      "sound": "Silent",
+      "description": "Anglerfish with a Glow-Bulb lure.",
+      "diet": [
+        "Bulb-Picker Goby",
+        "Glimmer Mysid"
+      ],
+      "predators": [
+        "Suction-Maw Eel",
+        "Thicket Seal"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "seabed",
+      "depthMin": 110,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.35,
+      "lethalToDiver": false,
+      "tactics": "Lure mimics a Glow Bulb; ambushes careless collectors.",
+      "behavior": "Lure mimics a Glow Bulb; ambushes careless collectors",
+      "yields": "Angler Lure Organ",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "thicket_seal",
+      "name": "Thicket Seal",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "mammal",
+      "sizeM": 2.0,
+      "sizeText": "2 m",
+      "sound": "35 dB, Mid",
+      "description": "Agile seal hunting octopus, crabs and anglers.",
+      "diet": [
+        "Braid Octopus",
+        "Stalk-Climber Crab",
+        "Mud-Spear Mantis Shrimp",
+        "Bulb-Lure Angler",
+        "Kelp-Litter Crab"
+      ],
+      "predators": [
+        "Tangle-Serpent Leviathan",
+        "Kelp-Stripe Orca"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "kelp",
+      "depthMin": 50,
+      "depthMax": 130,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.35,
+      "lethalToDiver": false,
+      "tactics": "Agile mammal weaving tight mazes; barks warnings at threats.",
+      "behavior": "Agile mammal weaving tight mazes; barks warnings at threats",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "surfline_sea_lion",
+      "name": "Surfline Sea Lion",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "mammal",
+      "sizeM": 2.5,
+      "sizeText": "2.5 m",
+      "sound": "45 dB, Mid",
+      "description": "Playful canopy-hunting sea lion.",
+      "diet": [
+        "Spinner-Fish",
+        "Stalk Urchin",
+        "Canopy Halfbeak",
+        "Vine Abalone",
+        "Braid Octopus"
+      ],
+      "predators": [
+        "Shroud Serpent",
+        "Kelp-Stripe Orca"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        8
+      ],
+      "habitat": "surface",
+      "depthMin": 50,
+      "depthMax": 80,
+      "activity": "day",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.25,
+      "lethalToDiver": false,
+      "tactics": "Hunts the upper canopy in playful groups; nudges curious divers.",
+      "behavior": "Hunts the upper canopy in playful groups; nudges curious divers",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "tangle_dogfish",
+      "name": "Tangle Dogfish",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "shark",
+      "sizeM": 1.2,
+      "sizeText": "1.2 m",
+      "sound": "20 dB, Mid",
+      "description": "Small shark hunting in packs by scent.",
+      "diet": [
+        "Pod-Cracker Bream",
+        "Gulper Root-Eel",
+        "Frond Scorpionfish",
+        "Mud-Sifter Isopod",
+        "Slime-Knot Lamprey"
+      ],
+      "predators": [
+        "Thicket Grouper Titan",
+        "Shroud Serpent"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        5
+      ],
+      "habitat": "kelp",
+      "depthMin": 70,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.75,
+      "lethalToDiver": true,
+      "tactics": "Hunts by smell; packs of five frenzy at blood.",
+      "behavior": "Hunts by smell; packs of five frenzy at blood",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light"
+      ]
+    },
+    {
+      "id": "bramble_sea_star",
+      "name": "Bramble Sea Star",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.8,
+      "sizeText": "80 cm",
+      "sound": "Silent",
+      "description": "Large predatory sea star.",
+      "diet": [
+        "Ironshell Snail",
+        "Lattice Sea Hare",
+        "Stalk Barnacle Colony",
+        "Holdfast Mussel",
+        "Murk Sea Cucumber"
+      ],
+      "predators": [
+        "Snail-Cracker Wolffish"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "seabed",
+      "depthMin": 100,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Everts its stomach onto armoured snails; regrows severed arms.",
+      "behavior": "Everts its stomach onto armored snails; regrows severed arms",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "quill_sculpin",
+      "name": "Quill Sculpin",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.45,
+      "sizeText": "45 cm",
+      "sound": "10 dB, Low",
+      "description": "Bottom-dwelling sculpin of the mud floor.",
+      "diet": [
+        "Silt-Drift Amphipod",
+        "Bulb-Picker Goby",
+        "Root-Marrow Worm",
+        "Mud-Sifter Isopod",
+        "Silt Brittle Star"
+      ],
+      "predators": [
+        "Suction-Maw Eel",
+        "Silt-Barb Stingray"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "seabed",
+      "depthMin": 120,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.2,
+      "lethalToDiver": false,
+      "tactics": "Mud-coloured bottom lurker; erects quills when grabbed.",
+      "behavior": "Mud-colored bottom lurker; erects quills when grabbed",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "silt_barb_stingray",
+      "name": "Silt-Barb Stingray",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "ray",
+      "sizeM": 2.0,
+      "sizeText": "2 m",
+      "sound": "Silent",
+      "description": "Stingray buried in the mud floor.",
+      "diet": [
+        "Glint Scallop",
+        "Stalk-Climber Crab",
+        "Mud-Spear Mantis Shrimp",
+        "Quill Sculpin",
+        "Silt Brittle Star"
+      ],
+      "predators": [
+        "Thicket Grouper Titan",
+        "Shroud Serpent"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "seabed",
+      "depthMin": 120,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.35,
+      "lethalToDiver": false,
+      "tactics": "Lies buried in floor mud; barb punctures suits when stepped on.",
+      "behavior": "Buried in floor mud; barb punctures suits when stepped on",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "strangler_squid",
+      "name": "Strangler Squid",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "squid",
+      "sizeM": 3.0,
+      "sizeText": "3 m",
+      "sound": "20 dB, Mid",
+      "description": "3 m squid hunting jellies and scorpionfish at night.",
+      "diet": [
+        "Frond Jelly",
+        "Frond Scorpionfish"
+      ],
+      "predators": [
+        "Shroud Serpent",
+        "Kelp-Stripe Orca"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "kelp",
+      "depthMin": 60,
+      "depthMax": 150,
+      "activity": "night",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.6,
+      "lethalToDiver": true,
+      "tactics": "Night hunter; coils arms around stalks and prey alike.",
+      "behavior": "Night hunter; arms coil around stalks and prey alike",
+      "yields": "Strangler Beak",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "frond_pipe_dragon",
+      "name": "Frond Pipe-Dragon",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.45,
+      "sizeText": "45 cm",
+      "sound": "Silent",
+      "description": "Leafy frond-mimicking pipefish.",
+      "diet": [
+        "Holdfast Krill",
+        "Glimmer Mysid"
+      ],
+      "predators": [
+        "Ribbon Cuttlefish",
+        "Lancer Pike"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "kelp",
+      "depthMin": 50,
+      "depthMax": 130,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Leafy appendages mimic fronds; sips mysids through a tube snout.",
+      "behavior": "Leafy appendages mimic fronds; sips mysids through a tube snout",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "root_marrow_worm",
+      "name": "Root-Marrow Worm",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 1.5,
+      "sizeText": "1.5 m",
+      "sound": "Silent",
+      "description": "1.5 m worm boring into decaying kelp and carcasses.",
+      "diet": [
+        "detritus",
+        "decaying Iron-Kelp and Root Kelp"
+      ],
+      "predators": [
+        "Gulper Root-Eel",
+        "Quill Sculpin"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        5
+      ],
+      "habitat": "seabed",
+      "depthMin": 110,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Bores through decaying kelp; acidic saliva dissolves fibres.",
+      "behavior": "Bores through decaying kelp; acidic saliva dissolves fibers",
+      "yields": "Root-Marrow Worm Enzyme; Root-Marrow Acid",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "mud_sifter_isopod",
+      "name": "Mud-Sifter Isopod",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.25,
+      "sizeText": "25 cm",
+      "sound": "Silent",
+      "description": "Armoured isopod scavenging the mud floor.",
+      "diet": [
+        "detritus"
+      ],
+      "predators": [
+        "Tangle Dogfish",
+        "Quill Sculpin"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        100
+      ],
+      "habitat": "seabed",
+      "depthMin": 110,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Armoured swarms strip carcasses; roll up when threatened.",
+      "behavior": "Armored swarms strip carcasses; roll up when threatened",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "slime_knot_lamprey",
+      "name": "Slime-Knot Lamprey",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 1.0,
+      "sizeText": "1 m",
+      "sound": "15 dB, Mid",
+      "description": "Lamprey that feeds on dying animals.",
+      "diet": [
+        "detritus"
+      ],
+      "predators": [
+        "Tangle Dogfish",
+        "Suction-Maw Eel"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "kelp",
+      "depthMin": 70,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.3,
+      "lethalToDiver": false,
+      "tactics": "Latches onto dying animals; releases choking slime when grabbed.",
+      "behavior": "Latches onto dying animals; releases choking slime when grabbed",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "kelp_litter_crab",
+      "name": "Kelp-Litter Crab",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.4,
+      "sizeText": "40 cm",
+      "sound": "15 dB, High",
+      "description": "Decorator crab scavenging fallen kelp.",
+      "diet": [
+        "detritus",
+        "Murk Sea Cucumber",
+        "Carrion Whelk"
+      ],
+      "predators": [
+        "Snail-Cracker Wolffish",
+        "Thicket Seal"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        6
+      ],
+      "habitat": "seabed",
+      "depthMin": 110,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.15,
+      "lethalToDiver": false,
+      "tactics": "Picks fallen fronds and carrion; decorates its shell with kelp.",
+      "behavior": "Picks fallen fronds and carrion; decorates its shell with kelp",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "silt_brittle_star",
+      "name": "Silt Brittle Star",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.3,
+      "sizeText": "30 cm",
+      "sound": "Silent",
+      "description": "Brittle stars carpeting the mud floor.",
+      "diet": [
+        "detritus"
+      ],
+      "predators": [
+        "Quill Sculpin",
+        "Silt-Barb Stingray"
+      ],
+      "schooling": true,
+      "groupSize": [
+        20,
+        200
+      ],
+      "habitat": "seabed",
+      "depthMin": 120,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Carpets the floor; arms snake toward blood in the water.",
+      "behavior": "Carpets the floor; arms snake toward blood in the water",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "holdfast_gleaner_shrimp",
+      "name": "Holdfast Gleaner Shrimp",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.05,
+      "sizeText": "5 cm",
+      "sound": "10 dB, High",
+      "description": "Cleaner shrimp of the holdfasts.",
+      "diet": [
+        "detritus"
+      ],
+      "predators": [
+        "Gulper Root-Eel",
+        "Mud-Spear Mantis Shrimp"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        12
+      ],
+      "habitat": "seabed",
+      "depthMin": 100,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Gleans holdfast debris; cleans wounds on resting fish.",
+      "behavior": "Gleans holdfast debris; cleans wounds on resting fish",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "carrion_whelk",
+      "name": "Carrion Whelk",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.2,
+      "sizeText": "20 cm",
+      "sound": "Silent",
+      "description": "Scavenging whelk drawn to blood.",
+      "diet": [
+        "detritus"
+      ],
+      "predators": [
+        "Snail-Cracker Wolffish",
+        "Kelp-Litter Crab"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        40
+      ],
+      "habitat": "seabed",
+      "depthMin": 110,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Smells blood from afar; crowds converge on kills within minutes.",
+      "behavior": "Smells blood from afar; crowds converge on kills within minutes",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "murk_sea_cucumber",
+      "name": "Murk Sea Cucumber",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.6,
+      "sizeText": "60 cm",
+      "sound": "Silent",
+      "description": "Sea cucumber vacuuming the mud floor.",
+      "diet": [
+        "detritus"
+      ],
+      "predators": [
+        "Bramble Sea Star",
+        "Kelp-Litter Crab"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        5
+      ],
+      "habitat": "seabed",
+      "depthMin": 120,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Ejects sticky threads when disturbed.",
+      "behavior": "Vacuums the mud floor; ejects sticky threads when disturbed",
+      "yields": "Cucumber Collagen",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "tangle_serpent_leviathan",
+      "name": "Tangle-Serpent Leviathan",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "leviathan",
+      "sizeM": 45.0,
+      "sizeText": "45 m",
+      "sound": "Silent; 95 dB, Low when striking",
+      "description": "45 m serpent with kelp-frond camouflage plates; its scales are shed, not hunted.",
+      "diet": [
+        "Kelp-Cow",
+        "Kelp-Grazer Manatee",
+        "Holdfast Hog",
+        "Sieve-Mouth Basker",
+        "Stalker-Hound",
+        "Wraith",
+        "Thicket Seal"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "kelp",
+      "depthMin": 50,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.9,
+      "lethalToDiver": true,
+      "tactics": "Hangs vertically, motionless among kelp; wraps and crushes subs passing within 15 m. Silent until a 95 dB roar.",
+      "behavior": "Camouflaged among stalks; wraps and crushes subs passing within 15 m",
+      "yields": "Tangle-Serpent Scale (shed)",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light"
+      ]
+    },
+    {
+      "id": "shroud_serpent",
+      "name": "Shroud Serpent",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "leviathan",
+      "sizeM": 28.0,
+      "sizeText": "28 m",
+      "sound": "Silent; 80 dB, Low when striking",
+      "description": "28 m frond-patterned serpent, silent until it strikes.",
+      "diet": [
+        "Kelp-Grazer Manatee",
+        "Holdfast Hog",
+        "Veil-Fin Ray",
+        "Stalker-Hound",
+        "Suction-Maw Eel",
+        "Lancer Pike",
+        "Surfline Sea Lion",
+        "Tangle Dogfish",
+        "Silt-Barb Stingray",
+        "Strangler Squid"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "kelp",
+      "depthMin": 60,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.8,
+      "lethalToDiver": true,
+      "tactics": "Frond-patterned ambusher; strikes anything displacing water near its coils.",
+      "behavior": "Frond-patterned serpent; strikes anything displacing water near its coils",
+      "yields": "Shroud Hide",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "thicket_grouper_titan",
+      "name": "Thicket Grouper Titan",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 12.0,
+      "sizeText": "12 m",
+      "sound": "60 dB, Low",
+      "description": "12 m giant grouper of collapsed-stalk caves.",
+      "diet": [
+        "Kelp-Cow",
+        "Ironshell Snail",
+        "Pod-Cracker Bream",
+        "Veil-Fin Ray",
+        "Wraith",
+        "Suction-Maw Eel",
+        "Snail-Cracker Wolffish",
+        "Tangle Dogfish",
+        "Silt-Barb Stingray"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "crevice",
+      "depthMin": 100,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.7,
+      "lethalToDiver": true,
+      "tactics": "Lurks in collapsed-stalk caves; a suction boom drags in prey.",
+      "behavior": "Lurks in collapsed-stalk caves; suction boom drags in prey",
+      "yields": "Titan Swim Bladder",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "kelp_stripe_orca",
+      "name": "Kelp-Stripe Orca",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "mammal",
+      "sizeM": 9.0,
+      "sizeText": "9 m",
+      "sound": "70 dB, Ultrasonic",
+      "description": "9 m striped orca hunting in pods.",
+      "diet": [
+        "Kelp-Grazer Manatee",
+        "Holdfast Hog",
+        "Sieve-Mouth Basker",
+        "Veil-Fin Ray",
+        "Stalker-Hound",
+        "Lancer Pike",
+        "Thicket Seal",
+        "Surfline Sea Lion",
+        "Strangler Squid"
+      ],
+      "predators": [],
+      "schooling": true,
+      "groupSize": [
+        3,
+        6
+      ],
+      "habitat": "open",
+      "depthMin": 50,
+      "depthMax": 150,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid",
+        "ultra"
+      ],
+      "light": "none",
+      "aggression": 0.7,
+      "lethalToDiver": true,
+      "tactics": "Pod echolocates through the maze and herds prey into clearings.",
+      "behavior": "Pod hunter echolocating through the maze; herds prey into clearings",
+      "yields": "Orca Melon Oil",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    }
+  ],
+  "interactions": [
+    "Noisy, bleeding or propeller-driven crews attract the whole chain; the serpents strike anything big that displaces water.",
+    "The Tangle-Serpent Leviathan hangs motionless among the kelp and wraps any sub passing within 15 m; at the dreadnought it hides its 95 dB constriction roar in the ship's metal groans.",
+    "Stalker-Hounds stalk divers rather than attacking at once, stealing dropped tools and titanium scrap and caching the loot in hollow kelp roots.",
+    "Moss-Nibbler Wrasse clean parasites off resting Kelp-Grazer Manatees; Holdfast Gleaner Shrimp clean wounds on resting fish.",
+    "Stalk Urchin herds gnaw holdfasts, toppling stalks and opening new clearings.",
+    "Kelp-Stripe Orca pods echolocate through the maze and herd prey into clearings.",
+    "Pod-Cracker Bream crunching pods gives feeding groups away to predators.",
+    "Glimmer Mysids flash blue when disturbed, revealing nearby divers.",
+    "Bulb-Lure Anglers mimic Glow Bulbs to ambush Bulb-Picker Gobies and careless collectors.",
+    "Tangle Dogfish hunt by smell in packs of five and frenzy at blood; Carrion Whelks and Silt Brittle Stars converge on blood and kills within minutes.",
+    "Gasp Tubeworm bubble bursts briefly mask nearby noise; Strangle Spongeweed slowly kills kelp stalks.",
+    "Lubricants leaking from the tangled dreadnought confuse predators' sense of smell, hiding a diver's blood trail."
+  ]
+}

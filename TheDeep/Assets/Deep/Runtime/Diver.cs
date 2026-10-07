@@ -18,6 +18,8 @@ namespace Deep
         public float yaw, pitch;
         public Vector3 vel;
         public float oxygen = 45f, oxygenMax = 45f;
+        public float health = 100f;      // (stage 4 brings the doc's full survival meters)
+        public string lastHurtBy;
         public bool inputEnabled = true;
         public bool aboard, lampOn = true, climbing;
         public Nautilus ship;
@@ -43,6 +45,18 @@ namespace Deep
         }
 
         public void Toast(string s) { toast = s; toastT = 3.5f; }
+
+        // a bite, a sting, a ram: at zero you black out and come to aboard the Nautilus (the campaign's death rules -
+        // what you carried left where you fell - come with stage 7)
+        public void Hurt(float dmg, string by)
+        {
+            if (!inputEnabled && DeepBoot.I && DeepBoot.I.GetComponent<Shots>()) return;   // (not in the screenshot harness)
+            health -= dmg; lastHurtBy = by;
+            Toast(health > 0 ? $"{by} bites! ({health:0} health)" : $"Taken by the {by}...");
+            if (health > 0) return;
+            health = 60f; oxygen = oxygenMax;
+            if (ship) foreach (var s in ship.L.stations) if (s.kind == "lockers") { Board(ship.StandLocal(s), Nautilus.FacingYaw(s), $"You come to in the Dive Room. ({by})"); break; }
+        }
 
         void Update()
         {
@@ -74,8 +88,82 @@ namespace Deep
             if (toastT > 0) toastT -= dt; else toast = "";
         }
 
-        float Axis(KeyCode pos, KeyCode neg) => inputEnabled ? (Input.GetKey(pos) ? 1 : 0) - (Input.GetKey(neg) ? 1 : 0) : 0;
-        bool Down(KeyCode a, KeyCode b) => inputEnabled && (Input.GetKey(a) || Input.GetKey(b));
+        // keys (SimHold lets the tests and shots hold one down)
+        public KeyCode SimHold = KeyCode.None;
+        bool Key(KeyCode k) => inputEnabled && (Input.GetKey(k) || SimHold == k);
+        float Axis(KeyCode pos, KeyCode neg) => (Key(pos) ? 1 : 0) - (Key(neg) ? 1 : 0);
+        bool Down(KeyCode a, KeyCode b) => Key(a) || Key(b);
+        public void SimStep(float dt) { if (aboard) WalkStep(dt); else SwimStep(dt); }
+
+        // ---- ladders -------------------------------------------------------------------------------------------
+        // Walk into a ladder and hold W to climb it (S to go down; Space lets go). At the top of the pilot house's
+        // shaft you step off onto its floor; at the top of the Dive Room's you open the deck hatch (E); at the bottom
+        // you step off. Standing at the top of the shaft, S takes hold of the ladder to climb down.
+        NLLadder onLadder;
+
+        NLLadder LadderAt(Vector3 g)
+        {
+            foreach (var l in ship.L.ladders)
+                if (new Vector2(g.x - l.x, g.z - l.z).magnitude < 0.65f && g.y > l.y0 - 0.2f && g.y < l.y1 + 0.9f) return l;
+            return null;
+        }
+
+        // where you step off at the top of a ladder with no hatch: onto the floor beyond the shaft
+        Vector3 TopExit(NLLadder l)
+        {
+            float dir = Nautilus.ShaftX - l.x >= 0 ? 1f : -1f;
+            return new Vector3(Nautilus.ShaftX + dir * (Nautilus.ShaftHalf + 0.5f), l.y1 + cc.height / 2 + 0.05f, l.z);
+        }
+
+        void PlaceGen(Vector3 g)
+        {
+            cc.enabled = false; transform.position = ship.ProxyPoint(Nautilus.G(g.x, g.y, g.z)); cc.enabled = true;
+            vel = Vector3.zero;
+        }
+
+        // true while the ladder has you
+        bool LadderStep(Vector3 g, float dt)
+        {
+            float climb = Axis(KeyCode.W, KeyCode.S);
+            if (onLadder == null)
+            {
+                var l = LadderAt(g);
+                if (l != null && climb > 0 && g.y < l.y1) { onLadder = l; climbing = true; }
+                else if (climb < 0)
+                    foreach (var t in ship.L.ladders)
+                    {
+                        if (!string.IsNullOrEmpty(t.hatch)) continue;
+                        bool atTop = new Vector2(g.x - t.x, g.z - t.z).magnitude < 1.45f && g.y > t.y1 + 0.5f && g.y < t.y1 + 1.3f;
+                        if (!atTop) continue;
+                        onLadder = t; climbing = true;
+                        PlaceGen(new Vector3(t.x + 0.25f * Mathf.Sign(Nautilus.ShaftX - t.x), t.y1 + 0.2f, t.z));
+                        yaw = Nautilus.FacingYaw(new NLStation { facing = new[] { Mathf.Sign(t.x - Nautilus.ShaftX), 0f, 0f } }) + 180f;
+                        return true;
+                    }
+                if (onLadder == null) { climbing = false; return false; }
+            }
+            var lad = onLadder;
+            // let go
+            if (inputEnabled && Input.GetKeyDown(KeyCode.Space))
+            {
+                onLadder = null; climbing = false;
+                vel = -transform.forward * 1.2f + Vector3.up * 0.5f;
+                return false;
+            }
+            // off the bottom
+            if (climb < 0 && g.y <= lad.y0 + cc.height / 2 + 0.03f) { onLadder = null; climbing = false; return false; }
+            // over the top
+            if (climb > 0 && string.IsNullOrEmpty(lad.hatch) && g.y >= lad.y1 + 0.3f)
+            {
+                PlaceGen(TopExit(lad));
+                onLadder = null; climbing = false;
+                return true;
+            }
+            vel = new Vector3(0, climb * 1.9f, 0);
+            if (!string.IsNullOrEmpty(lad.hatch) && g.y > lad.y1 - 0.85f && vel.y > 0) vel.y = 0;   // the hatch overhead
+            cc.Move(vel * dt);
+            return true;
+        }
 
         void SwimStep(float dt)
         {
@@ -102,24 +190,9 @@ namespace Deep
 
         void WalkStep(float dt)
         {
-            // ladders: stand in one's column and climb with W/Space, down with S/Ctrl
             var g = Nautilus.FromLocal(ship.Proxy.InverseTransformPoint(transform.position));
-            NLLadder lad = null;
-            foreach (var l in ship.L.ladders)
-                if (new Vector2(g.x - l.x, g.z - l.z).magnitude < 0.6f && g.y > l.y0 - 0.2f && g.y < l.y1 + 0.85f) lad = l;
+            if (LadderStep(g, dt)) { oxygen = Mathf.Min(oxygenMax, oxygen + dt * 12f); return; }
             float fwd = Axis(KeyCode.W, KeyCode.S), side = Axis(KeyCode.D, KeyCode.A);
-            float up = (Down(KeyCode.Space, KeyCode.W) ? 1 : 0) - (Down(KeyCode.S, KeyCode.LeftControl) ? 1 : 0);
-            climbing = lad != null && (climbing || Mathf.Abs(up) > 0) && !(g.y < lad.y0 + 0.85f && up < 0 && !climbing);
-            if (lad != null && climbing)
-            {
-                vel = new Vector3(0, up * 1.9f, 0);
-                if (g.y > lad.y1 + 0.75f) vel += transform.forward * fwd * 1.2f;   // step off at the top
-                if (g.y < lad.y0 + 0.82f && up < 0) climbing = false;
-                cc.Move(vel * dt);
-                oxygen = Mathf.Min(oxygenMax, oxygen + dt * 12f);
-                return;
-            }
-            climbing = false;
             var wish = transform.forward * fwd + transform.right * side;
             if (wish.sqrMagnitude > 1) wish.Normalize();
             float speed = Down(KeyCode.LeftShift, KeyCode.LeftShift) ? Run : Walk;
@@ -164,6 +237,10 @@ namespace Deep
             if (aboard)
             {
                 var g = Nautilus.FromLocal(ship.Proxy.InverseTransformPoint(transform.position));
+                if (climbing && onLadder != null && !(onLadder.hatch == "deck" && g.y > onLadder.y1 - 0.8f)) { hint = "W/S  climb    Space  let go"; return; }
+                foreach (var t in ship.L.ladders)
+                    if (string.IsNullOrEmpty(t.hatch) && !climbing && new Vector2(g.x - t.x, g.z - t.z).magnitude < 1.45f && g.y > t.y1 + 0.5f && g.y < t.y1 + 1.3f)
+                    { hint = "S  Climb down the ladder"; return; }
                 foreach (var l in ship.L.ladders)
                     if (l.hatch == "deck" && climbing && g.y > l.y1 - 0.8f)
                     {
@@ -210,6 +287,9 @@ namespace Deep
                         break;
                     case "moonpool":
                         hint = "Drop into the moonpool to dive";
+                        break;
+                    case "cabin":
+                        hint = "A cabin, yours to make your own (furnishing it comes with the campaign)";
                         break;
                     default:
                         hint = StationName(s.kind) + "  (comes alive in the next build)";
@@ -312,7 +392,7 @@ namespace Deep
         // aboard at a standing spot (ship local, feet), facing a yaw in the ship's frame
         public void Board(Vector3 standLocal, float yawShip, string msg = null)
         {
-            aboard = true; climbing = false; manning = null;
+            aboard = true; climbing = false; manning = null; onLadder = null;
             cc.enabled = false; transform.position = ship.ProxyPoint(standLocal) + Vector3.up * (cc.height / 2 + 0.02f); cc.enabled = true;
             yaw = yawShip; vel = Vector3.zero;
             transform.rotation = Quaternion.Euler(0, yaw, 0);

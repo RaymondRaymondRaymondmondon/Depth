@@ -167,6 +167,7 @@ namespace Deep
             if (!LifeSupport || battery < 0.01f) { alert = "The sonar is dead: she has no power."; return false; }
             battery -= 0.005f;
             pingNoiseT = 1.5f;
+            if (Life.I != null) Life.I.sound.Emit(n.Body.position, 115f, Band.Ultra, 1.5f, "a sonar ping");
             var bed = DeepBoot.I ? DeepBoot.I.seabed : null; if (!bed) return false;
             if (!sonarMap) { sonarMap = new Texture2D(SonarRes, SonarRes, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp }; }
             var c = n.Body.position; float keel = c.y - Nautilus.Radius;

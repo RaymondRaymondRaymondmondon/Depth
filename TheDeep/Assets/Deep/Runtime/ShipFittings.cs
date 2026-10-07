@@ -95,7 +95,9 @@ namespace Deep
             pilotDepth = Needle(pp, 0.13f, 0.012f, black, -0.02f);
 
             // the Bridge telegraph's handle, on the face toward the hand at it
-            var tp = Pivot("Telegraph handle", 23.9f, Nautilus.Floor + 1.22f, 1.5f, fwd);
+            var tpos = new[] { 23.9f, 0, 1.5f };
+            foreach (var st in n.L.stations) if (st.kind == "telegraph") tpos = new[] { st.pos[0] + 0.5f, 0, st.pos[2] };
+            var tp = Pivot("Telegraph handle", tpos[0], Nautilus.Floor + 1.22f, tpos[2], fwd);
             handle = new GameObject("handle").transform; handle.SetParent(tp, false);
             Part(PrimitiveType.Cube, handle, new Vector3(0, 0.13f, 0), Vector3.zero, new Vector3(0.035f, 0.26f, 0.025f), brass);
             Part(PrimitiveType.Cylinder, handle, new Vector3(0, 0.27f, -0.04f), new Vector3(90, 0, 0), new Vector3(0.045f, 0.06f, 0.045f), black);
@@ -108,9 +110,10 @@ namespace Deep
             }
 
             // the Bridge: the depth gauge on the port wall and the clock on the starboard wall (both face into the room)
-            var bd = Pivot("Bridge depth gauge", 19.0f, 0.8f, -1.81f, -Vector3.right);
+            float gx = n.L.bridgeGauges != null && n.L.bridgeGauges.depth != null ? n.L.bridgeGauges.depth[0] : 27f;
+            var bd = Pivot("Bridge depth gauge", gx, 0.8f, -1.81f, -Vector3.right);
             bridgeDepth = Needle(bd, 0.22f, 0.016f, black, 0);
-            var bc = Pivot("Bridge clock", 19.0f, 0.8f, 1.81f, Vector3.right);
+            var bc = Pivot("Bridge clock", gx, 0.8f, 1.81f, Vector3.right);
             clockH = Needle(bc, 0.14f, 0.018f, black, 0);
             clockM = Needle(bc, 0.22f, 0.012f, black, -0.006f);
         }

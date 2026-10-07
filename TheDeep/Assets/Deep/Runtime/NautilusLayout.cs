@@ -16,6 +16,8 @@ namespace Deep
     [Serializable] public class NLMoonpool { public float x0, x1, z0, z1, y; }
     [Serializable] public class NLLight { public string kind; public float[] pos, dir; }
     [Serializable] public class NLGauges { public float[] depth, clock; }
+    [Serializable] public class NLCabin { public string id, name; public float x0, x1, z0, z1; public float[] door, porthole; }
+    [Serializable] public class NLWall { public float x0, x1, z0, z1; }
 
     [Serializable]
     public class NautilusLayout
@@ -31,6 +33,14 @@ namespace Deep
         public NLLight[] lights;
         public float[] helmWheel;
         public NLGauges gauges, bridgeGauges;
+        public NLCabin[] cabins;        // the Crew Quarters' four cabins, each the crew's own to make
+        public NLWall[] walls;          // partitions inside rooms (the cabins' walls)
+
+        public NLCabin CabinAt(Vector3 g)
+        {
+            if (cabins != null) foreach (var c in cabins) if (g.x >= c.x0 && g.x <= c.x1 && g.z >= c.z0 && g.z <= c.z1) return c;
+            return null;
+        }
 
         public static NautilusLayout Load()
         {

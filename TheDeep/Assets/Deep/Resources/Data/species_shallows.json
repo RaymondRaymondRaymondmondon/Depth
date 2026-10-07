@@ -1,0 +1,3337 @@
+{
+  "biome": "shallows",
+  "name": "The Sunlit Shallows",
+  "depthMin": 0,
+  "depthMax": 50,
+  "absorptionDbPerM": 0.012,
+  "estimated": [
+    "absorptionDbPerM"
+  ],
+  "layout": "Turquoise water over wide coral reefs, sandbars and shallow lagoons, sunlit to the seabed; the safe starting zone, though sandbanks can ground heavy subs.",
+  "look": "Golden sunbeams in clear water, rainbow coral, great swirling schools of shimmering fish, gentle currents.",
+  "hazards": "Running aground on sandbars, scraping coral, and territorial reef defenders during the midday sun.",
+  "foodWeb": "Sunlight feeds phytoplankton and reef algae; plankton feeds filter feeders, algae and grasses feed grazers. These feed snapper packs, Inkdarts, Lancers and Moray Creepers, which fall to the Fin-Shark, Maw Grouper, Crab-Squid and Reef-Crusher Leviathan. The Coral-Crusher Leviathan grinds reef into sand; hermits, isopods, worms and carrion-crabs recycle every fall.",
+  "source": "The Deep Design Document.pdf, The ten ecosystems (flora and fauna tables) and Featured species",
+  "flora": [
+    {
+      "id": "solar_carpet_algae",
+      "name": "Solar-Carpet Algae",
+      "tier": 1,
+      "type": "Algae",
+      "description": "Thick green mats on sunlit reef flats; photosynthesises so fast it fizzes with oxygen bubbles",
+      "eatenBy": [
+        "Chromis Glider",
+        "Lagoon Spine-Urchin"
+      ],
+      "yields": "Solar-Carpet Algae",
+      "use": "Rations and Bio-Polymers",
+      "habitat": "reef"
+    },
+    {
+      "id": "coral_algae",
+      "name": "Coral Algae",
+      "tier": 1,
+      "type": "Algae",
+      "description": "Pink calcified crust that binds reef rubble into solid rock",
+      "eatenBy": [
+        "Sunscale Parrot-Wrasse"
+      ],
+      "yields": "Calcite Algae Flakes",
+      "use": "Reinforced Glass and hull patches",
+      "habitat": "reef"
+    },
+    {
+      "id": "verdant_algae",
+      "name": "Verdant Algae",
+      "tier": 1,
+      "type": "Algae",
+      "description": "Bright lime filaments blooming thickly on shaded rock faces",
+      "eatenBy": [
+        "Armored Reef-Tang",
+        "Crown Chiton",
+        "Glade Grass Conch"
+      ],
+      "yields": "Verdant Chlorophyll Paste",
+      "use": "Basic medkits and stamina tonic",
+      "habitat": "rock"
+    },
+    {
+      "id": "ribbon_sea_grass",
+      "name": "Ribbon Sea-Grass",
+      "tier": 1,
+      "type": "Sea-grass",
+      "description": "Long flat blades in swaying meadows whose roots anchor lagoon sand",
+      "eatenBy": [
+        "Sandbar Sea-Hare",
+        "Lagoon Sea-Calf",
+        "Sunback Reef-Turtle"
+      ],
+      "yields": "Ribbon Grass Fiber",
+      "use": "Rope, cordage, net weaving",
+      "habitat": "lagoon"
+    },
+    {
+      "id": "glade_sea_grass",
+      "name": "Glade Sea-Grass",
+      "tier": 1,
+      "type": "Sea-grass",
+      "description": "Short soft tufts making open clearings where sea-calf herds graze",
+      "eatenBy": [
+        "Sandbar Sea-Hare",
+        "Lagoon Sea-Calf",
+        "Glade Grass Conch"
+      ],
+      "yields": "Glade Grass Starch",
+      "use": "Thickener for cooked meals",
+      "habitat": "lagoon"
+    },
+    {
+      "id": "golden_moss",
+      "name": "Golden Moss",
+      "tier": 1,
+      "type": "Moss",
+      "description": "Metallic-gold cushions that gather trace minerals from the water",
+      "eatenBy": [
+        "Lagoon Spine-Urchin",
+        "Gilded Moss-Snail",
+        "Bloom-Moss Blenny"
+      ],
+      "yields": "Golden Moss Filament",
+      "use": "Conductive wiring for early electronics",
+      "habitat": "rock"
+    },
+    {
+      "id": "bloom_moss",
+      "name": "Bloom Moss",
+      "tier": 1,
+      "type": "Moss",
+      "description": "Velvety moss with tiny pink spore-flowers that open at dawn",
+      "eatenBy": [
+        "Gilded Moss-Snail",
+        "Bloom-Moss Blenny"
+      ],
+      "yields": "Bloom Moss Spores",
+      "use": "Antiseptic salve",
+      "habitat": "rock"
+    },
+    {
+      "id": "petal_fern",
+      "name": "Petal Fern",
+      "tier": 1,
+      "type": "Fern",
+      "description": "Petal-shaped rosette fronds that fold shut when touched",
+      "eatenBy": [
+        "Petalfin Butterflyfish"
+      ],
+      "yields": "Petal Fern Dye",
+      "use": "Paint and gear color-coding",
+      "habitat": "reef"
+    },
+    {
+      "id": "solar_kelplet",
+      "name": "Solar Kelplet",
+      "tier": 1,
+      "type": "Kelplet",
+      "description": "Small amber kelp whose gas floats lean toward the sun",
+      "eatenBy": [
+        "Shimmer Surgeonfish"
+      ],
+      "yields": "Kelplet Float Bladder",
+      "use": "Buoyancy aids, salvage lift bags, Kite-Sub",
+      "habitat": "rock"
+    },
+    {
+      "id": "feather_kelplet",
+      "name": "Feather Kelplet",
+      "tier": 1,
+      "type": "Kelplet",
+      "description": "Plume-like fronds on a short stalk that sway even in still water",
+      "eatenBy": [
+        "Spireback Puffer"
+      ],
+      "yields": "Feather Kelp Strands",
+      "use": "Water filter cartridges",
+      "habitat": "reef"
+    },
+    {
+      "id": "velvet_reed",
+      "name": "Velvet Reed",
+      "tier": 2,
+      "type": "Reed",
+      "description": "Dense brown stalks with a furry coat that catches drifting sediment",
+      "eatenBy": [
+        "Velvet Reed Shrimp"
+      ],
+      "yields": "Velvet Reed Pith",
+      "use": "Sound-dampening insulation for the sub",
+      "habitat": "sand"
+    },
+    {
+      "id": "crest_reed",
+      "name": "Crest Reed",
+      "tier": 2,
+      "type": "Reed",
+      "description": "Tall stiff reeds with serrated crests lining sandbar edges",
+      "eatenBy": [
+        "Velvet Reed Shrimp"
+      ],
+      "yields": "Crest Reed Shafts",
+      "use": "Spear shafts and tool handles",
+      "habitat": "sand"
+    },
+    {
+      "id": "fan_anemone",
+      "name": "Fan Anemone",
+      "tier": 2,
+      "type": "Anemone",
+      "description": "Broad fan of stinging tentacles that mildly numbs skin",
+      "eatenBy": [
+        "Petalfin Butterflyfish"
+      ],
+      "yields": "Anemone Nematocyst Gel",
+      "use": "Stun-dart coating",
+      "habitat": "reef"
+    },
+    {
+      "id": "lace_fern",
+      "name": "Lace Fern",
+      "tier": 2,
+      "type": "Fern",
+      "description": "Translucent lattice fronds fine enough to glow white in direct sun",
+      "eatenBy": [
+        "Lacefern Nudibranch"
+      ],
+      "yields": "Lace Fern Mesh",
+      "use": "Lightweight suit lining",
+      "habitat": "reef"
+    },
+    {
+      "id": "shimmer_bloom",
+      "name": "Shimmer Bloom",
+      "tier": 2,
+      "type": "Bloom",
+      "description": "Iridescent flowering plant whose petals split light into rainbows",
+      "eatenBy": [
+        "Shimmer Surgeonfish"
+      ],
+      "yields": "Shimmer Pigment",
+      "use": "Reflective lures and signal flares",
+      "habitat": "reef"
+    },
+    {
+      "id": "sun_sponge",
+      "name": "Sun Sponge",
+      "tier": 2,
+      "type": "Sponge",
+      "description": "Yellow porous sponge holding mild toxins to deter grazers",
+      "eatenBy": [
+        "Lacefern Nudibranch"
+      ],
+      "yields": "Sun Sponge Toxin Extract",
+      "use": "Antidote and anti-venom base",
+      "habitat": "reef"
+    },
+    {
+      "id": "table_coral",
+      "name": "Table Coral",
+      "tier": 2,
+      "type": "Coral",
+      "description": "Broad flat plates stacked in tiers that shelter reef fish",
+      "eatenBy": [
+        "Armored Reef-Tang",
+        "Coral-Crusher Leviathan"
+      ],
+      "yields": "Table Coral Slab",
+      "use": "Titanium Hull Plates, Abyssal Forge",
+      "habitat": "reef"
+    },
+    {
+      "id": "spire_coral",
+      "name": "Spire Coral",
+      "tier": 3,
+      "type": "Coral",
+      "description": "Branching spires up to 4 m tall; very dense with brittle tips",
+      "eatenBy": [
+        "Sunscale Parrot-Wrasse",
+        "Spireback Puffer",
+        "Coral-Crusher Leviathan"
+      ],
+      "yields": "Spire Coral Rod",
+      "use": "Reinforced hull struts",
+      "habitat": "reef"
+    },
+    {
+      "id": "crown_sponge",
+      "name": "Crown Sponge",
+      "tier": 3,
+      "type": "Sponge",
+      "description": "Barrel sponge ringed with spikes that filters thousands of litres a day",
+      "eatenBy": [
+        "Crown Chiton",
+        "Coral-Crusher Leviathan"
+      ],
+      "yields": "Crown Sponge Silica",
+      "use": "Optical lenses",
+      "habitat": "reef"
+    },
+    {
+      "id": "pearl_bloom",
+      "name": "Pearl Bloom",
+      "tier": 3,
+      "type": "Bloom",
+      "description": "Rare white bulbs that grow nacre pearls inside sealed seed pods",
+      "eatenBy": [],
+      "yields": "Bloom Nacre Pearl",
+      "use": "Advanced optics and sonar crystals",
+      "habitat": "lagoon"
+    }
+  ],
+  "fauna": [
+    {
+      "id": "sunmote_copepod",
+      "name": "Sunmote Copepod",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.002,
+      "sizeText": "2 mm",
+      "sound": "Silent",
+      "description": "Tiny sunlit copepod drifting in surface clouds, rising at dawn and sinking by noon.",
+      "diet": [
+        "phytoplankton"
+      ],
+      "predators": [
+        "Turquoise Arrow-Worm",
+        "Glimmer Sardine Shoal",
+        "Sun-Fan Feather Duster",
+        "Sunhat Jelly",
+        "Pearl Comb Jellet"
+      ],
+      "schooling": true,
+      "groupSize": [
+        1000,
+        100000
+      ],
+      "habitat": "surface",
+      "depthMin": 0,
+      "depthMax": 20,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "attracted",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Drifts in clouds; no defence beyond numbers.",
+      "behavior": "Drifts in sunlit surface clouds; rises at dawn, sinks at noon",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lagoon_glimmer_krill",
+      "name": "Lagoon Glimmer Krill",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.015,
+      "sizeText": "1.5 cm",
+      "sound": "Silent",
+      "description": "Glittering krill forming dense swarms over the lagoon floor.",
+      "diet": [
+        "phytoplankton"
+      ],
+      "predators": [
+        "Lagoon Manta-Wing",
+        "Glimmer Sardine Shoal",
+        "Reef Basket Star"
+      ],
+      "schooling": true,
+      "groupSize": [
+        500,
+        5000
+      ],
+      "habitat": "lagoon",
+      "depthMin": 5,
+      "depthMax": 30,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Swarm scatters from thruster wash and predators.",
+      "behavior": "Dense glittering swarms over lagoon floor; scatter from thruster wash",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "reef_larva_cloud",
+      "name": "Reef Larva Cloud",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.003,
+      "sizeText": "1-5 mm",
+      "sound": "Silent",
+      "description": "Drifting clouds of coral and fish spawn released on full-moon tides.",
+      "diet": [
+        "phytoplankton"
+      ],
+      "predators": [
+        "Giant Sunclam",
+        "Atoll Barnacle Colony",
+        "Spire Christmas-Worm",
+        "Sunhat Jelly"
+      ],
+      "schooling": true,
+      "groupSize": [
+        1000,
+        100000
+      ],
+      "habitat": "reef",
+      "depthMin": 0,
+      "depthMax": 30,
+      "activity": "night",
+      "hearing": [
+        "low"
+      ],
+      "light": "attracted",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Passive drift; sheer numbers on spawning tides.",
+      "behavior": "Mass coral and fish spawn drifts on full-moon tides",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sandflit_mysid",
+      "name": "Sandflit Mysid",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.008,
+      "sizeText": "8 mm",
+      "sound": "Silent",
+      "description": "Small mysid hovering just above sandbars.",
+      "diet": [
+        "phytoplankton",
+        "detritus"
+      ],
+      "predators": [
+        "Sea-Grass Pipe-Dragon",
+        "Reef Basket Star",
+        "Sand-Dollar Sifter",
+        "Sunflash Cuttle"
+      ],
+      "schooling": true,
+      "groupSize": [
+        50,
+        500
+      ],
+      "habitat": "sand",
+      "depthMin": 5,
+      "depthMax": 40,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "repelled",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Hovers over sandbars and dives into the sand when lit brightly.",
+      "behavior": "Hovers just above sandbars; flees into sand when lit brightly",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "pearl_comb_jellet",
+      "name": "Pearl Comb Jellet",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "jelly",
+      "sizeM": 0.02,
+      "sizeText": "2 cm",
+      "sound": "Silent",
+      "description": "Comb jelly with shimmering rainbow comb rows, carried by tidal currents.",
+      "diet": [
+        "Sunmote Copepod"
+      ],
+      "predators": [
+        "Lagoon Manta-Wing",
+        "Sunback Reef-Turtle"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        100
+      ],
+      "habitat": "open",
+      "depthMin": 0,
+      "depthMax": 30,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Drifts passively with the tide; no escape behaviour.",
+      "behavior": "Rainbow comb rows shimmer; drifts passively with tidal currents",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "turquoise_arrow_worm",
+      "name": "Turquoise Arrow-Worm",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 0.015,
+      "sizeText": "1.5 cm",
+      "sound": "Silent",
+      "description": "Transparent dart-shaped plankton predator that grabs copepods with spines.",
+      "diet": [
+        "Sunmote Copepod"
+      ],
+      "predators": [
+        "Glimmer Sardine Shoal",
+        "Sea-Grass Pipe-Dragon"
+      ],
+      "schooling": true,
+      "groupSize": [
+        20,
+        300
+      ],
+      "habitat": "open",
+      "depthMin": 0,
+      "depthMax": 30,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Transparent ambusher; darts and snares copepods with grasping spines.",
+      "behavior": "Transparent dart; strikes copepods with grasping spines",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "chromis_glider",
+      "name": "Chromis Glider",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.12,
+      "sizeText": "12 cm",
+      "sound": "5 dB, High",
+      "description": "Small schooling reef fish grazing Solar-Carpet Algae; the main prey of Reef-Snappers.",
+      "diet": [
+        "Solar-Carpet Algae"
+      ],
+      "predators": [
+        "Barbed Reef-Snapper",
+        "Lagoon Lancer",
+        "Sunstripe Jack",
+        "Sponge-Mimic Angler"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        30
+      ],
+      "habitat": "reef",
+      "depthMin": 2,
+      "depthMax": 30,
+      "activity": "day",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Schools coordinate with 12 kHz lateral-line clicks; packs into bait balls when threatened.",
+      "behavior": "Schools of 10-30; 12 kHz lateral-line clicks; forms bait balls when threatened",
+      "yields": "Raw Chromis Glider",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sunscale_parrot_wrasse",
+      "name": "Sunscale Parrot-Wrasse",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.7,
+      "sizeText": "70 cm",
+      "sound": "20 dB, High",
+      "description": "Large wrasse that crunches coral noisily and excretes white sand.",
+      "diet": [
+        "Coral Algae",
+        "Spire Coral"
+      ],
+      "predators": [
+        "Atoll Maw Grouper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 30,
+      "activity": "day",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Loud coral cruncher; sleeps sealed in a mucus cocoon at night.",
+      "behavior": "Crunches coral loudly; excretes white sand; sleeps in a mucus cocoon",
+      "yields": "Parrot-Wrasse Beak Plate",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "armored_reef_tang",
+      "name": "Armored Reef-Tang",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.35,
+      "sizeText": "35 cm",
+      "sound": "12 dB, Mid",
+      "description": "Armoured reef grazer whose tail scalpels cut divers who corner it.",
+      "diet": [
+        "Verdant Algae",
+        "Table Coral algae film"
+      ],
+      "predators": [
+        "Barbed Reef-Snapper",
+        "Lagoon Lancer"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        6
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 35,
+      "activity": "day",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.35,
+      "lethalToDiver": false,
+      "tactics": "Armoured grazer; slashes with tail scalpels when cornered.",
+      "behavior": "Armored grazer; tail scalpels slash divers who corner it",
+      "yields": "Reef-Tang Scalpel Spine",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lagoon_spine_urchin",
+      "name": "Lagoon Spine-Urchin",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "urchin",
+      "sizeM": 0.15,
+      "sizeText": "15 cm",
+      "sound": "3 dB, High",
+      "description": "Spiny urchin that carpets the reef flats at night.",
+      "diet": [
+        "Solar-Carpet Algae",
+        "Golden Moss"
+      ],
+      "predators": [
+        "Pearl Trigger-Biter"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        200
+      ],
+      "habitat": "reef",
+      "depthMin": 2,
+      "depthMax": 30,
+      "activity": "night",
+      "hearing": [
+        "low"
+      ],
+      "light": "repelled",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Passive defence; spines puncture suits that touch it.",
+      "behavior": "Carpets reef flats at night; spines puncture suits",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sandbar_sea_hare",
+      "name": "Sandbar Sea-Hare",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.3,
+      "sizeText": "30 cm",
+      "sound": "Silent",
+      "description": "Slow sea slug munching seagrass meadows.",
+      "diet": [
+        "Ribbon Sea-Grass",
+        "Glade Sea-Grass"
+      ],
+      "predators": [
+        "Sand-Veil Stingray"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "lagoon",
+      "depthMin": 2,
+      "depthMax": 20,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Slow; squirts purple ink when touched.",
+      "behavior": "Slow seagrass muncher; releases purple ink when touched",
+      "yields": "Sea-Hare Ink Sac",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "gilded_moss_snail",
+      "name": "Gilded Moss-Snail",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.04,
+      "sizeText": "4 cm",
+      "sound": "Silent",
+      "description": "Small gold-flecked snail leaving glistening trails over moss beds.",
+      "diet": [
+        "Golden Moss",
+        "Bloom Moss"
+      ],
+      "predators": [
+        "Spire Cone-Snail",
+        "Tidal Mantis-Striker"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        10
+      ],
+      "habitat": "reef",
+      "depthMin": 2,
+      "depthMax": 35,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Slow grazer; relies on its shell.",
+      "behavior": "Gold-flecked shell; leaves glistening trails across moss beds",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lagoon_sea_calf",
+      "name": "Lagoon Sea-Calf",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "mammal",
+      "sizeM": 2.5,
+      "sizeText": "2.5 m",
+      "sound": "25 dB, Mid",
+      "description": "Large gentle seagrass grazer travelling in small herds.",
+      "diet": [
+        "Ribbon Sea-Grass",
+        "Glade Sea-Grass"
+      ],
+      "predators": [
+        "Turquoise Fin-Shark"
+      ],
+      "schooling": true,
+      "groupSize": [
+        2,
+        4
+      ],
+      "habitat": "lagoon",
+      "depthMin": 0,
+      "depthMax": 15,
+      "activity": "day",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Gentle herd animal; chirps to calves and follows divers out of curiosity.",
+      "behavior": "Gentle herds of 2-4; chirps to calves; follows divers curiously",
+      "yields": "Raw Sea-Calf Meat",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sunback_reef_turtle",
+      "name": "Sunback Reef-Turtle",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "turtle",
+      "sizeM": 1.1,
+      "sizeText": "1.1 m",
+      "sound": "10 dB, Mid",
+      "description": "Sea turtle that grazes seagrass and eats jellies.",
+      "diet": [
+        "Ribbon Sea-Grass",
+        "Sunhat Jelly",
+        "Pearl Comb Jellet"
+      ],
+      "predators": [
+        "Sunshell Crab-Squid",
+        "Reef-Crusher Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "lagoon",
+      "depthMin": 0,
+      "depthMax": 25,
+      "activity": "day",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Shell defence; basks at the surface at noon and migrates between lagoons.",
+      "behavior": "Basks at the surface at noon; migrates between lagoons",
+      "yields": "Sunback Shell Plate",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "petalfin_butterflyfish",
+      "name": "Petalfin Butterflyfish",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.15,
+      "sizeText": "15 cm",
+      "sound": "6 dB, Mid",
+      "description": "Butterflyfish living in mated pairs around coral heads.",
+      "diet": [
+        "Fan Anemone",
+        "Petal Fern",
+        "Spire Christmas-Worm"
+      ],
+      "predators": [
+        "Moray Creeper",
+        "Coral Scorpion-Lurker"
+      ],
+      "schooling": true,
+      "groupSize": [
+        2,
+        2
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 25,
+      "activity": "day",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Mated pairs patrol coral heads and bolt into Table Coral.",
+      "behavior": "Mated pairs patrol coral heads; flee into Table Coral",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "velvet_reed_shrimp",
+      "name": "Velvet Reed Shrimp",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.05,
+      "sizeText": "5 cm",
+      "sound": "4 dB, High",
+      "description": "Small shrimp clinging to Velvet and Crest Reeds.",
+      "diet": [
+        "Velvet Reed",
+        "Crest Reed"
+      ],
+      "predators": [
+        "Tidal Mantis-Striker",
+        "Sunflash Cuttle",
+        "Lagoon Inkdart",
+        "Coral Scorpion-Lurker"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        30
+      ],
+      "habitat": "sand",
+      "depthMin": 3,
+      "depthMax": 30,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Clings to reed stems; flicks backwards to escape.",
+      "behavior": "Clings to reed stems; flicks backward when approached",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "crown_chiton",
+      "name": "Crown Chiton",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.1,
+      "sizeText": "10 cm",
+      "sound": "Silent",
+      "description": "Eight-plated chiton grazing algae films on rock.",
+      "diet": [
+        "Verdant Algae",
+        "Crown Sponge film"
+      ],
+      "predators": [
+        "Coral Octo-Lurker"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        5
+      ],
+      "habitat": "reef",
+      "depthMin": 2,
+      "depthMax": 40,
+      "activity": "night",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Eight armour plates; clamps flat to rock and is nearly impossible to pry off.",
+      "behavior": "Eight-plated armor; clamps flat to rock, nearly impossible to pry",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "bloom_moss_blenny",
+      "name": "Bloom-Moss Blenny",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.08,
+      "sizeText": "8 cm",
+      "sound": "5 dB, Mid",
+      "description": "Small blenny living in holes beside moss beds.",
+      "diet": [
+        "Bloom Moss",
+        "Golden Moss"
+      ],
+      "predators": [
+        "Moray Creeper",
+        "Spire Cone-Snail",
+        "Sponge-Mimic Angler"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "crevice",
+      "depthMin": 2,
+      "depthMax": 30,
+      "activity": "day",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Peeks from holes, darts out to graze, retreats at once.",
+      "behavior": "Peeks from holes; darts out to graze, then retreats",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "shimmer_surgeonfish",
+      "name": "Shimmer Surgeonfish",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.3,
+      "sizeText": "30 cm",
+      "sound": "10 dB, Mid",
+      "description": "Schooling surgeonfish grazing blooms and kelplets.",
+      "diet": [
+        "Shimmer Bloom",
+        "Solar Kelplet"
+      ],
+      "predators": [
+        "Barbed Reef-Snapper",
+        "Lagoon Lancer"
+      ],
+      "schooling": true,
+      "groupSize": [
+        15,
+        60
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 30,
+      "activity": "day",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.15,
+      "lethalToDiver": false,
+      "tactics": "Roving schools overwhelm territorial grazers by numbers.",
+      "behavior": "Roving schools overwhelm territorial grazers by sheer numbers",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lacefern_nudibranch",
+      "name": "Lacefern Nudibranch",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.06,
+      "sizeText": "6 cm",
+      "sound": "Silent",
+      "description": "Brightly coloured sea slug that stores sponge toxins.",
+      "diet": [
+        "Sun Sponge",
+        "Lace Fern"
+      ],
+      "predators": [
+        "Tidal Mantis-Striker"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 35,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Warning colours; stores sponge toxins in its skin.",
+      "behavior": "Bright warning colors; stores sponge toxins in its skin",
+      "yields": "Lacefern Toxin Gland",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "spireback_puffer",
+      "name": "Spireback Puffer",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.4,
+      "sizeText": "40 cm",
+      "sound": "8 dB, Mid",
+      "description": "Pufferfish grazing Spire Coral and Feather Kelplet.",
+      "diet": [
+        "Spire Coral",
+        "Feather Kelplet"
+      ],
+      "predators": [
+        "Turquoise Fin-Shark"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 35,
+      "activity": "day",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.2,
+      "lethalToDiver": false,
+      "tactics": "Inflates into a spiked ball when startled; toxic flesh deters predators.",
+      "behavior": "Inflates into a spiked ball when startled; toxic flesh",
+      "yields": "Puffer Toxin Sac",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "glade_grass_conch",
+      "name": "Glade Grass Conch",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.25,
+      "sizeText": "25 cm",
+      "sound": "3 dB, High",
+      "description": "Conch hopping across sand on a claw-like foot.",
+      "diet": [
+        "Verdant Algae",
+        "Glade Sea-Grass"
+      ],
+      "predators": [
+        "Sand-Veil Stingray",
+        "Coral Octo-Lurker"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        6
+      ],
+      "habitat": "sand",
+      "depthMin": 2,
+      "depthMax": 25,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Hops away on a claw-foot; clacks its shell when disturbed.",
+      "behavior": "Hops across sand with a claw-foot; clacks its shell when disturbed",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sun_fan_feather_duster",
+      "name": "Sun-Fan Feather Duster",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 0.2,
+      "sizeText": "20 cm",
+      "sound": "Silent",
+      "description": "Tube worm filtering copepods with a feathery crown.",
+      "diet": [
+        "Sunmote Copepod",
+        "detritus"
+      ],
+      "predators": [
+        "Pearl Trigger-Biter"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        20
+      ],
+      "habitat": "reef",
+      "depthMin": 2,
+      "depthMax": 40,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Snaps its feathery crown into its tube at shadows or vibration.",
+      "behavior": "Feathery crown snaps into its tube at shadows or vibration",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lagoon_manta_wing",
+      "name": "Lagoon Manta-Wing",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "ray",
+      "sizeM": 4.0,
+      "sizeText": "4 m span",
+      "sound": "15 dB, Mid",
+      "description": "Large manta-like ray with a 4 m wingspan feeding on krill and jellets.",
+      "diet": [
+        "Lagoon Glimmer Krill",
+        "Pearl Comb Jellet"
+      ],
+      "predators": [
+        "Reef-Crusher Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "open",
+      "depthMin": 0,
+      "depthMax": 40,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Barrel-rolls through krill swarms; visits cleaning stations.",
+      "behavior": "Barrel-rolls through krill swarms; visits cleaning stations",
+      "yields": "Manta-Wing Leather",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "giant_sunclam",
+      "name": "Giant Sunclam",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 1.2,
+      "sizeText": "1.2 m",
+      "sound": "5 dB, Low",
+      "description": "Huge clam with a glowing algae-hosting mantle.",
+      "diet": [
+        "phytoplankton",
+        "Reef Larva Cloud"
+      ],
+      "predators": [
+        "Coral-Crusher Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 30,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "attracted",
+      "aggression": 0.2,
+      "lethalToDiver": false,
+      "tactics": "Sessile; snaps shut on careless limbs.",
+      "behavior": "Glowing mantle hosts algae; snaps shut on careless limbs",
+      "yields": "Sunclam Pearl",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lagoon_pearl_mussel",
+      "name": "Lagoon Pearl-Mussel",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.12,
+      "sizeText": "12 cm",
+      "sound": "Silent",
+      "description": "Mussels in dense beds that clear lagoon water.",
+      "diet": [
+        "phytoplankton",
+        "detritus"
+      ],
+      "predators": [
+        "Pearl Trigger-Biter",
+        "Coral Octo-Lurker"
+      ],
+      "schooling": true,
+      "groupSize": [
+        20,
+        500
+      ],
+      "habitat": "lagoon",
+      "depthMin": 2,
+      "depthMax": 25,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Sessile beds anchored by byssal threads.",
+      "behavior": "Dense beds clarify lagoon water; anchors with byssal threads",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "reef_basket_star",
+      "name": "Reef Basket Star",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.6,
+      "sizeText": "60 cm",
+      "sound": "Silent",
+      "description": "Basket star filtering krill and mysids with fractal arms.",
+      "diet": [
+        "Lagoon Glimmer Krill",
+        "Sandflit Mysid"
+      ],
+      "predators": [
+        "Pearl Trigger-Biter"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "reef",
+      "depthMin": 5,
+      "depthMax": 45,
+      "activity": "night",
+      "hearing": [
+        "low"
+      ],
+      "light": "repelled",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Unfurls fractal arms at dusk; curls up tight under bright light.",
+      "behavior": "Unfurls fractal arms at dusk; curls tight under bright lights",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sunhat_jelly",
+      "name": "Sunhat Jelly",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "jelly",
+      "sizeM": 0.35,
+      "sizeText": "35 cm",
+      "sound": "Silent",
+      "description": "Surface jellyfish blooming in sunlit water.",
+      "diet": [
+        "Sunmote Copepod",
+        "Reef Larva Cloud"
+      ],
+      "predators": [
+        "Sunback Reef-Turtle"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        100
+      ],
+      "habitat": "surface",
+      "depthMin": 0,
+      "depthMax": 15,
+      "activity": "day",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Pulses in surface blooms; mild stinging tentacles.",
+      "behavior": "Pulses near the surface in blooms; mild stinging tentacles",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "atoll_barnacle_colony",
+      "name": "Atoll Barnacle Colony",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.03,
+      "sizeText": "3 cm each",
+      "sound": "2 dB, High",
+      "description": "Barnacle colonies encrusting rocks and hulls.",
+      "diet": [
+        "Reef Larva Cloud",
+        "phytoplankton"
+      ],
+      "predators": [
+        "Tidal Mantis-Striker"
+      ],
+      "schooling": true,
+      "groupSize": [
+        50,
+        1000
+      ],
+      "habitat": "reef",
+      "depthMin": 0,
+      "depthMax": 30,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Sessile; encrusts rocks and sub hulls, adding drag over time.",
+      "behavior": "Encrusts rocks and sub hulls; adds drag over time",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sand_dollar_sifter",
+      "name": "Sand-Dollar Sifter",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "urchin",
+      "sizeM": 0.09,
+      "sizeText": "9 cm",
+      "sound": "Silent",
+      "description": "Sand dollar standing on edge to filter mysids.",
+      "diet": [
+        "Sandflit Mysid",
+        "detritus"
+      ],
+      "predators": [
+        "Sand-Veil Stingray"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        100
+      ],
+      "habitat": "sand",
+      "depthMin": 3,
+      "depthMax": 40,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Stands edgewise in sand beds, combing the current.",
+      "behavior": "Stands edgewise in sand beds, combing the current",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "glimmer_sardine_shoal",
+      "name": "Glimmer Sardine Shoal",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.15,
+      "sizeText": "15 cm",
+      "sound": "10 dB, Mid",
+      "description": "Shoaling sardines feeding on plankton.",
+      "diet": [
+        "Sunmote Copepod",
+        "Lagoon Glimmer Krill",
+        "Turquoise Arrow-Worm"
+      ],
+      "predators": [
+        "Lagoon Inkdart",
+        "Lagoon Lancer",
+        "Sunstripe Jack"
+      ],
+      "schooling": true,
+      "groupSize": [
+        100,
+        500
+      ],
+      "habitat": "open",
+      "depthMin": 0,
+      "depthMax": 35,
+      "activity": "both",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Shoals of hundreds form bait balls that draw predators.",
+      "behavior": "Shoals of hundreds; bait balls attract predators to the area",
+      "yields": "Raw Glimmer Sardine",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "spire_christmas_worm",
+      "name": "Spire Christmas-Worm",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 0.04,
+      "sizeText": "4 cm",
+      "sound": "Silent",
+      "description": "Tube worm with spiral plumes dotting Spire Coral.",
+      "diet": [
+        "Reef Larva Cloud",
+        "phytoplankton"
+      ],
+      "predators": [
+        "Petalfin Butterflyfish"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        30
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 35,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Withdraws its spiral plumes instantly at a touch.",
+      "behavior": "Spiral plumes dot Spire Coral; vanish instantly at a touch",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "barbed_reef_snapper",
+      "name": "Barbed Reef-Snapper",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.8,
+      "sizeText": "80 cm",
+      "sound": "35 dB, Mid",
+      "description": "Pack-hunting reef snapper with a venomous bite.",
+      "diet": [
+        "Chromis Glider",
+        "Armored Reef-Tang",
+        "Shimmer Surgeonfish"
+      ],
+      "predators": [
+        "Atoll Maw Grouper"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        5
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 40,
+      "activity": "day",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.65,
+      "lethalToDiver": true,
+      "tactics": "Pack flushes Chromis toward waiting Moray Creepers; venomous bite; charges divers carrying raw meat; drawn to 300 Hz motors.",
+      "behavior": "Packs of 3-5; hunts with Moray Creepers; venomous bite; charges divers carrying raw meat",
+      "yields": "Raw Reef-Snapper, Barbed Reef-Snapper Jaw",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light"
+      ]
+    },
+    {
+      "id": "moray_creeper",
+      "name": "Moray Creeper",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 2.0,
+      "sizeText": "2 m",
+      "sound": "25 dB, Mid",
+      "description": "Crevice-dwelling moray eel.",
+      "diet": [
+        "Petalfin Butterflyfish",
+        "Bloom-Moss Blenny",
+        "Lagoon Inkdart"
+      ],
+      "predators": [
+        "Lagoon Banded Krait",
+        "Sunshell Crab-Squid"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "crevice",
+      "depthMin": 3,
+      "depthMax": 40,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.6,
+      "lethalToDiver": false,
+      "tactics": "Ambushes from coral crevices, lunging at passers-by; teams with snappers.",
+      "behavior": "Ambushes from coral crevices; lunges at passing divers; teams with snappers",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lagoon_inkdart",
+      "name": "Lagoon Inkdart",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "squid",
+      "sizeM": 0.6,
+      "sizeText": "60 cm",
+      "sound": "20 dB, Mid",
+      "description": "Squid-like hunter of sardines and shrimp.",
+      "diet": [
+        "Glimmer Sardine Shoal",
+        "Velvet Reed Shrimp",
+        "Sun-Bleach Isopod"
+      ],
+      "predators": [
+        "Moray Creeper",
+        "Sunshell Crab-Squid"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        8
+      ],
+      "habitat": "open",
+      "depthMin": 2,
+      "depthMax": 35,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "attracted",
+      "aggression": 0.45,
+      "lethalToDiver": false,
+      "tactics": "Jets in squads; ink-bombs divers' lights.",
+      "behavior": "Squid-like hunter; jets in squads; ink-bombs divers' lights",
+      "yields": "Inkdart Ink Sac",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sunflash_cuttle",
+      "name": "Sunflash Cuttle",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "squid",
+      "sizeM": 0.45,
+      "sizeText": "45 cm",
+      "sound": "15 dB, Mid",
+      "description": "Cuttlefish that hunts shrimp and mysids with hypnotic skin displays.",
+      "diet": [
+        "Velvet Reed Shrimp",
+        "Sandflit Mysid",
+        "Sea-Grass Pipe-Dragon"
+      ],
+      "predators": [
+        "Sunshell Crab-Squid"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 35,
+      "activity": "day",
+      "hearing": [
+        "mid"
+      ],
+      "light": "attracted",
+      "aggression": 0.3,
+      "lethalToDiver": false,
+      "tactics": "Hypnotic skin pulses; mimics divers' light patterns above 500 lux.",
+      "behavior": "Hypnotic skin pulses; mimics divers' light patterns above 500 lux",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lagoon_lancer",
+      "name": "Lagoon Lancer",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 1.5,
+      "sizeText": "1.5 m",
+      "sound": "30 dB, Mid",
+      "description": "Fast needle-like predator of reef fish.",
+      "diet": [
+        "Chromis Glider",
+        "Armored Reef-Tang",
+        "Shimmer Surgeonfish",
+        "Glimmer Sardine Shoal"
+      ],
+      "predators": [
+        "Turquoise Fin-Shark"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "open",
+      "depthMin": 2,
+      "depthMax": 40,
+      "activity": "day",
+      "hearing": [
+        "mid"
+      ],
+      "light": "attracted",
+      "aggression": 0.55,
+      "lethalToDiver": false,
+      "tactics": "Lightning dash strikes; drawn to shiny tools and flashing gear.",
+      "behavior": "Lightning dash strikes; drawn to shiny tools and flashing gear",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sand_veil_stingray",
+      "name": "Sand-Veil Stingray",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "ray",
+      "sizeM": 1.8,
+      "sizeText": "1.8 m",
+      "sound": "12 dB, Mid",
+      "description": "Stingray hunting buried grazers on sandbars.",
+      "diet": [
+        "Sandbar Sea-Hare",
+        "Glade Grass Conch",
+        "Sand-Dollar Sifter",
+        "Sandbar Bristle-Worm"
+      ],
+      "predators": [
+        "Turquoise Fin-Shark"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "sand",
+      "depthMin": 3,
+      "depthMax": 40,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.3,
+      "lethalToDiver": false,
+      "tactics": "Lies buried in sandbars; strikes with its barb when stepped on.",
+      "behavior": "Buried in sandbars; barb strikes divers who step on it",
+      "yields": "Stingray Barb",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "coral_scorpion_lurker",
+      "name": "Coral Scorpion-Lurker",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.4,
+      "sizeText": "40 cm",
+      "sound": "8 dB, Mid",
+      "description": "Lionfish-like reef predator.",
+      "diet": [
+        "Petalfin Butterflyfish",
+        "Velvet Reed Shrimp",
+        "Lagoon Brittle-Creeper"
+      ],
+      "predators": [
+        "Atoll Maw Grouper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 40,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.4,
+      "lethalToDiver": false,
+      "tactics": "Lionfish-like; fans its fins to corner prey; venomous dorsal spines.",
+      "behavior": "Lionfish-like; fans fins to corner prey; venomous dorsal spines",
+      "yields": "Scorpion-Lurker Venom Spine",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "tidal_mantis_striker",
+      "name": "Tidal Mantis-Striker",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.3,
+      "sizeText": "30 cm",
+      "sound": "40 dB, High",
+      "description": "Mantis shrimp with a cavitating punch.",
+      "diet": [
+        "Gilded Moss-Snail",
+        "Velvet Reed Shrimp",
+        "Atoll Barnacle Colony",
+        "Lacefern Nudibranch"
+      ],
+      "predators": [
+        "Coral Octo-Lurker"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "crevice",
+      "depthMin": 2,
+      "depthMax": 35,
+      "activity": "day",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.6,
+      "lethalToDiver": true,
+      "tactics": "Cavitating punch snaps loudly and can crack visors at close range.",
+      "behavior": "Cavitating punch snaps loudly; can crack visors at close range",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light"
+      ]
+    },
+    {
+      "id": "lagoon_banded_krait",
+      "name": "Lagoon Banded Krait",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 1.4,
+      "sizeText": "1.4 m",
+      "sound": "12 dB, Mid",
+      "description": "Venomous sea snake hunting eels in crevices.",
+      "diet": [
+        "Moray Creeper",
+        "Sponge-Mimic Angler",
+        "Reef Slime-Lamprey"
+      ],
+      "predators": [
+        "Atoll Maw Grouper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "crevice",
+      "depthMin": 0,
+      "depthMax": 35,
+      "activity": "day",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.45,
+      "lethalToDiver": true,
+      "tactics": "Probes crevices for eels and surfaces to breathe; potent neurotoxin.",
+      "behavior": "Probes crevices for eels; surfaces to breathe; potent neurotoxin",
+      "yields": "Krait Venom Gland",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "turquoise_fin_shark",
+      "name": "Turquoise Fin-Shark",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "shark",
+      "sizeM": 2.5,
+      "sizeText": "2.5 m",
+      "sound": "40 dB, Mid",
+      "description": "Reef shark that hunts lancers, rays, sea-calves and puffers.",
+      "diet": [
+        "Lagoon Lancer",
+        "Sand-Veil Stingray",
+        "Lagoon Sea-Calf",
+        "Spireback Puffer",
+        "Sunstripe Jack"
+      ],
+      "predators": [
+        "Reef-Crusher Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "open",
+      "depthMin": 0,
+      "depthMax": 50,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.8,
+      "lethalToDiver": true,
+      "tactics": "Smells blood from 300 m; circles, bumps, then frenzies.",
+      "behavior": "Smells blood from 300 m; circles, bumps, then frenzies",
+      "yields": "Fin-Shark Tooth",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light"
+      ]
+    },
+    {
+      "id": "coral_octo_lurker",
+      "name": "Coral Octo-Lurker",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "octopus",
+      "sizeM": 1.2,
+      "sizeText": "1.2 m span",
+      "sound": "10 dB, Mid",
+      "description": "Coral-camouflaged octopus with a 1.2 m arm span.",
+      "diet": [
+        "Crown Chiton",
+        "Tidal Mantis-Striker",
+        "Lagoon Pearl-Mussel",
+        "Glade Grass Conch",
+        "Silt-Sieving Hermit"
+      ],
+      "predators": [
+        "Atoll Maw Grouper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 40,
+      "activity": "night",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.3,
+      "lethalToDiver": false,
+      "tactics": "Camouflages as coral; steals loose items from divers' packs.",
+      "behavior": "Camouflages as coral; steals loose items from divers' packs",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "pearl_trigger_biter",
+      "name": "Pearl Trigger-Biter",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.6,
+      "sizeText": "60 cm",
+      "sound": "25 dB, High",
+      "description": "Territorial triggerfish feeding on urchins, snails and filter feeders.",
+      "diet": [
+        "Lagoon Spine-Urchin",
+        "Spire Cone-Snail",
+        "Reef Basket Star",
+        "Lagoon Pearl-Mussel",
+        "Sun-Fan Feather Duster"
+      ],
+      "predators": [
+        "Atoll Maw Grouper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "sand",
+      "depthMin": 3,
+      "depthMax": 40,
+      "activity": "day",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.7,
+      "lethalToDiver": false,
+      "tactics": "Fiercely guards sand nests; bites divers' fins and hoses.",
+      "behavior": "Fiercely guards sand nests; bites divers' fins and hoses",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "spire_cone_snail",
+      "name": "Spire Cone-Snail",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.12,
+      "sizeText": "12 cm",
+      "sound": "Silent",
+      "description": "Venomous cone snail hunting moss-snails and blennies.",
+      "diet": [
+        "Gilded Moss-Snail",
+        "Bloom-Moss Blenny"
+      ],
+      "predators": [
+        "Pearl Trigger-Biter"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 40,
+      "activity": "night",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.3,
+      "lethalToDiver": true,
+      "tactics": "Harpoons prey with a venom dart; deadly if handled bare.",
+      "behavior": "Harpoons prey with a venom dart; deadly if handled bare",
+      "yields": "Cone-Snail Venom Harpoon",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light"
+      ]
+    },
+    {
+      "id": "sponge_mimic_angler",
+      "name": "Sponge-Mimic Angler",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.35,
+      "sizeText": "35 cm",
+      "sound": "5 dB, Mid",
+      "description": "Anglerfish disguised as a Crown Sponge.",
+      "diet": [
+        "Chromis Glider",
+        "Bloom-Moss Blenny",
+        "Sunreef Cleaner Shrimp"
+      ],
+      "predators": [
+        "Lagoon Banded Krait"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 40,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.35,
+      "lethalToDiver": false,
+      "tactics": "Disguised as Crown Sponge; twitches a lure and gulps instantly.",
+      "behavior": "Disguised as Crown Sponge; lure-twitch and instant gulp",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sunstripe_jack",
+      "name": "Sunstripe Jack",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 1.0,
+      "sizeText": "1 m",
+      "sound": "30 dB, Mid",
+      "description": "Pack-hunting jack feeding on Chromis and sardines.",
+      "diet": [
+        "Chromis Glider",
+        "Glimmer Sardine Shoal"
+      ],
+      "predators": [
+        "Turquoise Fin-Shark"
+      ],
+      "schooling": true,
+      "groupSize": [
+        4,
+        12
+      ],
+      "habitat": "open",
+      "depthMin": 0,
+      "depthMax": 40,
+      "activity": "day",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.5,
+      "lethalToDiver": false,
+      "tactics": "Packs herd bait balls upward and strike at sunrise.",
+      "behavior": "Packs herd bait balls upward; strike at sunrise",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sea_grass_pipe_dragon",
+      "name": "Sea-Grass Pipe-Dragon",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.25,
+      "sizeText": "25 cm",
+      "sound": "4 dB, High",
+      "description": "Seagrass-mimicking pipefish feeding on mysids and arrow-worms.",
+      "diet": [
+        "Sandflit Mysid",
+        "Turquoise Arrow-Worm"
+      ],
+      "predators": [
+        "Sunflash Cuttle"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "lagoon",
+      "depthMin": 2,
+      "depthMax": 25,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Sways like Ribbon Sea-Grass; snaps passing plankton with its snout.",
+      "behavior": "Sways like Ribbon Sea-Grass; snout-snaps passing plankton",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "silt_sieving_hermit",
+      "name": "Silt-Sieving Hermit",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.15,
+      "sizeText": "15 cm",
+      "sound": "10 dB, High",
+      "description": "Hermit crab sifting silt for scraps; secretes bio-calcite.",
+      "diet": [
+        "detritus",
+        "carrion"
+      ],
+      "predators": [
+        "Coral Octo-Lurker"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        20
+      ],
+      "habitat": "seabed",
+      "depthMin": 3,
+      "depthMax": 50,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Clusters at carcass falls; trades up shells.",
+      "behavior": "Sifts silt for scraps; trades up shells; clusters at falls",
+      "yields": "Silt-Sieving Bio-Calcite",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sandbar_bristle_worm",
+      "name": "Sandbar Bristle-Worm",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 0.4,
+      "sizeText": "40 cm",
+      "sound": "Silent",
+      "description": "Bristle worm living in sandbars.",
+      "diet": [
+        "detritus",
+        "carrion"
+      ],
+      "predators": [
+        "Sand-Veil Stingray"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        40
+      ],
+      "habitat": "sand",
+      "depthMin": 3,
+      "depthMax": 40,
+      "activity": "night",
+      "hearing": [
+        "low"
+      ],
+      "light": "repelled",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Swarms buried carcasses; bristles cause a stinging rash.",
+      "behavior": "Swarms buried carcasses; bristles cause a stinging rash",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sunreef_cleaner_shrimp",
+      "name": "Sunreef Cleaner Shrimp",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.06,
+      "sizeText": "6 cm",
+      "sound": "3 dB, High",
+      "description": "Cleaner shrimp eating parasites and dead skin.",
+      "diet": [
+        "parasites",
+        "dead skin",
+        "detritus"
+      ],
+      "predators": [
+        "Sponge-Mimic Angler"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        12
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 40,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Runs cleaning stations where nearby predators stay calm.",
+      "behavior": "Runs cleaning stations where nearby predators stay calm",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sand_swallow_sea_cucumber",
+      "name": "Sand-Swallow Sea-Cucumber",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.5,
+      "sizeText": "50 cm",
+      "sound": "Silent",
+      "description": "Sea cucumber vacuuming sand flats.",
+      "diet": [
+        "detritus",
+        "sediment"
+      ],
+      "predators": [
+        "Sunshell Crab-Squid"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        5
+      ],
+      "habitat": "sand",
+      "depthMin": 3,
+      "depthMax": 50,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Ejects sticky threads when grabbed.",
+      "behavior": "Vacuums sand flats; ejects sticky threads when grabbed",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "coralfall_carrion_crab",
+      "name": "Coralfall Carrion-Crab",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.45,
+      "sizeText": "45 cm",
+      "sound": "18 dB, High",
+      "description": "Carrion crab eating carrion and coral rubble.",
+      "diet": [
+        "carrion",
+        "coral rubble detritus"
+      ],
+      "predators": [
+        "Atoll Maw Grouper"
+      ],
+      "schooling": true,
+      "groupSize": [
+        2,
+        10
+      ],
+      "habitat": "seabed",
+      "depthMin": 3,
+      "depthMax": 50,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.25,
+      "lethalToDiver": false,
+      "tactics": "First to a carcass fall; claw-clicks summon others.",
+      "behavior": "First to arrive at falls; claw-clicks summon others",
+      "yields": "Carrion-Crab Chitin",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lagoon_brittle_creeper",
+      "name": "Lagoon Brittle-Creeper",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.3,
+      "sizeText": "30 cm span",
+      "sound": "Silent",
+      "description": "Brittle star scavenging carcasses.",
+      "diet": [
+        "detritus",
+        "carrion"
+      ],
+      "predators": [
+        "Coral Scorpion-Lurker"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        60
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 45,
+      "activity": "night",
+      "hearing": [
+        "low"
+      ],
+      "light": "repelled",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Snaking arms emerge en masse at night to strip falls.",
+      "behavior": "Snaking arms emerge en masse at night to strip falls",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "reef_slime_lamprey",
+      "name": "Reef Slime-Lamprey",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 0.7,
+      "sizeText": "70 cm",
+      "sound": "8 dB, Mid",
+      "description": "Lamprey feeding on carrion and dying fish.",
+      "diet": [
+        "carrion",
+        "dying fish"
+      ],
+      "predators": [
+        "Lagoon Banded Krait"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "reef",
+      "depthMin": 3,
+      "depthMax": 45,
+      "activity": "both",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.4,
+      "lethalToDiver": false,
+      "tactics": "Bores into carcasses; latches onto bleeding divers.",
+      "behavior": "Bores into carcasses; latches onto bleeding divers",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sun_bleach_isopod",
+      "name": "Sun-Bleach Isopod",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.04,
+      "sizeText": "4 cm",
+      "sound": "6 dB, High",
+      "description": "Small isopod scavenging carrion and bleached coral.",
+      "diet": [
+        "carrion",
+        "bleached coral detritus"
+      ],
+      "predators": [
+        "Lagoon Inkdart"
+      ],
+      "schooling": true,
+      "groupSize": [
+        20,
+        200
+      ],
+      "habitat": "seabed",
+      "depthMin": 3,
+      "depthMax": 50,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.2,
+      "lethalToDiver": false,
+      "tactics": "Swarms carcass falls within seconds; nibbles wounded divers.",
+      "behavior": "Swarms falls within seconds; nibbles wounded divers",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sunshell_crab_squid",
+      "name": "Sunshell Crab-Squid",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "squid",
+      "sizeM": 6.0,
+      "sizeText": "6 m",
+      "sound": "75 dB, Low",
+      "description": "Armoured 6 m crab-squid hybrid hunting eels, cephalopods and turtles.",
+      "diet": [
+        "Moray Creeper",
+        "Lagoon Inkdart",
+        "Sunflash Cuttle",
+        "Sunback Reef-Turtle",
+        "Sand-Swallow Sea-Cucumber"
+      ],
+      "predators": [
+        "Reef-Crusher Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "reef",
+      "depthMin": 10,
+      "depthMax": 50,
+      "activity": "night",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.75,
+      "lethalToDiver": true,
+      "tactics": "Grabs with armoured pincers; ink smokescreen; stalks reef walls at dusk.",
+      "behavior": "Armored pincers grab prey; ink smokescreen; stalks reef walls at dusk",
+      "yields": "Crab-Squid Pincer Shell",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "atoll_maw_grouper",
+      "name": "Atoll Maw Grouper",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 4.0,
+      "sizeText": "4 m",
+      "sound": "70 dB, Low",
+      "description": "Giant cave-dwelling grouper, the reef's top fish.",
+      "diet": [
+        "Barbed Reef-Snapper",
+        "Sunscale Parrot-Wrasse",
+        "Coral Scorpion-Lurker",
+        "Pearl Trigger-Biter",
+        "Coral Octo-Lurker",
+        "Lagoon Banded Krait",
+        "Coralfall Carrion-Crab"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "crevice",
+      "depthMin": 10,
+      "depthMax": 50,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.7,
+      "lethalToDiver": true,
+      "tactics": "Booming territorial calls; suction-gulps anything diver-sized from reef caves.",
+      "behavior": "Booming territorial calls; suction-gulps anything diver-sized from reef caves",
+      "yields": "Raw Maw Grouper Steak",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light"
+      ]
+    },
+    {
+      "id": "reef_crusher_leviathan",
+      "name": "Reef-Crusher Leviathan",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "leviathan",
+      "sizeM": 35.0,
+      "sizeText": "35 m",
+      "sound": "85 dB, Low (25 Hz)",
+      "description": "35 m armoured crustacean-serpent with 25 Hz growls that shake hulls.",
+      "diet": [
+        "Turquoise Fin-Shark",
+        "Lagoon Manta-Wing",
+        "Sunback Reef-Turtle",
+        "Sunshell Crab-Squid"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "open",
+      "depthMin": 25,
+      "depthMax": 50,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.85,
+      "lethalToDiver": true,
+      "tactics": "Patrols outer drop-offs; ignores silent divers but rams the sub bow when sonar or engines exceed 70 dB.",
+      "behavior": "Armored crustacean-serpent; rams the sub if sonar or engine noise exceeds 70 dB",
+      "yields": "Reef-Crusher Carapace Shard",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light"
+      ]
+    },
+    {
+      "id": "coral_crusher_leviathan",
+      "name": "Coral-Crusher Leviathan",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "leviathan",
+      "sizeM": 28.0,
+      "sizeText": "28 m",
+      "sound": "80 dB, Low (18 Hz)",
+      "description": "28 m beaked reef-grinder that reshapes sandbars.",
+      "diet": [
+        "Giant Sunclam",
+        "Table Coral",
+        "Spire Coral",
+        "Crown Sponge"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "reef",
+      "depthMin": 10,
+      "depthMax": 50,
+      "activity": "day",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.6,
+      "lethalToDiver": true,
+      "tactics": "Grinds reef into sand and crushes anything in its feeding path.",
+      "behavior": "Beaked reef-grinder; reshapes sandbars; crushes anything in its feeding path",
+      "yields": "Coral-Crusher Beak Fragment",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    }
+  ],
+  "interactions": [
+    "Barbed Reef-Snapper packs (3-5) flush Chromis Gliders out of open water toward coral crevices where Moray Creepers wait in ambush.",
+    "Chromis Gliders pack into bait balls when threatened; at the Sunken Pirate Galleon they escape snapper attacks through the broken gunports.",
+    "Glimmer Sardine bait balls draw predators to the area; Sunstripe Jack packs herd bait balls upward and strike at sunrise.",
+    "Sunreef Cleaner Shrimp run cleaning stations where nearby predators stay calm; Lagoon Manta-Wings visit them.",
+    "Sponge-Mimic Anglers pose as Crown Sponges and pick off cleaner shrimp, blennies and Chromis.",
+    "Turquoise Fin-Sharks smell blood from 300 m, circle and bump, then frenzy.",
+    "Coralfall Carrion-Crabs reach carcass falls first and claw-click to summon others; Sun-Bleach Isopods swarm falls within seconds, Brittle-Creepers strip them at night, Silt-Sieving Hermits cluster there.",
+    "Atoll Maw Groupers boom territorial calls from reef caves; Pearl Trigger-Biters fiercely guard sand nests.",
+    "The Reef-Crusher Leviathan ignores silent divers but rams the Nautilus's bow when sonar or engine noise exceeds 70 dB; echoing speargun shots in the galleon risk this.",
+    "The Coral-Crusher Leviathan grinds reef into sand and reshapes sandbars, crushing anything in its feeding path.",
+    "The galleon's gold and rusted cannons draw metal-obsessed Stalker-Hounds up from the Kelp Labyrinth to nest in the captain's quarters and hoard shiny drops.",
+    "Starving apex leviathans from deeper biomes may migrate into the Shallows when their prey is over-harvested."
+  ]
+}

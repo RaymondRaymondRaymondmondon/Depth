@@ -78,3 +78,43 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
   the Bridge clock's hands. Shots `telegraph`, `gauges`; `helm` shows the wheel put over.
 - Left for later stages: the passive sonar's contacts (stage 3's creatures), stoking the boiler (stage 4's items).
   **All sound waits for one full sound stage** (the user, 2026-10-07).
+
+## Playtest notes (2026-10-07)
+- **Ladders:** walk into one and hold W to climb, S to go down, Space to let go. At the top of the pilot house's shaft
+  you step off onto its floor (before, you rose past the top and fell back down the shaft); at the top of the Dive
+  Room's you open the deck hatch with E. Standing at the top of the shaft, S takes hold to climb down
+  (`Diver.LadderStep`). Shot `ladder_top` climbs for 6 s from the Bridge and logs where you end up.
+- **Four crew cabins:** the hull was lengthened by an 8 m section let in between Hydroponics and the Fabrication
+  Bay (`S` in deep_nautilus.py; everything forward of x = 6 moved 8 m to the bow; she's now 78 m plus the spur).
+  The Crew Quarters there: a passage down the middle, two cabins each side, each with a bunk, desk and chair,
+  locker, shelf, its own lamp and a porthole in the hull. The layout lists each cabin (`cabins`, for decorating
+  later) and the partitions (`walls`, the game's colliders). Shots `crew`, `cabin`.
+- The interior draws first (render queue 1950), so the seabed and life beyond the walls cost nothing when you're
+  inside (the crew passage went from 33 to 60 fps).
+
+## Stage 3, the living sea (first part, 2026-10-07)
+- **Data:** `Resources/Data/species_shallows.json` and `species_kelp.json`, the doc's rosters read from the page
+  images: 20 flora and 60 fauna per biome (plankton, grazers, filter feeders, mesopredators, scavengers, apex), with
+  diets, predators, habitat, depth band, activity, hearing bands, light, aggression, lethality and tactics; every
+  estimated field is listed in the entry's `estimated`. `Sea/Species.cs` derives speeds, senses, body plan and
+  colours.
+- **Sound and the Wake** (`Sea/Acoustics.cs`): P(d) = P0 - 20 log10 d - a d per band (low, mid, high, ultrasonic),
+  events and continuous sources (the Nautilus's engine, the diver's flippers), Wake heat over a 32 m grid with the
+  doc's tiers, blood raising a zone's Wake for good. The sonar ping is a 115 dB ultrasonic event.
+- **Currents and scent** (`Sea/Scent.cs`): tidal currents with eddies (stronger in the Kelp), the scent field
+  advected downstream, spread and fading; 0.1 ppm noticed, 1.5 ppm frenzy.
+- **The food web** (`Sea/Ecology.cs`): B0-B4 pools per biome at 12% efficiency, calibrated so the start is the
+  balance; over-harvesting starves the hunters (STARVING: senses x3.5, no fear, they ram the hull's larder),
+  ecosystem memory, starving apexes invade shallower water.
+- **The animals** (`Sea/Life.cs`, `CreatureMeshes.cs`, `Creature.shader`): individuals near the diver drawn from the
+  pools, the doc's six states with its thresholds, schools, daily migration (the Kelp's hunters rise at night),
+  predation with blood and noise, bites (diver health; at 0 you come to aboard), rams that breach the hull. The two
+  resident leviathans: the Reef-Crusher (35 m) and the Tangle-Serpent (45 m), each holding a territory, roused by an
+  engine in it. Procedural bodies for 15 body plans, swimming in the vertex shader; the passive sonar lists the big
+  ones by bearing. Shots `life_reef`, `life_school`, `life_kelp`, `life_night`, `leviathan`, `life_blood` (a bleeding
+  fish: hunters come, two frenzy), `life_starve` (75% of the grazers netted: hunters hunt and ram the hull).
+- Tests (`SeaTests`): the sound law, Wake tiers and cooling, hearing by band, scent drifting downstream and
+  fading, the web holding its balance, over-harvesting starving the hunters.
+- **Still to do in stage 3:** Blender bodies for the leviathans and key species (the code bodies are placeholders),
+  the flora table placed in the world, species interactions (cleaning stations, the snapper-moray partnership, bait
+  balls), light as a channel (lamps attracting and blinding), the full moon's plankton blooms.

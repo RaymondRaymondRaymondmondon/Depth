@@ -61,7 +61,23 @@ namespace Deep
             GUI.color = Color.white;
             var st = new GUIStyle(small); st.normal.textColor = new Color(0.5f, 1f, 0.65f);
             GUI.Label(new Rect(r.x - 60, r.yMax + 6, r.width + 160, 22), sy.sonarAge < 999f ? $"Ping {sy.sonarAge:0} s ago   {ShipSystems.SonarRange:0} m   orange: ground standing over her keel" : "Space: ping", st);
-            GUI.Label(new Rect(r.x, r.y - 34, r.width + 200, 22), "Passive: nothing on the headphones but the sea.", st);
+            // passive: the headphones - big animals by their sound, with bearings relative to her bow
+            var heard = Life.I != null ? Life.I.Listen(n.Body.position, 900f) : null;
+            if (heard == null || heard.Count == 0) GUI.Label(new Rect(r.x, r.y - 34, r.width + 200, 22), "Passive: nothing on the headphones but the sea.", st);
+            else
+            {
+                for (int i = 0; i < Mathf.Min(4, heard.Count); i++)
+                {
+                    var h = heard[i];
+                    string what = h.size > 20 ? "a vast, slow call" : h.size > 6 ? "something large" : "a big swimmer";
+                    string move = h.speed > 3 ? ", closing fast" : h.speed > 1 ? ", moving" : ", lying still";
+                    GUI.Label(new Rect(r.xMax + 20, r.y + i * 22, 340, 22), $"{Mathf.Repeat(h.bearing - n.heading, 360f):000} rel  {h.range:0} m  {what}{move}", st);
+                    // and a blip on the chart
+                    var d = new Vector2(Mathf.Sin(h.bearing * Mathf.Deg2Rad), -Mathf.Cos(h.bearing * Mathf.Deg2Rad)) * Mathf.Min(1f, h.range / ShipSystems.SonarRange) * r.width / 2;
+                    GUI.color = new Color(1f, 0.35f, 0.3f); GUI.DrawTexture(new Rect(c.x + d.x - 3, c.y + d.y - 3, 6, 6), Texture2D.whiteTexture); GUI.color = Color.white;
+                }
+                GUI.Label(new Rect(r.x, r.y - 34, r.width + 200, 22), $"Passive: {heard.Count} contact{(heard.Count == 1 ? "" : "s")} on the headphones", st);
+            }
         }
 
         void OnGUI()
@@ -85,13 +101,19 @@ namespace Deep
             GUI.DrawTexture(new Rect(r.x, r.y, r.width * f, r.height), Texture2D.whiteTexture);
             GUI.color = Color.white;
             GUI.Label(new Rect(r.x, r.y - 22, 300, 22), $"Oxygen {diver.oxygen:0} s", small);
+            var hb = new Rect(r.x, r.y - 52, 220, 8);
+            GUI.color = new Color(0, 0, 0, 0.5f); GUI.DrawTexture(hb, Texture2D.whiteTexture);
+            GUI.color = diver.health > 35 ? new Color(0.55f, 0.9f, 0.5f) : new Color(1f, 0.35f, 0.3f);
+            GUI.DrawTexture(new Rect(hb.x, hb.y, hb.width * Mathf.Clamp01(diver.health / 100f), hb.height), Texture2D.whiteTexture);
+            GUI.color = Color.white;
             GUI.Label(new Rect(Screen.width - 90, 18, 80, 22), $"{fps:0} fps", small);
             if (diver.aboard && diver.ship)
             {
                 var g = Nautilus.FromLocal(diver.ship.Proxy.InverseTransformPoint(diver.transform.position));
                 var room = diver.ship.L.RoomAt(g);
                 var sy = diver.ship.sys;
-                GUI.Label(new Rect(24, 86, 500, 22), "Aboard the Nautilus" + (room != null ? ": " + room.name : ""), small);
+                var cab = diver.ship.L.CabinAt(g);
+                GUI.Label(new Rect(24, 86, 500, 22), "Aboard the Nautilus" + (room != null ? ": " + room.name : "") + (cab != null ? ", " + cab.name : ""), small);
                 if (sy != null)
                 {
                     string ps = sy.state == PowerState.Engine ? "Engine" : sy.state == PowerState.Silent ? "Silent running" : "Dead in the water";

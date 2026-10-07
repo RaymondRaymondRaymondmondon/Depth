@@ -23,7 +23,9 @@ namespace Deep
         public ShipSystems sys;
         float strikeCool;
         public float powerK;          // eased 0..1, what the lamps and globes show
-        public const float Floor = -1.6f, Radius = 4f, ShaftX = 20.95f, ShaftHalf = 0.47f;
+        public const float Floor = -1.6f, Radius = 4f, ShaftHalf = 0.47f;
+        public const float SternX = -35f, BowX = 43f;          // her parallel hull's ends (the spur and screw stand past them)
+        public static float ShaftX = 28.95f;                  // the pilot house's shaft (read from the layout's ladder)
 
         // the generator's frame (x bow, y up, z starboard) -> the ship's local frame
         public static Vector3 G(float x, float y, float z) => new Vector3(z, y, x);
@@ -45,6 +47,7 @@ namespace Deep
             var n = go.AddComponent<Nautilus>();
             I = n;
             n.L = NautilusLayout.Load();
+            foreach (var ld in n.L.ladders) if (string.IsNullOrEmpty(ld.hatch)) ShaftX = ld.x + 0.32f;
             n.Body = go.transform;
             n.Body.SetPositionAndRotation(at, Quaternion.Euler(pitch, yaw, roll));
             var rb = go.AddComponent<Rigidbody>(); rb.isKinematic = true; rb.useGravity = false;   // (her colliders move)
@@ -130,6 +133,9 @@ namespace Deep
                 // the outside is one-sided (the pilot house and hull are hollow shells seen from inside too); the
                 // fittings inside are two-sided, since the generator's booleans leave some faces turned
                 m.SetFloat("_Cull", interior ? 0 : 2);
+                // the inside is drawn first: its depth then hides the seabed, plants and animals beyond the walls before
+                // they cost anything (there is no occlusion culling; this PC can't afford the overdraw)
+                m.renderQueue = interior ? 1950 : 1980;
                 Debug.Log($"DEEP NAUTILUS: material '{src.name}' shader {src.shader.name}; textures [{string.Join(",", src.GetTexturePropertyNames())}] -> base {(bc ? bc.name : "-")} normal {(nm ? nm.name : "-")} mr {(mr ? mr.name : "-")}");
             }
             converted[src] = m;
@@ -141,9 +147,9 @@ namespace Deep
         void HullColliders()
         {
             var cap = gameObject.AddComponent<CapsuleCollider>();
-            cap.direction = 2; cap.radius = Radius; cap.height = 70f; cap.center = Vector3.zero;
+            cap.direction = 2; cap.radius = Radius; cap.height = BowX - SternX - 8f; cap.center = new Vector3(0, 0, (BowX + SternX) / 2f);
             AddBox(Body, (-12f, 4.15f, 0f), (17f, 0.25f, 1.2f));          // the deck
-            AddBox(Body, (21.8f, 4.9f, 0f), (1.35f, 1.1f, 1.0f));          // the pilot house
+            AddBox(Body, (ShaftX + 0.85f, 4.9f, 0f), (1.35f, 1.1f, 1.0f));          // the pilot house
         }
 
         static void AddBox(Transform parent, (float x, float y, float z) c, (float x, float y, float z) half)
@@ -220,12 +226,14 @@ namespace Deep
             // the stations' fittings stand in the way (a box in front of where the hand stands; the boiler is big)
             foreach (var st in L.stations)
             {
-                if (st.kind == "moonpool" || st.kind == "airlock") continue;
+                if (st.kind == "moonpool" || st.kind == "airlock" || st.kind == "cabin") continue;
                 if (st.kind == "boiler") { AddBox(Proxy, (-21.4f, Floor + 1.15f, -1.3f), (2.45f, 1.15f, 1.2f)); continue; }
                 float fx = st.facing[0], fz = st.facing[2];
                 var c = (st.pos[0] + fx * 0.75f, st.pos[1] + 0.6f, st.pos[2] + fz * 0.75f);
                 AddBox(Proxy, c, Mathf.Abs(fx) > Mathf.Abs(fz) ? (0.32f, 0.6f, 0.42f) : (0.42f, 0.6f, 0.32f));
             }
+            // the cabins' partitions
+            if (L.walls != null) foreach (var w in L.walls) AddBox(Proxy, ((w.x0 + w.x1) / 2, (Floor + 2.2f) / 2, (w.z0 + w.z1) / 2), ((w.x1 - w.x0) / 2, (2.2f - Floor) / 2, (w.z1 - w.z0) / 2));
             // the shaft from the Bridge's ceiling up to the pilot house's floor
             var pilot = L.Room("pilot"); float shaftTop = pilot != null ? pilot.floor : 3.6f;
             Across(ShaftX - ShaftHalf - 0.08f, -ShaftHalf, ShaftHalf, 2.2f, shaftTop);
@@ -283,14 +291,14 @@ namespace Deep
             for (int i = 0; i < lamps.Count; i++)
             {
                 float d = (WorldPoint(lamps[i].local) - c).magnitude;
-                if (d < lamps[i].range + 40f) near.Add((d, i));
+                if (d < lamps[i].range + (lamps[i].water ? 40f : 9f)) near.Add((d, i));   // (a room lamp lights only its room)
             }
             near.Sort((a, b) => a.d.CompareTo(b.d));
             int n = 0;
             float t = Time.time;
             foreach (var (_, i) in near)
             {
-                if (n >= lampPos.Length) break;
+                if (n >= 16) break;
                 var lp = lamps[i];
                 Color col;
                 if (powerK > 0.01f)
@@ -384,7 +392,7 @@ namespace Deep
                     // a hard strike: a breach in the foremost (or aftmost) compartment
                     if (strikeCool <= 0 && sys && Mathf.Abs(speed) > 1.6f)
                     {
-                        int room = speed > 0 ? sys.RoomIndexAt(new Vector3(24f, 0f, 0f)) : sys.RoomIndexAt(new Vector3(-27f, 0f, 0f));
+                        int room = speed > 0 ? sys.RoomIndexAt(new Vector3(ShaftX + 3f, 0f, 0f)) : sys.RoomIndexAt(new Vector3(-27f, 0f, 0f));
                         sys.AddBreach(room, 0.03f + Mathf.Abs(speed) * 0.006f);
                         groundedMsg = "She strikes the bottom! Water's coming in!";
                         strikeCool = 4f;
