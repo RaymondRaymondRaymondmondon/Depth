@@ -8,7 +8,7 @@ namespace Deep
     public class Seabed : MonoBehaviour
     {
         public const float Size = 1536f, Bottom = -360f, Top = 12f;
-        public const int Res = 769;   // heightmap samples per side (2 m apart)
+        public const int Res = 1025;   // heightmap samples per side (1.5 m apart; Unity takes only 2^n + 1, any other size is rounded and the drawn terrain stops matching H)
         public Terrain terrain;
         public float[,] heights;      // world y per sample (for flora placement without the terrain's sampler)
         int seed;

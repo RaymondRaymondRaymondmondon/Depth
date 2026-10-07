@@ -109,7 +109,7 @@ namespace Deep
 
         // a spot for one of these within the ring round the diver, or false
         readonly List<Vector3> anchors = new List<Vector3>();
-        static readonly string[] Reef = { "tablecoral", "braincoral", "spirecoral", "fananemone" }, Kelp = { "kelp" };
+        static readonly string[] Reef = { "reef" }, Kelp = { "kelp" };
 
         // not where the diver is looking, close in: a group appearing out of nowhere in plain sight would show
         bool InView(Vector3 p)

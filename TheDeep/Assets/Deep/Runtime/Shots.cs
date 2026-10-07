@@ -170,7 +170,7 @@ namespace Deep
                     for (int k = 0; k < 300; k++)
                     {
                         var q = Find(100 + (k * 37) % 400, 140 + (k * 37) % 400, 6, 22);
-                        b.flora.Near(q, 0, 12, pts, 400, "tablecoral", "braincoral", "spirecoral", "fananemone");
+                        b.flora.Near(q, 0, 12, pts, 400, "reef");
                         if (pts.Count > most) { most = pts.Count; best = q; }
                     }
                     var eye = best + new Vector3(-9f, 3.2f, -2f);
@@ -250,7 +250,7 @@ namespace Deep
                 case "debugair": { HideOcean = true; b.clock.hour = 12f; b.diver.Place(new Vector3(400, 120f, 300), 45, 35); return true; }
                 case "reef": { HideOcean = false; b.clock.hour = 10.5f; var p = Find(120, 420, 9, 14); b.diver.Place(p + Vector3.up * 2.6f, 80, 8); return true; }
                 case "meadow": { b.clock.hour = 14f; var p = Find(80, 360, 5, 9); b.diver.Place(p + Vector3.up * 1.4f, 200, 12); return true; }
-                case "kelp": { b.clock.hour = 11f; var p = Find(700, 1000, 80, 100); b.diver.Place(p + Vector3.up * 5f, 90, -6); return true; }
+                case "kelp": { b.clock.hour = 11f; var p = Find(700, 1000, 80, 100); b.diver.Place(p + Vector3.up * 5f, 90, -6); Debug.Log($"DEEP KELP SHOT: eye {p + Vector3.up * 5f} H {bed.H(p.x, p.z):0.0} sample {bed.SampleY(p.x, p.z):0.0} far {Camera.main.farClipPlane:0}"); return true; }
                 case "up": { b.clock.hour = 12f; var p = Find(150, 400, 10, 15); b.diver.Place(new Vector3(p.x, -6f, p.z), 60, -62); return true; }
                 case "above": { b.clock.hour = 17.8f; b.diver.Place(new Vector3(300, 0.6f, Seabed.Size / 2), 270, 2); return true; }
                 case "night": { b.clock.hour = 23.5f; b.clock.day = 14; var p = Find(120, 420, 9, 14); b.diver.Place(p + Vector3.up * 2.6f, 80, 8); return true; }

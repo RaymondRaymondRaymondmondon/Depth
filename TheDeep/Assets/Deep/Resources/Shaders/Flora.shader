@@ -9,6 +9,7 @@ Shader "Deep/Flora"
         _Sway ("Sway (m)", Float) = 0.6
         _Translucency ("Translucency", Float) = 0.4
         _Gloss ("Gloss", Float) = 0.1
+        _Glow ("Bioluminescence", Float) = 0
     }
     SubShader
     {
@@ -28,7 +29,7 @@ Shader "Deep/Flora"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "DeepWater.hlsl"
             CBUFFER_START(UnityPerMaterial)
-                float4 _Tint; float _Sway; float _Translucency; float _Gloss;
+                float4 _Tint; float _Sway; float _Translucency; float _Gloss; float _Glow;
             CBUFFER_END
             struct A { float4 pos : POSITION; float3 n : NORMAL; float4 col : COLOR; UNITY_VERTEX_INPUT_INSTANCE_ID };
             struct V { float4 cs : SV_POSITION; float3 ws : TEXCOORD0; float3 n : TEXCOORD1; float4 col : TEXCOORD2; float fog : TEXCOORD3; };
@@ -54,6 +55,7 @@ Shader "Deep/Flora"
                 float3 albedo = i.col.rgb * _Tint.rgb;
                 // light through thin fronds; roots sit in their own shade
                 float3 c = DeepLight(i.ws, n, albedo, _Translucency, _Gloss, 0.55 + 0.45 * i.col.a);
+                c += albedo * _Glow;
                 c = MixFog(c, i.fog);
                 return float4(c, 1);
             }
@@ -71,7 +73,7 @@ Shader "Deep/Flora"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
             CBUFFER_START(UnityPerMaterial)
-                float4 _Tint; float _Sway; float _Translucency; float _Gloss;
+                float4 _Tint; float _Sway; float _Translucency; float _Gloss; float _Glow;
             CBUFFER_END
             float _DeepTime; float3 _LightDirection;
             struct A { float4 pos : POSITION; float3 n : NORMAL; float4 col : COLOR; UNITY_VERTEX_INPUT_INSTANCE_ID };
