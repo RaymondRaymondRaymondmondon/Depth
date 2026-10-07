@@ -15,6 +15,7 @@ namespace Deep
         public Flora flora;
         public Nautilus ship;
         public Life life;
+        public Weather weather;
 
         // the derelict Nautilus lies on the seabed a short swim from the start: in 16-30 m of water, on the flattest
         // ground found in a ring round the spawn, her keel settled into the sand with a slight list
@@ -76,6 +77,9 @@ namespace Deep
             Hands.Attach(diver);
             Survival.Attach(diver);
             CraftUI.Attach(diver);
+            weather = Weather.Make();
+            // the opening: the night raft, the storm, boarding her (not in the screenshot harness unless asked)
+            if (!Args.SkipOpening && string.IsNullOrEmpty(Args.Shot)) Opening.Begin(this);
             look.Bind(diver.cam, clock);
             gameObject.AddComponent<Hud>().Bind(diver, clock);
             if (!string.IsNullOrEmpty(Args.Shot)) gameObject.AddComponent<Shots>().Run(Args.Shot, Args.ShotDir);

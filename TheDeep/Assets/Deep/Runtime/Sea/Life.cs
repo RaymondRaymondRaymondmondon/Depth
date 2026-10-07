@@ -25,6 +25,7 @@ namespace Deep
         public CState state; public float hunger, health = 1f, stateT, thinkT, biteCool, displayT, size;
         public Creature target; public bool targetDiver, hasNest, alive = true, persistent;
         public int group;
+        public bool forced;     // driven from outside (the opening's surface hunt): Think leaves it alone
         public string why;      // what set the current state off (for the tests and the HUD)
         public float visitT;    // time spent at a cleaning station
         public Creature station;
@@ -312,6 +313,7 @@ namespace Deep
 
         void Think(Creature c)
         {
+            if (c.forced) return;
             var s = c.sp;
             var pool = eco.Of(s.biome);
             bool starving = pool != null && pool.Starving(s.level);

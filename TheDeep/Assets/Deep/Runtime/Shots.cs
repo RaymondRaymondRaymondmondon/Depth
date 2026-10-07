@@ -10,7 +10,7 @@ namespace Deep
     {
         public static bool HideOcean;
         static readonly string[] All = { "debugdown", "debugair", "reef", "kelp", "up", "above", "night", "drop", "meadow",
-            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral", "life_light", "life_engine", "life_moon", "wreck_galleon", "wreck_dreadnought", "deposit", "craft", "pack", "kitesub", "kitesub_fly" };
+            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral", "life_light", "life_engine", "life_moon", "wreck_galleon", "wreck_dreadnought", "deposit", "craft", "pack", "kitesub", "kitesub_fly", "opening_raft", "opening_board", "opening_storm", "opening_hunt" };
 
         public void Run(string which, string dir) { StartCoroutine(Go(which, dir)); }
 
@@ -207,6 +207,30 @@ namespace Deep
                     b.clock.hour = 11f; Power(true);
                     KiteSub.Spawn(ship);
                     Look(ship.WorldPoint(Nautilus.G(-12, -8, 7)), KiteSub.I.transform.position);
+                    return true;
+                }
+                case "opening_raft":
+                case "opening_storm":
+                case "opening_board":
+                case "opening_hunt":
+                {
+                    if (Opening.I == null) Opening.Begin(b);
+                    var o = Opening.I; var raft = Raft.I; raft.Right();
+                    b.clock.hour = 21.6f;
+                    if (b.diver.onRaft == null) b.diver.EnterRaft(raft, 0);
+                    var toShip = ship.Body.position - raft.transform.position; toShip.y = 0;
+                    if (name == "opening_raft") { o.t = 30f; b.weather.storm = 0.1f; b.weather.target = 0.1f; }
+                    if (name == "opening_storm" || name == "opening_hunt") { o.t = name == "opening_hunt" ? 500f : 560f; b.weather.storm = 0.9f; b.weather.target = 0.9f; b.weather.flash = name == "opening_storm" ? 0.8f : 0f; }
+                    if (name != "opening_board") { var sp = ship.Body.position + ship.Body.right * (name == "opening_raft" ? 260f : 110f); raft.transform.position = new Vector3(sp.x, 0, sp.z); toShip = ship.Body.position - raft.transform.position; toShip.y = 0; }
+                    if (name == "opening_board")
+                    {
+                        o.t = 200f; b.weather.storm = 0.35f; b.weather.target = 0.35f;
+                        foreach (var hk in ship.L.hatches)
+                            if (hk.kind == "deck") { var hp = ship.WorldPoint(Nautilus.G(hk.outside)); raft.transform.position = new Vector3(hp.x, 0, hp.z) + ship.Body.right * 4f; }
+                        toShip = ship.WorldPoint(Nautilus.G(0, 3, 0)) - raft.transform.position; toShip.y = 0;
+                    }
+                    b.diver.yaw = Mathf.Atan2(toShip.x, toShip.z) * Mathf.Rad2Deg; b.diver.pitch = name == "opening_board" ? -8f : 2f;
+                    if (name == "opening_hunt") { b.diver.pitch = 25f; }
                     return true;
                 }
                 case "kitesub_fly":

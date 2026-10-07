@@ -25,7 +25,8 @@ namespace Deep
         public Nautilus ship;
         public bool HeadUnderAboard;     // aboard, with the head under flood water
         public bool uiOpen;
-        public KiteSub piloting;         // in the Kite-Sub's seat              // a screen is open (CraftUI): the diver stands still and the mouse is free
+        public KiteSub piloting;         // in the Kite-Sub's seat
+        public Raft onRaft; int raftSeat;              // a screen is open (CraftUI): the diver stands still and the mouse is free
         public NLStation manning;        // the station this hand is working (the helm, the telegraph...)
         public string hint = "";
         public string toast = ""; float toastT;
@@ -56,6 +57,7 @@ namespace Deep
             health -= dmg; lastHurtBy = by;
             Toast(health > 0 ? $"{by} bites! ({health:0} health)" : $"Taken by the {by}...");
             if (health > 0) return;
+            if (Opening.Active && Opening.I.Respawn()) return;
             health = 60f; oxygen = oxygenMax;
             if (ship) foreach (var s in ship.L.stations) if (s.kind == "lockers") { Board(ship.StandLocal(s), Nautilus.FacingYaw(s), $"You come to in the Dive Room. ({by})"); break; }
         }
@@ -77,6 +79,7 @@ namespace Deep
             transform.rotation = Quaternion.Euler(0, yaw, 0);
             head.localRotation = Quaternion.Euler(pitch, 0, 0);
             if (piloting != null) { piloting.Drive(this, dt); oxygen = Mathf.Min(oxygenMax, oxygen + dt * 12f); }
+            else if (onRaft != null) { onRaft.Drive(this, dt); oxygen = Mathf.Min(oxygenMax, oxygen + dt * 12f); vel = Vector3.zero; }
             else if (aboard && manning != null) ManStep(dt);
             else if (aboard) WalkStep(dt); else SwimStep(dt);
             Uses();
@@ -231,6 +234,21 @@ namespace Deep
             if (mp != null && g.y < mp.y - 0.6f && g.x > mp.x0 && g.x < mp.x1) LeaveTo(Nautilus.G((mp.x0 + mp.x1) / 2, -Nautilus.Radius - 1.6f, (mp.z0 + mp.z1) / 2), "Out through the moonpool");
         }
 
+        // the raft: into a seat (rowing with W/S and A/D), and out into the water beside it
+        public void EnterRaft(Raft r, int seat)
+        {
+            onRaft = r; raftSeat = seat; aboard = false; manning = null; climbing = false; piloting = null;
+            cc.enabled = false; transform.position = r.Seat(seat); cc.enabled = true;
+            vel = Vector3.zero;
+        }
+        public void LeaveRaft()
+        {
+            var r = onRaft; if (r == null) return;
+            onRaft = null;
+            cc.enabled = false; transform.position = r.transform.position + r.transform.right * 1.8f + Vector3.down * 0.6f; cc.enabled = true;
+            vel = Vector3.zero;
+        }
+
         // the Kite-Sub: into its seat (it undocks if it's in the moonpool), and out again (docking it if it's under her)
         public void EnterKiteSub(KiteSub k)
         {
@@ -261,6 +279,20 @@ namespace Deep
             hint = "";
             if (!ship) return;
             bool e = inputEnabled && !uiOpen && Input.GetKeyDown(KeyCode.E);
+            if (onRaft != null)
+            {
+                // from the raft straight up onto her deck, if it's alongside the hatch
+                foreach (var hk in ship.L.hatches)
+                    if (hk.kind == "deck" && (ship.WorldPoint(Nautilus.G(hk.outside)) - onRaft.transform.position).magnitude < 5.5f)
+                    {
+                        hint = "E  Climb onto her deck and down the hatch";
+                        if (e) { onRaft = null; Board(Nautilus.G(hk.inside[0], hk.inside[1] - 1.2f, hk.inside[2] + 0.7f), 180f, "You haul yourself onto her slick deck, wrench the hatch open and drop through."); }
+                        return;
+                    }
+                hint = "W/S  row    A/D  turn    E  leave the raft";
+                if (e) LeaveRaft();
+                return;
+            }
             if (piloting != null)
             {
                 bool atDock = (piloting.transform.position - piloting.UnderDock).magnitude < 5f;
@@ -305,6 +337,19 @@ namespace Deep
                     case "telegraph":
                         hint = "E  Take " + StationName(s.kind).ToLowerInvariant() + (ship.power ? "" : "  (no power: she won't answer)");
                         if (e) Man(s);
+                        break;
+                    case "power" when sy != null && sy.breakersTripped:
+                        hint = $"Hold E  Reset the tripped breakers  {sy.resetT * 100:0}%";
+                        if (inputEnabled && !uiOpen && Input.GetKey(KeyCode.E))
+                        {
+                            sy.resetT += Time.deltaTime / 3f;
+                            if (sy.resetT >= 1f)
+                            {
+                                sy.breakersTripped = false; sy.state = PowerState.Silent; ship.power = true;
+                                Toast("The breakers clunk home. The batteries hold: lamps, life support, the ballast pumps. Silent running.");
+                            }
+                        }
+                        else sy.resetT = Mathf.Max(0, sy.resetT - Time.deltaTime);
                         break;
                     case "power":
                     case "sonar":
@@ -357,6 +402,13 @@ namespace Deep
                         hint = StationName(s.kind) + "  (comes alive in the next build)";
                         break;
                 }
+                return;
+            }
+            // in the sea: the raft (righting it if it's flipped)
+            if (Raft.I != null && (Raft.I.transform.position - transform.position).magnitude < 3.2f)
+            {
+                hint = Raft.I.flipped ? "E  Right the raft" : "E  Climb into the raft";
+                if (e) { if (Raft.I.flipped) Raft.I.Right(); else EnterRaft(Raft.I, 0); }
                 return;
             }
             // in the sea: the Kite-Sub where it was left, the airlock's outer door, the deck hatch, the moonpool from below
@@ -482,7 +534,8 @@ namespace Deep
         void LateUpdate()
         {
             UnderwaterLook.Aboard = (aboard && !HeadUnderAboard) || piloting != null;
-            if (piloting != null) { transform.position = piloting.Seat; cam.transform.SetPositionAndRotation(piloting.Seat, piloting.transform.rotation); }
+            if (onRaft != null) { transform.position = onRaft.Seat(raftSeat); cam.transform.SetPositionAndRotation(onRaft.Seat(raftSeat) + Vector3.up * 0.1f, Quaternion.Euler(pitch, yaw, Mathf.DeltaAngle(0f, onRaft.transform.eulerAngles.z) * 0.4f)); }
+            else if (piloting != null) { transform.position = piloting.Seat; cam.transform.SetPositionAndRotation(piloting.Seat, piloting.transform.rotation); }
             else if (aboard && ship) cam.transform.SetPositionAndRotation(ship.ToWorld(head.position), ship.RotToWorld(head.rotation));
             else cam.transform.SetPositionAndRotation(head.position, head.rotation);
             // the helmet lamp, a little above and ahead of the eye
@@ -493,7 +546,7 @@ namespace Deep
             Shader.SetGlobalVector("_DeepHeadCol", new Vector4(1.0f, 0.95f, 0.82f, aboard ? 0 : 1));
         }
 
-        public Vector3 EyeWorld => piloting != null ? piloting.Seat : aboard && ship ? ship.ToWorld(head.position) : head.position;
+        public Vector3 EyeWorld => onRaft != null ? onRaft.Seat(raftSeat) : piloting != null ? piloting.Seat : aboard && ship ? ship.ToWorld(head.position) : head.position;
         public float Depth => Mathf.Max(0, -EyeWorld.y);
 
         public void Place(Vector3 eye, float yawDeg, float pitchDeg)

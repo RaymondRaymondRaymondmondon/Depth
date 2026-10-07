@@ -21,7 +21,9 @@ namespace Deep
         public PowerState state = PowerState.Dead;
         public float battery = 0.35f;     // 0..1
         public float fuel = 0.4f;         // the boiler's bunker, 0..1
-        public bool engineRepaired;       // the derelict's steam engine must be repaired at the boiler first (the doc: "restore primary power")
+        public bool engineRepaired;
+        public bool breakersTripped;      // the derelict's main breakers, tripped: nothing gets power till they're reset
+        public float resetT;              // a hand at the switchboard resetting them       // the derelict's steam engine must be repaired at the boiler first (the doc: "restore primary power")
         public float NoiseDb;             // what she's putting into the water now (the Wake system reads it, stage 3)
         public float pingNoiseT;          // a sonar ping's crack is still ringing out
         public bool pumpsManned;          // someone is working the pump handles this frame

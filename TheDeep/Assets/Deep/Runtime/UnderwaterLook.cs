@@ -66,6 +66,9 @@ namespace Deep
             var sunCol = Color.Lerp(new Color(0.55f, 0.62f, 0.85f), new Color(1.0f, 0.95f, 0.86f), day);
             float level = Mathf.Lerp(moon, 1.25f, day);
             sun.color = sunCol;
+            float storm = Weather.Storm, flash = Weather.I ? Weather.I.flash : 0f;
+            level *= 1f - 0.65f * storm;
+            level += flash * 1.8f;
             sun.intensity = level;   // (the shaders absorb it at each surface's depth)
 
             // the water: the biome's colour at this depth, blended toward the next band, dimmed by the light left
@@ -97,13 +100,15 @@ namespace Deep
             else
             {
                 RenderSettings.fogColor = horizon;
-                RenderSettings.fogDensity = 0.0016f;
+                RenderSettings.fogDensity = Mathf.Lerp(0.0016f, 0.0075f, storm);
+                horizon = Color.Lerp(horizon, new Color(0.07f, 0.08f, 0.1f), storm * 0.8f) + new Color(0.6f, 0.65f, 0.75f) * flash * 0.5f;
+                RenderSettings.fogColor = horizon;
                 RenderSettings.ambientLight = Color.Lerp(new Color(0.04f, 0.05f, 0.08f), new Color(0.45f, 0.52f, 0.6f), day);
                 cam.clearFlags = CameraClearFlags.Skybox;
                 cam.farClipPlane = 2000f;
                 vignette.intensity.value = 0.15f;
                 grade.colorFilter.value = Color.white;
-                if (sky) { sky.SetColor("_SkyTint", Color.Lerp(new Color(0.1f, 0.1f, 0.2f), new Color(0.5f, 0.6f, 0.75f), day)); sky.SetFloat("_Exposure", Mathf.Lerp(0.15f, 1.3f, day)); }
+                if (sky) { sky.SetColor("_SkyTint", Color.Lerp(new Color(0.1f, 0.1f, 0.2f), new Color(0.5f, 0.6f, 0.75f), day)); sky.SetFloat("_Exposure", Mathf.Lerp(0.15f, 1.3f, day) * (1f - 0.7f * storm) + flash * 1.5f); }
             }
 
             // the water's light for the shaders: absorption per metre (red first; a gentle overall falloff, brighter than

@@ -10,10 +10,12 @@ namespace Deep
         public static string Role = "solo", Addr = "127.0.0.1", Name = "Diver", Save = "", Shot = "", ShotDir = "shots";
         public static int Port = 47790, Seat = 0, Seed = 7;
         public static float Hour = -1;
+        public static bool SkipOpening;
 
         public static void Parse()
         {
             var a = Environment.GetCommandLineArgs();
+            foreach (var x in a) if (x.ToLowerInvariant() == "-skipopening") SkipOpening = true;
             for (int i = 0; i < a.Length - 1; i++)
             {
                 string k = a[i].ToLowerInvariant(), v = a[i + 1];

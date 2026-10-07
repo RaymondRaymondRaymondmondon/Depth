@@ -35,7 +35,7 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
 4. **Survival and crafting:** oxygen, hunger, thirst, health and cold; gathering by tier; the inventory; the
    Fabrication Bay and stations; the doc's recipes; the knife, Starter Drill, Spear Gun and Heated Blade; the first two
    hull upgrades; the Kite-Sub.
-5. **The opening:** the night raft, the storm, boarding the Nautilus and restoring power.
+5. **The opening (done):** the night raft, the storm, boarding the Nautilus and restoring power.
 6. **Multiplayer:** host-authoritative Netcode, 1-4 players, Depth's lobby handing off.
 7. **Campaign and polish:** saves, death rules, sound, the Artisan Bench, performance on this PC.
 
@@ -182,3 +182,21 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
   `wreck_dreadnought`, `kitesub`, `kitesub_fly`.
 - **Left for later:** the equipment the doc gives no recipe for (flares, decoys, traps), the Artisan Bench's furniture
   placed in the cabins (with decorating), a proper brass-and-paper UI, the Blender pass on the hand tools.
+
+## Stage 5, the opening (2026-10-07)
+- `Runtime/Opening/`: `Opening.cs` (the script), `Raft.cs` (the inflatable life raft, `Resources/Vehicles/raft.glb` from
+  `tools/artgen/deep_vehicles.py`), `Weather.cs` (the storm: swell via `Waves.Calm`, wind that pushes the raft, rain,
+  lightning; `_DeepStorm`/`_DeepFlash` globals). `Resources/Shaders/Glow.shader` is a camera-facing light that keeps
+  at least ~4 degrees on screen and carries through fog (her beacon).
+- A new game starts at night (21:36) in the raft 260-320 m off. The Nautilus wallows at the surface, dark, her
+  breakers tripped (`ShipSystems.breakersTripped`), a red beacon stuttering on the cupola's masthead.
+- Objectives (top right): row to her lights (W/S row, A/D turn); board her (E from the raft beside the deck hatch, or
+  from the water); hold E at the switchboard in the Engine Room for 3 s to reset the breakers (the batteries come
+  back: Silent running); take the helm and dive below 15 m. Diving ends it; the storm passes.
+- The storm builds to full over 10 minutes. After 8 minutes the Shallows' resident leviathan rises (`Creature.forced`):
+  it circles, then rams the raft over, hurts a diver in the water, or breaches her hull if she's still up.
+- In the water near the raft: E climbs in, or rights it if it's flipped. Dying before boarding puts you back in the
+  raft. `-skipopening` skips it; the screenshot harness skips it unless a shot asks.
+- Shots: `opening_raft`, `opening_board`, `opening_storm`, `opening_hunt`.
+- Simpler than the doc for now: one raft seat is used (the raft has four, for stage 6's crew); there's no sound yet
+  (the sound stage); the steam engine remains later progression (the opening's "restore power" is the breakers).

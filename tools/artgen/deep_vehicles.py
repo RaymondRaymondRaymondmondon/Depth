@@ -87,10 +87,63 @@ def canopy():
     return mb
 
 
+ORANGE = (0.85, 0.32, 0.08)
+GREY = (0.3, 0.3, 0.3)
+
+
+def raft():
+    """The inflatable life raft the crew starts in (the doc: up to four, rowed; flipped by storms): an orange oval tube
+    in two chambers, a grey floor, rope round the tube, a canopy arch, an emergency lamp; about 3.2 x 2 m."""
+    mb = MB()
+    a_, b_ = 1.55, 0.95
+    # the tube: a torus round the oval
+    rings = []
+    N = 40
+    for i in range(N + 1):
+        t = i / N * 2 * math.pi
+        c = (math.sin(t) * b_, 0.2, math.cos(t) * a_)
+        tg = (math.cos(t) * b_, 0, -math.sin(t) * a_)
+        rings.append((c, tg, 0.22, 0.22, None))
+    loft(mb, rings, 12, lambda t, a, p: c4(mix(ORANGE, (0.95, 0.85, 0.75), 0.8) if abs(math.sin(t * math.pi * 4)) < 0.05 else ORANGE), cap0=False, cap1=False)
+    # the floor
+    floor = [((0, 0.02, -a_ + 0.05 + (2 * a_ - 0.1) * k / 10), (0, 0, 1), b_ * math.sin(math.pi * (0.06 + 0.88 * k / 10)) ** 0.6, 0.04, None) for k in range(11)]
+    loft(mb, floor, 12, lambda t, a, p: c4(GREY))
+    # the grab rope round the tube
+    pts = [(math.sin(t) * (b_ + 0.2), 0.32, math.cos(t) * (a_ + 0.2)) for t in [k * 2 * math.pi / 32 for k in range(33)]]
+    tube(mb, pts, [0.015] * 33, 4, c4((0.85, 0.8, 0.6)))
+    # a low canopy arch at the back, and the emergency lamp on it
+    pts = [(math.cos(t) * b_, 0.3 + math.sin(t) * 0.75, -a_ * 0.55) for t in [k * math.pi / 12 for k in range(13)]]
+    tube(mb, pts, [0.05] * 13, 6, c4(ORANGE))
+    ellipsoid(mb, (0, 1.08, -a_ * 0.55), (0.06, 0.08, 0.06), c4((1.0, 0.92, 0.6)), 8, 5)
+    # two seats (thwarts)
+    for z in (0.35, -0.25):
+        tube(mb, [(-b_ + 0.1, 0.25, z), (b_ - 0.1, 0.25, z)], [0.09, 0.09], 6, c4(ORANGE))
+    return mb
+
+
+def oar():
+    """One oar, its handle at the origin, the blade toward +x (rotated by the game as it rows)."""
+    mb = MB()
+    tube(mb, [(0, 0, 0), (1.9, 0, 0)], [0.025, 0.022], 6, c4((0.45, 0.32, 0.18)))
+    membrane(mb, [(1.75, 0, -0.01), (1.75, 0, 0.01)], [(2.3, 0.0, -0.09), (2.3, 0.0, 0.09)], 2, c4((0.85, 0.32, 0.08)), 0.0, False)
+    return mb
+
+
 def main():
     a = K.args()
     out = a[a.index("--out") + 1] if "--out" in a else os.path.join(K.ROOT, "TheDeep", "Assets", "Deep", "Resources", "Vehicles")
     os.makedirs(out, exist_ok=True)
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    for name, objs_fn in (("raft", lambda: [K.to_object("raft", raft()), K.to_object("raft_oar", oar())]),):
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        objs = objs_fn()
+        for o in objs:
+            o.select_set(True)
+        rp = os.path.join(out, name + ".glb")
+        bpy.ops.export_scene.gltf(filepath=rp, export_format='GLB', use_selection=True, export_apply=True, export_yup=True,
+                                  export_texcoords=True, export_normals=True, export_tangents=False, export_materials='NONE',
+                                  export_vertex_color='ACTIVE', export_all_vertex_colors=False)
+        print(f"artgen: wrote {rp} ({os.path.getsize(rp) // 1024} KB)")
     bpy.ops.wm.read_factory_settings(use_empty=True)
     objs = [K.to_object("kite_sub", kite_sub()), K.to_object("kite_sub_glass", canopy())]
     for o in objs:

@@ -340,6 +340,13 @@ namespace Deep
         public float Depth => -Body.position.y;
         public string groundedMsg;
 
+        // level her and let the sailing pick up from where she is now (the opening floats her to the surface)
+        public void ResetAttitude()
+        {
+            Body.rotation = Quaternion.Euler(0, Body.rotation.eulerAngles.y, 0);
+            sailingInit = false;
+        }
+
         void InitSailing()
         {
             sailingInit = true;
