@@ -1,0 +1,23 @@
+The Deep
+Player action
+Deploying an
+Acoustic Decoy
+Buoy
+Sound or
+chemical OUtPUt
+90 dB fake
+engine signature
+Immediate reaction
+Pulls blind acoustic
+hunters away from the
+sub to the decoy
+Long-term
+consequence
+Buoy is destroyed
+after 45 s, and
+predators return to
+tracking ambient noise
+Design decisions
+These conflicts between the original sources have been resolved, and the document
+reflects each decision.
+Page 136 of 137

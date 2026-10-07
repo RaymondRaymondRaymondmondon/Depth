@@ -1,0 +1,69 @@
+The Deep
+59
+60
+Species
+Pall Kraken
+Pickle
+Pliosaur
+Role
+Apex
+Apex
+Size
+18 m
+16 m
+Sound
+50 dB,
+Mid
+70 dB,
+Low
+Eats
+Corrosive
+Squid, Rust
+Octopus,
+Saltveil Ray,
+Halite
+Cuttlefish,
+Sulfur
+Anglerfish
+Pickle Dugong,
+Murk Grouper,
+Halocline Gar,
+Salt Snapper
+Turtle, Blister
+Stingray
+Eaten by
+none (apex)
+none (apex)
+Behavior
+Corrosive
+arms grip subs
+and its ink
+clouds blind
+them
+Patrols the
+crater rims and
+charges
+anything that
+bleeds
+Yields
+Pall Kraken
+Beak
+Pliosaur
+Ribs
+8. The Abyssal Graveyard (1,200 to 1,800 m)
+• Layout: grey silt plains strewn with colossal fossilized ribcages of extinct leviathans,
+rising 50 m from the mud. The crew can drive the Nautilus inside the ribcages to hide
+from active sonar. The Crashed Bathysphere Facility lies here.
+• Look: eerie white bone, drifting marine snow, total blackness beyond the floodlights.
+• Hazards: extreme pressure (needs Ceramic-Composite Plates), blind sound-hunting
+predators that track the Nautilus by engine vibration, silt storms that blind passive
+sensors.
+• Food web: marine snow, bone, and graveyard flora feed plankton, filter feeders, and
+grazers, including the Osedax Bone-Borer and the marrow-boring shipworms and
+pholads that turn fossil bone into Abyssal Marrow. Those feed heavy scavengers such
+as the Abyssal Scavenger Crab and Bonefall King Crab, and twenty mesopredators led
+by blind Sonar-Hound packs. At the top, the Echo Leviathan hunts engine hum from 2.5
+km and comes when the Hounds howl, alongside the Shroud Kraken, Grave-Warden
+Sleeper Shark, and Sepulcher Wyrm.
+Flora (20)
+Page 87 of 137

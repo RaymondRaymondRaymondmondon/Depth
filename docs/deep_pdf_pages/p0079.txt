@@ -1,0 +1,168 @@
+The Deep
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+Flora
+Saline
+Reed
+Corrosive
+Mold
+Halite
+Sponges
+Miasma
+Grass
+Pickle
+Thistle
+Slime Cane
+Caustic
+pad
+Bitter Brier
+Scab Lily
+Silt-Bloom
+Kelp
+Ooze Reed
+Tier
+2
+3
+2
+2
+2
+2
+Type
+Reed
+Mold
+Sponge
+Grass
+Thistle
+Cane
+pad
+Brier
+Flower
+Kelp
+Reed
+Description
+Stiff hollow
+stalks ringing
+the brine lake
+shores
+Orange fuzz that
+pits any metal it
+grows on
+Crystalline
+sponge lattices
+that grow pure
+salt cubes
+Yellow tufts that
+vent tiny gas
+bubbles
+Brine-soaked
+spiny heads,
+SOUr and
+preserved
+where they grow
+Jointed green
+canes oozing
+slippery pith
+Flat lime discs
+filled with
+stinging alkaline
+gel
+Thorny black
+tangle with
+bitter, hardened
+barbs
+Crusty red lily
+that seals
+wounds with a
+scab-like resin
+Brown kelp with
+gas bladders,
+rooted in salt silt
+Tall reeds
+bleeding thick
+rubbery latex
+Eaten by
+Reed-Nibbler
+Goby, Pickle
+Dugong
+Mildew Isopod,
+Varnish Limpet
+Halite Chiton,
+Acid-Slug
+Nudibranch
+Brine Tortoise,
+Sump Minnow
+Brine Tortoise,
+Blight Beetle
+Slime-Eel, Ooze
+Wrasse
+Halite Chiton,
+Varnish Limpet
+Blight Beetle
+Crust-Licker
+Snail, Mirror-
+Skimmer
+Caustic Urchin,
+Sump Minnow,
+Pickle Dugong
+Reed-Nibbler
+Goby, Ooze
+Wrasse
+Yields
+Saline
+Reed Fiber
+Corrosive
+Spores
+Halite
+Crystal
+Core
+Miasma
+Resin
+Pickled
+Thistle
+Head
+Slime Pith
+Caustic
+Pad Gel
+Bitter
+Thorns
+Scab Petal
+Crust
+Bloom
+Bladders
+Ooze Latex
+Woven tether
+rope
+Acid etchant for
+salvage cutting
+Plasteel
+Pressure
+Spheres, Mining
+Laser
+Rebreather gas
+filters
+Long-lasting
+food ration
+Mechanical
+lubricant
+Battery
+electrolyte
+Harpoon barb
+tips
+Emergency hull
+patch
+Cargo
+buoyancy floats
+Base layer of
+the Anti-
+Corrosion
+Coating
+Page 79 of 137

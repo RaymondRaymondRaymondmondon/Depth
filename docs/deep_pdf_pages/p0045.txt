@@ -1,0 +1,158 @@
+The Deep
+51
+52
+53
+54
+55
+56
+Species
+Limestone
+Giant Isopod
+Carrion
+Lamp-
+Amphipod
+Lantern
+Brittlestar
+Guano-Sift
+Prawn
+Calcite
+Decorator
+Crab
+Shroud
+Carrion-Eel
+Flash-Stalker
+Leviathan
+Role
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Apex
+Size
+40 cm
+1.5 cm
+30 cm
+8 cm
+25 cm
+1.4 m
+30m
+Sound
+12 dB,
+High
+20 dB,
+High
+(swarm)
+Silent
+10 dB,
+High
+15 dB,
+High
+12 dB, Mid
+75 dB,
+Low
+Eats
+detritus,
+carcasses
+detritus,
+carcasses
+detritus, bat
+guano
+bat guano,
+detritus
+detritus,
+Chandelier
+Sponge,
+Siphon Glow-
+Mussel
+detritus,
+carcasses
+Echo-Ray,
+Strobe-Squid,
+Lumen Tunnel-
+Eel, Bat-Fin
+Echo-Gar,
+Lumen
+Barracuda,
+Hollow-Cave
+Seal, Shroud
+Carrion-Eel
+Eaten by
+Hollow-
+Cave Seal,
+Cathedral
+Gulper
+Arc-Jaw
+Cavefish,
+Halo Comb-
+Jelly
+Grotto
+Pincer-
+Lobster,
+Glimmer
+Stargazer
+Flash-
+Hunter
+Darter,
+Skimmer
+Bat
+Grotto
+Mimic
+Octopus,
+Strobe
+Mantis
+Shrimp
+Flash-
+Stalker
+Leviathan,
+Lumen-Veil
+Kraken
+none (apex)
+Behavior
+Rolls into an
+armored ball
+when
+threatened
+Glowing
+swarms strip
+carcasses to
+bone
+overnight
+Its arms glow
+in a chain
+when
+disturbed
+Gathers
+under bat
+roosts and
+sifts the
+falling guano
+Hides under
+glowing fungi
+and calcite
+chips
+Trails behind
+leviathans to
+take their
+leftovers
+Jaw strobes
+fire about
+50,000 lux,
+blinding
+viewports
+and HUDs;
+flashbang
+flares
+overload its
+eyes and
+force retreat
+Yields
+Limestone
+Isopod
+Carapace
+Flash-
+Stalker
+Strobe
+Organ
+Page 45 of 137

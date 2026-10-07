@@ -1,0 +1,82 @@
+The Deep
+Kite-Sub
+Heavy
+Crawler
+Pressure
+Exosuit
+Crew
+2
+2 (driver
+and drill
+operator)
+1
+Unlocked
+Phase 2
+Phase 4
+Phase 5
+Role
+Fast, agile mini-sub for
+tight caves and kelp
+mazes where the
+Nautilus can't fit
+Bottom-walking
+mining crawler for
+heavy extraction and
+hauling cargo back to
+the moonpool
+Armored one-person
+walking suit with two
+interchangeable arms
+(grapple claw, drill,
+Heated Blade,
+harpoon) and boost
+jets
+Strengths
+Runs entirely on
+batteries, so it's
+quiet; modular arm
+takes a drill, grabber,
+or torpedo tube
+Immune to most
+medium predators
+and to deep
+pressure; drills large
+deposits; big cargo
+hold
+Survives far past
+dive-suit crush
+Weaknesses
+Fragile glass
+canopy shatters
+easily if rammed
+Lumbering and
+incredibly loud;
+must be tethered
+to the Nautilus or
+carried in the
+moonpool
+Short battery life;
+slow to swim; loud
+depth; lets one player jets (Mid band)
+fight off
+mesopredators and
+mine alone; can climb
+cliffs with the
+grapple
+Deployable gadgets
+• Flares: distract light-drawn predators.
+• Flashbangs (flash flares): blind light-sensitive deep-sea predators that rely on
+enormous eyes; they overload the Flash-Stalker Leviathan's vision and force it to
+retreat.
+• Acoustic Decoy Buoys: broadcast a 90 dB fake signature (a humming engine or a
+wounded fish) to lure blind predators away. A buoy is destroyed after 45 seconds, and
+predators go back to tracking ambient noise.
+• Chum Buckets: lead predators away from resource nodes.
+• Mineral detector: handheld; finds mid-tier resources.
+• Stasis rifle: see Gathering, hunting, and weapons.
+The ten ecosystems
+Nine underwater biomes stacked by depth with no gaps or overlaps, plus the surface
+Island. Each biome has exactly 20 unique flora and 60 unique fauna, and its food web is
+closed: every animal's prey and predators appear in that biome's own tables (alongside
+base food sources like plankton, detritus, or marine snow).
+Page 14 of 137

@@ -1,0 +1,155 @@
+The Deep
+13
+14
+15
+16
+17
+18
+19
+20
+Flora
+Spear
+Spire
+Spindle
+Moss
+Slice
+Coral
+Razor
+Reed
+Bloom
+Shimmer
+Cluster
+Branch
+Shatter
+Blade
+Tier
+3
+2
+2
+3
+2
+3
+Type
+Crystal
+pillar
+Moss
+Plate
+coral
+Reed
+Crystal
+flower
+Crystal
+knot
+Branch
+Blade
+crystal
+Description
+Upward needle
+pillar that impales
+careless subs
+Thread-like
+crystal moss that
+pulls into glassy
+filaments
+Thin plates with
+edges as sharp as
+scalpels
+Serrated reeds
+that sway and
+saw at passing
+limbs
+Fist-sized flower
+that splits along
+perfect planes
+when struck
+Iridescent knot
+that shimmers
+with stored
+vibration energy
+Branch that oozes
+slick glassy resin
+from its cracks
+Unstable crystal
+that bursts into
+shrapnel if struck
+wrong
+Eaten by
+Pane-Back
+Dugong
+Glass-Spinner,
+Lattice Chiton
+Glassback
+Grazer, Prism
+Limpet
+Silica Nibbler,
+Mica Goby
+Crystal Sea-Hare
+Refraction
+Shrimp, Gleam
+Isopod
+Facet Snail, Lens
+Turtle
+Pane-Back
+Dugong
+Yields
+Tempered
+Spike
+Silica
+Thread
+Scalpel
+Plate
+Serrated
+Strip
+Core
+Shimmer
+Shard
+Resin
+Shatter
+Charge
+Use
+Heavy harpoon
+bolts
+Glass-fiber
+rope and mesh
+Blade edges
+and medkits
+Defensive
+barricade
+spikes
+Laminate layer
+for pressure
+glass
+Engine
+vibration
+dampener
+Seals cracked
+viewports
+Shrapnel mines
+Fauna (60): 5 plankton, 15 grazers, 8 filter feeders, 20 mesopredators, 8 scavengers, 4
+apex.
+Species
+Silica Diatom-
+Swarm
+Role
+Plankton
+Size
+0.1 mm
+Sound
+Silent
+Eats
+silica algae
+Eaten by
+Prism
+Copepod,
+Glint Krill,
+Lens Salp,
+Quartz Clam,
+Lens Tunicate
+Behavior
+Glittering
+Yields
+clouds that
+sparkle when
+sub lights hit
+them
+Page 69 of 137

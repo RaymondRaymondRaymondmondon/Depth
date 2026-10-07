@@ -1,0 +1,198 @@
+The Deep
+Fauna (60): 5 plankton, 15 grazers, 8 filter feeders, 20 mesopredators, 8 scavengers, 4
+apex.
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+Species
+Kelp-Mote
+Copepod
+Holdfast Krill
+Frond-Spore
+Larva
+Glimmer
+Mysid
+Silt-Drift
+Amphipod
+Spinner-Fish
+Kelp-Cow
+Kelp-Grazer
+Manatee
+Ironshell
+Snail
+Spiral-Crown
+Snail
+Stalk Urchin
+Role
+Plankton
+Plankton
+Plankton
+Plankton
+Plankton
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Size
+2 mm
+1 mm
+1.5 cm
+8 mm
+15 cm
+2.5 m
+40 cm
+15 cm
+20 cm
+Sound
+Silent
+Silent
+Silent
+Silent
+Silent
+15 dB,
+High
+IO dB,
+Low
+20 dB, Mid
+12 dB, Mid
+Silent
+10 dB, High
+Eats
+phytoplankton
+phytoplankton,
+detritus
+phytoplankton
+Kelp-Mote
+Copepod,
+phytoplankton
+detritus
+Kelp-Mote
+Copepod, Iron-
+Kelp
+Iron-Kelp,
+Vascular Moss,
+Rubbery Bracket
+Iron-Kelp,
+Emerald Pod,
+Canopy Vines
+Iron-Kelp, Rib
+Bracket
+Vascular Moss,
+Latch Moss
+Root Kelp, Iron-
+Kelp, Gasp
+Tubeworm Flora
+Eaten by
+Spinner-Fish,
+Glimmer Mysid,
+Lace Fan Worm,
+Holdfast
+Mussel
+Sieve-Mouth
+Basker, Veil-Fin
+Ray, Canopy
+Halfbeak, Frond
+Pipe-Dragon
+Stalk Barnacle
+Colony, Comb
+Siphon
+Tunicate, Frond
+Jell Y
+Bulb-Picker
+Goby, Frond
+Pipe-Dragon,
+Veil-Fin Ray,
+Bulb-I-ure
+Angler
+Glint Scallop,
+Quill Sculpin,
+Gulper Root-Eel
+Stalker-Hound,
+Lancer Pike,
+Surfline Sea
+Lion, Wraith
+Tangle-Serpent
+Leviathan,
+Thicket
+Grouper Titan
+Tangle-Serpent
+Leviathan,
+Shroud
+Serpent, Kelp-
+Stripe Orca
+Snail-Cracker
+Wolffish,
+Bramble Sea
+Star, Thicket
+Grouper Titan
+Snail-Cracker
+Wolffish, Braid
+Octopus
+Surfline Sea
+Lion, Stalk-
+Climber Crab
+Behavior
+Dense dusk
+clouds drifting
+through kelp
+corridors
+Hides among
+holdfasts by
+day; rises in
+swarms at night
+Seasonal larval
+blooms after
+kelp spawning
+cloud the water
+Flashes blue
+(about 2 lux)
+when disturbed,
+revealing
+nearby divers
+Hovers in
+shimmering low
+clouds above
+the mud floor
+Spinning silver
+schools; swirling
+vortex confuses
+predators
+Sluggish sea-
+slug grazer;
+leaves slime
+trails, curls up
+when touched
+Peaceful drifter
+in clearings;
+tolerates divers
+alongside
+Armored snail
+rasping stalks;
+shell deflects
+most bites
+Climbs stalks in
+single-file lines;
+spiny crowned
+shell
+Herds gnaw
+holdfasts,
+toppling stalks
+and opening
+new clearings
+Yields
+Glimmer Luciferin
+Spinner-Fish Fillet
+Kelp-Cow Mucus
+Kelp-Grazer
+Blubber
+Ironshell Plate
+Page 29 of 137

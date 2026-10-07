@@ -1,0 +1,150 @@
+The Deep
+49
+50
+51
+52
+53
+54
+55
+56
+Species
+Soot Hagfish
+Ember Rattail
+Clinker Crab
+Slagbone
+Worm
+Pumice
+Sleeper Shark
+Sulfur
+Snailfish
+Smoke
+Brittle-Star
+Ash Gulper
+Role
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Size
+80 cm
+90 cm
+30 cm
+25 cm
+30 cm
+1.8m
+Sound
+Silent
+15 dB,
+Low
+20 dB,
+Silent
+30 dB,
+Low
+Silent
+Silent
+25 dB,
+Low
+Eats
+detritus,
+Slagbone
+Worm
+detritus, Ash
+Drift
+Amphipod,
+Smoke Brittle-
+Star
+detritus, vent
+bacteria
+detritus
+detritus, Soot
+Hagfish,
+Ember Rattail,
+Clinker Crab
+detritus,
+Slagbone
+Worm
+detritus,
+Slagbone
+Worm
+detritus, Soot
+Hagfish,
+Ember Rattail,
+Sulfur
+Snailfish
+Eaten by
+Pumice
+Sleeper
+Shark, Ash
+Gulper
+Pumice
+Sleeper
+Shark, Ash
+Gulper
+Pumice
+Sleeper Shark
+Soot Hagfish,
+SUIfur
+Snailfish,
+Smoke
+Brittle-Star
+Boiler Worm
+Obsidian
+Anglerfish,
+Ash Gulper
+Ember Rattail
+Sulfurmaw
+Leviathan
+Behavior
+Bores into
+carcasses;
+floods
+attackers
+with
+fireproof
+slime
+Glides nose-
+down; first to
+arrive at
+carcasses
+and blood
+Slag-crusted;
+swarms
+wrecks and
+picks at loot
+crates
+Red rootlets
+dissolve
+bones on
+Ashmaw
+Basker falls
+Lethargic
+glutton;
+turns
+aggressive
+when blood
+passes a
+threshold
+Gelatinous;
+hovers over
+vent-cooked
+remains
+Carpets ash
+floors; arms
+ripple
+toward scent
+Balloon-
+mouthed;
+swallows
+carcass
+chunks
+whole
+Yields
+Fireproof Slime
+Pumice
+Sleeper Liver
+Oil
+Page 56 of 137

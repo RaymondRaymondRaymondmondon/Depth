@@ -1,0 +1,137 @@
+The Deep
+14
+15
+16
+17
+18
+19
+20
+Flora
+Stagnant
+Mold
+Varnished
+Sponges
+Slick Grass
+Blight
+Thistle
+Sump
+Cane
+Murk Pad
+Rancid
+Brier
+Tier
+3
+3
+2
+2
+3
+Type
+Mold
+Sponge
+Grass
+Thistle
+Cane
+pad
+Brier
+Description
+Gray film on still
+pools that smells
+antiseptic
+Lacquer-glossed
+amber sponges
+that resist acid
+entirely
+Waxy blades so
+smooth that
+sediment slides
+off
+Withered purple
+thistles with
+pods that burst
+into toxin
+Thick hollow
+canes that
+siphon brine
+upward
+Ink-dark mats
+that soak up
+light and sound
+Rotting-smelling
+bramble that
+predators follow
+for miles
+Eaten by
+Brinecumber,
+Mildew Isopod
+Halite Chiton,
+Acid-Slug
+Nudibranch
+Mirror-Skimmer,
+Sump Minnow
+Brine Tortoise,
+Blight Beetle
+Slime-Eel,
+Brinecumber
+Brinecumber,
+Varnish Limpet
+Brine Tortoise,
+Blight Beetle
+Yields
+Stagnant
+Mycelium
+Varnish
+Lacquer
+Slick Wax
+Blight
+Seed Pods
+Sump
+Cane
+Tubing
+Murk Ink
+Rancid
+Musk
+Antibiotic
+medkits
+Top layer of the
+Anti-Corrosion
+Coating
+Coating sealer
+and drill bearing
+grease
+Toxin cloud
+grenades
+Air hose piping
+Sound-
+dampening hull
+paint (-10 dB)
+Predator lure
+bait
+Fauna (60): 5 plankton, 15 grazers, IO filter feeders, 18 mesopredators, 8 scavengers, 4
+apex.
+Species
+Brine Mote
+Role
+Plankton
+Size
+0.2
+mm
+Sound
+Silent
+Eats
+halophilic
+archaea
+Eaten by
+Bile Larva
+Drift, Halo
+Brine-Shrimp,
+Brine
+Fanworm,
+Lake-Skin
+Jelly
+Behavior
+Pink haze
+clouding the
+Yields
+toxic boundary
+layer
+Page 80 of 137

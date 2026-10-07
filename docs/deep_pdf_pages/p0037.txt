@@ -1,0 +1,135 @@
+The Deep
+14
+15
+16
+17
+18
+19
+20
+Flora
+Beacon
+Fungi
+Radiant
+Lichen
+Flicker
+Mold
+Glimmer
+Tubule
+Vapour
+POUCh
+Spark
+Filament
+Ember
+Cluster
+Tier
+2
+2
+3
+2
+3
+2
+Type
+Columnar
+fungus
+Thermal
+lichen
+Guano
+mold
+Resonant
+tube
+bladder
+Electric
+strands
+Heat
+nodule
+Description
+Steady amber
+columns at
+200 lux;
+predators
+patrol nearby
+Warm orange
+crust near
+mineral seeps
+that gives off
+heat (12 lux)
+Mold on
+guano piles
+that flickers
+erratically (8
+lux)
+Pipe-organ
+tubes that
+hum Mid-
+band tones in
+currents (15
+lux)
+Translucent
+bladder of
+buoyant gas,
+faint blue at 4
+lux
+Crackling
+violet strands
+that shock on
+contact (35
+lux)
+Amber
+nodules
+around warm
+seeps,
+glowing at 50
+lux
+Eaten by
+Pale Mat-
+Crayfish
+Lichen-Lick
+Snail, Lumen
+Sea-
+Cucumber
+Cave Glow-
+Midge, Cave
+Cleaner
+Beetle
+Lumen Sea-
+Cucumber
+Ember Sea-
+Hare
+Mineral-
+Tongue
+Limpet
+Pale Mat-
+Crayfish
+Yields
+Beacon Fungi
+Stalk
+Radiant Lichen
+Crust
+Flicker Mold
+CUItUre
+Glimmer Tubule
+Resonator
+Vapour Pouch
+Spark Filament
+Coil
+Ember Cluster
+Core
+Use
+Deployable
+marker
+beacons
+Heat packs
+Antibiotics
+Sound decoys
+that lure
+predators
+Buoyancy rigs,
+lift bags
+Luminescent
+Battery Cells,
+stun weapons
+Cooking heat,
+fuel additive
+Fauna (60): 5 plankton, 15 grazers, 8 filter feeders, 20 mesopredators, 8 scavengers, 4
+apex.
+Page 37 of 137

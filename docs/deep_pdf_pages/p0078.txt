@@ -1,0 +1,87 @@
+The Deep
+60
+Species
+Diamondback
+Sea-Wyrm
+Role
+Apex
+Size
+22m
+Sound
+50 dB,
+Low
+Eats
+Splinter Eel,
+Shatterfin
+Pike, Silica
+Sea-snake,
+Pane
+Jellyfish,
+Cleaver-
+Claw
+Glasscrab
+Eaten by
+none (apex)
+Behavior
+Coils around
+lattices;
+diamond
+scales grind
+with a loud
+roar
+Yields
+Diamond
+Scale
+7. The Brine Pools (900 to 1,200 m)
+• Layout: craters filled with ultra-dense, toxic, super-salty brine that forms still "lakes"
+on the sea floor. Subs float on the brine's surface; sinking into it corrodes the hull
+(needs Anti-Corrosion Coating).
+• Look: milky green-yellow toxic "rivers" under dark water, skeletons floating on the
+brine surface, mirror-like boundaries between the two fluids.
+• Hazards: hull corrosion, zero visibility inside the brine, amphibious predators
+ambushing from below the brine layer, acid clouds from the Miasma Leviathan.
+• Food web: salt-loving archaea at the toxic boundary feed plankton such as Brine
+Motes, which Halo Brine-Shrimp, Acid Mussels, and other filter feeders sieve out;
+Slime-Eels, Brine Tortoises, and other grazers eat the shoreline flora. Brine-Crocodiles
+and Corrosive Squid hunt these along the shoreline, and scavengers recycle pickled
+carcasses floating on the brine. The Miasma Leviathan filters the brine itself, while the
+Sinkhole Wyrm, Pall Kraken, and Pickle Pliosaur hunt the mesopredators.
+Flora (20)
+1
+2
+Flora
+Brine Lily
+Toxic Kelp
+Tier
+2
+Type
+Flower
+Kelp
+Description
+White cups
+floating on the
+brine; salt
+crystallizes
+inside the petals
+Olive fronds that
+weep green
+toxin into the
+rivers
+Eaten by
+Crust-Licker
+Snail, Pickle
+Dugong
+Caustic Urchin,
+Acid-Slug
+Nudibranch
+Yields
+Lily Salt-
+Bulb
+Toxin
+Fronds
+Use
+Desalination
+filter cartridges
+Antitoxin
+injectors
+Page 78 of 137

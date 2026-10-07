@@ -1,0 +1,27 @@
+The Deep
+• State-driven creature Al. Creatures act on internal drives (hunger, fear, territorial urge,
+acoustic irritation, daily migration) instead of scripted patrol paths.
+• Creatures live their own lives. Species interact without the player: pack hunting,
+cleaning stations, territorial fights, decoy parasitism, and whale-fall decay.
+• Progression through pressure. Depth is the main gate. Going deeper requires
+pressure-resistant hulls, thermal insulation, and specialized vehicles built from what
+the crew harvests in hostile biomes.
+The start and progression
+The opening. Players spawn at night on a vulnerable inflatable life raft in the middle of a
+dark, rolling ocean. They row through dangerous surface waters, navigating by the faint,
+dying emergency lights of a massive derelict submarine breaching the surface: the
+Nautilus. The first goal is to board it, restore primary power, and dive before a surface
+storm or a surface-hunting leviathan destroys them.
+The loop: gather, craft, upgrade, descend. Crew members free-dive or take small vehicles
+out to gather titanium, copper, metals, organic matter, bioluminescent flora, deep-sea
+minerals, and blueprints. They bring it back to repair the sub's rooms (engine room,
+hydroponics bay, moonpool, and the rest) and to reinforce the hull. A stronger hull lets the
+Nautilus descend into new pressure depths, where it becomes the staging ground for
+even deeper biomes. Support vehicles (agile mini-subs for tight caverns, heavy exosuits
+for deep hauling) reach places the Nautilus can't.
+Depth phases. Progression is gated by pressure, with one phase per underwater biome.
+Each phase ends with a hull upgrade that raises the Nautilus's crush depth to the bottom
+of the next biome. Every upgrade combines a new material from the current biome with
+materials from shallower ones, so the crew keeps returning to earlier biomes (full recipes
+in Crafting, resources, and upgrades).
+Page 2 of 137

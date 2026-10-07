@@ -1,0 +1,246 @@
+The Deep
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+Species
+Ampere
+Lamprey
+Glimmer
+Siphon
+Ember-Sapper
+Salp
+Static Moth-
+Jelly
+Frostgill Leech
+Lantern-
+Drinker
+Squidlet
+Volt-Tick
+Pallid Lumen-
+Eater
+Dynamo
+Isopod
+Heatshadow
+Ctenophore
+Glow-Sapper
+Pteropod
+Capacitor
+Medusa
+Null-Sucker
+Remora
+Flicker-Moth
+Shrimp
+Chasm
+Bellows Jelly
+Mucus-Palace
+Larvacean
+Role
+Energy leech
+Energy leech
+Energy leech
+Energy leech
+Energy leech
+Energy leech
+Energy leech
+Energy leech
+Energy leech
+Energy leech
+Energy leech
+Energy leech
+Energy leech
+Energy leech
+Filter feeder
+Filter feeder
+Size
+1.8 m
+40 cm
+chain
+60 cm
+50 cm
+25 cm
+15 cm
+70 cm
+3 cm
+1.2 m
+8 cm
+12 m
+house
+Sound
+20 dB,
+High
+Silent
+Silent
+15 dB, High
+Silent
+Silent
+10 dB,
+High
+Silent
+25 dB, Mid
+Silent
+Silent
+30 dB,
+High
+Silent
+Silent
+20 dB, LOW
+Silent
+Eats
+electricity,
+Solenoid
+Filament
+Chasm-Fry
+Larvae,
+Bottomless
+Beacon
+diver body heat,
+Gloom Cyst
+electricity, Static
+Spire
+Abyssal Sleeper-
+Shark (body
+heat)
+Ghostlight
+Copepod,
+Ethereal Beacon
+electricity,
+Gargantua
+Anglerfish
+Siren-I-ure
+Angler, Depth
+Node
+electricity, Static
+Spire
+diver body heat,
+Unending Cyst
+Lumen Drift
+Larvae,
+Pressure-Spore
+Cloud
+electricity, Nadir
+Anchor
+Veil-Gill Cetoid
+(body heat)
+Lumen Drift
+Larvae, Eclipse
+Web
+Void Mote
+Swarm, marine
+snow
+Void Mote
+Swarm, Chasm-
+Fry Larvae
+Eaten by
+Colossal Hook-
+Squid, Riftline
+Dragon-Eel
+Blackfang
+Dragonfish
+Hatchet Lurker,
+Cavernous Maw
+Pale Harpoon
+Siphonophore
+Barbel
+Lancetfish
+Clickvein Squid,
+Vampire Pulse-
+Squid
+Inkveil Cuttle
+Needletooth
+Viperfish
+Coil-daw Snake-
+Dragon
+Spinelight
+Ribbonfish
+Pressure
+Barracudina
+Chasm
+Fangtooth, Nadir
+Kraken
+Sablefin Gulper
+Blackfang
+Dragonfish,
+Crystal-Spine
+Ray
+Colossal Hook-
+Squid,
+Cavernous Maw
+Sablefin Gulper,
+Cavernous Maw
+Behavior
+Latches onto hull
+plating and drains
+power in steady
+pulses
+Sucks the light out
+Of glowing prey
+and leaves them
+dark
+Chains coil around
+divers and drain
+suit heat
+Flutters toward
+active electronics;
+crackles with
+stolen charge
+Rides large hosts
+and drops onto
+warm divers
+Drains flares and
+headlamps in
+schools
+Burrows into sub
+seams, drains
+power, causes
+system flicker
+Drapes itself over
+lures and grows
+brighter as it feeds
+Grips power
+cables and
+generates jamming
+static
+Shows only on
+thermal scans;
+cools any diver it
+touches
+Flutters through
+glowing Clouds and
+darkens them
+Builds up stored
+charge, then
+discharges in an
+EMP burst
+Suckers onto warm
+bodies, including
+divers and subs
+Swarms put Out
+lights, then strobe
+the stolen light
+Huge bell pumps
+slowly with a deep
+whoomph
+Builds a mtJCUS
+palace that snags
+drifting divers
+Yields
+Dynamo Coil
+Organ
+Living
+Capacitor Sac
+Bellows
+Mesoglea
+Page 100 of 137

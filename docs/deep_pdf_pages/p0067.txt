@@ -1,0 +1,105 @@
+The Deep
+59
+60
+Species
+Canopy
+Kraken
+Mire
+Gharfish
+Role
+Apex
+Apex
+Size
+18m
+Sound
+30 dB,
+Mid
+55 dB,
+Ultrasonic
+Eats
+Driftwood
+Squid, Moss-
+Cloak Cuttle,
+Hollow-Log
+Octopus,
+Bogsnout
+Paddlefish
+Snag-Trunk
+Eel, Peat Pike,
+Splinter Gar,
+Thorn
+Catfish, Mire
+Lamprey
+Eaten by
+none (apex)
+none (apex)
+Behavior
+Hangs in the
+upper canopy
+rot; tentacles
+drop like vines
+Echolocates
+through silt;
+Yields
+Canopy
+Kraken
+Beak
+Ganoid
+Scale
+patrols narrow Plating
+passages at
+speed
+6. The Crystal Reef (700 to 900 m)
+• Layout: fields of razor-sharp quartz and silicate crystal pillars growing in geometric
+lattices. They slash dive suits, crack viewports, and tear small SUbS.
+• Look: prismatic light, dazzling reflections in sub lights, transparent and translucent
+fauna.
+• Hazards: suit punctures, cracked viewports (needs Pressure-Glass Viewports),
+disorientation from scattered floodlight beams, glass-hard stealth predators that are
+fragile but highly aggressive.
+• Food web: piezo-electric silica algae feed the diatom and plankton swarms, while 15
+grazers crop the crystal flora; only the Pane-Back Dugong can grind the tier 3 spires
+and clusters. Transparent mesopredators such as the Shard-Shark, Mirror-Squid, and
+Prismjaw Gar hunt inside the refractions, and scavengers recycle detritus. Four apex
+hunters top the web, led by the silent, optically camouflaged Glass-daw Leviathan.
+Flora (20)
+1
+2
+Flora
+Silica
+Fern
+Mirror
+Sponge
+Tier
+2
+Type
+Fern
+Sponge
+Description
+Feathery silica
+fronds that hum
+softly in passing
+currents
+Polished sponge
+that bounces sub
+lights back as
+blinding glare
+Eaten by
+Glass-Spinner,
+Facet Snail
+Gleam Isopod,
+Splinter Sea-
+Cucumber, Vitric
+Giant Isopod
+Yields
+Silica
+Frond
+Mirror
+Fiber
+Smelt into
+basic silica
+glass
+Signal mirrors
+and decoy
+reflectors
+Page 67 of 137

@@ -1,0 +1,191 @@
+The Deep
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+Species
+Caustic
+Urchin
+Acid-Slug
+Nudibranch
+Reed-Nibbler
+Goby
+Sump
+Minnow
+Mirror-
+Skimmer
+Brine
+Tortoise
+Ooze Wrasse
+Blight Beetle
+Pickle
+Dugong
+Halo Brine-
+Shrimp
+Role
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Filter feeder
+Size
+20 cm
+IO cm
+12 cm
+7 cm
+30 cm
+1.5 m
+25 cm
+Sound
+Silent
+Silent
+18 dB,
+Mid
+15 dB,
+Mid
+22 dB,
+High
+30 dB,
+Low
+20 dB,
+Mid
+25 dB,
+High
+40 dB,
+Low
+10 dB,
+High
+Eats
+Toxic Kelp, Silt-
+Bloom Kelp
+Toxic Kelp,
+Halite
+Sponges,
+Varnished
+Sponges
+Saline Reed,
+Ooze Reed
+Miasma Grass,
+Silt-Bloom
+Kelp, Slick
+Grass
+Scab Lily, Slick
+Grass
+Miasma Grass,
+Pickle Thistle,
+Blight Thistle,
+Rancid Brier
+Slime Cane,
+Ooze Reed
+Pickle Thistle,
+Bitter Brier,
+Blight Thistle,
+Rancid Brier
+Brine Lily,
+Saline Reed,
+Silt-Bloom Kelp
+Brine Mote,
+Saltdust
+Rotifer
+Eaten by
+Caustic
+Mantis, Salt
+Snapper
+Turtle
+Brine
+Scorpionfish
+Pickle
+Barracuda,
+SUIfur
+Anglerfish,
+Salt Newt,
+Toxin Frogfish
+Pickle
+Barracuda,
+SUIfur
+Anglerfish,
+Halocline Gar,
+Toxin Frogfish
+Brine-
+Crocodile,
+Mirror Pike,
+Salt Monitor
+Sinkhole
+Wyrm
+Corrosive
+Squid, Murk
+Grouper
+Salt Newt, Salt
+Monitor
+Brine-
+Crocodile,
+Pickle Pliosaur
+Corrosive
+Squid, Pickle
+Barracuda,
+Saltveil Ray,
+Miasma
+Leviathan
+Behavior
+Spines drip
+acid that
+damages
+divers on
+contact
+Neon green
+warning colors;
+stores sponge
+toxins
+Darts between
+reed stalks;
+chirps when
+startled
+Silver shoals
+that flash in
+sub lights
+Skates across
+the brine's
+surface
+tension
+Plods along
+crater rims;
+salt-encrusted
+shell
+Weaves
+through cane
+beds leaving
+slime trails
+Aquatic beetle
+that buzzes its
+wing-cases
+when it
+swarms
+Slow, gentle
+herds that
+moan across
+the shallows
+Glowing rings
+hovering just
+above the
+brine
+boundary
+Yields
+Caustic
+Spines
+Salt-Crust
+Scute
+Dugong
+Blubber Oil
+Halo Chitin
+Page 82 of 137

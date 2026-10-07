@@ -1,0 +1,120 @@
+The Deep
+17
+18
+19
+20
+Flora
+Scald Crt-iSt
+Vapor Stalk
+Ventricle
+Spire
+Plume
+Cluster
+Tier
+3
+2
+3
+3
+Type
+Crust
+Stalk
+Spire
+Cluster
+Description
+Superheated
+glassy shell on
+boiling vents;
+shears weak
+drills
+Translucent
+stem hissing
+steam bubbles
+(Mid band)
+Heart-shaped
+chambered
+spire pumping
+vent fluid
+rhythmically
+Feathery cobalt-
+laced mineral
+fans that bloom
+in plumes
+Eaten by
+Smolder
+Urchin
+Vapor Prawn
+SulfiJr Limpet
+Vapor Prawn
+Scald Glass
+Vapor
+Condensate
+Ventricle
+Valve
+Cobalt
+Plume Ore
+Use
+Heat-proof
+port glass
+Purified
+drinking water
+Geothermal
+engine, ballast
+pump
+Mid-tier
+battery alloy
+Fauna (60): 5 plankton, 15 grazers, 8 filter feeders, 20 mesopredators, 8 scavengers, 4
+apex.
+Role
+Plankton
+Plankton
+Size
+2 mm
+Sound
+Silent
+Silent
+Eats
+vent bacteria
+vent bacteria,
+Magma
+Spores
+Eaten by
+Thermocline
+Jelly-Speck,
+Crimson
+Plume
+Tubeworm,
+Smoker
+Mussel,
+Ember
+Feather-star,
+Ashmaw
+Basker
+Chimney
+Barnacle, Kiln
+Anemone,
+Ashmaw
+Basker,
+Brimstone
+Squid, Flare
+Siphonophore
+Behavior
+Dense
+yellow
+clouds ride
+rising
+Yields
+2
+Species
+Sulfur Mote
+Copepod
+Ember Krill
+plumes; blind
+murk around
+chimneys
+Faint orange
+glowing
+swarms;
+scatter from
+hull lights
+above 50 lux
+Page 49 of 137

@@ -1,0 +1,197 @@
+The Deep
+36
+37
+38
+39
+41
+42
+43
+45
+Species
+Braid
+Octopus
+Stalk-climber
+Crab
+Mud-Spear
+Mantis
+Shrimp
+Ribbon
+Cuttlefish
+Bulb-Lure
+Angler
+Thicket Seal
+Surfline Sea
+Lion
+Tangle
+Dogfish
+Bramble Sea
+Star
+Quill Sculpin
+Role
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Size
+1.2 m
+50 cm
+35 cm
+60 cm
+70 cm
+2.5 m
+1.2 m
+80 cm
+45 cm
+Sound
+Silent
+15 dB, High
+50 dB,
+High
+Silent
+Silent
+35 dB, Mid
+45 dB, Mid
+20 dB,
+Mid
+Silent
+10 dB, Low
+Eats
+Spiral-Crown
+Snail, Lattice Sea
+Hare, Vine
+Abalone, Glint
+Scallop, Tendril
+Limpet
+Stalk Urchin,
+Frond Chiton,
+Tendril Limpet,
+Stalk Barnacle
+Colony, Comb
+Siphon Tunicate
+Frond Chiton,
+Comb Siphon
+Tunicate, Holdfast
+Gleaner Shrimp
+Moss-Nibbler
+Wrasse, Lace Fan
+Worm, Frond
+Jelly, Frond Pipe-
+Dragon
+Bulb-picker Goby,
+Glimmer Mysid
+Braid Octopus,
+Stalk-climber
+Crab, Mud-Spear
+Mantis Shrimp,
+Bulb-Lure Angler,
+Kelp-Litter Crab
+Spinner-Fish,
+Stalk Urchin,
+Canopy Halfbeak,
+Vine Abalone,
+Braid Octopus
+Pod-Cracker
+Bream, Gulper
+Root-Eel, Frond
+Scorpionfish,
+Mud-Sifter
+Isopod, Slime-
+Knot Lamprey
+Ironshell Snail,
+Lattice Sea Hare,
+Stalk Barnacle
+Colony, Holdfast
+Mussel, Murk Sea
+Cucumber
+Silt-Drift
+Amphipod, Bulb-
+Picker Goby,
+Root-Marrow
+Worm, Mud-sifter
+Isopod, Silt Brittle
+Star
+Eaten by
+Thicket Seal,
+Surfline Sea
+Lion
+Thicket Seal,
+Silt-Barb
+Stingray
+Thicket Seal,
+Silt-Barb
+Stingray
+Lancer Pike,
+Stalker-Hound
+Suction-Maw
+Eel, Thicket Seal
+Tangle-Serpent
+Leviathan, Kelp-
+Stripe Orca
+Shroud
+Serpent, Kelp-
+Stripe Orca
+Thicket
+Grouper Titan,
+Shroud Serpent
+Snail-Cracker
+Wolffish
+Suction-Maw
+Eel, Silt-Barb
+Stingray
+Behavior
+Braids kelp into
+dens; mimics
+stalk texture to
+evad e
+Climbs stalks
+hunting grazers;
+drops onto subs
+to pinch cables
+Spears from
+mud burrows;
+cracking strike
+can fracture
+visors
+Rippling skin
+patterns copy
+kelp shadows to
+hypnotize prey
+Lure mimics a
+Glow Bulb;
+ambushes
+careless
+collectors
+Agile mammal
+weaving tight
+mazes; barks
+warnings at
+threats
+Hunts the upper
+canopy in
+playful groups;
+nudges curious
+divers
+Hunts by smell;
+packs Of five
+frenzy at blood
+Everts its
+stomach onto
+armored snails;
+regrows
+severed arms
+Mud-colored
+bottom lurker;
+erects quills
+when grabbed
+Yields
+Braid Ink
+Mantis Club
+Chitin
+Angler Lure Organ
+Page 32 of 137

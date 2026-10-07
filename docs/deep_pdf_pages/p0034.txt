@@ -1,0 +1,124 @@
+The Deep
+57
+58
+59
+60
+Species
+Tangle-
+Serpent
+Leviathan
+Shroud
+Serpent
+Thicket
+Grouper
+Titan
+Kelp-Stripe
+Orca
+Role
+Apex
+Apex
+Apex
+Apex
+Size
+45 m
+28 m
+12m
+Sound
+Silent; 95
+dB, Low
+when
+striking
+Silent; 80
+dB, Low
+when
+striking
+60 dB, Low
+70 dB,
+Ultrasonic
+Eats
+Kelp-Cow, Kelp-
+Grazer Manatee,
+Holdfast Hog,
+Sieve-Mouth
+Basker, Stalker-
+Hound, Wraith,
+Thicket Seal
+Kelp-Grazer
+Manatee,
+Holdfast Hog,
+Veil-Fin Ray,
+Stalker-Hound,
+Suction-Maw Eel,
+Lancer Pike,
+Surfline Sea Lion,
+Tangle Dogfish,
+Silt-Barb Stingray,
+Strangler Squid
+Kelp-Cow,
+Ironshell Snail,
+Pod-Cracker
+Bream, Veil-Fin
+Ray, Wraith,
+Suction-Maw Eel,
+Snail-Cracker
+Wolffish, Tangle
+Dogfish, Silt-Barb
+Stingray
+Kelp-Grazer
+Manatee,
+Holdfast Hog,
+Sieve-Mouth
+Basker, Veil-Fin
+Ray, Stalker-
+Hound, Lancer
+Pike, Thicket seal,
+Surfline Sea Lion,
+Strangler Squid
+Eaten by
+none (apex)
+none (apex)
+none (apex)
+none (apex)
+Behavior
+Camouflaged
+among stalks;
+wraps and
+crushes subs
+passing within
+15 m
+Frond-
+patterned
+serpent; strikes
+anything
+displacing water
+near its coils
+Lurks in
+collapsed-stalk
+caves; suction
+boom drags in
+prey
+Pod hunter
+echolocating
+through the
+maze; herds
+prey into
+clearings
+Yields
+Tangle-Serpent
+Scale (shed)
+Shroud Hide
+Titan Swim
+Bladder
+Orca Melon Oil
+3. The Bioluminescent Caverns (150 to 300 m)
+Layout: limestone tunnel networks and huge cathedral caverns. Echoes amplify every
+sound, so stealth is vital. Tight squeezes need the Kite-Sub or swimming. Upper
+chambers hold air pockets with bat roosts. The Abandoned Underwater City lies here.
+Look: pitch-black tunnels lit only by neon-blue, magenta, and amber flora (about 1 to
+200 lux) and pulsing creature organs; strobe flashes light the wet walls.
+Hazards: extreme echo (amplifies Wake), cave-ins, blinding strobes from predators (up
+to about 50,000 lux), getting lost in narrow tunnels.
+Food web: chemosynthetic glowing fungi, lichens, and bacterial mats feed plankton,
+blind crustaceans, and grazers, while bat guano from the air pockets feeds beetles,
+prawns, and molds. Glass-shrimp, cavefish, and other grazers feed echolocating rays
+Page 34 of 137

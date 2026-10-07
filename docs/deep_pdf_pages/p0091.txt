@@ -1,0 +1,155 @@
+The Deep
+20
+Flora
+Monolith
+Cap
+Tier
+3
+(Mining
+Laser)
+Type
+Fungus
+Description
+Towering 6 m
+mushroom,
+mineralized
+and fused to
+fossil
+vertebrae
+Eaten by
+Cinder Snail
+Yields
+Monolith
+Ceramic Core
+Use
+Void-Forged
+Hull
+Fauna (60): 5 plankton, 15 grazers, 8 filter feeders, 20 mesopredators, 8 scavengers, 4
+apex.
+2
+3
+4
+5
+6
+7
+Species
+Marrow-Snow
+Copepod
+Shroud Salp
+Calcite Drift
+Larva
+Tomb-Mote
+Foraminifera
+Grave-Glimmer
+Ostracod
+Osedax Bone-
+Borer
+Rib-Rasp
+Chiton
+Role
+Plankton
+Plankton
+Plankton
+Plankton
+Plankton
+Grazer
+Grazer
+Size
+2 mm
+8 cm
+1 mm
+0.5 mm
+3 mm
+colony
+15 cm
+Sound
+Silent
+Silent
+Silent
+Silent
+Silent
+Silent
+15 dB,
+Eats
+marine snow
+marine snow
+marine snow
+marine snow,
+detritus
+marine snow
+bone
+Bone Fungi
+Eaten by
+Catacomb
+Crinoid, Sexton
+Basket Star,
+Gravestone
+Tripodfish,
+Funeral
+Siphonophore,
+Sepulcher Squat
+Lobster
+Funeral
+Siphonophore,
+Dirge Gulper Eel
+Headstone Clam,
+Ribbone
+Barnacle, Vigil
+Sea Pen,
+Gravestone
+Tripodfish
+Grave-Plough
+Holothurian, Vigil
+Sea Pen, Mourner
+Fanworm, Urn
+Tunicate
+Lattice
+Brittlestar,
+Sexton Basket
+Star, Tombglow
+Angler, Funeral
+Siphonophore
+Abyssal
+Scavenger Crab,
+Graverobber
+Hermit
+Ossicle Mantis
+Shrimp
+Behavior
+Drifting CIOUdS
+gather around
+ribcages,
+feeding on
+bone-dust snow
+Ghostly
+translucent
+chains drifting
+between fossil
+arches
+Chalky larvae
+rain down and
+settle on bone
+to grow shells
+Calcite-shelled
+cells blanket the
+silt; storms kick
+them up
+Faint blue
+flashes when
+disturbed, the
+only light here
+Microscopic
+mollusk
+colonies
+dissolve fossil
+bone with acid
+into red root-
+mats
+Yields
+Osedax Bone-
+High
+Armored plates
+clamp to ribs
+and rasp fungus
+off slowly
+Page 91 of 137

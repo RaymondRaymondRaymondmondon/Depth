@@ -1,0 +1,175 @@
+The Deep
+31
+32
+33
+34
+35
+36
+Species
+Strobe-Squid
+Grotto
+Lamprey
+Ghost-Olm
+Lure-Lantern
+Angler
+Strobe
+Mantis
+Shrimp
+Skimmer Bat
+Lumen
+Tunnel-Eel
+Role
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Size
+1.2 m
+90 cm
+1.5 m
+60 cm
+30 cm
+60 cm
+span
+Sound
+25 dB, Mid
+15 dB, Mid
+Silent
+Silent
+40 dB,
+High
+25 dB,
+Ultrasonic
+(40 kHz)
+18 dB
+, Mid
+Eats
+Flash-Hunter
+Darter,
+Glowcap
+Nibbler
+Ember Sea-
+Hare, Drip
+Tubeworm
+Blind Lamp-
+Isopod, Pale
+Mat-Crayfish
+Ghostfin
+Cavefish, Arc-
+Jaw Cavefish
+Blind Lamp-
+Isopod,
+Fungus-
+Rasper Chiton,
+Mineral-
+Tongue
+Limpet,
+Lantern
+Barnacle,
+Calcite
+Decorator
+Crab
+Cave Glow-
+Midge, Glass-
+Cave Shrimp,
+Cave Cleaner
+Beetle, Guano-
+Sift Prawn
+Pale Mat-
+Crayfish,
+Glowfruit Bat,
+Skimmer Bat,
+Grotto
+Lamprey,
+Glowslime
+Hagfish
+Eaten by
+Flash-
+Stalker
+Leviathan,
+Lumen-Veil
+Kraken
+Lumen
+Tunnel-Eel,
+Cathedral
+Gulper
+Lumen-Veil
+Kraken,
+Cathedral
+Gulper
+Lumen-Veil
+Kraken,
+Choir
+Leviathan
+Grotto
+Mimic
+Octopus,
+Strobe
+Cuttlefish
+Hollow-
+Cave Seal,
+Lumen
+Tunnel-Eel
+Flash-
+Stalker
+Leviathan,
+Lumen-Veil
+Kraken
+Behavior
+Hunts in
+packs; 3,000
+lux strobes
+blind its prey
+Latches onto
+prey, drains
+it, and is
+drawn to
+blood
+Pale and
+eyeless;
+waits
+motionless
+for days
+Dangles a 60
+lux lure that
+mimics
+Lantern Vine
+seeds
+Club strike
+cracks
+viewports;
+flashes
+before it
+snaps
+Echolocates
+and snatches
+prey from
+air-pocket
+surfaces
+Ambushes
+from
+squeezes; its
+blue lateral
+line glows at
+5 lux
+Yields
+Strobe-
+Squid
+Photophore
+Ghost-Olm
+Regen
+Gland
+Lure-
+Lantern
+Bulb
+Strobe
+Mantis Club
+Skimmer
+Bat
+Membrane
+Tunnel-Eel
+Skin
+Page 42 of 137

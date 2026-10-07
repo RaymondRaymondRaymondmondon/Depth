@@ -1,0 +1,162 @@
+The Deep
+22
+23
+24
+25
+26
+27
+28
+29
+30
+Species
+Glade Grass
+Conch
+Sun-Fan
+Feather
+Duster
+Lagoon
+Manta-Wing
+Giant
+Sunclam
+Lagoon
+Pearl-Mussel
+Reef Basket
+Star
+Sunhat Jelly
+Atoll
+Barnacle
+Colony
+Sand-Dollar
+Sifter
+Role
+Grazer
+Filter feeder
+Filter feeder
+Filter feeder
+Filter
+Filter feeder
+Filter feeder
+Filter feeder
+Filter feeder
+Size
+25 cm
+20 cm
+span
+1.2m
+12 cm
+60 cm
+35 cm
+each
+Sound
+3 dB,
+High
+Silent
+15 dB,
+Mid
+5 dB,
+Low
+Silent
+Silent
+Silent
+2 dB,
+High
+Silent
+Eats
+Verdant Algae,
+Grass
+Sunmote
+Copepod,
+detritus
+Lagoon Glimmer
+Krill, Pearl Comb
+phytoplankton,
+Reef Larva
+Cloud
+phytoplankton,
+detritus
+Lagoon Glimmer
+Krill, Sandflit
+Mysid
+Sunmote
+Copepod, Reef
+Larva Cloud
+Reef Larva
+Cloud,
+phytoplankton
+Sandflit Mysid,
+detritus
+Eaten by
+Sand-Veil
+Stingray,
+Coral Octo-
+Lurker
+Pearl Trigger-
+Biter
+Reef-Crusher
+Leviathan
+Coral-crusher
+Leviathan
+Pearl Trigger-
+Biter, Coral
+Octo-Lurker
+Pearl Trigger-
+Biter
+Sunback
+Reef-Tu rtle
+Tidal Mantis-
+Striker
+Sand-Veil
+Stingray
+Behavior
+Hops across
+sand with a
+claw-foot;
+clacks its shell
+when
+disturbed
+Feathery
+crown snaps
+into its tube at
+shadows or
+vibration
+Barrel-rolls
+through krill
+swarms; visits
+cleaning
+stations
+Glowing
+mantle hosts
+algae; snaps
+shut on
+careless limbs
+Dense beds
+clarify lagoon
+water; anchors
+with byssal
+threads
+Unfurls fractal
+arms at dusk;
+curls tight
+under bright
+lights
+Pulses near the
+surface in
+blooms; mild
+stinging
+tentacles
+Encrusts rocks
+and sub hulls;
+adds drag over
+time
+Stands
+edgewise in
+sand beds,
+combing the
+current
+Yields
+Manta-
+Wing
+Leather
+Sunclam
+Pearl
+Page 21 of 137

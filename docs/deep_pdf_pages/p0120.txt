@@ -1,0 +1,57 @@
+The Deep
+• Danger: the humming of the surviving emergency beacons mimics engine vibration, so
+a confused Echo Leviathan circles the facility constantly. Players use the station's
+layout to break line of sight and drop Acoustic Decoy Buoys into its vents to lure the
+leviathan away from key salvage.
+Crafting, resources, and upgrades
+Crafting draws directly on the food web: players harvest compounds from specific
+creatures and plants, and must do it without triggering an ecological collapse. Every
+named resource is its own item. Each hull upgrade mixes a new material from the current
+biome with materials from shallower biomes.
+Hull upgrades (one per phase)
+Phase Upgrade (crush depth)
+1
+2
+3
+4
+5
+6
+7
+Bio-Polymer Hull Patches (50
+m)
+Titanium Hull Plates (150 m)
+High-Tensile Mesh Sealing
+(300 m)
+Thermal Hull Shielding (500 m)
+Rot-Proof Seals (700 m)
+Pressure-Glass Viewports
+(900 m)
+Anti-Corrosion Coating
+Ingredients
+4 Bio-Polymers, 2 Calcite Algae
+Flakes
+4 Titanium, 2 Military-Grade
+Titanium, 2 Table Coral Slab
+4 High-Tensile Mesh, 2 Bracket
+Latex, 2 Glowslime
+4 Ash Ceramic Powder, 2 Vent-
+Shark Hide Plate, 2 Basalt
+Fiber, 2 Titanium Hull Plates
+3 Swamp Vine Latex, 2
+Rotproof Barnacle Cement, 2
+Canker Sap, 2 High-Tensile
+Mesh
+2 Prism Lens, 2 Cleave Core, 2
+Pressure Pane, 2 Glass Resin, 2
+Reinforced Glass
+3 Ooze Latex, 3 Varnish
+Lacquer, 1 Slick Wax
+From
+Sunlit
+Sunlit, Kelp
+Kelp, Caverns
+Vents, Kelp
+Drowned, Kelp
+Crystal, Sunlit
+Brine
+Page 120 of 137

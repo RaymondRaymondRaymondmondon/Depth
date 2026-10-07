@@ -1,0 +1,160 @@
+The Deep
+10
+11
+12
+13
+14
+15
+16
+17
+Species
+Smolder
+Urchin
+Slag Chiton
+Bristle-Claw
+Squat Lobster
+Cinder Isopod
+Ash back Sea
+Cucumber
+Ember Blenny
+Furnace Slug
+Soot Tang
+Role
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Size
+18 cm
+12 cm
+15 cm
+IO cm
+50 cm
+12 cm
+20 cm
+30 cm
+Sound
+Silent
+Silent
+20 dB,
+Mid
+Silent
+Silent
+25 dB,
+Mid
+Silent
+30 dB,
+Mid
+Eats
+Scald Crust,
+Slag Moss,
+Pumice
+Sponge
+Forge Crust,
+Slag Moss
+vent bacteria,
+Basalt
+Filament,
+Heat-Siphon
+Tubeworm
+Flora
+Cinder Bloom,
+Soot Algae
+Grit Spores,
+Choke Vent-
+Grass
+Pyre Moss,
+Cinder Larva
+Swarm
+Cinder Bloom,
+Kiln Anemone,
+Thermocline
+Jelly-Speck
+Soot Algae,
+EruptorAlgae
+Eaten by
+Slag Grou per,
+Copperback
+Triggerfish
+Scald
+Octopus,
+Ember
+Stargazer
+Fumarole Eel,
+Slag Grou per,
+Ashwing Ray
+Basalt Mantis
+Shrimp,
+Furnace
+Eelpout
+Ashwing Ray,
+Smelter
+Spider-Crab
+Magma-
+Snapper, Kiln
+Barracuda,
+Scorch
+Cuttlefish
+Scorch
+Cuttlefish,
+Ember
+Stargazer
+Magma-
+Snapper, Kiln
+Barracuda
+Behavior
+Red-hot-
+tipped
+spines; rolls
+downslope
+when
+disturbed
+Eight-plated
+grazer;
+magnetite
+teeth rasp
+mineral
+crusts
+Waves hairy
+claws in
+plumes to
+farm
+bacteria
+Rolls into an
+ash-grey
+ball; crawls in
+groups at
+night
+Hoovers ash
+plains; ejects
+heat-
+absorbing
+gel when
+attacked
+Darts
+between
+mossy rocks;
+territorial
+chirps at
+intruders
+Bright
+nudibranch;
+stores stolen
+stings from
+the
+anemones it
+eats
+Black
+schooling
+grazer;
+schools flash
+scalpel
+spines
+together
+Yields
+Thermal Gel
+Page 51 of 137

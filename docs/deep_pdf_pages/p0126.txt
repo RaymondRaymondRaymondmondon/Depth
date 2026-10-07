@@ -1,0 +1,64 @@
+The Deep
+Resource
+Abyssal Scavenger
+Claw, Raw Scavenger
+Meat
+Abyssal Marrow
+Singularity Shard
+(Void-Crystal),
+Crystal-Root Core,
+Solenoid Coil
+Void-Crystal Gizzard
+Stones
+Biome
+Abyssal Graveyard
+Abyssal
+Graveyard, Void
+Edge
+Void Edge
+Void Edge
+Source
+Abyssal Scavenger
+Crab
+Marrow-Bore
+Shipworm,
+Hollowbone Pholad,
+Bonefall King Crab; in
+the Void, Unending
+Cysts and leviathan
+falls
+Singularity Node,
+Nadir Anchor,
+Solenoid Filament
+Coil-Jaw Snake-
+Dragon
+Gathered with
+Hunting
+Mid-Tier Drill or
+hunting
+Mining Laser
+Hunting
+Note: Bioluminescent Nectar (raw sap from Shroom Pouches) and Luminescent Nectar
+(the Hydro-Juicer drink) are two different items.
+Interior stations and recipes
+The Nautilus's interior is modular. Players place, dismantle, and move utility stations with
+the default Magnetic Hand-Welder. Dismantling a station refunds 100% of its base
+components, so players are encouraged to keep rearranging their layout.
+Stations
+Station
+Thermal
+Desalinator
+Bio-Osmosis
+Filter
+Cost
+2 Titanium, 1 Iron-Kelp Stalk
+2 Bio-Polymers, 1 Strangle Sponge
+Filter
+What it does
+Slowly boils seawater: 2 minutes
+per Distilled Water (+20
+hydration)
+Instantly filters toxic or salty
+water with sponge enzymes into
+Purified Water (+40 hydration)
+Page 126 of 137

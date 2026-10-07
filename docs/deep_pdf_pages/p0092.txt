@@ -1,0 +1,233 @@
+The Deep
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+Species
+Marrow-Bore
+Shipworm
+Grave-Plough
+Holothurian
+Cinder Snail
+Shroud Isopod
+Calcite Limpet
+Vertebra
+Urchin
+Tomb-Crawler
+Amphipod
+Shroudwing
+Nudibranch
+Bleachback
+Sea Slug
+Phantom
+Periwinkle
+Crypt
+Bristleworm
+Pallbearer Sea
+Pig
+Hollowbone
+Pholad
+Catacomb
+Crinoid
+Role
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Filter feeder
+Size
+60 cm
+4 cm
+IO cm
+25 cm
+3 cm
+12 cm
+20 cm
+4 cm
+30 cm
+40 cm
+30 cm
+1.5 m
+Sound
+Silent
+Silent
+Silent
+IO dB,
+High
+Silent
+15 dB,
+High
+Silent
+Silent
+Silent
+Silent
+Silent
+Silent
+20 dB, Mid
+Silent
+Eats
+bone, Bone-
+Marrow Sponge
+detritus, Tomb-
+M Ote
+Foraminifera,
+Decay Tubeworm
+Flora
+Ash Cap,
+Monolith Cap
+Pale Moss
+Calcite Fungi
+Bone Fungi,
+Ossuary Weed
+Tomb Cluster,
+Grave Stalk
+Ghost-Weed,
+Skeletal
+Anemone, Vigil
+Sea Pen
+Bleached
+Anemone,
+Shroud Sponge
+Phantom Moss,
+Void-Fern
+Cluster
+Crypt Spire, Dust
+Spire
+detritus, Silt
+Tubeworm Flora,
+Remnant Stalk
+bone, Bone-
+Marrow Sponge
+marine snow,
+Marrow-Snow
+Copepod
+Eaten by
+Abyssal
+Scavenger Crab,
+Knell Ratfish
+Cairn Cusk-Eel,
+Catafalque
+Isopod
+Femur Eelpout,
+Mortuary Lyre
+Snail
+Crypt Rattail,
+Shroud Dumbo
+Octopus
+Reliquary
+Starfish, Ossicle
+Mantis Shrimp
+Knell Ratfish
+Crypt Rattail,
+Shroud Dumbo
+Octopus,
+Sepulcher Squat
+Lobster
+Femur Eelpout
+Cairn Cusk-Eel,
+Tombspider Sea
+Spider
+Femur Eelpout,
+Ossicle Mantis
+Shrimp
+Crypt Rattail,
+Pallid Cutthroat
+Eel, Ossuary
+Hagfish
+Cairn Cusk-Eel,
+Pallid Cutthroat
+Eel
+Abyssal
+Scavenger Crab,
+Bonefall King
+Crab
+Reliquary
+Starfish
+Behavior
+Bores deep into
+femurs and
+swells with
+marrow
+Ploughs slow
+furrows through
+the silt
+Ash-grey snails
+swarm
+mushroom caps
+after spore
+releases
+Skitters across
+moss mats in
+loose herds;
+curls up when
+touched
+Grazes crystal
+crusts and
+builds very hard
+shells
+Spine-clicking
+herds roll along
+spinal columns
+Hides in skull
+cavities; comes
+Out to nibble
+the bladders
+Pale frilled slug
+that stores the
+stingers it eats
+as defense
+Slow white slug
+that leaves bare
+bone behind it
+Its sound-
+absorbing diet
+makes it nearly
+invisible to
+sonar
+Rusty bristled
+worm chewing
+bacterial crust
+off spires
+Herds walk in
+slow procession
+across the silt
+plains
+Bone-boring
+clam that grinds
+audibly toward
+the marrow
+Feathery arms
+fan out from rib
+tips to catch
+snow
+Yields
+Abyssal
+Marrow
+Holothurian
+Calcite Shell
+Plate
+Urchin Calcite
+Spines
+Abyssal
+Marrow,
+Pholad Shell
+Page 92 of 137

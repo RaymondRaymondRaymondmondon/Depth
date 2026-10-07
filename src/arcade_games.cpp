@@ -68,6 +68,7 @@ const GameInfo& Info(int g) {
         {"Fowl Play", 1, 6, true, 20, true, false},
         {"NOCLIP", 1, 6, true, 15, true, false},
         {"Ball Pit Brawl", 2, 12, true, 20, true, false},
+        {"The Deep", 1, 4, true, 20, false},   // (a Unity game launched as its own program: games/TheDeep; the lobby hand-off comes with its stage 6)
     };
     static const GameInfo DRIFT = {"Drift (test)", 2, 6, true, 20, true};
     static const GameInfo NONE = {"?", 2, 2, false, 0, false};

@@ -1,0 +1,125 @@
+The Deep
+56
+57
+58
+59
+60
+Species
+Bonefall King
+Crab
+Echo Leviathan
+Shroud Kraken
+Grave-Warden
+Sleeper Shark
+Sepulcher
+Wyrm
+Role
+Scavenger
+Apex
+Apex
+Apex
+Apex
+Size
+60 m
+18m
+22 m
+Sound
+20 dB, High
+105 dB, LOW
+30 dB, Low
+35 dB, Low
+40 dB, LOW
+Eats
+bone,
+Hollowbone
+Pholad, Ribbone
+Barnacle,
+Reliquary
+Starfish
+Sonar-Hound,
+Abyssal
+Scavenger Crab,
+Bonefall King
+Crab, Cairn
+Cusk-Eel
+Sonar-Hound,
+Cadaver Squid,
+Mortician
+Lanternshark,
+Femur Eelpout
+Crypt Rattail,
+Shroud Dumbo
+Octopus,
+Ossuary Hagfish,
+Catafalque
+Isopod
+Dirge Gulper Eel,
+Pallid Cutthroat
+Eel, Knell Ratfish,
+Charnel
+Dragonfish
+Eaten by
+Echo Leviathan
+none (apex)
+none (apex)
+none (apex)
+none (apex)
+Behavior
+Spiny giant that
+breaks open
+bones and
+pholad burrows
+Blind; tracks
+engine hum
+from 2.5 km
+while its
+infrasound
+rumbles
+Drapes itself
+over ribcages
+like a shroud
+and drags prey
+inside
+Slow, patient
+patroller that
+tracks blood
+across the
+plains
+Huge eel-like
+serpent coiling
+through rib
+arches to
+ambush
+Yields
+Abyssal
+Marrow, King
+Crab Chitin
+Leviathan
+Resonance
+Organ,
+Leviathan
+Ivory
+Shroud Kraken
+Ink
+Sleeper Shark
+Liver Oil
+9. The Void Edge (1,800 m and deeper)
+•
+•
+Layout: the sheer drop-off at the edge of the continental shelf into a bottomless abyss.
+No floor and no landmarks, just a cliff face and open dark. Holds the endgame
+resources: Void-Crystals and Abyssal Marrow.
+Look: endless ink-black in every direction, with distant bioluminescent flashes from
+colossal horrors.
+Hazards: crushing pressure (needs the Void-Forged Hull), total loss of orientation (the
+Solenoid navigation stabilizer helps), energy leeches that drain sub batteries, diver suit
+heat, and lights, and the game's largest leviathans.
+Food web: there are no true herbivores. Plankton feed on chemical seeps and marine
+snow and support filter feeders and light leeches. Fifteen energy leeches drain
+electricity, glow, or body heat from flora, fauna, and the crew's subs, and the
+mesopredators (including abyssal giants) eat those leeches. Scavengers strip leviathan
+falls for Abyssal Marrow, and four apex leviathans led by the Cavernous Maw sweep up
+everything in their path.
+Flora (20). Strange anchoring lifeforms clinging to the cliff or drifting; all need at least the
+Mid-Tier Drill.
+Page 96 of 137

@@ -1,0 +1,166 @@
+The Deep
+50
+51
+52
+53
+54
+55
+56
+58
+Species
+Giant Litter
+Isopod
+Hollow-
+Stump Crab
+Deadfall
+Amphipod
+Bonewood
+Whelk
+Bog Ratfish
+Role
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Cinder
+Scavenger
+Bristleworm
+Mire Sleeper
+Shark
+Wood-Hag
+Bole-daw
+Behemoth
+Scavenger
+Apex
+Apex
+Size
+45 cm
+40 cm
+15 cm
+30 cm
+12m
+15m
+Sound
+20 dB,
+Mid
+25 dB,
+High
+Silent
+Silent
+20 dB,
+Mid
+Silent
+25 dB,
+Low
+45 dB,
+Low
+70 dB,
+Low
+Eats
+detritus, Peat
+Mold
+detritus, Bog
+Cucumber
+detritus,
+wood
+microbes
+detritus, Bog
+Clam
+detritus,
+Giant Litter
+Isopod
+detritus,
+wood
+microbes
+detritus, Peat
+Hagfish, Bog
+Ratfish
+Snag-Trunk
+Eel,
+Driftwood
+Squid, Knot-
+Eye Grouper,
+Mudbed
+Stingray
+Bark-Skin
+Angler, Burl
+Toadfish,
+Gnarl
+Scorpionfish,
+Bole
+Wolffish,
+Mire Sleeper
+Shark
+Eaten by
+Root-Spear
+Mantis, Bog
+Ratfish
+Bole
+Wolffish
+Moss-Back
+Sculpin
+Mudbed
+Stingray
+Mire Sleeper
+Shark
+Thorn
+Catfish
+Bole-daw
+Behemoth
+none (apex)
+none (apex)
+Behavior
+Armored
+sweeper;
+swarms blood
+scent within
+minutes
+Lives in hollow
+stumps; clacks
+its claws over
+carrion
+Swarms strip
+carcasses; its
+Cloud marks a
+fresh kill
+Smells blood
+from 100 m;
+drills dead
+shells
+Large-eyed;
+trails divers
+hoping for
+leftovers
+Glowing
+bristles sting
+on touch;
+swarms
+corpses
+Sluggish; drawn
+to blood from
+across the
+biome
+Intelligent;
+drags petrified
+trunks into
+labyrinths and
+herds prey into
+dead ends
+daws snap
+trunks; its
+Yields
+Squalene
+Liver Oil
+Cartilage
+Polymer
+Petrified
+Silk Cable
+(from its
+labyrinths)
+Ironwood
+Jaw Plate
+rumbles shake
+canopy debris
+loose
+Page 66 of 137

@@ -1,0 +1,169 @@
+The Deep
+26
+27
+28
+29
+30
+31
+32
+33
+Species
+Ember
+Feather-Star
+Kiln Anemone
+Ash maw
+Basker
+Vent-Shark
+Magma-
+Snapper
+Fumarole Eel
+Scald
+Octopus
+Brimstone
+Squid
+Role
+Filter feeder
+Filter feeder
+Filter feeder
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Size
+60 cm
+40 cm
+7m
+3.5 m
+1.4m
+1.8m
+1.5m
+1.2m
+Sound
+Silent
+Silent
+45 dB,
+Low
+50 dB,
+Low
+45 dB,
+Mid
+Silent
+Silent
+30 dB,
+High
+Eats
+Sulfur Mote
+Copepod, Ash
+Drift
+Amphipod
+Ember Krill,
+Thermocline
+Jelly-Speck
+Ember Krill,
+Ash Drift
+Amphipod,
+Sulfur Mote
+Copepod
+Basalt Plate
+Crab, Magma-
+Snapper, Kiln
+Barracuda
+Pyre Shrimp,
+Ember Blenny,
+Soot Tang,
+Crimson
+Plume
+Tubeworm
+Bristle-Claw
+Squat Lobster,
+Pompeii
+Ember-Worm
+Basalt Plate
+Crab, Slag
+Chiton,
+Smoker
+Mussel, Scald
+Clam
+Ember Krill,
+Vapor Prawn,
+Glowjaw
+Viperfish
+Eaten by
+Pyre Lionfish
+Furnace Slug
+Boiler Worm
+Caldera
+Kraken,
+Pyroclast
+Megalodon
+Vent-Shark,
+Sulfurmaw
+Leviathan
+Kiln
+Barracuda
+Slag Grou per,
+Caldera
+Kraken
+Caldera
+Kraken
+Behavior
+Orange
+crinoid;
+crawls to
+plume edges
+at dusk
+Fire-colored
+stinging
+tentacles;
+burns divers
+on contact
+Gaping slow
+cruiser;
+follows
+plankton
+plumes;
+prime Boiler
+Worm bait
+Heavy-
+plated
+patroller;
+rams subs;
+drawn by
+blood and
+Mid-band
+noise
+Glowing-
+jawed
+ambusher;
+bites hard
+enough to
+crack hull
+glass
+Lurks in
+fumarole
+cracks;
+strikes at
+heat
+signatures
+Shifts color
+with water
+temperature;
+pries shells
+open, steals
+loot
+Hunts in
+packs;
+squirts
+Yields
+Basker Oil
+Vent-Shark
+Hide Plate
+Snapper Fire-
+Scale
+Thermochrome
+Ink
+sulfur-yellow
+ink that
+blinds sonar
+Page 53 of 137

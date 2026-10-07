@@ -1,0 +1,160 @@
+The Deep
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+Flora
+Prism
+Spire
+Quartz
+Moss
+Shard
+Coral
+Facet
+Reed
+Lattice
+Bloom
+Diamond
+Cluster
+Branch
+Glitter
+Blade
+Refract
+Fern
+Gleam
+Sponge
+Tier
+3
+2
+2
+3
+2
+2
+Type
+Crystal
+pillar
+Moss
+Coral
+Reed
+Flower
+Crystal
+knot
+Branch
+Blade-
+leaf
+Fern
+Sponge
+Description
+Tall hexagonal
+pillar that splits
+sub lights into
+rainbows
+Grainy crystal
+fuzz that
+crunches loudly
+when stepped on
+Branching blade-
+coral that slashes
+suits on contact
+Hollow faceted
+reeds that
+whistle in the
+High band when
+brushed
+Geometric flower
+that opens and
+glows only under
+vibration
+Dense, ultra-hard
+crystal knot that
+needs the Mid-
+Tier Drill
+Brittle
+translucent twigs
+that snap into
+slender rods
+Flat leaf that
+scatters light like
+falling confetti
+Curled fronds
+bend light so
+objects behind
+them seem
+shifted
+Soft sponge that
+stores piezo
+charge and
+pulses when
+squeezed
+Eaten by
+Quartz Urchin
+Prism Limpet,
+Lattice Chiton,
+Crystal Hermit
+Quartz Urchin
+Clearfin Tang,
+Mica Goby
+Glassback
+Grazer, Lens
+Turtle
+Pane-Back
+Dugong
+Facet Snail, Silica
+Nibbler
+Clearfin Tang,
+Refraction
+Shrimp
+Glass-Spinner,
+Crystal Sea-Hare
+Gleam Isopod,
+Splinter Sea-
+Cucumber
+Yields
+Prism Lens
+Quartz
+Grit
+Shard
+Fragment
+Facet Tube
+Lattice
+Pollen
+Diamond
+Grit
+Glass Rod
+Glitter
+Flake
+Refract
+Fiber
+Piezo Gel
+Use
+Pressure-Glass
+Viewports,
+Mining Laser
+Polishing and
+sharpening
+abrasive
+Spear tips and
+harpoon ammo
+02 line conduit
+Glowing trail-
+marker dye
+Plasteel
+spheres,
+Mining Laser
+Tool handles
+and optic
+wiring
+Chaff that
+confuses visual
+hunters
+Optical camo
+cloak
+Battery
+recharge cell
+Page 68 of 137

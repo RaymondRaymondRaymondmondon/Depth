@@ -1,0 +1,37 @@
+The Deep
+Endgame. The final goal is the same as before: harvest Void-Crystals to power the
+Nautilus's ascent mechanism. Phase 3 is where the first "Night Shift" deep dive happens
+(bioluminescent predators hunting in the dark), and phase 8 is where crews must rely on
+passive sonar and battery power to avoid the blind, sound-hunting Echo Leviathan.
+The Nautilus
+The Nautilus is a sprawling vessel and the crew's expanding mobile base. Players
+physically walk between rooms to run its systems, like the stations on the Gannet in The
+Trawl.
+Room
+The Bridge
+Engine & Boiler Room
+Moonpool (Vehicle Bay)
+Fabrication Bay
+Hydroponics & Larder
+Airlock & Dive Room
+Pump & Bilge Room
+What it does
+Helm, sonar, and engine telegraph. Sonar pings
+write noise into the water that CUriOUS or
+aggressive species can hear.
+Generates the SUbIS power. Upgraded over the
+game from steam to geothermal or nuclear.
+Deploys, docks, and upgrades the Kite-Sub, Heavy
+Crawler, and Pressure Exosuit.
+The main crafting hub for tools, diving gear, and
+ship parts.
+Cooking, purifying water, and growing flora
+gathered from the depths. Processes Kelp-Grazer
+blubber into lubricants and fuel.
+Where players manage oxygen tanks, dive suits,
+and tethers.
+Hull damage makes the sub take on water, which
+changes its physics (pitching, rolling, sinking) until
+the breach is patched and the water pumped out.
+Power states. The crew chooses how loud the ship is.
+Page 5 of 137

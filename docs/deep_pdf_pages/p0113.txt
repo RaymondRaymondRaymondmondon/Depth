@@ -1,0 +1,61 @@
+The Deep
+Species
+Silt-Sieving
+Hermit
+Kelp Labyrinth
+Species
+Iron-Kelp
+Canopy
+Kelp-Grazer
+Manatee
+Stalker-Hound
+4 decomposer
+O structural
+producer
+1 mammal
+grazer
+2 canopy
+stalker
+Sound
+10 dB (claws scuttling on
+coral)
+Sound
+None
+20 dB (slow breathing
+and chewing)
+40 dB (fast tail
+thrashing); drawn to
+shiny metal and dive
+lights
+Behavior and use
+Scavenges carcasses on the
+seabed and secretes
+purified bio-calcite, the key
+resource for reinforced
+glass viewports.
+Behavior and use
+Rubbery green stalks with
+metallic, reinforced veins.
+Tangles propellers and
+stalls engines if driven
+through at full throttle
+without cutting rotors.
+Cut with heated blades for
+High-Tensile Fibrous Mesh
+(hull sealant patches,
+winch cables).
+Peaceful, heavy, slow
+swimmer. Its thick,
+buoyant blubber is
+processed into heavy
+machinery lubricants and
+synthetic fuel canisters.
+Sleek barracuda-like
+predator. Doesn't attack
+right away: it stalks divers,
+steals dropped tools or
+titanium scrap from
+inventories and
+containers, and hides the
+loot in hollow kelp roots.
+Page 113 of 137

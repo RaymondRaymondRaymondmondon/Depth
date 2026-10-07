@@ -1,0 +1,122 @@
+The Deep
+58
+59
+60
+Species
+Sunshell
+Crab-Squid
+Atoll Maw
+Grouper
+Crusher
+Leviathan
+Coral-
+Crusher
+Leviathan
+Role
+Apex
+Apex
+Apex
+Apex
+Size
+35m
+28m
+Sound
+75 dB,
+Low
+70 dB,
+Low
+85 dB,
+Low
+(25
+80 dB,
+Low
+(18 Hz)
+Eats
+Moray Creeper,
+Lagoon Inkdart,
+Sunflash Cuttle,
+Sunback Reef-
+Turtle, Sand-
+Swallow Sea-
+Cucumber
+Barbed Reef-
+Snapper,
+Sunscale Parrot-
+Wrasse, Coral
+Scorpion-Lurker,
+Pearl Trigger-
+Biter, Coral
+Octo-Lurker,
+Lagoon Banded
+Krait, Coralfall
+Carrion-Crab
+Turquoise Fin-
+Shark, Lagoon
+Manta-Wing,
+Sunback Reef-
+Turtle, Sunshell
+Crab-Squid
+Giant Sunclam,
+Table Coral,
+Spire Coral,
+Crown Sponge
+Eaten by
+Reef-Crusher
+Leviathan
+(juveniles)
+none (apex)
+none (apex)
+none (apex)
+Behavior
+Armored
+pincers grab
+prey; ink
+smokescreen;
+stalks reef
+walls at dusk
+Booming
+territorial calls;
+suction-gulps
+anything diver-
+sized from reef
+caves
+Armored
+crustacean-
+serpent; rams
+the sub if
+sonar or
+engine noise
+exceeds 70 dB
+Beaked reef-
+grinder;
+reshapes
+sandbars;
+crushes
+anything in its
+feeding path
+Yields
+Crab-
+Squid
+Pincer
+Shell
+Raw Maw
+Grouper
+Steak
+Crusher
+Carapace
+Shard
+Coral-
+Crusher
+Beak
+Fragment
+2. The Kelp Labyrinth (50 to 150 m)
+•
+Layout: towering iron-hard kelp stalks reach from the muddy floor to the surface,
+forming narrow mazes. Ordinary kelp fouling a propeller can be cut with the Survival
+Knife; Iron-Kelp tangles need the Heated Blade. Clearings hold copper, quartz, and
+titanium nodes. The tangled dreadnought hangs here.
+Look: shadowy emerald water, filtered sunbeams through the canopy, floating spores,
+dark shapes between giant rubbery trunks.
+Hazards: propeller tangles, very low visibility, ambush predators disguised as kelp
+fronds (Wraiths, the Tangle-Serpent Leviathan).
+Page 25 of 137

@@ -1,0 +1,229 @@
+The Deep
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+Species
+Frond Chiton
+Moss-Nibbler
+Wrasse
+Lattice Sea
+Hare
+Bulb-picker
+Goby
+Holdfast Hog
+Tendril
+Limpet
+Canopy
+Halfbeak
+Vine Abalone
+Pod-Cracker
+Bream
+Stalk
+Barnacle
+Colony
+Lace Fan
+Worm
+Holdfast
+Mussel
+Frond Jelly
+Role
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Filter feeder
+Filter feeder
+Filter feeder
+Filter feeder
+Size
+IO cm
+30 cm
+35 cm
+8 cm
+25 cm
+25 cm
+50 cm
+colony
+20 cm
+12 cm
+50 cm
+Sound
+Silent
+18 dB,
+Mid
+Silent
+IO dB,
+High
+25 dB,
+Low
+Silent
+15 dB,
+High
+Silent
+22 dB
+, Mid
+Silent
+Silent
+Silent
+Silent
+Eats
+Rib Bracket,
+Strangle
+Spongeweed
+Vascular Moss,
+Latch Moss, Vine
+Lace
+Vine Lace, Strand
+Lace
+Glow Bulb,
+Glimmer Mysid
+Root Kelp, Silt
+Spongeweed,
+Bark Pod
+Shadow Tendril,
+Spindle Tendril
+Canopy Vines,
+Holdfast Krill
+Tangle Vines, Coil
+Tubeworm Flora
+Bark Pod,
+Emerald Pod,
+Cluster
+Frond-Spore
+Larva,
+Bulb
+phytoplankton
+Kelp-Mote
+Copepod,
+detritus
+Kelp-Mote
+Copepod,
+phytoplankton
+Frond-Spore
+Larva,
+phytoplankton
+Eaten by
+Stalk-Climber
+Crab, Mud-
+Spear Mantis
+Shrimp, Gulper
+Root-Eel
+Lancer Pike,
+Wraith
+Braid Octopus,
+Bramble Sea
+Star
+Bulb-Lore
+Angler, Frond
+Scorpionfish,
+Quill Sculpin
+Tangle-Serpent
+Leviathan,
+Shroud
+Serpent, Kelp-
+Stripe Orca
+Stalk-climber
+Crab, Braid
+Octopus
+Stalker-Hound,
+Lancer Pike,
+Surfline Sea
+Lion
+Braid Octopus,
+Surfline Sea
+Lion
+Suction-Maw
+Eel, Tangle
+Dogfish,
+Thicket
+Grouper Titan
+Bramble Sea
+Star, Stalk-
+Climber Crab
+Frond
+Scorpionfish,
+Ribbon
+Cuttlefish
+Snail-Cracker
+Wolffish,
+Bramble Sea
+Star
+Strangler Squid,
+Ribbon
+Cuttlefish
+Behavior
+Clamps flat to
+stalks; nearly
+impossible to
+pry loose
+Busy daytime
+picker; cleans
+parasites Off
+resting
+manatees
+Releases mildly
+toxic purple ink
+when
+threatened
+Hops between
+kelp bases;
+glows faintly
+after feeding
+Sluggish
+mammal rooting
+mud; snorts
+telltale bubble
+plumes
+Grazes tendrils,
+leaving glossy
+scars that mark
+trails
+Skims the upper
+canopy; leaps
+clear Of the
+water when
+startled
+Suction-clamps
+to stalks; nacre
+gleams under
+dive lights
+Loud pod-
+crunching gives
+feeding groups
+away to
+predators
+Encrusts lower
+stalks; cirri
+sweep passing
+currents
+Feathery
+crowns snap
+into tubes at
+any vibration
+Dense beds
+bind holdfasts
+together with
+tough threads
+Translucent bell
+mimics a
+drifting frond;
+mild sting
+Yields
+Barnacle Cement
+Mussel Byssus
+Page 30 of 137

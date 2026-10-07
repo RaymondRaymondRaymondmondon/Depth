@@ -1,0 +1,101 @@
+The Deep
+Species
+Echo Leviathan
+Abyssal Scavenger
+Crab
+3 apex
+4 decomposer
+Sound
+105 dB infrasound
+rumble that rattles sub
+instruments
+25 dB (heavy claws
+clacking on silt)
+Behavior and use
+Colossal blind leviathan,
+60 m long and scarred by
+pressure. Tracks engine
+hum from 2.5 km. Once
+the crew hears its call,
+they have 30 seconds to
+cut the engine, kill the
+lights, and go Dead in
+the Water. Acoustic
+Decoys redirect its
+strike.
+Heavily armored, 3 m
+across; strips marine
+snow, whale-falls, and
+carcasses. Territorial
+around mineral nodes;
+crushes mining drills if
+disturbed.
+Fauna design rules
+All 600 creatures and 200 plants are listed in The ten ecosystems. These rules kept them
+consistent and should be followed for any additions.
+Biome
+Sunlit Shallows
+Kelp Labyrinth
+Bioluminescent
+Caverns
+Thermal Vents
+Drowned Forest
+Crystal Reef
+Brine Pools
+Abyssal Graveyard
+Plankton /
+micro-fauna
+6
+5
+5
+5
+5
+5
+5
+5
+Grazers
+16
+15
+15
+15
+15
+15
+15
+15
+Filter feeders
+10
+8
+8
+8
+8
+8
+10
+8
+Mesopredators
+16
+20
+20
+20
+20
+20
+18
+20
+Scavengers
+8
+8
+8
+8
+8
+8
+8
+8
+Apex
+4
+4
+4
+4
+4
+4
+4
+4
+Page 117 of 137

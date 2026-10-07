@@ -1,0 +1,142 @@
+The Deep
+15
+16
+17
+18
+19
+20
+Flora
+Sprout
+Bracket
+Moss-
+Lichen
+Mold
+Tangle-
+Root Moss
+Canker
+Fern
+Graft
+Spore
+Stump
+Shoot
+Tier
+2
+3
+3
+3
+Type
+Young shelf
+fungus
+Composite
+mat
+Root moss
+Diseased
+fern
+Spore pod
+Woody
+sapling
+Description
+Small soft
+brackets
+budding on
+fallen
+branches
+Patchwork of
+moss, lichen,
+and mold
+sharing one
+living mat
+Dense knotted
+mats in
+passages;
+snags fins and
+propellers
+Black-
+blistered
+fronds weep
+caustic sap
+that burns
+bare skin
+Pods fuse to
+any surface
+and grow hard
+graft tissue
+Stone-hard
+saplings from
+petrified
+stumps with a
+still-living core
+Eaten by
+Bracket Snail
+Stone-Bark
+Chiton, Mold-
+Mouth Goby
+Moss-Picker
+Shrimp
+Fern-Nibbler
+Amphipod
+Cinder Krill,
+Tangle
+Nudibranch
+Sap Beetle,
+Punk-Wood
+Weevil
+Yields
+Tender
+Bracket
+Flesh
+Symbiont
+Culture
+Tangle Moss
+Wad
+Canker Sap
+Graft Spore
+Pod
+Living
+Heartwood
+Core
+Use
+Calorie-rich
+food
+Bioreactor
+starter
+Hull leak plug
+Anti-fouling
+coating that
+stops rot
+fibers
+wrapping
+propellers
+Self-healing
+hull sealant
+Pressure
+Exosuit struts
+Fauna (60): 5 plankton, 15 grazers, 8 filter feeders, 20 mesopredators, 8 scavengers, 4
+apex.
+Species
+Ember Mote
+Role
+Plankton
+Size
+2 mm
+Sound
+Silent
+Eats
+wood
+microbes
+Eaten by
+Canopy Fan
+Worm, Resin
+Tunicate,
+Knot-Hole
+Barnacle,
+Cinder Krill
+Behavior
+Flickering
+Yields
+orange swarms
+over the mud;
+the forest's
+drifting
+"embers"
+Page 60 of 137

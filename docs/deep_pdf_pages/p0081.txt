@@ -1,0 +1,184 @@
+The Deep
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+Species
+Pickle
+Copepod
+Sulfur
+Glimmerfloc
+Saltdust
+Rotifer
+Bile Larva
+Drift
+Slime-Eel
+Crust-Licker
+Snail
+Halite Chiton
+Brinecumber
+Varnish
+Limpet
+Mildew
+Isopod
+Role
+Plankton
+Plankton
+Plankton
+Plankton
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Size
+2 mm
+1 mm
+0.5
+mm
+4 mm
+1.2 m
+15 cm
+40 cm
+6 cm
+Sound
+Silent
+Silent
+Silent
+Silent
+20 dB,
+Low
+Silent
+Silent
+Silent
+Silent
+15 dB,
+High
+Eats
+halophilic
+archaea,
+detritus
+halophilic
+archaea
+detritus
+Brine Mote
+Slime Cane,
+Sump Cane,
+detritus
+Brine Lily, Scab
+Lily
+Halite
+Sponges,
+Caustic Pad,
+Varnished
+Sponges
+Stagnant Mold,
+Sump Cane,
+Murk Pad
+Corrosive
+Mold, Caustic
+Pad, Murk Pad
+Corrosive
+Mold, Stagnant
+Mold
+Eaten by
+Saltglass
+Barnacle,
+Lake-Skin
+Jelly, Sieve-
+Mouth
+Paddlefish
+Mirror Clam,
+Pickle
+Tunicate, Acid
+Mussel
+Halo Brine-
+Shrimp, Brine
+Feather-Star,
+Sieve-Mouth
+Paddlefish
+Brine
+Fanworm,
+Saltveil Ray,
+Miasma
+Leviathan
+Brine-
+Crocodile,
+Acid Lamprey,
+Mirror Pike,
+Bile Serpent
+Rust Octopus,
+Salt Snapper
+Turtle
+Caustic
+Mantis
+Blister
+Stingray
+Caustic
+Mantis, Halite
+Cuttlefish
+Salt Newt,
+Halite
+Cuttlefish
+Behavior
+Jerks in
+swarms just
+above the
+brine mirror
+Gives off a dim
+yellow glow
+(about 0.5 lux)
+when
+disturbed
+Settles like
+snow on the
+floating
+skeletons
+Green-yellow
+larval streams
+that follow the
+toxic rivers
+Slides half-
+submerged
+along the brine
+surface,
+coated in
+mucus
+Scrapes salt
+crust off lily
+stems
+Clamps onto
+crystal ledges
+and is hard to
+pry off
+Bloated; rolls
+slowly along
+the brine
+shoreline
+Glossy acid-
+proof shell lets
+it graze
+corrosive
+patches
+Clicks in tight
+colonies while
+working
+through mold
+mats
+Yields
+Slime
+MUCUS
+Halite Plate
+Brine
+Gelatin
+Varnish
+Shell
+Lacquer
+Page 81 of 137

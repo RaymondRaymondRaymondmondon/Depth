@@ -1,0 +1,168 @@
+The Deep
+16
+17
+18
+19
+20
+21
+22
+23
+Species
+Mineral-
+Tongue
+Limpet
+Ember Sea-
+Hare
+Cave Glow-
+Midge
+Moss-Bear
+Tardigrade
+Lumen Sea-
+Cucumber
+Glass-Cave
+Shrimp
+Chandelier
+Sponge
+Drip
+Tubeworm
+Role
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Filter feeder
+Filter feeder
+Filter feeder
+Size
+35 cm
+30 cm
+1.5 m
+60 cm
+Sound
+Silent
+12 dB, Mid
+5 dB,
+High
+Silent
+Silent
+12 dB,
+High
+Silent
+Silent
+Eats
+Acid Vine,
+Spark
+Filament,
+bacterial mats
+Glow-Cap
+Spire, Strobe
+Shroom,
+Vapour Pouch
+Pulse Lichen,
+Flicker Mold
+Crystal-Moss
+Mold
+Radiant
+Lichen,
+Glimmer
+Tubule,
+bacterial mats
+Glowmote
+Copepod,
+Lumen Rotifer,
+Neon Krill-
+Mite
+Glowmote
+Copepod,
+Sparkdrift
+Dinoflagellate
+Lumen Rotifer,
+detritus
+Eaten by
+Strobe
+Mantis
+Shrimp,
+Calcite
+Spearworm
+Strobe
+Cuttlefish,
+Grotto
+Lamprey
+Skimmer
+Bat, Flash-
+Hunter
+Darter,
+Glimmer
+Stargazer
+Arc-Jaw
+Cavefish
+Grotto
+Pincer-
+Lobster
+Echo-Ray,
+Flash-
+Hunter
+Darter,
+Skimmer
+Bat, Lumen
+Barracuda
+Calcite
+Decorator
+Crab,
+Cathedral
+Gulper
+Calcite
+Spearworm,
+Grotto
+Lamprey
+Behavior
+Resists acid;
+etches
+grooves into
+limestone
+Squirts
+glowing
+amber ink
+when
+attacked
+Larvae glow
+underwater;
+adults swarm
+in air pockets
+Slow giant
+tardigrade
+that survives
+cave
+collapses
+Slowly
+vacuums
+cavern floors
+and leaves
+glowing casts
+Blind; flashes
+when
+startled by
+dive lights,
+alerting
+predators
+Hangs from
+domes like a
+glowing
+chandelier
+(10 lux)
+Grows in
+clusters
+under drip
+points;
+plumes
+retract at
+vibration
+Yields
+Ember Sea-
+Hare Ink
+Glass-Cave
+Shrimp Shell
+Chandelier
+Spongin
+Page 40 of 137

@@ -1,0 +1,152 @@
+The Deep
+47
+48
+49
+50
+51
+52
+53
+54
+Species
+Gleamtooth
+Dogfish
+Cleaver-Claw
+Glasscrab
+Shard Hagfish
+Amphipod
+Swarm
+Crystal
+Hermit
+Prism Bristle-
+Worm
+Glasswing
+Ratfish
+Mirror
+Lobster
+Role
+Mesopredator
+Mesopredator
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Size
+60 cm
+70 cm
+25 cm
+40 cm
+80 cm
+50 cm
+Sound
+20 dB,
+Mid
+25 dB,
+High
+Silent
+Silent
+10 dB,
+High
+Silent
+15 dB,
+20 dB,
+High
+Mid
+Eats
+Prism
+Limpet,
+Lattice
+Chiton,
+Razorglass
+Octopus,
+Brittleglass
+Viperfish
+Facet Snail,
+Quartz
+Urchin,
+Prism
+Limpet,
+Prism
+Barnacle,
+Crystal
+Hermit
+detritus
+detritus
+detritus,
+Quartz Moss
+detritus
+detritus,
+Pane
+Jellyfish
+detritus,
+Prism
+Barnacle
+Eaten by
+Shard-Shark
+Refractor
+Grouper,
+Diamondback
+Sea-Wyrm
+Shatterfin Pike
+Lantern
+Basket-Star,
+Glint Darter
+Razorglass
+Octopus,
+Cleaver-Claw
+Glasscrab
+Splinter Eel
+Prismjaw Gar,
+Shattermaw
+Sawshark
+Razorglass
+Octopus,
+Prismjaw Gar
+Behavior
+Packs track
+vibrations;
+their teeth
+glint in
+torchlight
+Clicking
+claws cleave
+shells and
+suit gloves
+Bores into
+wrecks and
+oozes
+clotting silica
+slime
+Clear swarms
+strip
+carcasses
+within
+minutes
+Wears a
+hollow
+crystal shard
+as its shell
+and swaps
+often
+Iridescent
+bristles
+break off in
+skin when
+touched
+Big reflective
+eyes; hovers
+over the floor
+sifting
+remains
+Polished
+carapace
+Yields
+Cleaver
+Claw
+Silica Slime
+Mirror Shell
+mirrors sub
+lights back at
+the crew
+Page 76 of 137

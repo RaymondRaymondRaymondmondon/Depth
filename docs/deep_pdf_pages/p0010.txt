@@ -1,0 +1,40 @@
+The Deep
+Creature Al states
+Creatures switch between states based on what they sense and on internal meters
+(hunger, fear or intimidation, territorial urge, acoustic irritation, and daily migration state).
+Creature behavior moves between six states
+Dormant I grazing
+Default; grazing or resting
+noise above ambient +15 dB
+stimulus fades
+or scent above 0.1 ppm
+Alert I investigating
+Turns toward the stimulus
+hunger over 60%
+and prey found
+Active hunting
+Species-specific tactics
+blood scent
+over 1.5 ppm
+Blood frenzy
+Strikes anything moving
+creature AI states • thresholds from v5
+intruder within 50 m
+Territorial defense
+Warning display, then attack
+health under 25%,
+apex rumble over 90 dB,
+or a bright flare
+Evasion I fleeing
+Runs for rocks or foliage
+• Dormant I grazing (default): filters plankton, grazes, or rests in a burrow; uses energy
+at the baseline rate
+• Alert/ investigating: noise rises 15 dB above ambient, or scent passes 0.1 ppm. The
+creature turns toward the stimulus and approaches carefully.
+• Active hunting: hunger over 60% and prey detected. Runs species-specific tactics
+such as pack flanking, camouflage ambush, or high-speed ramming.
+• Blood frenzy: scent over 1.5 ppm. Ignores light hazards and self-preservation and
+strikes any moving thing.
+• Territorial defense: a player or vehicle comes within 50 m of a nest or nursery. Warning
+displays (flashing bioluminescence, growls) come first, then lethal attacks.
+Page 10 of 137

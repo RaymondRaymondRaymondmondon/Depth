@@ -1,0 +1,164 @@
+The Deep
+41
+42
+43
+44
+45
+46
+47
+48
+49
+Species
+Blister
+Stingray
+Bile Serpent
+Salt Snapper
+Turtle
+Brine
+Scorpionfish
+Halite
+Cuttlefish
+Toxin
+Frogfish
+Murk
+Grouper
+Salt Monitor
+Bone-Float
+Hagfish
+Role
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Scavenger
+Size
+1.6 m
+45 cm
+80 cm
+35 cm
+2.5 m
+2.8 m
+70 cm
+Sound
+20 dB,
+Low
+30 dB,
+Mid
+35 dB,
+Low
+Silent
+15 dB,
+High
+Silent
+50 dB,
+Low
+30 dB,
+Mid
+Silent
+Eats
+Brinecumber,
+Mirror Clam,
+Acid Mussel,
+Saltglass
+Barnacle
+Slime-Eel, Acid
+Lamprey,
+Bone-Float
+Hagfish
+Crust-Licker
+Snail, Caustic
+Urchin, Corpse
+Whelk,
+Carcass
+Isopod
+Acid-Slug
+Nudibranch,
+Brine
+Fanworm,
+Pickle
+Tunicate,
+Pickle
+Bristleworm
+Varnish
+Limpet,
+Mildew Isopod,
+Brine Feather-
+Star, Pickling
+Amphipod
+Sump Minnow,
+Reed-Nibbler
+Goby
+Ooze Wrasse,
+Caustic
+Mantis, Toxin
+Frogfish, Brine
+Scorpionfish,
+Rot Lobster
+Mirror-
+Skimmer,
+Blight Beetle,
+Acid Lamprey,
+Skull-Raft Crab
+detritus
+Eaten by
+Pickle Pliosaur
+Sinkhole
+Wyrm
+Pickle Pliosaur
+Murk Grouper
+Pall Kraken
+Murk Grouper
+Pickle Pliosaur
+Sinkhole
+Wyrm
+Halocline Gar,
+Bile Serpent
+Behavior
+Yields
+Buries itself in Blister
+salt silt; its
+stinger blisters
+armor
+Swims inside
+the toxic
+rivers, colored
+like the bile
+Shell-crushing
+jaws; tough
+enough to
+survive dense
+brine
+Venomous
+ambusher
+sitting still
+among
+sponges
+Shifts to look
+like salt
+crystals;
+hypnotic skin
+pulses
+Lumpy
+disguise;
+engulfs prey in
+milliseconds
+Suction gulper
+with territorial
+booming calls
+Amphibious
+lizard hunting
+from shoreline
+rocks
+Tunnels into
+floating
+carcasses;
+slimes
+attackers
+Venom
+Pressure
+Shell
+Page 85 of 137

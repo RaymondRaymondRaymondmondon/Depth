@@ -1,0 +1,174 @@
+The Deep
+22
+23
+24
+25
+26
+27
+28
+29
+30
+Species
+Stump
+Sponge
+Hollow-Log
+Mussel
+Silt Veil Jelly
+Knot-Hole
+Barnacle
+Bog Clam
+Resin
+Tunicate
+Bogsnout
+Paddlefish
+Snag-Trunk
+Eel
+Driftwood
+Squid
+Role
+Filter feeder
+Filter feeder
+Filter feeder
+Filter feeder
+Filter
+Filter
+Filter feeder
+Mesopredator
+Mesopredator
+Size
+1.2 m
+18 cm
+60 cm
+30 cm
+25 cm
+2.5 m
+1.8 m
+Sound
+Silent
+Silent
+Silent
+Silent
+Silent
+Silent
+35 dB,
+Low
+Silent
+Silent
+Eats
+Tannin
+Ciliate, wood
+microbes
+Bark-Flea
+Copepod,
+detritus
+Cinder Krill,
+Bark-Flea
+Copepod
+Punk-Wood
+Larva, Ember
+Mote
+Tannin
+Ciliate,
+detritus
+Ember Mote,
+Timber Spore
+Cinder Krill,
+Punk-Wood
+Larva
+Mud-Crawler,
+Mold-Mouth
+Goby, Bark-
+Skin Angler
+Moss-Picker
+Shrimp, Twig
+Pipefish,
+Ember-I-ure
+Dragonfish
+Eaten by
+Root-Claw
+Lobster
+Bole
+Wolffish
+Ember-I-ure
+Dragonfish
+Bole
+Wolffish
+Mudbed
+Stingray,
+Bonewood
+Whelk
+Burl Toadfish
+Splinter Gar,
+Mire
+Lamprey,
+Ampere
+Leech,
+Canopy
+Kraken
+Wood-Hag,
+Mire
+Gharfish
+Wood-Hag,
+Canopy
+Kraken
+Behavior
+Barrel sponges
+filling hollow
+stumps; pump
+silty water
+constantly
+Dense beds
+inside fallen
+logs, anchored
+by tough
+threads
+Translucent
+curtain drifting
+through
+passages;
+mildly stinging
+Cements into
+knot holes;
+colonies foul
+parked sub
+hulls
+Buried in mud;
+spits blinding
+silt jets when
+stepped on
+Amber, resin-
+like sacs on
+trunks with a
+tough cellulose
+tunic
+Gape-mouthed
+cruiser
+sweeping open
+channels;
+electrosensory
+snout
+Stands vertical
+as a dead
+trunk; lunges at
+passing prey
+Floats as a
+broken branch
+among debris;
+inks brown
+when attacked
+Yields
+Spongin
+Filter Mesh
+Byssal
+Polymer
+Thread
+Rotproof
+Barnacle
+Cement
+Tunicin
+Cellulose
+Bark-Scale
+Hide
+Tannin Ink
+Resin
+Page 63 of 137

@@ -1,0 +1,167 @@
+The Deep
+41
+42
+43
+44
+45
+46
+47
+48
+49
+Species
+Mudbed
+Stingray
+Thorn
+Catfish
+Twig
+Pipefish
+Burl
+Toadfish
+Gnarl
+Scorpionfish
+Bole
+Wolffish
+Moss-Back
+Sculpin
+Root-Claw
+Lobster
+Peat Hagfish
+Role
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Scavenger
+Size
+90 cm
+20 cm
+60 cm
+45 cm
+1.8 m
+25 cm
+80 cm
+Sound
+Silent
+35 dB,
+Low
+Silent
+45 dB,
+Low
+Silent
+30 dB,
+Mid
+Silent
+35 dB,
+Silent
+Eats
+Mud-Crawler,
+Bog Clam,
+Bonewood
+Whelk
+Sap Beetle,
+Punk-Wood
+Weevil,
+Cinder
+Bristleworm
+Bark-Flea
+Copepod,
+Cinder Krill
+Bracket Snail,
+Stone-Bark
+Chiton, Resin
+Tunicate
+Moss-Picker
+Shrimp, Fern-
+Nibbler
+Amphipod,
+Tangle
+Nudibranch
+Snag Urchin,
+Hollow-Log
+Mussel,
+Knot-Hole
+Barnacle,
+Hollow-
+Stump Crab
+Ampere
+Leech,
+Deadfall
+Amphipod,
+Peat Slug
+Timber
+Shipworm,
+Canopy Fan
+Worm, Stump
+Sponge
+detritus, Peat
+pike
+Eaten by
+Wood-Hag
+Mire
+Gharfish
+Driftwood
+Squid, Moss-
+Cloak Cuttle,
+Peat Pike
+Bole-daw
+Behemoth
+Bole-Jaw
+Behemoth
+Bole-daw
+Behemoth
+Peat Pike
+Hollow-Log
+Octopus
+Mire Sleeper
+Shark
+Behavior
+Buried in mud
+beds; its barb
+strikes when
+stepped on
+Whiskered silt
+hunter; drums
+its swim
+bladder
+Twig-shaped;
+SUCkS plankton
+from between
+branches
+Lumpy, burl-
+shaped
+ambusher;
+hums like a
+foghorn
+Venomous
+gnarled spines;
+camouflaged
+as root tangles
+Crushing
+molars;
+aggressive
+near its den
+holes
+Mossy back;
+picks leeches
+off hulls,
+making it a
+useful ally
+Root-like claws
+pry worms
+from wood;
+rasping
+antennae
+Burrows into
+carcasses;
+Yields
+Venom Barb
+Hagfish
+Slime Fiber
+floods the area
+with slime
+when grabbed
+Page 65 of 137

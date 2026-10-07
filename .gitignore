@@ -38,3 +38,18 @@ scuffle_profile.txt
 scuffle_replays/
 docs/fathoms_pdf_pages/*.png
 fathoms_autosave.bin
+
+# The Deep (Unity): only Assets, Packages and ProjectSettings are source
+TheDeep/[Ll]ibrary/
+TheDeep/[Tt]emp/
+TheDeep/[Ll]ogs/
+TheDeep/[Uu]serSettings/
+TheDeep/[Oo]bj/
+TheDeep/Build/
+TheDeep/Builds/
+TheDeep/*.slnx
+TheDeep/*.sln
+TheDeep/*.csproj
+TheDeep/shots/
+games/
+docs/deep_pdf_pages/*.png

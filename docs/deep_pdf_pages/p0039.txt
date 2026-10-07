@@ -1,0 +1,166 @@
+The Deep
+8
+9
+10
+11
+12
+13
+14
+15
+Species
+Lichen-Lick
+Snail
+Glowcap
+Nibbler
+Ghostfin
+Cavefish
+Fungus-
+Rasper
+Chiton
+Lantern Slug
+Glowfruit Bat
+Stalactite
+Urchin
+Pale Mat-
+Crayfish
+Role
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Size
+5 cm
+12 cm
+15 cm
+IO cm
+40 cm
+span
+10 cm
+20 cm
+Sound
+Silent
+20 dB, Mid
+18 dB, Mid
+10 dB,
+High
+Silent
+30 dB,
+High
+8 dB,
+High
+15 dB,
+High
+Eats
+Pulse Lichen,
+Radiant Lichen
+Lantern
+Shroom, Neon
+Fungi
+Vivid Cluster,
+bacterial mats
+Neon Fungi
+Lantern Vine,
+Shroom Pouch
+Lantern Vine,
+Vivid Cluster,
+Shroom Pouch
+Glow-Cap
+Spire,
+bacterial mats
+Lantern
+Shroom,
+Beacon Fungi,
+Ember Cluster
+Eaten by
+Grotto
+Pincer-
+Lobster,
+Grotto
+Mimic
+Octopus
+Echo-Ray,
+Strobe-
+Squid,
+Lumen
+Barracuda,
+Magenta
+Lamp-Leech
+Echo-Ray,
+Lure-
+Lantern
+Angler, Bat-
+Fin Echo-
+Gar
+Grotto
+Mimic
+Octopus,
+Strobe
+Mantis
+Shrimp
+Magenta
+Lamp-
+Leech,
+Strobe
+Cuttlefish
+Hollow-
+Cave Seal,
+Lumen
+Tunnel-Eel
+Grotto
+Pincer-
+Lobster,
+Hollow-
+Cave Seal
+Ghost-Olm,
+Lumen
+Tunnel-Eel,
+Grotto
+Mimic
+Octopus
+Behavior
+Leaves dark
+tracks
+through
+glowing
+lichen
+Schooling
+fish that
+crops
+Yields
+shroom caps
+and scatters
+at lights
+Blind and
+translucent;
+senses
+pressure
+waves
+Clamps tight
+to rock when
+touched; its
+rasping is
+audible
+Takes in the
+glow of what
+it eats and
+pulses blue
+Roosts in air
+pockets and
+drops guano
+into the
+water
+Hangs upside
+down from
+ceilings and
+grinds spire
+bases
+Blind; guards
+feeding
+patches with
+snapping
+displays
+Page 39 of 137

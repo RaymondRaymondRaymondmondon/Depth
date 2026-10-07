@@ -1,0 +1,115 @@
+The Deep
+58
+59
+60
+Species
+Boiler Worm
+Caldera
+Kraken
+Pyroclast
+Megalodon
+Sulfurmaw
+Leviathan
+Role
+Apex
+Apex
+Apex
+Apex
+Size
+60 m
+25m
+18m
+30 m
+Sound
+140
+dB,
+Low
+95 dB,
+Low
+110 dB,
+Low
+125
+dB,
+Low
+Eats
+Ashmaw
+Basker, Basalt
+Rasp Turtle,
+Slag Grouper,
+Geyser Gar,
+Pumice
+Sleeper Shark,
+subs
+Vent-Shark,
+Scald
+Octopus,
+Brimstone
+Squid,
+Obsidian
+Anglerfish,
+Ashcoil Sea
+Snake
+Vent-Shark,
+Ashwing Ray,
+Kiln
+Barracuda,
+Basalt Rasp
+Turtle
+Magma-
+Snapper,
+Copperback
+Triggerfish,
+Ember
+Stargazer, Ash
+Gulper
+Eaten by
+none (apex)
+none (apex)
+none (apex)
+none (apex)
+Behavior
+Tracks rock
+vibration;
+erupts from
+the basalt
+and swallows
+schools and
+subs
+Lairs inside
+caldera rims;
+drags prey
+into boiling
+pillars
+Obsidian-
+toothed
+plated
+hunter;
+homes in on
+engine Low-
+band noise
+Mimics a
+smoker
+chimney;
+vacuum-
+gulps
+anything
+that strays
+close
+Yields
+Magma
+Gizzard Stone
+Caldera
+Kraken Beak
+Obsidian Tooth
+5. The Drowned Forest (500 to 700 m)
+• Layout: a sunken prehistoric forest of massive petrified trunks, thick mud beds, and
+rotting canopy debris hanging in the water. Narrow passages between stone trees; the
+Wood-Hag rearranges trunks into labyrinths.
+• Look: murky brown water, floating silt clouds, twisted petrified roots, hanging fungus,
+flickering ember-like glows.
+• Hazards: propellers fouled by floating rot fibers (needs anti-fouling), battery-draining
+Ampere Leeches and Silt-Cap mycelium, ambush predators that mimic tree trunks.
+• Food web: wood microbes and fungi (Peat Mold, Trunk Bracket, Rot-Wood Parasite)
+feed Ember Motes and timber grazers such as the Mud-Crawler, Heartwood Gnawer,
+and Timber Shipworm. Trunk-mimicking ambushers like the Snag-Trunk Eel, Driftwood
+Page 57 of 137

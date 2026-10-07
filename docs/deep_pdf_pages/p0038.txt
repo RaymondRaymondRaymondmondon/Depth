@@ -1,0 +1,150 @@
+The Deep
+2
+3
+4
+5
+6
+7
+Species
+Glowmote
+Copepod
+Lumen
+Rotifer
+Spore-Drift
+Larva
+Sparkdrift
+Dinoflagellate
+Neon Krill-
+Mite
+Blind Lamp-
+Isopod
+Mat-Scraper
+Amphipod
+Role
+Plankton
+Plankton
+Plankton
+Plankton
+Plankton
+Grazer
+Grazer
+Size
+2 mm
+0.5
+mm
+0.2
+mm
+8 mm
+4 cm
+Sound
+Silent
+Silent
+Silent
+Silent
+5 dB, High
+10 dB,
+High
+8 dB, High
+Eats
+bacterial mats,
+Phosphor Mat
+Spore Tubule,
+bacterial mats
+Spore Tubule,
+detritus
+bacterial mats
+Lumen
+Filament,
+bacterial mats
+Phosphor Mat,
+bacterial mats
+Phosphor Mat,
+bacterial mats
+Eaten by
+Glass-Cave
+Shrimp,
+Chandelier
+Sponge,
+Grotto
+Feather-
+Duster, Halo
+Comb-Jelly
+Glass-Cave
+Shrimp,
+Lantern
+Barnacle,
+Drip
+Tubeworm
+Cavern
+Echo-Clam,
+Siphon
+Glow-
+Mussel,
+Halo Comb-
+Jelly
+Chandelier
+Sponge,
+Lantern
+Barnacle,
+Siphon
+Glow-
+Mussel
+Glass-Cave
+Shrimp, Halo
+Comb-Jelly,
+Strobe Box-
+Jelly
+Flash-
+Hunter
+Darter,
+Ghost-Olm,
+Strobe
+Mantis
+Shrimp
+Flash-
+Hunter
+Darter, Arc-
+Jaw
+Cavefish
+Behavior
+Neon-blue
+specks
+drifting in
+clouds; light
+the water
+when
+disturbed
+(0.5 lux)
+Gathers in
+dense
+spinning
+swarms
+Yields
+around spore
+plumes
+Amber larvae
+ride slow
+cave
+currents
+between
+chambers
+Sparkles
+magenta
+along wakes;
+reveals
+moving
+divers
+Ticking
+swarms that
+cling to
+filament
+curtains
+Crawls walls
+in lines and
+scrapes
+glowing trails
+clean
+Hops across
+mats in
+jittery bursts
+Page 38 of 137

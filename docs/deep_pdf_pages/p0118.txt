@@ -1,0 +1,49 @@
+The Deep
+Biome
+Void Edge
+Island
+Plankton /
+micro-fauna
+5
+5 insects
+Grazers
+15 energy
+leeches
+15
+Filter feeders
+8
+8 shore filter
+feeders
+Mesopredators Scavengers Apex
+20
+20
+8
+8
+4
+4
+• Unique names: no species name repeats anywhere in the game.
+• Closed food webs: every animal's prey and predators are species or flora from its own
+biome (plus base foods like plankton, detritus, marine snow, or carrion). Every non-
+apex animal is eaten by at least one listed species.
+• Sizes and sounds fit the role: plankton are millimeters and silent; apex animals are
+huge and loud in the Low band. SOUnd uses the four bands (Low, Mid, High, Ultrasonic);
+light Uses lux.
+• Yields are separate resources: each named yield is its own item, so recipes can ask for
+exactly one part of an animal or plant.
+Apex parts are collected, not hunted, where possible: for example, Tangle-Serpent
+Scales are shed, and Petrified Silk Cable comes from the Wood-Hag's labyrinths. This
+keeps with the pillar that fighting anything bigger than a player is a bad idea.
+Wrecks and ruins
+Man-made wrecks and ancient ruins create small, intense behavior zones where the
+simulation's rules play out in specific ways.
+The Sunken Pirate Galleon (Sunlit Shallows)
+A decaying 17th-century galleon on a sweeping coral shelf, now a massive artificial reef.
+• Ecology: the wooden hull is ideal anchoring for dense Solar-Carpet Algae mats.
+Chromis Gliders use the broken gunports as escape points from bait-ball attacks by
+Barbed Reef-Snappers.
+• Hotspot: its gold and rusted iron cannons draw metal-obsessed Stalker-Hounds up
+from deeper water. They nest in the captain's quarters and hoard shiny player drops.
+• Danger: tight corridors make speargun shots echo loudly, risking a territorial charge
+from a Reef-Crusher Leviathan.
+• Salvage: Galleon Wood and Galleon Brass (used in Artisan Bench cosmetics).
+Page 118 of 137

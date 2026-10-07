@@ -1,0 +1,160 @@
+The Deep
+18
+19
+20
+21
+22
+23
+25
+Species
+Vapor Prawn
+Pompeii
+Ember-Worm
+Basalt Rasp
+Turtle
+Crimson
+Plume
+Tubeworm
+Smoker
+Mussel
+Scald Clam
+Chimney
+Barnacle
+Pumice
+Sponge
+Role
+Grazer
+Grazer
+Grazer
+Filter feeder
+Filter feeder
+Filter
+Filter feeder
+Filter feeder
+Size
+12 cm
+2.2m
+20 cm
+35 cm
+Sound
+15 dB,
+H igh
+Silent
+40 dB,
+Low
+Silent
+Silent
+20 dB,
+Low
+Silent
+Silent
+Eats
+Vapor Stalk,
+Plume Cluster
+vent bacteria,
+Smoker Stalk
+Forge Crust,
+Ash Spire,
+Blaze Filament
+vent bacteria,
+Sulfur Mote
+Copepod
+vent bacteria,
+Sulfur Mote
+Copepod
+vent bacteria,
+Cinder Larva
+Swarm
+Cinder Larva
+Swarm, Ember
+Krill
+vent bacteria,
+detritus
+Eaten by
+Brimstone
+Squid,
+Glowjaw
+Viperfish,
+Obsidian
+Anglerfish,
+Geyser Gar
+Fumarole Eel,
+Ashcoil Sea
+Snake
+Boiler Worm,
+Pyroclast
+Megalodon
+Magma-
+Snapper,
+Copperback
+Triggerfish
+Scald
+Octopus,
+Smelter
+Spider-Crab
+Scald
+Octopus,
+Ashwing Ray
+Smelter
+Spider-Crab
+Smolder
+Urchin
+Behavior
+Translucent;
+hides in
+steam
+bubbles,
+snaps its tail
+to flee
+backed tube
+worm;
+tolerates 80
+oc water;
+retreats on
+vibration
+Slow
+armored
+giant;
+grinding
+beak audible
+across
+plateaus
+Heat-
+resistant
+blood-red
+plumes;
+snaps into its
+tube at
+shadows
+Dense beds
+on chimney
+bases;
+copper-
+tinted shells
+Buried in hot
+sediment;
+slams shut
+with a dull
+thud
+Encrusts
+dead
+smokers;
+feathery legs
+sweep the
+plume
+Porous
+Yields
+Pompeii Fleece
+Rasp Shell
+Plate
+Chitin Heat-
+Tube
+Copper Nacre
+Scald Pearl
+Pumice Filter
+sponge that
+can float;
+anchors on
+cooled lava
+tubes
+Page 52 of 137

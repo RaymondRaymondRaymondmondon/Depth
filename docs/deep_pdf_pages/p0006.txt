@@ -1,0 +1,59 @@
+The Deep
+State
+Combustion /
+Nuclear Engine
+(high OUtPUt)
+Silent Running
+(battery drive)
+Dead in the Water
+(full shutdown /
+scuttle)
+Sonar.
+Speed
+100%
+25%
+0%
+Battery
+Recharging
+Draining, no
+charging
+Off
+Noise
+85 to 110 dB;
+vibrations felt by
+leviathans
+kilometers away (up
+to 2.5 km)
+15 to 25 dB, nearly
+silent
+O dB; acoustically
+invisible
+Trade-off
+Fast and unlimited,
+but announces the
+ship to everything
+Critical for sneaking
+past blind abyssal
+predators
+Life support and
+lights go off, active
+sonar is disabled,
+oxygen slowly
+drops, and the
+interior cools and
+freezes
+• Active sonar: pings paint a 3D topographic map of the surroundings and highlight
+resources, but each ping is a dinner bell for aggressive fauna.
+• Passive sonar: a crew member wears headphones and listens for the distinct calls and
+swimming patterns of approaching leviathans. Silent, but it takes a person.
+Hull damage. Breaches flood compartments and change how the sub handles. Starving
+predators may attack the hull to break into the Larder and Hydroponics Bay, or breach the
+moonpool to get at stored organic cargo.
+Sound and the Wake system
+Sound is a core gameplay system, not just atmosphere. Everything the crew does leaves
+an Acoustic Footprint (measured in dB) and builds Wake Heat (W), a hidden heat value
+written into the local water column that attracts predators, up to the biome's leviathan.
+How sound travels. Sound spreads out in all directions from its source and fades with
+distance and with how much the biome absorbs:
+P _ acoustic (d)
+Page 6 of 137

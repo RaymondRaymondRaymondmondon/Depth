@@ -1,0 +1,187 @@
+The Deep
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+Species
+Bark-Flea
+Copepod
+Punk-Wood
+Larva
+Tannin
+Ciliate
+Cinder Krill
+Mud-
+Crawler
+Heartwood
+Gnawer
+Bark-Rasp
+Isopod
+Bracket
+Snail
+Peat Slug
+Stone-Bark
+Chiton
+Role
+Plankton
+Plankton
+Plankton
+Plankton
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Size
+I mm
+5 mm
+0.3
+mm
+1.5 m
+80 cm
+15 cm
+IO cm
+30 cm
+20 cm
+Sound
+Silent
+Silent
+Silent
+20 dB,
+H igh
+30 dB,
+Mid
+40 dB,
+Low
+25 dB,
+High
+Silent
+Silent
+Silent
+Eats
+Ember Mote,
+wood
+microbes
+Timber Spore
+wood
+microbes
+Ember Mote,
+Graft Spore
+Peat Mold,
+Mould Moss
+Trunk
+Bracket,
+wood
+microbes
+Petrified
+Lichen,
+Decay Lichen
+Sprout
+Bracket,
+Fungal
+Mushroom
+Peat Mold,
+Damp
+Mushroom
+Petrified
+Lichen,
+Moss-Lichen
+Mold
+Eaten by
+Hollow-Log
+Mussel, Silt
+Veil Jelly,
+Twig Pipefish
+Knot-Hole
+Barnacle,
+Bogsnout
+Paddlefish
+Stump
+Sponge, Bog
+Clam,
+Canopy Fan
+Worm
+Silt Veil Jelly,
+Bogsnout
+Paddlefish,
+Ember-I-ure
+Dragonfish,
+Twig Pipefish
+Snag-Trunk
+Eel, Mudbed
+Stingray
+Knot-Eye
+Grouper
+Root-Spear
+Mantis
+Burl Toadfish
+Knot-Eye
+Grouper,
+Moss-Back
+Sculpin
+Root-Spear
+Mantis, Burl
+Toadfish
+Behavior
+Jerky hops;
+Clouds thicken
+around rotting
+canopy debris
+Wriggling
+larvae hatched
+from rotting
+logs in pulsed
+swarms
+Stains water
+brown; densest
+in stagnant
+passages
+Glowing
+schools scatter
+from noise,
+revealing diver
+positions
+Centipede-like;
+hundreds of
+legs churn silt
+clouds while
+feeding
+Beaver-
+toothed timber
+grazer;
+constant
+grinding gives
+away its
+tunnels
+Scrapes stone
+bark noisily;
+rolls into a ball
+when touched
+Shell grows like
+shelf fungus;
+slow crawler
+along ledges
+Leaves black
+slime trails that
+absorb
+flashlight lux
+Clamps flat to
+trunks; almost
+invisible
+against stone
+bark
+Yields
+Chitin
+Segment
+Plate
+Lignin
+Digest
+Enzyme
+Page 61 of 137

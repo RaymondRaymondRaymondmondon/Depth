@@ -1,0 +1,174 @@
+The Deep
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+Species
+Moss-Picker
+Shrimp
+Timber
+Shipworm
+Snag Urchin
+Role
+Grazer
+Grazer
+Grazer
+Size
+4 cm
+60 cm
+25 cm
+12 cm
+8 cm
+3 cm
+15 cm
+40 cm
+Sound
+20 dB,
+H igh
+15 dB,
+Silent
+Silent
+25 dB,
+Mid
+30 dB,
+High
+Silent
+Silent
+20 dB,
+Mid
+Silent
+Low
+Bog
+Grazer
+Cucumber
+Mold-Mouth
+Goby
+Sap Beetle
+Fern-Nibbler
+Amphipod
+Tangle
+Nudibranch
+Punk-Wood
+Weevil
+Canopy Fan
+Worm
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Filter
+Eats
+Tangle-Root
+Moss, Mould
+Moss
+Rot-Wood
+Parasite,
+wood
+microbes
+Bark Vine,
+Swamp Vine
+detritus, Silt-
+Cap Parasite
+Moss-Lichen
+Mold, Timber
+Spore
+Root-Latch
+Shoot, Stump
+Shoot
+Bog Fern,
+Canker Fern
+Damp
+Mushroom,
+Graft Spore
+Rot-Wood
+Parasite,
+Stump Shoot
+Ember Mote,
+Tannin Ciliate
+Eaten by
+Driftwood
+Squid, Moss-
+Cloak Cuttle,
+Gnarl
+Scorpionfish
+Root-Claw
+Lobster
+Bole
+Wolffish
+Hollow-
+Stump Crab
+Snag-Trunk
+Eel, Bark-
+Skin Angler,
+peat
+Splinter Gar
+Thorn
+Catfish
+Bark-Skin
+Angler, Gnarl
+Scorpionfish
+Gnarl
+Scorpionfish
+Thorn
+Catfish
+Root-Claw
+Lobster
+Behavior
+Clicking
+colonies in knot
+holes, plucking
+moss strand by
+strand
+Bores trunks
+and lines its
+tunnels with
+rot-proof
+calcite tubes
+Clusters on
+vines; spines
+snag and tear
+diver suits
+Ploughs mud
+beds; ejects
+sticky threads
+when
+threatened
+Nervous
+groups dart
+between roots;
+grunts when
+startled
+Aquatic beetle
+carrying an air
+bubble; buzzes
+by stridulating
+Hides in fern
+fronds; immune
+to caustic
+canker sap
+Branching
+cerata mimic
+fungus; stores
+spore toxins
+Long-snouted
+driller; swarms
+inside soft
+decaying logs
+Feathery
+crowns on
+hanging debris;
+snap shut at
+vibration
+Yields
+Calcite
+Bore-Tube
+Collagen
+Thread Gel
+Page 62 of 137

@@ -1,0 +1,235 @@
+The Deep
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+Species
+Pelican Gulper
+Drift-Eel
+Abyssal
+Comb-Ray
+Lattice Basket
+Star
+Veil-Gill Cetoid
+Netcloak
+Siphonophore
+Hollow-Bell
+Tunicate
+Colossal Hook-
+Squid
+Giant Void-
+Isopod Hunter
+Gargantua
+Anglerfish
+Blackfang
+Dragonfish
+Needletooth
+Viperfish
+Hatchet
+Lurker
+Pressure
+Barracudina
+Chasm
+Fangtooth
+Role
+Filter feeder
+Filter feeder
+Filter feeder
+Filter feeder
+Filter feeder
+Filter feeder
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Size
+2.5 m
+7 m span
+15 m
+25 m
+14 m
+80 cm
+40 cm
+1.5 m
+60 cm
+Sound
+15 dB, Mid
+25 dB,
+Low
+Silent
+40 dB,
+Low
+Silent
+10 dB
+, Low
+35 dB, Mid
+30 dB,
+Mid
+20 dB, Low
+Silent
+15 dB, High
+Silent
+25 dB, Mid
+30 dB,
+Mid
+Eats
+Ghostlight
+Copepod, marine
+snow
+Lumen Drift
+Larvae, marine
+snow
+Void Mote
+Swarm, marine
+snow
+Ghostlight
+Copepod,
+Pressure-spore
+Cloud
+Lumen Drift
+Larvae, Chasm-
+Fry Larvae
+Void Mote
+Swarm,
+Pressure-spore
+Cloud
+Chasm Bellows
+Jelly, Ampere
+Lamprey,
+Needletooth
+Viperfish, Inkveil
+Cuttle
+Lattice Basket
+Star, Fall-Feast
+Amphipod
+Swarm, Cliffhang
+Carrion-Crab,
+Ledge-crawler
+Holothurian
+Veil-Gill Cetoid,
+Hatchet Lurker,
+Siren-I-ure
+Angler
+Glimmer Siphon,
+Flicker-Moth
+Shrimp
+Pallid Lumen-
+Eater
+Chasm-Fry
+Larvae, Ember-
+Sapper Salp
+Glow-Sapper
+Pteropod
+Capacitor
+Medusa, Hollow-
+Bell Tunicate
+Eaten by
+Riftline Dragon-
+Eel
+Abyssal Sleeper-
+Shark, Gloom
+Sovereign
+Giant Void-
+Isopod Hunter
+Gargantua
+Anglerfish, Nadir
+Kraken, Null-
+Sucker Remora
+Inkveil Cottle,
+Cavernous Maw
+Chasm
+Fangtooth,
+Crystal-Spine
+Ray
+Gloom Sovereign
+Nadir Kraken
+Cavernous Maw,
+Volt-Tick
+Riftline Dragon-
+Eel
+Colossal Hook-
+Squid
+Gargantua
+Anglerfish,
+Siren-Lure
+Angler, Pale
+Harpoon
+Siphonophore
+Coil-daw Snake-
+Dragon
+Abyssal Sleeper-
+Shark
+Behavior
+Balloon jaw inflates
+and sieves
+copepod swarms
+Glides along the
+cliff wall;
+iridescent comb
+rows ripple
+Fractal arms fan
+out from cliff
+ledges
+Warm-blooded
+baleen drifter
+migrating up and
+down; its songs
+carry far
+Long curtain
+colony; stinging
+nets tangle subs
+Drifting barrel
+siphoning with
+hollow, echoing
+gulps
+Abyssal giant;
+swivel-hooks grab
+subs and pull them
+downward
+Abyssal giant;
+climbs the cliff and
+ambushes from
+ledges
+Abyssal giant; its
+lure copies the
+crew's sub lights
+Hunts with red
+light players can't
+Yields
+Abyssal
+Blubber
+COIOSSUS
+Beak Keratin
+Pressure-
+Plate
+Carapace
+Lure-Bulb
+Photophore
+see without filters
+Hinged skull; fangs
+can pierce suit
+Mirror-sided; looks
+up and lunges at
+silhouettes
+Darts in vertical
+lines up and down
+the drop-off
+Clicks oversized
+fangs aggressively;
+unaffected by EMP
+shocks
+Page 101 of 137

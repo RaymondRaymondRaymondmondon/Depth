@@ -1,0 +1,96 @@
+The Deep
+58
+59
+60
+Species
+Choir
+Leviathan
+Lumen-Veil
+Kraken
+Cathedral
+Gulper
+Role
+Apex
+Apex
+Apex
+Size
+22m
+15m
+18m
+Sound
+70 dB,
+Low
+40 dB,
+Low
+60 dB,
+Low
+Eats
+Echo-Ray,
+Lure-Lantern
+Angler, Bat-Fin
+Echo-Gar,
+Lumen
+Barracuda,
+Grotto Mimic
+Octopus,
+Glowslime
+Hagfish
+Strobe-Squid,
+Ghost-Olm,
+Lure-Lantern
+Angler, Strobe
+Box-Jelly,
+Strobe
+Cuttlefish,
+Lumen Tunnel-
+Eel, Calcite
+Spearworm,
+Shroud
+Carrion-Eel
+Chandelier
+Sponge,
+Grotto
+Lamprey,
+Ghost-Olm,
+Strobe Box-
+Jelly, Grotto
+Pincer-
+Lobster,
+Hollow-Cave
+Seal, Calcite
+Spearworm,
+Limestone
+Giant Isopod
+Eaten by
+none (apex)
+none (apex)
+none (apex)
+Behavior
+Its echoing
+calls stun
+schools in
+cathedral
+caverns
+Spreads a
+glowing veil
+across tunnel
+mouths and
+waits
+Huge mouth
+swallows
+whole
+sections of
+the chamber
+floor
+Yields
+4. The Thermal Vents (300 to 500 m)
+•
+Layout: volcanic ridges, black smoker chimneys, and basalt plateaus spewing
+superheated mineral plumes. Boiling water pillars damage hulls with heat and cause
+turbulence. Rich in copper and thermal energy.
+Look: hazy, heat-distorted water, red magma glowing through cracks in the basalt,
+black mineral clouds, armor-plated fauna.
+Hazards: extreme heat stress on the hull (needs Thermal Hull Shielding), sudden
+geysers, turbulence that throws subs against volcanic glass, and the Boiler Worm
+erupting from the rock.
+Page 46 of 137

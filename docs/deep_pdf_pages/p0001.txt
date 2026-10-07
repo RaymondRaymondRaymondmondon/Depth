@@ -1,0 +1,32 @@
+The Deep
+The Deep
+Oct 6, 2026 • @Phillip Argall
+Overview
+The Deep (working title in the sources: Project Nautilus / Nautilus: Depths of Wake) is a 4-
+player online co-op action game about surviving the deep ocean. It combines the deep-
+sea progression of Subnautica, the claustrophobic crew teamwork of a 20,000 Leagues
+Under the Sea setting, and the systemic, horror-tinged food webs of The Trawl (the
+reference design The Trawl — Arcade Game 2).
+The crew starts adrift on an inflatable life raft and rows to the derelict submarine
+Nautilus, which becomes their mobile base. Instead of building stationary habitats, they
+repair the sub room by room, reinforce its hull to survive greater pressure, and venture
+out into a fully simulated ocean to gather what they need. They're armed with little more
+than survival knives and spearguns, so survival depends on evasion, deterrence, and
+teamwork rather than firepower.
+• Setting: an oceanic alien world of abyssal trenches, volcanic vents, and bioluminescent
+caverns, plus one persistent surface island.
+• Scope: 4-player co-op (1 to 4 players). Genre: action, built on survival-crafting systems.
+• Engine: Unreal Engine 5 (confirmed), with a custom simulation layer for the ecosystem.
+Core pillars
+• The ship is alive. The Nautilus is the crew's only safe haven, oxygen refinery, and
+mobile base. It needs people to helm, repair, pump, balance power, track sonar, manage
+fuel, and upgrade. Every room has a mechanical purpose.
+• The food web reacts. The sea is simulated, not scripted. Noise, light, and blood draw
+predators. The players are part of the food chain, and not at the top.
+• Sound is a system (the Wake). Water carries sound efficiently. Every engine throttle,
+thruster burst, tool use, and dropped item writes noise into the water that predators
+can hear.
+• Deep trophic ecology. Biomes run on persistent food webs with energy conservation,
+not spawn tables. Over-hunting collapses prey populations and pushes predators onto
+the players.
+Page 1 of 137

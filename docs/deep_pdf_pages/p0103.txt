@@ -1,0 +1,206 @@
+The Deep
+50
+51
+52
+53
+55
+56
+57
+58
+59
+60
+Species
+Fall-Feast
+Amphipod
+Swarm
+Bone-Pillow
+Isopod
+Bone-Lace
+Polychaete
+Driftcorpse
+Grenadier
+Cliffhang
+Carrion-Crab
+Ledge-crawler
+Holothurian
+Rot-Gleam
+Shrimp
+Cavernous
+Maw
+Gloom
+Sovereign
+Nadir Kraken
+Void-choir
+Leviathan
+Role
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Apex
+Apex
+Apex
+Apex
+Size
+5 cm (10
+swarm)
+50 cm
+30 cm
+1.2 m
+80 cm
+IO cm
+400 m
+90 m
+60 m
+70m
+Sound
+20 dB,
+High
+15 dB, Mid
+Silent
+25 dB
+, Mid
+20 dB, Mid
+Silent
+Silent
+190 dB,
+Low
+170 dB,
+Low
+120 dB,
+Mid
+160 dB,
+Ultrasonic
+Eats
+detritus,
+Null
+Vine
+detritus, Pitch
+Spongoid
+detritus (bone)
+Fall-Feast
+Amphipod
+Swarm, detritus
+Bone-Lace
+Polychaete,
+detritus
+marine snow,
+Chasm Spongoid
+detritus, Abyssal
+Filament
+Chasm Bellows
+Jelly, MUCUS-
+Palace
+Larvacean,
+Netcloak
+Siphonophore,
+Void-Phantom,
+Ember-Sapper
+Salp, Pale
+Harpoon
+Siphonophore,
+Gargantua
+Anglerfish
+Colossal Hook-
+Squid, Abyssal
+Sleeper-Shark,
+Sablefin Gulper,
+Abyssal Comb-
+Ray
+Giant Void-
+Isopod Hunter,
+Riftline Dragon-
+Eel, Coil-Jaw
+Snake-Dragon,
+Crystal-Spine
+Ray, veil-Gill
+Cetoid,
+Capacitor
+Medusa
+Void-Phantom,
+Clickvein Squid,
+Vampire Pulse-
+Squid
+Eaten by
+Giant Void-
+Isopod Hunter,
+Driftcorpse
+Grenadier
+Coil-daw Snake-
+Dragon
+Cliffhang
+Carrion-Crab
+Abyssal Sleeper-
+Shark
+Giant Void-
+Isopod Hunter
+Giant Void-
+Isopod Hunter
+Clickvein Squid
+none (apex)
+none (apex)
+none (apex)
+none (apex)
+Behavior
+Strips a carcass in
+minutes; drawn to
+blood
+Gorges on carrion,
+then goes dormant
+for months
+Lacy worm mats
+grow over sunken
+skeletons
+Croaks with its
+swim bladder and
+trails sinking
+carcasses
+Hooks onto the
+cliff and snatches
+falling carcasses
+Inches along
+ledges; ejects its
+guts as a decoy
+Glows brighter
+near rot, marking
+where carcasses
+Gargantuan filter-
+maw; its vacuum
+inhale swallows
+whole ecosystems
+Armored leviathan
+circling the edge;
+its infrasound
+shakes subs
+Rises from the
+bottomless dark
+and drags subs
+down past crush
+depth
+Echolocating
+choir-beast; its
+sonar sweeps
+reveal anything
+hiding
+Yields
+Marrow-
+Laced Bristle
+Void-Crystal
+Gizzard,
+Abyssal
+Marrow
+Sovereign
+Heart
+(Abyssal
+Marrow)
+Crystal-
+Encrusted
+Eye, Kraken
+Ink Reservoir
+Choir
+Resonance
+Organ
+Page 103 of 137

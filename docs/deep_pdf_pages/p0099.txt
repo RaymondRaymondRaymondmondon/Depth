@@ -1,0 +1,169 @@
+The Deep
+19
+20
+Flora
+Bottomless
+Beacon
+Static Spire
+Tier
+3
+(Mining
+Laser)
+3
+(Mining
+Laser)
+Type
+Deep lure
+Charged
+spire
+Description
+Huge light buoy
+far below that
+colossal
+horrors circle
+Crystal-flecked
+spire crackling
+with stored
+bioelectric
+charge
+Eaten by
+Glimmer
+Siphon
+Static Moth-
+Jelly,
+Dynamo
+Isopod
+Yields
+Abyssal
+Photophore
+Static
+Capacitor
+Crystal
+Use
+Long-range
+flare rounds
+Battery
+recharge
+stations and
+EMP charges
+Fauna (60): 5 plankton, 15 energy leeches, 8 filter feeders, 20 mesopredators, 8
+scavengers, 4 apex.
+2
+3
+4
+5
+6
+Species
+Void Mote
+Swarm
+Lumen Drift
+Larvae
+Ghostlight
+Copepod
+Chasm-Fry
+Larvae
+Pressure-
+Spore Cloud
+Void-Phantom
+Role
+Plankton
+Plankton
+Plankton
+Plankton
+Plankton
+Energy leech
+Size
+0.1 mm
+(20 m
+cloud)
+4 mm
+1.5 cm
+0.05 mm
+(40 m
+cloud)
+8 m bell
+Sound
+Silent
+Silent
+Silent
+Silent
+Silent
+Silent
+Eats
+marine snow,
+detritus
+marine snow
+Void Mote
+Swarm
+Ghostlight
+Copepod
+detritus
+electricity,
+Singularity Node
+Eaten by
+Ghostlight
+Copepod,
+Chasm Bellows
+Jelly, MUCUS-
+Palace
+Larvacean,
+Lattice Basket
+Star, Hollow-Bell
+Tunicate
+Abyssal Comb-
+Ray, Netcloak
+Siphonophore,
+Glow-Sapper
+Pteropod,
+Flicker-Moth
+Shrimp
+Chasm-Fry
+Larvae, Pelican
+Gulper Drift-Eel,
+Veil-Gill Cetoid,
+Lantern-Drinker
+Squidlet
+Mucus-Palace
+Larvacean,
+Netcloak
+Siphonophore,
+Hatchet Lurker,
+Glimmer Siphon
+Veil-Gill Cetoid,
+Hollow-Bell
+Tunicate, Glow-
+Sapper Pteropod
+Cavernous Maw,
+Void-Choir
+Leviathan
+Behavior
+Chemosynthetic
+microbe haze
+flowing up and
+down the cliff on
+seeps
+Glowing larvae rise
+at night; their
+sparkle hints at
+nearby predators
+Releases a blue
+flash-cloud when
+disturbed
+Transparent fish
+larvae drifting in
+long spiral ribbons
+Microbe bloom
+that thickens near
+carcasses; slightly
+Clouds sonar
+Invisible jellyfish
+that wraps around
+subs and drains
+their batteries;
+flickers when full
+Yields
+Chemo-Spore
+Paste
+Phantom
+Charge-Gel
+Page 99 of 137

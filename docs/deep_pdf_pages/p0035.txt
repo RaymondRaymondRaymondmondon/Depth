@@ -1,0 +1,121 @@
+The Deep
+and gars, flash-hunters, and strobing cuttlefish and squid. Four apex giants, led by the
+Flash-Stalker Leviathan, hunt the mesopredators and follow strobe flashes and loud
+echoes.
+Flora (20)
+1
+2
+3
+4
+5
+6
+Flora
+Lantern
+Vine
+Phosphor
+Mat
+Lantern
+Shroom
+Acid Vine
+Neon
+Fungi
+Pulse
+Lichen
+Tier
+2
+Type
+Hanging
+vine
+Fungal wall
+mat
+Mushroom
+Corrosive
+creeper
+Bracket
+fongUS
+Lichen
+Description
+Hangs from
+ceilings with
+neon-blue
+seed bulbs at
+40 lux each
+Wall mat that
+pulses cyan
+and magenta
+every 3 s at 15
+lux
+Squat amber
+caps on wet
+ledges,
+steady at 25
+lux
+Pale green
+creeper that
+dissolves
+limestone and
+burns bare
+skin (8 lux)
+Thin electric-
+blue shelves
+that stack up
+tunnel walls
+(20 lux)
+Crust on
+dripstone that
+throbs about
+60 times a
+minute (6 lux)
+Eaten by
+Lantern Slug,
+Glowfruit
+Bat
+Glowmote
+Copepod,
+Blind Lamp-
+Isopod, Mat-
+Scraper
+Amphipod
+Glowcap
+Nibbler, Pale
+Mat-
+Crayfish
+Mineral-
+Tongue
+Limpet
+Glowcap
+Nibbler,
+Fungus-
+Rasper
+Chiton
+Lichen-Lick
+Snail, Cave
+Glow-Midge
+Yields
+Lantern Vine
+Seed
+Phosphor Mat
+Lantern Shroom
+Cap
+Acid Vine Sac
+Neon Fungi Gill
+Pulse Lichen
+Flake
+Cavern Cold-
+Brew, desk
+lamps
+Flare
+chemicals,
+Phosphor Mat
+Battery Cells
+Basic food
+ration
+Etching acid
+for opening
+sealed rock
+and doors
+Glow paint for
+waypoints
+Stimulant
+medkits
+Page 35 of 137

@@ -1,0 +1,85 @@
+The Deep
+PO is the source level in dB, d is distance in meters, and is the biome's absorption
+factor.
+• Examples: a = 0.005 dB/m in open deep water, 0.038 dB/m in the dense Kelp Labyrinth.
+The Bioluminescent Caverns and the Abandoned City instead amplify sound through
+echo.
+Frequency bands. Different creatures hear different sounds.
+Band
+Low
+Mid
+High
+Ultrasonic
+Range
+10 to
+50 Hz
+100 to
+800 Hz
+1.5 to 6
+kHz
+20 to
+60 kHz
+Sources
+Sub combustion or
+nuclear engines,
+leviathan calls,
+heavy hull impacts
+Thruster bursts,
+speargun shots,
+handheld motors,
+mini-sub
+propellers, Sonar-
+Hound howls
+Mining laser whine,
+Stasis Rifle
+discharges, metal
+tool scrapes,
+cracking glass
+viewports
+Echolocation clicks
+(Echo-Ray at 45
+kHz, Sonar-
+Hounds, Kelp-
+Stripe Orcas,
+Clickvein Squid),
+the Nautilus's
+active sonar pings
+Who hears it
+Lateral-line organs in
+apex leviathans and
+huge open-water
+species
+Mesopredators, pack
+hunters, stalker
+species
+Echolocating cave
+fauna, blind
+crustaceans, light-
+sensitive species
+Echolocating species
+only; the crew can
+hear it only through
+passive sonar
+headphones
+Reaction
+Long-range
+territorial charges or
+hunting paths from
+up to 2.5 km away
+Draws curious or
+aggressive hunters;
+raises the area's
+Acute
+disorientation, or
+frantic swarm
+defense attacks
+Echolocators use it
+to "see"; an active
+sonar ping alerts
+every echolocator in
+range
+Light is its own channel, measured in lux. Dive lamps put out about 1,000 lux at 1 m, flares
+about 10,000 lux, and the Flash-Stalker's jaw strobes about 50,000 lux. Glowing flora range
+from about 1 to 200 lux. Light attracts light-drawn species and blinds light-sensitive ones,
+separately from the Wake.
+Page 7 of 137

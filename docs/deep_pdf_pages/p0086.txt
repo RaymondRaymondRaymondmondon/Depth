@@ -1,0 +1,155 @@
+The Deep
+Species
+50
+Carcass
+Isopod
+51
+Pickling
+Amphipod
+Rot Lobster
+52
+53
+Corpse
+Whelk
+54
+Sump
+Vulture-Ray
+Pickle
+55
+Bristleworm
+Skull-Raft
+56
+Crab
+Miasma
+Leviathan
+58
+Sinkhole
+Wyrm
+Role
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Apex
+Apex
+Size
+45 cm
+1 cm
+60 cm
+12 cm
+30 cm
+35 cm
+45 m
+22m
+Sound
+15 dB,
+Mid
+10 dB,
+High
+25 dB,
+Mid
+Silent
+25 dB,
+Low
+Silent
+15 dB,
+High
+75 dB,
+Low
+65 dB,
+Low
+Eats
+detritus
+detritus
+detritus
+detritus
+detritus
+detritus,
+halophilic
+archaea
+detritus
+halophilic
+archaea, Halo
+Brine-Shrimp,
+Lake-Skin
+Jelly, Bile Larva
+Drift
+Brine-
+Crocodile,
+Brine Tortoise,
+Salt Monitor,
+Bile Serpent,
+Mirror Pike
+Eaten by
+Salt Snapper
+Turtle
+Salt Newt,
+Halite
+Cuttlefish
+Rust Octopus,
+Murk Grouper
+Rust Octopus,
+Salt Snapper
+Turtle
+Brine-
+Crocodile
+Caustic
+Mantis, Brine
+Scorpionfish
+Salt Monitor
+none (apex)
+none (apex)
+Behavior
+Armored giant
+crawling over
+pickled
+corpses
+Swarms strip
+blood-drawn
+carcasses in
+minutes
+Brine-
+tempered
+claws tear
+hardened
+carcasses
+apart
+Smells blood
+from far away
+and creeps
+toward kills
+Circles above
+carcasses,
+then lands to
+Burrows into
+the archaea
+mats at the
+toxic boundary
+Rides floating
+skulls and
+picks them
+clean
+Filters brine
+through baleen
+and vents acid
+clouds that
+corrode subs
+Lives deep in
+the brine and
+drags prey
+down through
+the mirror
+Yields
+Brine-
+Tempered
+Carapace
+Bone Ballast
+Miasma
+Baleen, Acid
+Gland
+Wyrm Hide
+Plates
+Page 86 of 137

@@ -1,0 +1,162 @@
+The Deep
+32
+33
+34
+35
+36
+37
+38
+39
+40
+Species
+Corrosive
+Squid
+Pickle
+Barracuda
+Acid
+Lamprey
+Sulfur
+Anglerfish
+Halocline Gar
+Caustic
+Mantis
+Salt Newt
+Rust
+Octopus
+Mirror Pike
+Role
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Size
+2.5 m
+1.4 m
+90 cm
+60 cm
+40 cm
+70 cm
+1.8 m
+2.2 m
+Sound
+30 dB,
+Mid
+35 dB,
+Mid
+20 dB,
+High
+Silent
+30 dB,
+Mid
+55 dB,
+High
+20 dB,
+Mid
+Silent
+25 dB,
+Mid
+Eats
+Halo Brine-
+Shrimp, Lake-
+Skin Jelly,
+Ooze Wrasse,
+Pickle
+Barracuda
+Reed-Nibbler
+Goby, Sump
+Minnow, Halo
+Brine-Shrimp
+Slime-Eel,
+Sieve-Mouth
+Paddlefish
+Reed-Nibbler
+Goby, Sump
+Minnow
+Sump Minnow,
+Sieve-Mouth
+Paddlefish,
+Bone-Float
+Hagfish
+Halite Chiton,
+Varnish
+Limpet,
+Caustic
+Urchin, Pickle
+Bristleworm
+Mildew Isopod,
+Reed-Nibbler
+Goby, Blight
+Beetle, Pickling
+Amphipod
+Crust-Licker
+Snail, Saltglass
+Barnacle, Rot
+Lobster,
+Corpse Whelk
+Slime-Eel,
+Mirror-
+Skimmer
+Eaten by
+Pall Kraken
+Corrosive
+Squid
+Bile Serpent,
+Salt Monitor
+Pall Kraken
+Pickle Pliosaur
+Murk Grouper
+Brine-
+Crocodile
+Pall Kraken
+Sinkhole
+Wyrm
+Behavior
+Shoots acid ink
+that eats into
+hulls
+Strikes fast in
+packs; drawn
+to blood
+Latches on and
+dissolves flesh
+with acidic
+saliva
+Yellow 3 lux
+lure draws in
+prey and
+curious divers
+Hovers
+motionless
+along the
+density layer,
+then snaps
+sideways
+Loud cracking
+punch that
+breaks glass
+Amphibious;
+crawls
+between the
+brine and open
+water
+Camouflages
+as rusted
+wreckage and
+pries shells
+open
+Waits under
+the reflective
+boundary and
+Yields
+Acid Ink Sac
+Lure
+Photophore
+Ferrous Ink
+strikes upward
+unseen
+Page 84 of 137

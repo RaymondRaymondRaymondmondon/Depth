@@ -1,0 +1,62 @@
+The Deep
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+Biome
+The Sunlit Shallows
+The Kelp Labyrinth
+The Bioluminescent
+Caverns
+The Thermal Vents
+The Drowned Forest
+The Crystal Reef
+The Brine Pools
+The Abyssal Graveyard
+The Void Edge
+The Island
+Depth
+O to 50 m
+50 to 150 m
+150 to 300 m
+300 to 500 m
+500 to 700 m
+700 to 900 m
+900 to 1,200 m
+1,200 to 1,800 m
+1,800 m and deeper
+Surface, up to 250 m above sea
+level
+Progression phase
+1
+2
+3
+4
+5
+6
+7
+8
+9
+Any time after
+phase 1
+Reading the tables. Flora tier says which tool is needed: 1 knife or bare hands, 2 Heated
+Blade or Starter Drill, 3 Mid-Tier Drill or Heated Blade Mk II (the deepest tier 3 deposits
+need the Mining Laser). Fauna sound Uses the four bands from the Wake section; light is
+in lux. Yields are separate crafting resources.
+1. The Sunlit Shallows (O to 50 m)
+• Layout: turquoise water over vast coral reefs, sandbars, and shallow lagoons; sunlight
+reaches the seabed. The safe starting zone. Sandbanks can ground heavy subs.
+• Look: golden sunbeams through clear water, rainbow coral, huge swirling schools of
+shimmering fish, gentle currents.
+• Hazards: sandbar strandings, coral scraping, territorial reef defenders during midday
+sun spikes.
+• Food web: sunlight powers phytoplankton and carpet reef algae. Plankton swarms
+feed the filter feeders; algae, moss, and sea-grass feed the grazers. Those feed
+snapper packs, squid-like Inkdarts, Lancers, and crevice-dwelling Moray Creepers,
+Page 15 of 137

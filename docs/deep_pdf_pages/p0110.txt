@@ -1,0 +1,212 @@
+The Deep
+39
+40
+41
+42
+43
+45
+47
+48
+49
+50
+51
+Species
+Rockpool
+Octopus
+Tide-Pool
+Blenny
+Mangrove
+Mudskipper
+Slate Tide-
+Heron
+Moon Ghost-
+Crab
+Shell-splitter
+Oystercatcher
+Crimson Stilt
+Cascade Otter
+Cinder
+Centipede
+Web-Lord
+Spider
+Ash Gull
+Smoke Crow
+Mangrove
+Hermit Crab
+Role
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Scavenger
+Scavenger
+Scavenger
+Size
+60 cm
+IO cm
+15 cm
+1.3 m
+IO cm
+45 cm
+1.2 m
+35 cm
+30 cm
+legspan
+1.2 m
+wingspan
+55 cm
+8 cm
+Sound
+Silent
+Silent
+20 dB
+55 dB
+25 dB
+65 dB
+45 dB
+50 dB
+15 dB
+Silent
+75 dB
+70 dB
+10 dB
+Eats
+Rock Acorn
+Barnacle, Crevice
+Scallop, Tide-Pool
+Blenny
+Feather Duster
+Worm, Salt-Pan
+Shrimp
+Mangrove Sea-
+Squirt, Mangrove
+Midge, Shore
+Sand -Hopper
+Mangrove
+Mudskipper,
+Tide-pool Blenny,
+Moon Ghost-
+Crab, Mangrove
+Hermit Crab
+Beach Pipi, Shore
+Sand -Hopper
+Mangrove
+Oyster, Root
+Mussel
+Salt-Pan Shrimp,
+Shore Sand-
+Hopper
+Rockpool
+Octopus,
+Mossback River
+Turtle, Root
+Mussel
+Ember Ant, Giant
+Bamboo Weta,
+Bone-Gnaw
+Beetle
+Lantern Firefly,
+Mangrove Midge,
+Glass-Wing
+Swiftlet
+carrion, Beach
+Pipi, Shore Sand-
+Hopper
+carrion, Giant
+Moss Snail
+detritus, carrion
+Eaten by
+Cascade Otter
+Rockpool
+Octopus, Slate
+Tide-Heron
+Slate Tide-Heron,
+Mangrove
+Monitor
+Brackwater Croc
+Slate Tide-Heron,
+Sand-Coil Viper
+Cliff Harrier
+Brackwater Croc
+Brackwater Croc
+Shriek Owl
+Shriek Owl
+Typhoon-Bird
+Typhoon-Bird
+Slate Tide-Heron,
+Scrub Jackal
+Behavior
+Crawls between
+tide pools at
+night; bites if
+grabbed
+Hops between
+pools at low
+tide; territorial
+nipper
+Skips across the
+mud; males
+flare fins and
+slap
+Stalks the
+shallows
+motionless;
+harsh croak
+flushes prey
+Pale night
+sprinter;
+stridulates from
+beach burrows
+Chisel beak
+pries shells;
+piping calls
+along the shore
+Wades volcanic
+salt pans;
+feathers
+stained red by
+shrimp
+Playful family
+groups; cracks
+shells on stream
+rocks
+Hides under
+warm volcanic
+rubble;
+venomous sting
+burns
+Strings huge
+golden webs
+across jungle
+trails
+Drawn to
+cooking smoke;
+mobs camps
+and snatches
+food
+Follows fire
+smoke;
+aggressive
+flocks peck at
+players
+Swarms
+carcasses at
+the tide line;
+swaps shells
+constantly
+Yields
+Octopus Ink
+(dye)
+Waterproof Pelt
+Centipede
+Venom
+(anesthetic)
+Spider Silk
+(sutures, rope)
+Page 110 of 137

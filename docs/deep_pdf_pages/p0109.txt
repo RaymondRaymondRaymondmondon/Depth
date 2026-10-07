@@ -1,0 +1,196 @@
+The Deep
+27
+28
+29
+30
+31
+32
+33
+35
+36
+37
+38
+Species
+Mangrove Sea-
+Squirt
+Salt-Pan
+Shrimp
+Canopy Stalker
+Sand-Coil Viper
+Mangrove
+Monitor
+Fig Python
+Cliff Harrier
+Glass-Wing
+Swiftlet
+Glow-Eater
+Gecko
+Shriek Owl
+Ridgeback
+Pangolin
+Dart-Bark Frog
+Role
+Filter feeder
+Filter feeder
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Size
+1.8 m
+1.5 m
+2.2 m
+1.6 m
+wingspan
+12 cm
+20 cm
+1.1 m
+wingspan
+4 cm
+Sound
+Silent
+Silent
+Silent
+25 dB
+35 dB
+20 dB
+70 dB
+50 dB
+30 dB
+75 dB
+15 dB
+40 dB
+Eats
+detritus
+detritus
+Fern Chevrotain,
+Orchard Flying-
+Fox, Ember
+Macaw, Shriek
+owl
+Frond Iguana,
+Basalt Hyrax,
+Strandline Rat,
+Moon Ghost-
+Crab
+Coconut Robber
+Crab, Mangrove
+Leaf-Crab, Frond
+Iguana, Mangrove
+Oyster,
+Mangrove
+Mudskipper
+Fern Chevrotain,
+Tusk Boar, Dart-
+Bark Frog,
+Orchard Flying-
+Fox
+Basalt Hyrax,
+Nut-Crop Pigeon,
+Glass-Wing
+Swiftlet, Sand-
+Coil Viper, Shell-
+Splitter
+Oystercatcher
+Mangrove Midge,
+Lantern Firefly
+Lantern Firefly,
+Giant Bamboo
+Weta, Bark
+Termite, Bone-
+Gnaw Beetle
+Strandline Rat,
+Glow-Eater
+Gecko, Cinder
+Centipede, Web-
+Lord Spider
+Ember Ant, Bark
+Termite
+Ember Ant,
+Mangrove Midge
+Eaten by
+Mangrove
+Mudskipper
+Crimson Stilt,
+Tide-pool Blenny
+Ash Panther
+Cliff Harrier
+Brackwater Croc
+Ash Panther
+Typhoon-Bird
+Cliff Harrier,
+Web-Lord Spider
+Shriek Owl
+Canopy Stalker
+Ash Panther
+Fig Python
+Behavior
+Squirts water
+when touched;
+hangs from
+submerged
+roots
+Turns warm
+volcanic salt
+pools pink in
+dense swarms
+Spotted tree-
+cat; ambushes
+lone players
+from branches
+Buried in beach
+sand; strikes at
+vibration;
+venomous bite
+Swims between
+roots; drawn to
+blood and fish
+scraps
+Hangs in
+strangler figs;
+constricts;
+immune to frog
+toxin
+Rides cliff
+updrafts; dive-
+attacks
+climbers near
+its nests
+Echo-clicks in
+waterfall caves;
+builds saliva
+nests
+Belly glows
+faintly after
+eating fireflies;
+chirps at night
+Silent hunter;
+its shriek stuns
+small prey and
+startles players
+Curls into an
+armored ball;
+tears open
+termite towers
+Bright warning
+colors; contact
+toxin numbs
+bare hands
+Yields
+Viper Venom
+(antivenom)
+Lizard Leather
+Flight Feathers
+(fletching)
+Edible Nest
+(healing broth)
+Keratin Scales
+(armor)
+Dart Toxin
+Page 109 of 137

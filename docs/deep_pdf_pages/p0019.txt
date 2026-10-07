@@ -1,0 +1,180 @@
+The Deep
+4
+5
+6
+7
+8
+9
+10
+11
+12
+Species
+Sandflit
+Mysid
+Pearl Comb
+Turquoise
+Arrow-Worm
+Chromis
+Glider
+Sunscale
+Parrot-
+Wrasse
+Armored
+Reef-Tang
+Lagoon
+Spine-Urchin
+Sandbar Sea-
+Hare
+Gilded Moss-
+Snail
+Role
+Plankton
+Plankton
+Plankton
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Size
+8 mm
+1.5 cm
+12 cm
+70 cm
+35 cm
+15 cm
+30 cm
+Sound
+Silent
+Silent
+Silent
+5 dB,
+High
+20 dB,
+High
+12 dB,
+Mid
+3 dB,
+High
+Silent
+Silent
+Eats
+phytoplankton,
+detritus
+Sunmote
+Copepod
+Sunmote
+Copepod
+Solar-Carpet
+Algae
+Coral Algae,
+Spire Coral
+Verdant Algae,
+Table Coral
+algae film
+Solar-Carpet
+Algae, Golden
+Moss
+Ribbon Sea-
+Grass,
+Sea-Grass
+Golden Moss,
+Bloom Moss
+Eaten by
+Sea-Grass
+Pipe-Dragon,
+Reef Basket
+Star, Sand-
+Dollar Sifter,
+Sunflash
+Cuttle
+Lagoon
+Manta-Wing,
+Sunback
+Reef-Turtle
+Glimmer
+Sardine Shoal,
+Sea-Grass
+Pipe-Dragon
+Barbed Reef-
+Snapper,
+Lagoon
+Lancer,
+Sunstripe
+Jack, Sponge-
+Mimic Angler
+Atoll Maw
+Grouper
+Barbed Reef-
+Snapper,
+Lagoon
+Lancer
+Pearl Trigger-
+Biter
+Sand-Veil
+Stingray
+Spire Cone-
+Snail, Tidal
+Mantis-
+Striker
+Behavior
+Hovers just
+above
+sandbars; flees
+into sand when
+lit brightly
+Rainbow comb
+rows shimmer;
+drifts passively
+with tidal
+currents
+Transparent
+dart; strikes
+copepods with
+grasping
+spines
+Schools of IO-
+30; 12 kHz
+lateral-line
+clicks; forms
+bait balls when
+threatened
+Crunches coral
+loudly;
+excretes white
+sand; sleeps in
+a mtJCUS
+cocoon
+Armored
+grazer; tail
+scalpels slash
+divers who
+corner it
+Carpets reef
+flats at night;
+spines
+puncture suits
+Slow seagrass
+muncher;
+releases
+purple ink
+when touched
+Yields
+Raw
+Chromis
+Glider
+Parrot-
+Wrasse
+Beak Plate
+Reef-Tang
+Scalpel
+Spine
+Sea-Hare
+Ink Sac
+Gold-flecked
+shell; leaves
+glistening trails
+across moss
+beds
+Page 19 of 137

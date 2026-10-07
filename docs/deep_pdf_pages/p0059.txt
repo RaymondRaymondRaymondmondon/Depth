@@ -1,0 +1,137 @@
+The Deep
+7
+8
+9
+10
+11
+12
+13
+14
+Flora
+Mould
+Moss
+Bog Fern
+Timber
+Spore
+Root-Latch
+Shoot
+Silt-Cap
+Parasite
+Damp
+Mushroom
+Decay
+Lichen
+Swamp
+Vine
+Tier
+2
+2
+2
+2
+Type
+Moss
+Fern
+Spore
+cloud
+Root shoot
+Parasitic
+fungus
+Jelly
+fl_jngus
+Lichen
+Floating
+vine
+Description
+Spongy grey-
+green
+cushions
+holding
+trapped gas
+pockets
+Rust-colored
+feathery
+fronds
+swaying in silt
+currents
+Dust puffs
+from the
+rotting canopy
+that blind
+sensors briefly
+Hooked white
+roots that grab
+passing ropes
+and divers
+Grey caps on
+metal wrecks;
+mycelium
+drains nearby
+batteries
+Translucent
+caps that ooze
+sticky fluid
+when
+squeezed
+Yellow-green
+crust eating
+dead bark into
+pitted holes
+Hanging vines
+with air-filled
+pods drifting
+between
+debris
+Eaten by
+Mud-Crawler,
+Moss-Picker
+Shrimp
+Fern-Nibbler
+Amphipod
+Punk-Wood
+Larva, Mold-
+Mouth Goby,
+Resin Tunicate
+Sap Beetle
+Bog Cucumber
+Peat Slug,
+Tangle
+Nudibranch
+Bark-Rasp
+Isopod
+Snag Urchin
+Yields
+Gas-Bladder
+Tuft
+Bog Frond
+Fiber
+Timber
+Spore Dust
+Latch-Hook
+Root
+Conductive
+Mycelium
+Damp Cap
+Mucilage
+Lichen Acid
+Swamp Vine
+Latex
+Use
+Emergency
+buoyancy pad
+Thermal suit
+lining
+Silt smoke-
+screen
+canisters
+Grapple
+anchor tips
+Battery
+shielding and
+repair
+Edible ration
+paste
+Rust remover
+for salvage
+Rot-Proof
+Seals
+Page 59 of 137

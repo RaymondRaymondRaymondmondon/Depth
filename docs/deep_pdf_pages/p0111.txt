@@ -1,0 +1,163 @@
+The Deep
+52
+53
+carrion, Coastal
+55
+56
+57
+58
+59
+60
+Species
+Bone-Gnaw
+Beetle
+Volcano
+Vulture
+Strandline Rat
+Sulphur Land-
+Crab
+Scrub Jackal
+Ash Panther
+Brackwater
+Croc
+Cinder Dragon
+Typhoon-Bird
+Role
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Apex
+Apex
+Apex
+Apex
+Size
+2.6 m
+wingspan
+30 cm
+25 cm
+90 cm
+2.8 m
+12 m
+wingspan
+Sound
+20 dB
+40 dB
+35 dB
+20 dB
+60 dB
+85 dB
+90 dB
+70 dB
+120 dB
+Eats
+carrion
+carrion
+Shrub
+carrion, Volcanic-
+Root Moss
+carrion, Giant
+Moss Snail,
+Mangrove Hermit
+Crab
+Tusk Boar,
+Thicket Moa,
+Canopy Stalker,
+Fig Python,
+Ridgeback
+Pangolin, Scrub
+Jackal, players
+Mangrove
+Monitor,
+Mossback River
+Turtle, Slate Tide-
+Heron, Crimson
+Stilt, Cascade
+Otter, players
+Crag Goat,
+Bamboo Tortoise,
+Sulphur Land-
+Crab, Volcano
+Vulture, carrion,
+players
+Thicket Moa,
+Coconut Robber
+Crab, Bamboo
+Tortoise, Ember
+Macaw, Cliff
+Harrier, Ash Gull,
+Smoke Crow,
+players
+Eaten by
+Glow-Eater
+Gecko, Cinder
+Centipede
+Cinder Dragon
+Sand-Coil Viper,
+Shriek Owl
+Cinder Dragon
+Ash Panther
+none (apex)
+none (apex)
+none (apex)
+none (apex)
+Behavior
+Strips
+carcasses to
+bone within
+hours; buzzing
+swarms
+Rides vent
+thermals; its
+circling marks
+fresh kills or
+wounded
+players
+Raids raft
+supplies at
+night; gnaws
+through rope
+Yellow-crusted
+crab scavenging
+heat-killed
+animals at vents
+Yipping packs
+trail predators
+to steal their
+kills
+Smoke-grey
+jungle cat;
+tracks blood
+trails and noisy
+camps
+Waits in
+mangrove
+channels;
+death-rolls rafts
+and waders
+Giant volcanic
+monitor; septic
+venomous bite,
+then tracks its
+prey
+Hunts only
+during storms;
+homes in on
+cooking-fire
+smoke
+Yields
+Ash pelt,
+Panther Fangs
+Croc Hide
+Dragon Venom
+(anticoagulant
+medicine)
+Storm Plumes
+(insulation),
+Typhoon Talons
+Featured species
+Deeper profiles for one species at each trophic level (O producer, 1 grazer, 2
+mesopredator, 3 apex, 4 decomposer) in four biomes. Every species here also appears in
+its biome's full flora or fauna table in The ten ecosystems.
+Page 111 of 137

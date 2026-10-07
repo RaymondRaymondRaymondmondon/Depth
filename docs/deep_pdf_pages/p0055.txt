@@ -1,0 +1,143 @@
+The Deep
+42
+43
+44
+45
+46
+47
+48
+Species
+Flare
+Siphonophore
+Obsidian
+Anglerfish
+Scorch
+Cuttlefish
+Geyser Gar
+Copperback
+Triggerfish
+Ember
+Stargazer
+Ashcoil Sea
+Snake
+Role
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Size
+chain
+90 cm
+60 cm
+2.2m
+75 cm
+55 cm
+Sound
+Silent
+Silent
+Silent
+35 dB,
+Mid
+45 dB,
+Silent
+20 dB,
+Mid
+Eats
+Ember Krill,
+Thermocline
+Jelly-Speck
+Glowjaw
+Viperfish,
+Vapor Prawn,
+Sulfur
+Snailfish
+Ember Blenny,
+Furnace Slug
+Vapor Prawn,
+Pyre Lionfish,
+Flare
+Siphonophore,
+Scorch
+Cuttlefish
+Sulfur Limpet,
+Smolder
+Urchin,
+Smelter
+Spider-crab,
+Crimson
+Plume
+Tubeworm
+Sulfur Limpet,
+Slag Chiton,
+Furnace Slug
+Pompeii
+Ember-Worm,
+Basalt Mantis
+Shrimp,
+Furnace
+Eelpout,
+Scorch
+Cuttlefish
+Eaten by
+Geyser Gar
+Caldera
+Kraken
+Ashcoil Sea
+Snake
+Boiler Worm
+Sulfurmaw
+Leviathan
+Sulfurmaw
+Leviathan
+Caldera
+Kraken
+Behavior
+Burning-light
+colonial
+chain;
+flashes 30
+lux when
+touched
+Glassy black
+skin; lure
+mimics
+magma glow
+at 5 lux
+Hypnotic
+heat-
+shimmer skin
+patterns;
+strikes with
+a tentacle
+whip
+Rides geyser
+jets to
+ambush;
+needle jaws
+snap
+sideways
+Aggressive
+nest guard;
+grinding
+teeth
+audible;
+bites divers
+Buried with
+eyes up;
+electric jolt
+drains suit
+batteries
+Probes
+crevices;
+potent
+venom;
+Yields
+Obsidian Lure
+Bulb
+Copper Scale
+investigates
+blood trails
+Page 55 of 137

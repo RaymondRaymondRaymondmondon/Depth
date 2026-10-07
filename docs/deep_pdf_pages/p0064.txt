@@ -1,0 +1,192 @@
+The Deep
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+Species
+Ampere
+Leech
+Bark-Skin
+Angler
+Knot-Eye
+Grouper
+Mire
+Lamprey
+Root-Spear
+Mantis
+Moss-Cloak
+Cuttle
+Peat Pike
+Splinter Gar
+Ember-Lure
+Dragonfish
+Hollow-Log
+Octopus
+Role
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Size
+40 cm
+1.2m
+35 cm
+70 cm
+1.5 m
+50 cm
+1.5 m
+Sound
+Silent
+Silent
+40 dB,
+Low
+Silent
+50 dB,
+H igh
+Silent
+25 dB,
+Mid
+30 dB,
+Mid
+Silent
+Silent
+Eats
+Bogsnout
+Paddlefish,
+Peat Pike
+Mold-Mouth
+Goby, Fern-
+Nibbler
+Amphipod
+Heartwood
+Gnawer, Peat
+Slug, Twig
+Pipefish
+Bogsnout
+Paddlefish,
+Knot-Eye
+Grouper
+Bark-Rasp
+Isopod,
+Stone-Bark
+Chiton, Giant
+Litter Isopod
+Moss-Picker
+Shrimp, Root-
+Spear Mantis,
+Twig Pipefish
+Mold-Mouth
+Goby, Twig
+Pipefish,
+Moss-Back
+Sculpin
+Bogsnout
+Paddlefish,
+Mold-Mouth
+Goby
+Cinder Krill,
+Twig Pipefish,
+Silt Veil Jelly
+Root-Spear
+Mantis,
+Ampere
+Leech, Root-
+Claw Lobster
+Eaten by
+Moss-Back
+Sculpin,
+Hollow-Log
+Octopus
+Snag-Trunk
+Eel, Bole-Jaw
+Behemoth
+Wood-Hag,
+Mire
+Lamprey
+Mire
+Gharfish
+Moss-Cloak
+Cottle,
+Hollow-Log
+Octopus
+Canopy
+Kraken
+Mire
+Gharfish,
+Ampere
+Leech, Peat
+Hagfish
+Mire
+Gharfish
+Driftwood
+Squid
+Canopy
+Kraken
+Behavior
+Latches onto
+subs and drains
+battery charge;
+also drains fish
+bioelectricity
+Fungus-like
+lure; lies
+motionless on
+mud for days
+Guards hollow
+trunks with
+booming
+territorial calls
+Rasping
+bloodsucker;
+its open
+wounds draw
+predators
+Spearing
+strikes crack
+viewports; loud
+snaps carry far
+Grows moss on
+its mantle;
+hypnotic color
+pulses before
+striking
+Hovers still in
+brown water;
+explodes
+toward
+vibrations
+Needle jaws;
+armored scales
+look like
+splintered
+wood
+Mimics ember
+glow; hunts
+with red light
+its prey can't
+Dens in fallen
+logs; steals
+tools from
+divers
+Yields
+Bio-
+Capacitor
+Sac
+Ember
+Photophore
+Sucker
+Polymer
+pad
+Page 64 of 137

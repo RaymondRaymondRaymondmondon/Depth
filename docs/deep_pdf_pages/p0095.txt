@@ -1,0 +1,203 @@
+The Deep
+45
+47
+48
+49
+50
+51
+52
+53
+detritus, Cinder
+55
+Species
+Ossicle Mantis
+Shrimp
+Pallid
+Cutthroat Eel
+Knell Ratfish
+Sepulcher
+Squat Lobster
+Abyssal
+Scavenger
+Crab
+Ossuary
+Hagfish
+Catafalque
+Isopod
+Corpse-swarm
+Amphipod
+Wake Snailfish
+Graverobber
+Hermit
+Mortuary Lyre
+Snail
+Role
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Scavenger
+Size
+30 cm
+1.2 m
+1.4 m
+20 cm
+50 cm
+2 cm
+30 cm
+40 cm
+15 cm
+Sound
+40 dB,
+High
+Silent
+25 dB
+, Low
+15 dB,
+High
+25 dB,
+High
+Silent
+15 dB,
+High
+IO dB,
+High
+Silent
+15 dB,
+High
+Silent
+Eats
+Rib-Rasp Chiton,
+Calcite Limpet,
+Phantom
+Periwinkle,
+Ribbone
+Barnacle
+Crypt
+Bristleworm,
+Pallbearer Sea
+Pig, Ossuary
+Leech,
+Gravestone
+Tripodfish
+Vertebra Urchin,
+Headstone Clam,
+Marrow-Bore
+Shipworm,
+Sexton Basket
+Star
+Tomb-crawler
+Amphipod,
+Marrow-Snow
+Copepod,
+Mourner
+Fanworm
+bone, Marrow-
+Bore Shipworm,
+Hollowbone
+Pholad, Osedax
+Bone-Borer
+detritus, Corpse-
+Swarm
+Amphipod, Crypt
+Bristleworm
+detritus, Grave-
+Plough
+Holothurian
+detritus, marine
+snow
+detritus, Corpse-
+Swarm
+Amphipod
+detritus, bone,
+Osedax Bone-
+Borer
+Snail
+Eaten by
+Cairn Cusk-Eel
+Sepulcher Wyrm
+Sepulcher Wyrm
+Charnel
+Dragonfish, Dirge
+Gulper Eel
+Sonar-Hound,
+Echo Leviathan
+Grave-warden
+Sleeper Shark
+Grave-warden
+Sleeper Shark
+Shroud Dumbo
+Octopus,
+Ossuary Hagfish,
+Wake Snailfish
+Tombglow Angler,
+Ribtooth
+Viperfish
+Sonar-Hound
+Femur Eelpout
+Behavior
+Club strikes
+crack shells
+with gunshot-
+loud snaps
+Weaves through
+vertebra gaps
+and seizes prey
+in sudden
+strikes
+Grinding tooth
+plates crush
+shells with a
+bell-like crunch
+Crowds onto rib
+tips; snatches
+food with long
+claws
+Territorial
+around mineral
+nodes; crushes
+drills in its claws
+Burrows into
+carcasses;
+floods attackers
+with choking
+slime
+Gorges on dead
+holothurians,
+then fasts for
+months
+Swarms Of
+thousands strip
+any blood or
+carcass in
+minutes
+Gelatinous pink
+fish hovering
+around
+carcasses
+Lives in a hollow
+vertebra and
+steals scraps
+from bigger
+scavengers
+Tracks scent
+trails to carrion;
+sometimes eats
+live snails
+Yields
+Abyssal
+Scavenger
+Claw, Raw
+Scavenger
+Meat
+Hagfish Slime
+Isopod
+Carapace
+Plate
+Page 95 of 137

@@ -1,0 +1,148 @@
+The Deep
+35
+36
+37
+38
+39
+40
+Species
+Razorglass
+Octopus
+Lens
+Anglerfish
+Shatterfin
+Quartz
+Cuttlefish
+Glint Darter
+Crystal
+Stingray
+Role
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Mesopredator
+Size
+60 cm
+1.5 m
+50 cm
+25 cm
+2m
+Sound
+Silent
+Silent
+25 dB, Mid
+Silent
+20 dB,
+High
+15 dB,
+Low
+Eats
+Quartz
+Urchin,
+Prism
+Limpet,
+Lantern
+Basket-Star,
+Quartz Clam,
+Crystal
+Hermit,
+Mirror
+Lobster
+Refraction
+Shrimp,
+Crystal Sea-
+Hare, Glint
+Darter
+Clearfin
+Tang,
+Splinter Eel,
+Glint Darter,
+Shard
+Hagfish
+Facet Snail,
+Crystal Sea-
+Hare, Glass
+Mantis
+Shrimp,
+Splinter Sea-
+Spider
+Glint Krill,
+Silica
+Nibbler,
+Refraction
+Shrimp, Mica
+Goby, Glass
+Amphipod
+Swarm
+Quartz
+Urchin,
+Lattice
+Chiton,
+Splinter Sea-
+Cucumber,
+Quartz Clam,
+Crystal Sea-
+pen
+Eaten by
+Gleamtooth
+Dogfish,
+Prismatic
+Kraken
+Silica Sea-
+Snake,
+Prismjaw Gar
+Shard-Shark,
+Diamondback
+Sea-Wyrm
+Mirror-Squid,
+Refractor
+Grouper
+Mirror-Squid,
+Lens
+Anglerfish,
+Shatterfin Pike
+Glass-Jaw
+Leviathan,
+Shattermaw
+Sawshark
+Behavior
+Turns fully
+clear; sharp-
+edged
+suckers can
+slice hoses
+Lure focuses
+ambient light
+into a
+blinding
+beam
+Lunges from
+spire
+shadows; fins
+chip off on
+impact
+Copies
+crystal facets
+on its skin
+with
+hypnotic
+pulses
+Fast packs
+that streak
+through light
+beams
+Buried in
+crystal grit
+with a glass
+barb raised
+to strike
+Yields
+Focusing
+Lens
+Quartz
+Cuttlebone
+Crystal
+Barb
+Page 74 of 137

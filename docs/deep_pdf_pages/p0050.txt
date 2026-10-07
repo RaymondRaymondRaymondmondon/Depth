@@ -1,0 +1,148 @@
+The Deep
+3
+4
+5
+6
+7
+8
+9
+Species
+Cinder Larva
+Swarm
+Thermocline
+Jelly-Speck
+Ash Drift
+Amphipod
+Basalt Plate
+Crab
+Sulfur Limpet
+Iron-Foot
+Snail
+Pyre Shrimp
+Role
+Plankton
+Plankton
+Plankton
+Grazer
+Grazer
+Grazer
+Grazer
+Size
+5 mm
+1 cm
+8 mm
+45 cm
+Sound
+Silent
+Silent
+Silent
+20 dB,
+Silent
+Silent
+15 dB,
+H igh
+Eats
+Grit Spores,
+detritus
+Sulfur Mote
+Copepod
+detritus,
+Magma
+Spores
+vent bacteria,
+Soot Algae,
+Forge Crust
+vent bacteria,
+Sulfur Vent-
+Grass,
+Ventricle
+Spire
+vent bacteria,
+Pyre Moss
+vent bacteria,
+Thermal
+Cluster
+Eaten by
+Ember
+Blenny, Scald
+Clam,
+Chimney
+Barnacle
+Furnace Slug,
+Kiln
+Anemone,
+Flare
+Siphonophore
+Ember
+Feather-star,
+Ashmaw
+Basker,
+Glowjaw
+Viperfish,
+Ember Rattail
+Vent-Shark,
+Scald
+Octopus
+Copperback
+Triggerfish,
+Ember
+Stargazer
+Smelter
+Spider-Crab
+Magma-
+Snapper, Pyre
+Lionfish,
+Basalt Mantis
+Shrimp,
+Furnace
+Eelpout
+Behavior
+Mixed larvae
+sinking in
+ash-grey
+columns
+after each
+eruption
+Tiny jellies
+pooled
+where hot
+and cold
+layers meet;
+mildly
+stinging
+Drifts in ash
+snow;
+swarms onto
+fresh blood
+within
+seconds
+Armored
+vent crab;
+clicks claws,
+wedges into
+basalt cracks
+when
+threatened
+Clamps to
+chimney
+walls; slowly
+scrapes
+sulfur films
+at night
+Iron-sulfide
+scaled foot;
+magnetic;
+clusters near
+the hottest
+vents
+Thousands
+mob
+chimney
+rims; back-
+eye senses
+magma glow
+Yields
+Basalt
+Carapace
+Heat-Scale
+Page 50 of 137

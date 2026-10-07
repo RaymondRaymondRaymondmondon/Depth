@@ -1,0 +1,207 @@
+The Deep
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+Species
+Ember Ant
+Mangrove
+Midge
+Lantern Firefly
+Shore Sand-
+Hopper
+Bark Termite
+Coconut
+Robber Crab
+Thicket Moa
+Frond Iguana
+Bamboo
+Tortoise
+Orchard Flying-
+FOX
+Tusk Boar
+Crag Goat
+Fern
+Chevrotain
+Role
+Micro-fauna
+Micro-fauna
+Micro-fauna
+Micro-fauna
+Micro-fauna
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Grazer
+Size
+1.5 cm
+legspan
+1.6 m tall
+1.2 m
+1 m shell
+1.4 m
+wingspan
+1.5 m
+1.1 m
+45 C m
+Sound
+Silent
+15 dB
+Silent
+Silent
+10 dB
+30 dB
+55 dB
+20 dB
+25 dB
+60 dB
+65 dB
+50 dB
+15 dB
+Eats
+Jungle Orchid,
+detritus
+detritus
+Jungle Orchid
+detritus
+Iron-Wood Vine
+Aqua Nut-Tree,
+Coastal Shrub
+Fern Root, Wild
+Grass
+Palm Fern,
+Coastal Shrub
+Fruit Cactus,
+Wild Grass
+Bamboo Nut-
+Tree, Shore
+Orchid
+Fern Root, Wild
+Grass
+Cliff Grass, Peak
+Shrub
+Fern Root, Orchid
+Fern, Mist Root
+Eaten by
+Ridgeback
+Pangolin, Dart-
+Bark Frog, Cinder
+Centipede
+Glass-Wing
+Swiftlet,
+Mangrove
+Mudskipper,
+Dart-Bark Frog,
+Web-Lord Spider
+Glow-Eater
+Gecko, Web-Lord
+Spider, Glass-
+Wing Swiftlet
+Moon Ghost-
+Crab, Crimson
+Stilt, Mangrove
+Mudskipper, Ash
+Gull
+Ridgeback
+Pangolin, Glow-
+Eater Gecko
+Mangrove
+Monitor,
+Typhoon-Bird
+Ash Panther,
+Typhoon-Bird
+Sand-Coil Viper,
+Mangrove
+Monitor
+Cinder Dragon,
+Typhoon-Bird
+Canopy Stalker,
+Fig Python
+Ash Panther, Fig
+Python
+Cinder Dragon
+Canopy Stalker,
+Fig Python
+Behavior
+Red colonies
+near vents;
+stinging swarms
+if the nest is
+trampled
+Dusk clouds
+over mangrove
+mud; bites blur
+player vision
+briefly
+Pulses a 2 lux
+green glow at
+night; marks
+orchid patches
+Erupts from wet
+sand when
+stepped on;
+feeds on
+stranded wrack
+Builds clay
+towers; hollows
+dead ironwood,
+weakening
+timber
+Climbs palms at
+night; steals
+shiny gear from
+camps
+Flightless;
+booming calls;
+kicks hard when
+cornered
+Basks on beach
+rocks; drops
+into the sea if
+startled
+Slow giant;
+wallows in
+stream mud in
+the midday heat
+Roosts in loud
+colonies;
+disperses at
+dusk to feed
+Roots the jungle
+floor in herds;
+charges noisy
+players
+Scales sheer
+cliffs; dislodged
+rocks cause
+falls
+Tiny tusked
+deer; freezes,
+then bolts
+through
+undergrowth
+Yields
+Crab Meat,
+Robber Crab
+Chitin
+Down Feathers
+(insulation), Moa
+Eggs
+Tortoise Shell
+Plate
+Boar Hide, Lard
+(cooking fuel)
+Goat Wool
+Page 107 of 137

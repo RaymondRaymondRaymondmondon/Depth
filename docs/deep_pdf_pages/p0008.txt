@@ -1,0 +1,35 @@
+The Deep
+Wake tiers. Higher Wake draws bigger threats, in order:
+1. Minor disturbances (30 to 50 dB): attract curiOUS grazing fish and opportunistic
+scavengers.
+2. Moderate mechanical noise (50 to 80 dB): draws aggressive mesopredators (sharks,
+hunting eels, pack hunters).
+3. High-energy impacts or blood spills (80+ dB, or chemical spills): trigger a biome-wide
+territorial response from the apex leviathan.
+Player noise. Mining a node with a laser makes a high-pitched whine. A speargun shot
+makes a distinct thwack. Even swimming with flippers makes low-frequency water
+displacement that nearby stalker-class predators can track. Firing weapons and
+wounding fish both build Wake, which is why fighting anything bigger than the player is
+strongly discouraged.
+Living ecosystem simulation
+The ocean runs on a background simulation (called the Dynamic Trophic Simulation, or
+DTS, engine in v4) built from five interlocking systems: biomass conservation, sound
+propagation, scent drifting on currents, state-driven creature Al, and daily vertical
+migration. The sources describe it as a living food web inspired by the reactive
+environments of The Trawl, not a set of scripted spawns.
+Biomass and trophic cascades
+Each biome has a total biomass pool split across five levels:
+(producers) + Bl (primary consumers) + B2 (mesopredators) + B3
+B total
+(apex leviathans) + B4 (decomposers)
+• Producers (BO) regrow from the biome's energy source (E_env): sunlight in shallow
+water, heat at volcanic vents, chemical energy in the trenches. Producer biomass sets
+each region's creature population caps.
+• Energy passes up each level at about 12% efficiency (n = 0.12). Grazers eat biomass to
+reproduce; predators need calories to keep up stamina and aggression.
+• Over-harvesting cascade: if players over-hunt grazers (Bl) for rations, for example
+schools of Chromis Gliders, Bl falls below the biome's stability threshold (Bl,min).
+• Starving mesopredators: without prey, B2 predators enter the STARVING state. Their
+perception radius grows by 350%, their fear threshold drops to zero, and they attack
+other species, players, and the Nautilus hull, trying to break into the Larder and
+Page 8 of 137

@@ -1,0 +1,81 @@
+The Deep
+Station
+Pressure Grill
+Hydro-Juicer
+Bio-Distiller
+(alchemy)
+Abyssal Forge
+Artisan Bench
+Cost
+3 Titanium, 1 Kelp-Grazer Blubber
+1 Reinforced Glass, 2 Bio-Polymers
+2 Reinforced Glass, 1 Silt-Sieving
+Bio-Calcite, 1 Titanium
+4 Titanium, 2 Table Coral Slab
+2 High-Tensile Mesh, 2 Titanium
+What it does
+Sears meat; prevents food
+poisoning from raw fish
+Blends flora and fauna into high-
+calorie, stat-boosting drinks
+Refines enzymes, heavy metals,
+and rare glands into elixirs and
+medical injectors
+Crafts, upgrades, and repairs
+personal gear, weapons, and tools
+Turns salvage into furniture,
+lighting, and trophies (see the
+cosmetics catalog)
+Water purification progresses from slow mechanical boiling to fast biological filtering.
+Hunger and thirst management balances basic calories against strategic buffs.
+Food and drink (Pressure Grill and Hydro-Juicer)
+Recipe
+Charred
+Scavenger Crab
+Abyssal Sushi
+Roll
+Luminescent
+Nectar
+Iron-Kelp
+Smoothie
+Sunlit Seltzer
+Ingredients
+1 Raw Scavenger
+1 Raw Reef-Snapper,
+1 Solar-Carpet Algae
+2 Phosphor Mats, 1
+Purified Water
+2 Iron-Kelp Fronds, 1
+Solar-Carpet Algae
+2 Solar-Carpet Algae,
+1 Purified Water
+Station
+Grill
+Grill
+Juicer
+Juicer
+Juicer
+Restores
++30 hunger
++50 hunger,
++10 hydration
+hydration
++20 hunger,
++20
+hydration
++30
+hydration
+Effect
+High protein lowers
+stamina drain for 5
+min
+None
+Veins glow, giving a
+faint 15 m personal
+light for 10 min
+Temporary +15%
+physical damage
+resistance
++10% swim speed for
+5 min
+Page 127 of 137

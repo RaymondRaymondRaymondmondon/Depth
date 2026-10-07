@@ -1,0 +1,88 @@
+The Deep
+Recipe
+Kelp-Grazer
+Broth
+Cavern Cold-
+Brew
+Silt-Sifter
+Shake
+Chromis Bait-
+Blend
+Ingredients
+1 Kelp-Grazer
+Blubber, 1 Iron-Kelp
+Frond, 1 Distilled
+Water
+2 Lantern Vine
+Seeds, 1 Purified
+Water
+1 Silt-Sieving Bio-
+Calcite, 1 Raw
+Scavenger Meat
+3 Raw Chromis
+Gliders, 1 Solar-
+Carpet Algae
+Station
+Juicer
+Juicer
+Juicer
+Juicer
+Restores
++40 hunger,
++20
+hydration
++20
+hydration
++50 hunger,
+-10 hydration
+Not drinkable
+Effect
+Effect
+Internal insulation;
+core temperature
+drops much more
+slowly in freezing
+currents
+No stamina drain for
+60 s, for escaping
+cavern ambushes
+5 min immunity to
+nausea from chemical
+vents
+Foul chum: load into
+the suit's decoy
+launcher or drop by
+hand to instantly
+distract Reef-
+Snappers
+Elixirs and injectors (Bio-Distiller)
+Recipe
+Apex Scent-Mask
+Marrow Anti-Toxin
+Hyper-Oxygenate
+Syringe
+Acoustic Dampening
+Serum
+Ingredients
+1 Rusted Iron Scrap, 1 Tangle-
+Serpent Scale
+1 Root-Marrow Worm Enzyme, 1
+Distilled Water
+2 Solar-Carpet Algae, 1 Cave
+Cleaner Beetle Chitin
+1 Echo-Ray Vocal Cord, 1 Bio-
+Polymer Glue
+Masks the player's scent with
+the dreadnought's heavy-metal
+signature; leviathans can't track
+them by smell for 8 min
+Instantly cures venom (such as
+Reef-Snapper bites); 3 min
+poison immunity
+Triples maximum breath for
+deep cave dives, for 15 min
+Cots all player noise (swimming,
+tools, mining) by 60% for 5 min;
+crucial in the Abyssal
+Graveyard
+Page 128 of 137

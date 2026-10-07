@@ -1,0 +1,65 @@
+The Deep
+Tier
+High
+Examples
+Void-Crystals, Abyssal
+Marrow
+How they're found
+Guarded by apex predators; need heavy mining
+equipment to extract
+Cutting and mining tools
+Flora and mineral tiers in the ecosystem tables tell players which tool they need: tier 1 by
+hand or knife, tier 2 Heated Blade or Starter Drill, tier 3 Mid-Tier Drill or Heated Blade Mk II,
+and the deepest tier 3 deposits in the Graveyard and Void need the Mining Laser.
+Tool
+Survival Knife
+Heated Blade
+Heated Blade Mk II
+Starter Drill
+Mid-Tier Drill
+(Acoustic Mining
+Drill)
+Mining Laser
+(endgame drill)
+Weapons
+Unlocked
+Start
+Phase 2
+Phase 6
+Phase 1
+Phase 4
+Phase 8
+Cots or mines
+Soft flora, early tangles
+(Tangle Vines, ordinary
+kelp fouling a propeller),
+small predators
+Iron-Kelp stalks and the
+later Iron-Kelp tangles that
+foul propellers; thick
+woody flora; cauterizes
+wounds on hit
+Crystal and petrified flora
+(Crystal Reef, Drowned
+Forest tier 3)
+Tier 2 mineral nodes and
+hard flora: Titanium Ore,
+coral rods, copper and
+quartz nodes
+Tier 3 nodes, abyssal
+calcium deposits, Diamond
+Clusters, Fossilized
+Leviathan Ribs
+Endgame deposits: Crypt
+Spire, Monolith Cap, Void-
+Crystal veins
+Noise
+Near silent
+Low hiss
+Low hiss
+70 dB, Mid
+110 dB, Low and Mid
+95 dB, High whine; little
+low-band rumble, but
+high-band hunters hear it
+Page 12 of 137

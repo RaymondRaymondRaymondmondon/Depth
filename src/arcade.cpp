@@ -7,6 +7,7 @@
 #include "game.h"
 #include "nightoff.h"
 #include "arcade_session.h"
+#include "deep_launch.h"
 #include "scuttle.h"
 #include "flight_net.h"
 #include "warp_net.h"
@@ -201,7 +202,7 @@ void DrawReels(Game& g) {
     Glow(c, 360, Color{60, 220, 210, 50});
     TxtBold("THE DEEP ARCADE", c.x - MeasureTxt("THE DEEP ARCADE", 30, true) / 2.0f, c.y - 250, 30, SCREEN_INK);
     struct Reel { int game; const char* players; const char* length; const char* line; };
-    const int NREELS = 13;
+    const int NREELS = 14;
     const Reel reels[NREELS] = {
         {G_FLATS_DUEL, "2 players", "8-12 min", "Flats against a person: a best of three at the table."},
         {G_TRAWL, "1-6 co-op", "30-35 min", "Work a steam trawler by night: catch it, kill it, cook it, sell it, and meet the Owners' quota."},
@@ -216,11 +217,12 @@ void DrawReels(Game& g) {
         {G_FOWL, "1-6 players (bots fill the stalls)", "25 min", "A light-gun duck shoot with money: thirty toy guns, slots and scratchers, and sabotage for your friends."},
         {G_NOCLIP, "1-6 co-op (solo with bot salvagers)", "45-90 min", "Scavenge the Backrooms for the Bureau: carry it to a Threshold Lab, signal the portal, and make the week's quota."},
         {G_BALLPIT, "2-12 players (solo with bots)", "10-15 min", "Foam guns in a four-storey play centre: climb the nets, ride the slides, hide in the ball pits - and any live ball is a knockout."},
+        {G_DEEP, "1-4 co-op", "a long saved campaign", "Adrift on a raft at night: board the derelict Nautilus, repair her room by room, and take her down through a living ocean."},
     };
     // the games in five groups (the playtesters' call): a tab row, and the drum shows one group's reels
     static const char* CATS[5] = {"Action", "Strategy", "Fighting", "Traditional", "Slop"};
-    static const int CAT_N[5] = {3, 2, 3, 2, 3};
-    static const int CAT_LIST[5][3] = {{1, 4, 11}, {5, 3, -1}, {6, 8, 12}, {0, 2, -1}, {7, 9, 10}};   // (reel indices: the Trawl, Red Tide, NOCLIP | the Flight, Fathoms | Mouthful, Scuffle | Flats Duel, Scuttle | A Night Off, Warp Dodgeball, Fowl Play)
+    static const int CAT_N[5] = {4, 2, 3, 2, 3};
+    static const int CAT_LIST[5][4] = {{1, 4, 11, 13}, {5, 3, -1, -1}, {6, 8, 12, -1}, {0, 2, -1, -1}, {7, 9, 10, -1}};   // (reel indices: the Trawl, Red Tide, NOCLIP, The Deep | the Flight, Fathoms | Mouthful, Scuffle, Ball Pit | Flats Duel, Scuttle | A Night Off, Warp Dodgeball, Fowl Play)
     auto catOf = [&](int reel) { for (int k = 0; k < 5; k++) for (int j = 0; j < CAT_N[k]; j++) if (CAT_LIST[k][j] == reel) return k; return 0; };
     auto posIn = [&](int reel) { int k = catOf(reel); for (int j = 0; j < CAT_N[k]; j++) if (CAT_LIST[k][j] == reel) return j; return 0; };
     static int lastCat = -1;
@@ -267,7 +269,7 @@ void DrawReels(Game& g) {
             DrawRectangleRoundedLinesEx(r, 0.25f, 8, 2, ColorLerp(Color{6, 20, 24, 255}, on ? Pal::Brass : Pal::BrassDk, ca));
             if (ca > 0.45f) {
                 DrawTextCenteredBold(Info(reels[i].game).name, c.x, r.y + 8 * ca, (int)(26 * ca), ColorLerp(Color{40, 70, 72, 255}, on ? Color{220, 255, 244, 255} : SCREEN_DIM, ca));
-                if (on && ca > 0.8f) DrawTextCentered(TextFormat("%s   -   %s%s", reels[i].players, reels[i].length, Info(reels[i].game).built || reels[i].game == G_TRAWL || reels[i].game == G_RED_TIDE || reels[i].game == G_FLIGHT || reels[i].game == G_MOUTHFUL || reels[i].game == G_NIGHT_OFF || reels[i].game == G_SCUFFLE || reels[i].game == G_WARP || reels[i].game == G_FOWL || reels[i].game == G_NOCLIP ? "": "   -   coming aboard later"), c.x, r.y + 40 * ca, 15, Color{180, 230, 220, 255});
+                if (on && ca > 0.8f) DrawTextCentered(TextFormat("%s   -   %s%s", reels[i].players, reels[i].length, Info(reels[i].game).built || reels[i].game == G_TRAWL || reels[i].game == G_RED_TIDE || reels[i].game == G_FLIGHT || reels[i].game == G_MOUTHFUL || reels[i].game == G_NIGHT_OFF || reels[i].game == G_SCUFFLE || reels[i].game == G_WARP || reels[i].game == G_FOWL || reels[i].game == G_NOCLIP || reels[i].game == G_DEEP ? "": "   -   coming aboard later"), c.x, r.y + 40 * ca, 15, Color{180, 230, 220, 255});
             }
             if (CheckCollisionPointRec(GetMousePosition(), r) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gSel = i;
         }
@@ -447,6 +449,18 @@ void DrawReels(Game& g) {
           if (known == 1 && Button({c.x + 120, c.y + 236, 150, 36}, "Resume save", true, 15)) { if (ResumeFathoms(g)) return; known = 0; }
           if (known == 1 && Button({c.x - 270, c.y + 236, 150, 36}, gFaResume ? "Host: the save" : "Host: a new map", true, 13)) gFaResume = !gFaResume; }
         DrawTextCentered("Host or Join for friends (AI captains take the empty seats)", c.x, c.y + 280, 13, SCREEN_DIM);
+    }
+    if (selGame == G_DEEP) {   // The Deep is its own program (Unity): Depth starts it and waits, minimised, until it closes
+        static std::string deepMsg;
+        static bool wasRunning = false;
+        bool running = DeepRunning();
+        if (wasRunning && !running) RestoreWindow();   // (back from The Deep)
+        wasRunning = running;
+        if (Button({c.x - 110, c.y + 236, 220, 36}, running ? "The Deep is running" : "Dive (solo)", !running, 15)) {
+            std::string err;
+            if (LaunchDeep("solo", "", gProfile.name, &err)) { deepMsg = ""; MinimizeWindow(); wasRunning = true; } else deepMsg = err;
+        }
+        DrawTextCentered(deepMsg.empty() ? "Host and Join for a crew of four come with the game's multiplayer stage" : deepMsg.c_str(), c.x, c.y + 280, 13, deepMsg.empty() ? SCREEN_DIM : Color{255, 170, 140, 255});
     }
     if (selGame == G_BALLPIT) {   // solo: you and the bots (Host or Join above for friends: up to twelve)
         static int bpSkill = 1;

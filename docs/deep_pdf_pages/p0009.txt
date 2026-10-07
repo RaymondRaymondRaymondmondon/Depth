@@ -1,0 +1,32 @@
+The Deep
+Hydroponics Bay or the moonpool's organic cargo.
+• Invasive apex migration: starving apex leviathans (B3) leave their territory and move
+into neighboring, shallower biomes, creating dangerous encounters in early-game
+areas.
+• Ecosystem memory: over-harvesting a zone's forage fish makes its larger predators
+hungrier, more desperate, and more aggressive toward players on later dives.
+Energy flows up the food chain; harvesting starves the hunters
+Environmental energy
+Sunlight, vents, chemicals
+Level O: Producers
+Algae, tubeworms, microbe mats
+Level I: Grazers
+Grazing fish, manatees
+Level 2: Hunters
+Stalkers, snappers, rays
+Level 3: Apex
+Leviathans, maws
+trophic energy flow • from the v5 source diagram
+Scent on the currents
+Player harvesting
+Rations, spearfishing
+prey biomass drops,
+hunters starve
+• Wounding a creature spills blood and chemical signatures into the water at
+concentration C. The scent cloud drifts downstream along the real-time current
+vectors.
+• Predators follow the scent gradient upstream to the injury site.
+• Above 1.5 ppm, nearby mesopredators and scavengers drop their normal hunting and
+enter a blood frenzy, attacking anything that moves, including sub viewports and
+divers. Blood spills also permanently raise the zone's Wake.
+Page 9 of 137
