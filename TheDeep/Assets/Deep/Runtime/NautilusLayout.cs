@@ -15,6 +15,7 @@ namespace Deep
     [Serializable] public class NLWindow { public string room; public float x, y, z, ra, rb; }
     [Serializable] public class NLMoonpool { public float x0, x1, z0, z1, y; }
     [Serializable] public class NLLight { public string kind; public float[] pos, dir; }
+    [Serializable] public class NLGauges { public float[] depth, clock; }
 
     [Serializable]
     public class NautilusLayout
@@ -29,6 +30,7 @@ namespace Deep
         public NLMoonpool moonpool;
         public NLLight[] lights;
         public float[] helmWheel;
+        public NLGauges gauges, bridgeGauges;
 
         public static NautilusLayout Load()
         {

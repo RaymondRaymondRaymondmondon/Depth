@@ -73,5 +73,8 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
   and paints a 260 m depth chart, ground standing over her keel in orange; passive listening waits for stage 3's
   creatures. Station boxes keep you out of the fittings.
 - Shots added: `flooding` (90 s after a breach), `sonar`.
-- **Still to do in stage 2:** the station fittings turning (wheel, telegraph handle, gauges), the passive sonar's
-  contacts (with stage 3), stoking the boiler (with stage 4's items), sound aboard (stage 7).
+- **Moving fittings** (`ShipFittings.cs`, built in code on pivots): the helm's wheel turns with the rudder, the Bridge
+  telegraph's handle stands at the ordered rung, depth gauge needles (the pilot house's with a red order needle) and
+  the Bridge clock's hands. Shots `telegraph`, `gauges`; `helm` shows the wheel put over.
+- Left for later stages: the passive sonar's contacts (stage 3's creatures), stoking the boiler (stage 4's items).
+  **All sound waits for one full sound stage** (the user, 2026-10-07).

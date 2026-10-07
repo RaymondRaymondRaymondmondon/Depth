@@ -57,6 +57,7 @@ namespace Deep
             n.Lamps();
             n.MoonpoolWater();
             n.sys = ShipSystems.Attach(n);
+            ShipFittings.Attach(n);
             return n;
         }
 

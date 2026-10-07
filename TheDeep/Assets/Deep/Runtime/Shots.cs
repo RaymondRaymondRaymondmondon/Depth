@@ -10,7 +10,7 @@ namespace Deep
     {
         public static bool HideOcean;
         static readonly string[] All = { "debugdown", "debugair", "reef", "kelp", "up", "above", "night", "drop", "meadow",
-            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar" };
+            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges" };
 
         public void Run(string which, string dir) { StartCoroutine(Go(which, dir)); }
 
@@ -82,6 +82,7 @@ namespace Deep
                     b.clock.hour = 11f; Power(true); ship.telegraph = 3; ship.depthOrder = ship.Depth - 4f;
                     for (int i = 0; i < 400; i++) ship.Sail(0.05f);
                     foreach (var st in ship.L.stations) if (st.kind == "helm") b.diver.Man(st);
+                    ship.rudder = 0.6f;
                     b.diver.pitch = 4; b.diver.head.localRotation = Quaternion.Euler(4, 0, 0);
                     return true;
                 }
@@ -101,6 +102,18 @@ namespace Deep
                     b.clock.hour = 11f; Power(true);
                     foreach (var st in ship.L.stations) if (st.kind == "sonar") b.diver.Man(st);
                     ship.sys.Ping();
+                    return true;
+                }
+                case "telegraph":
+                {
+                    b.clock.hour = 11f; Power(true); ship.telegraph = 5;
+                    b.diver.PlaceAboard(23.35f, 1.3f, Nautilus.Floor, 12f, 30f);
+                    return true;
+                }
+                case "gauges":
+                {
+                    b.clock.hour = 10.3f; Power(true); ship.depthOrder = ship.Depth; ship.telegraph = 2;
+                    b.diver.PlaceAboard(20.6f, 0.4f, Nautilus.Floor, -112f, 10f);
                     return true;
                 }
                 case "dark": { b.clock.hour = 11f; Power(false); b.diver.lampOn = true; b.diver.PlaceAboard(7.0f, 0.3f, Nautilus.Floor, 0f, 2f); return true; }
