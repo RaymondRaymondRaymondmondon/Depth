@@ -66,6 +66,10 @@ namespace Deep
             Toast(health > 0 ? $"{by} bites! ({health:0} health)" : $"Taken by the {by}...");
             if (health > 0) return;
             if (Opening.Active && Opening.I.Respawn()) return;
+            // the campaign's death rule: what you carried stays where you fell
+            Drops.I?.LeaveHere(this);
+            if (onRaft != null) LeaveRaft();
+            if (piloting != null) LeaveKiteSub(true);
             health = 60f; oxygen = oxygenMax;
             if (ship) foreach (var s in ship.L.stations) if (s.kind == "lockers") { Board(ship.StandLocal(s), Nautilus.FacingYaw(s), $"You come to in the Dive Room. ({by})"); break; }
         }
@@ -308,8 +312,12 @@ namespace Deep
                 if (e) LeaveKiteSub(false);
                 return;
             }
+            // a satchel left by the dead, anywhere
+            if (Drops.I != null && !climbing && manning == null && Drops.I.Near(this, e, ref hint)) return;
             if (aboard)
             {
+                // the decorations (and placing one)
+                if (Decor.I != null && !climbing && manning == null && Decor.I.Aimed(this, e, ref hint)) return;
                 var g = Nautilus.FromLocal(ship.Proxy.InverseTransformPoint(transform.position));
                 if (climbing && onLadder != null && !(onLadder.hatch == "deck" && g.y > onLadder.y1 - 0.8f)) { hint = "W/S  climb    Space  let go"; return; }
                 foreach (var t in ship.L.ladders)
@@ -395,7 +403,7 @@ namespace Deep
                         }
                         break;
                     case "cabin":
-                        hint = "A cabin, yours to make your own (furnishing it comes with the campaign)";
+                        hint = "A cabin, yours to make your own: Artisan Bench decorations (at the forge), then Tab, choose one, Place it";
                         break;
                     case "fabricator": case "forge": case "grill": case "desalinator": case "planter":
                         hint = "E  Use " + StationName(s.kind).ToLowerInvariant();

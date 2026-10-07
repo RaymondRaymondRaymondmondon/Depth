@@ -70,7 +70,9 @@ namespace Deep
                 var c = waitCam.AddComponent<Camera>(); c.clearFlags = CameraClearFlags.SolidColor; c.backgroundColor = new Color(0.01f, 0.04f, 0.06f);
                 return;
             }
-            BuildWorld(Args.Seed);
+            // a campaign to continue: its seed builds the world (the host's or a solo diver's; a crewmate's comes from the host)
+            var save = Campaign.Peek();
+            BuildWorld(save != null ? save.seed : Args.Seed, save);
         }
 
         void Update()
@@ -78,12 +80,12 @@ namespace Deep
             if (!waiting || Net.I == null || Net.I.welcome == null) return;
             waiting = false;
             Destroy(waitCam);
-            BuildWorld(Net.I.welcomeSeed);
+            BuildWorld(Net.I.welcomeSeed, null);
             Net.I.ApplyWelcome();
             if (Args.NetTest) Net.I.StartTest();
         }
 
-        void BuildWorld(int seed)
+        void BuildWorld(int seed, SaveFile save)
         {
             Args.Seed = seed;
             clock = gameObject.AddComponent<Clock>();
@@ -104,10 +106,18 @@ namespace Deep
             Hands.Attach(diver);
             Survival.Attach(diver);
             CraftUI.Attach(diver);
+            Decor.Attach(ship, diver);
+            Drops.Attach(diver, ship);
+            Campaign.Attach(save);
+            Perf.Attach();
             weather = Weather.Make();
             weather.mirror = Net.IsGuest;
-            // the opening: the night raft, the storm, boarding her (not in the screenshot harness unless asked)
-            if (!Args.SkipOpening && string.IsNullOrEmpty(Args.Shot)) Opening.Begin(this);
+            // the opening: the night raft, the storm, boarding her (not in the screenshot harness unless asked; not in a
+            // campaign that's past it)
+            bool past = save != null && save.openingDone;
+            if (!Args.SkipOpening && !past && string.IsNullOrEmpty(Args.Shot) && !Args.SaveTest) Opening.Begin(this);
+            if (save != null) Campaign.I.Apply(save);
+            if (Args.SaveTest) Campaign.I.SelfTest();
             if (Net.IsHost) { Net.I.WorldReady(); if (Args.NetTest) Net.I.StartTest(); }
             look.Bind(diver.cam, clock);
             gameObject.AddComponent<Hud>().Bind(diver, clock);

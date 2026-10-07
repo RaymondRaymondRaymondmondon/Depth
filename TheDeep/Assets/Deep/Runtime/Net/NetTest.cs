@@ -230,7 +230,27 @@ namespace Deep
             Check((Raft.I.occupied & (1 << B.seat)) != 0, $"{B.mateName} is in the raft (seats {Raft.I.occupied})");
             Check((r1 - r0).magnitude > 1f, $"{B.mateName}'s rowing moves it ({(r1 - r0).magnitude:0.0} m)");
 
-            // 11. a crewmate leaves
+            // 11. a decoration set down on a crewmate's PC is aboard on every PC
+            Ask(A.seat, 16); yield return Await(A.seat, 16);
+            yield return new WaitForSeconds(1.5f);
+            int beds = 0; foreach (var pl in Decor.I.placed.Values) if (pl.item == "galleon_captains_bed") beds++;
+            Check(beds == 1, $"the bed {A.mateName} set down is aboard on the host's PC");
+            Ask(B.seat, 17); yield return Await(B.seat, 17);
+            var rd = Report(B.seat, 17);
+            Check(rd != null && rd.I32() == Decor.I.placed.Count, $"and on {B.mateName}'s");
+
+            // 12. a crewmate dies: their pack is left where they fell, and they recover it
+            HurtMate(A, 500f, "a test");
+            yield return new WaitForSeconds(1.5f);
+            Drops.Drop left = null; foreach (var dr in Drops.I.drops.Values) if (dr.owner == A.mateName) left = dr;
+            Check(left != null && left.Count > 0, $"{A.mateName}'s pack lies where they died ({(left != null ? left.Count : 0)} things)");
+            Ask(A.seat, 18); yield return Await(A.seat, 18);
+            yield return new WaitForSeconds(1.5f);
+            Ask(A.seat, 19); yield return Await(A.seat, 19);
+            var rk = Report(A.seat, 19);
+            Check(rk != null && rk.I32() > 0 && (left == null || !Drops.I.drops.ContainsKey(left.id)), $"{A.mateName} recovers it ({(rk != null ? "back in the pack" : "no answer")})");
+
+            // 13. a crewmate leaves
             Ask(B.seat, 15);
             t0 = Time.time;
             while (Time.time - t0 < 20f && mates.ContainsKey(B.seat)) yield return null;
@@ -290,6 +310,15 @@ namespace Deep
                 case 13: if (ship.sys.breaches.Count > 0) ship.sys.Patch(ship.sys.breaches[0], 3.2f); break;
                 case 14: StartCoroutine(Row()); break;
                 case 15: StartCoroutine(QuitSoon(0)); return;
+                case 16: Net.DecorPlace("galleon_captains_bed", Nautilus.G(16f, Nautilus.Floor, 0.5f), Quaternion.Euler(0, 90, 0)); break;
+                case 17: w.I32(Decor.I.placed.Count); break;
+                case 18:
+                {
+                    Drops.Drop mine = null; foreach (var dr in Drops.I.drops.Values) if (dr.owner == myName) mine = dr;
+                    if (mine != null) DropTake(mine.id);
+                    break;
+                }
+                case 19: { var hp = d.GetComponent<Hands>(); int k = 0; foreach (var s in hp.pack.slots) k += s.count; w.I32(k); break; }
             }
             ToHost(w, true);
         }

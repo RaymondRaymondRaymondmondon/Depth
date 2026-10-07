@@ -284,6 +284,7 @@ namespace Deep
 
         // the most the shaders get each frame: the nearest lamps to the camera
         readonly List<(float d, int i)> near = new List<(float, int)>();
+        readonly List<(float d, Vector3 w, Color col, float range)> decorNear = new List<(float, Vector3, Color, float)>();
         void LateUpdate()
         {
             powerK = Mathf.MoveTowards(powerK, power ? 1 : 0, Time.deltaTime * 0.8f);
@@ -299,9 +300,22 @@ namespace Deep
             near.Sort((a, b) => a.d.CompareTo(b.d));
             int n = 0;
             float t = Time.time;
+            // the decorations' lights near the eye take the places of the farthest room lamps (the budget stays 16:
+            // every lamp costs every lit pixel on this PC)
+            decorNear.Clear();
+            if (Decor.I != null)
+                foreach (var dl in Decor.I.Lights())
+                {
+                    var w = WorldPoint(dl.local);
+                    float dd = (w - c).magnitude;
+                    if (dd < dl.range + 4f) decorNear.Add((dd, w, dl.col, dl.range));
+                }
+            decorNear.Sort((a, b) => a.d.CompareTo(b.d));
+            if (decorNear.Count > 5) decorNear.RemoveRange(5, decorNear.Count - 5);
+            int roomCap = 16 - decorNear.Count;
             foreach (var (_, i) in near)
             {
-                if (n >= 16) break;
+                if (n >= roomCap) break;
                 var lp = lamps[i];
                 Color col;
                 if (powerK > 0.01f)
@@ -318,10 +332,18 @@ namespace Deep
                 lampCol[n] = new Vector4(col.r, col.g, col.b, lp.water ? 1 : 0);
                 n++;
             }
+            // the decorations' lights (they glow without her power)
+            foreach (var dl in decorNear)
+            {
+                float fl = 0.92f + 0.08f * Mathf.PerlinNoise(t * 0.7f, dl.w.x);
+                lampPos[n] = new Vector4(dl.w.x, dl.w.y, dl.w.z, dl.range);
+                lampCol[n] = new Vector4(dl.col.r * fl, dl.col.g * fl, dl.col.b * fl, 0);
+                n++;
+            }
             // the crewmates' helmet lamps (a point of light a little ahead of each helmet, out in the water)
             foreach (var m in Net.Crew())
             {
-                if (n >= 24) break;
+                if (n >= 18) break;
                 if (!m.LampLight(out var at, out var dir)) continue;
                 var w = at + dir * 2.5f;
                 if ((w - c).sqrMagnitude > 90f * 90f) continue;
@@ -356,6 +378,15 @@ namespace Deep
         {
             Body.rotation = Quaternion.Euler(0, Body.rotation.eulerAngles.y, 0);
             sailingInit = false;
+        }
+
+        // a saved campaign: where she was and what she was ordered
+        public void Restore(Vector3 pos, Quaternion rot, float hd, int tele, float depthOrd, float headingOrd, bool holdD, bool holdH)
+        {
+            Body.SetPositionAndRotation(pos, rot);
+            InitSailing();
+            heading = hd; telegraph = Mathf.Clamp(tele, 0, TeleNames.Length - 1);
+            depthOrder = depthOrd; headingOrder = headingOrd; holdDepth = holdD; holdHeading = holdH;
         }
 
         void InitSailing()

@@ -17,6 +17,7 @@ namespace Deep
         Seabed bed;
         readonly List<Matrix4x4> batch = new List<Matrix4x4>(1023);
         public int Total;
+        public static float DistScale = 1f;      // Perf.cs: how far plants are drawn (1 full)
 
         static long Key(int cx, int cz) => ((long)cx << 32) ^ (uint)cz;
 
@@ -339,7 +340,7 @@ namespace Deep
             var planes = GeometryUtility.CalculateFrustumPlanes(cam);
             foreach (var k in kinds)
             {
-                float dist = Mathf.Min(k.drawDist, cam.farClipPlane);
+                float dist = Mathf.Min(k.drawDist * DistScale, cam.farClipPlane);
                 int r = Mathf.CeilToInt(dist / CellSize);
                 int cx0 = Mathf.FloorToInt(c.x / CellSize), cz0 = Mathf.FloorToInt(c.z / CellSize);
                 var rp = new RenderParams(k.mat) { shadowCastingMode = k.name == "kelp" || k.name == "table_coral" || k.name == "root_kelp" ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off, receiveShadows = true };

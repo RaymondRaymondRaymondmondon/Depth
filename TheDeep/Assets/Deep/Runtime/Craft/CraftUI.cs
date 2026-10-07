@@ -49,7 +49,7 @@ namespace Deep
         {
             switch (k)
             {
-                case "fabricator": return "The Fabricator"; case "forge": return "The Abyssal Forge"; case "grill": return "The Pressure Grill";
+                case "fabricator": return "The Fabricator"; case "forge": return "The Abyssal Forge and the Artisan Bench"; case "grill": return "The Pressure Grill";
                 case "desalinator": return "The Thermal Desalinator and the Bio-Osmosis Filter"; case "planter": return "Hydroponics: the Hydro-Juicer"; case "moonpool": return "The Moonpool"; case "boiler": return "The Boiler";
             }
             return k;
@@ -133,6 +133,15 @@ namespace Deep
             {
                 GUI.Label(new Rect(r.x, y + 50, r.width, 24), sel.name, title);
                 GUI.Label(new Rect(r.x, y + 78, r.width, 120), (sel.description ?? "") + (sel.source != null ? $"\nFrom: {sel.source}" : "") + (sel.stats != null ? $"\n{sel.stats}" : ""), label);
+                // a decoration from the Artisan Bench: set it down aboard
+                if (Decor.IsDecor(sel) && Decor.I != null && h.pack.Has(sel))
+                {
+                    bool can = d.aboard;
+                    GUI.enabled = can;
+                    if (GUI.Button(new Rect(r.x, y + 204, 160, 32), "Place it", button)) { var it = sel; Close(); Decor.I.BeginPlace(it); }
+                    GUI.enabled = true;
+                    if (!can) GUI.Label(new Rect(r.x + 170, y + 210, r.width - 170, 22), "(aboard the Nautilus)", small);
+                }
             }
         }
 

@@ -49,5 +49,12 @@ switch ($What) {
         Select-String -Path $hl -Pattern "DEEP NETTEST|DEEP NET:|Exception" | ForEach-Object { $_.Line }
         foreach ($l in @($al, $bl)) { Select-String -Path $l -Pattern "Exception|DEEP NET:" | Select-Object -First 8 | ForEach-Object { "  guest: " + $_.Line } }
     }
+    "savetest" {
+        # the campaign's save: capture, scramble, restore, compare (headless; a scratch save file, never the real one)
+        $sl = "$env:TEMP\deep_savetest.log"
+        $p = Start-Process $exe -ArgumentList @("-savetest", "-skipopening", "-batchmode", "-nographics", "-save", "`"$env:TEMP\deep_savetest.json`"", "-logFile", "`"$sl`"") -PassThru
+        if (-not $p.WaitForExit(240000)) { Stop-Process -Id $p.Id -Force; "the save test timed out" }
+        Select-String -Path $sl -Pattern "DEEP SAVETEST|Exception" | ForEach-Object { $_.Line }
+    }
     "run" { Start-Process $exe -ArgumentList $Arg }
 }

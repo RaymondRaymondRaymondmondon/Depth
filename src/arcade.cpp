@@ -458,7 +458,11 @@ void DrawReels(Game& g) {
         wasRunning = running;
         if (Button({c.x - 110, c.y + 236, 220, 36}, running ? "The Deep is running" : "Dive (solo)", !running, 15)) {
             std::string err;
-            if (LaunchDeep("solo", "", gProfile.name, &err)) { deepMsg = ""; MinimizeWindow(); wasRunning = true; } else deepMsg = err;
+            if (LaunchDeep("solo", "", gProfile.name, &err, 0, DEEP_PORT, gDeepNewGame)) { deepMsg = ""; MinimizeWindow(); wasRunning = true; gDeepNewGame = false; } else deepMsg = err;
+        }
+        // the campaign: continue the saved one (the host's, for a crew), or begin again
+        if (!running && DeepSaveExists()) {
+            if (Button({c.x + 120, c.y + 236, 190, 36}, gDeepNewGame ? "New campaign (click: continue)" : "Continue the campaign", true, 13)) gDeepNewGame = !gDeepNewGame;
         }
         DrawTextCentered(deepMsg.empty() ? "Host or Join above for a crew of up to four: The Deep opens on every PC" : deepMsg.c_str(), c.x, c.y + 280, 13, deepMsg.empty() ? SCREEN_DIM : Color{255, 170, 140, 255});
     }
@@ -1295,7 +1299,7 @@ void DrawDeepHandoff() {
         std::string addr;
         if (!host) { addr = gSess.hostAddr; size_t colon = addr.rfind(':'); if (colon != std::string::npos) addr = addr.substr(0, colon); }
         std::string err;
-        if (LaunchDeep(host ? "host" : "join", addr, gProfile.name, &err, seat, DEEP_PORT)) { running = true; msg = TextFormat("Diving with a crew of %d (seat %d)", crew, seat + 1); MinimizeWindow(); }
+        if (LaunchDeep(host ? "host" : "join", addr, gProfile.name, &err, seat, DEEP_PORT, host && gDeepNewGame)) { running = true; msg = TextFormat("Diving with a crew of %d (seat %d)", crew, seat + 1); MinimizeWindow(); }
         else msg = err;
         launchedVer = gSess.stateVersion;
     }

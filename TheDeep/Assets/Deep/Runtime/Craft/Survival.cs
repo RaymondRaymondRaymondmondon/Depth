@@ -15,6 +15,16 @@ namespace Deep
         public float hunger = 100f, thirst = 100f, bodyC = 37f;
         public float hungerPerMin = 2.2f, thirstPerMin = 3.0f;     // (a full stomach lasts about 45 minutes, water 33)
         public float cabinC = 30f;                                 // the air aboard
+        public float restedT;                                      // "Well Rested" left (seconds): a deeper breath, slower hunger
+        public const float RestFor = 1200f;
+        public bool Rested => restedT > 0;
+
+        // a rest in a bed or a hammock (Decor.cs)
+        public void Rest()
+        {
+            restedT = RestFor; bodyC = Mathf.Max(bodyC, 36.5f);
+            d.Toast("You rest a while. Well Rested: a deeper breath (+10% air) and slower hunger for 20 minutes.");
+        }
 
         public static Survival Attach(Diver d)
         {
@@ -42,6 +52,15 @@ namespace Deep
             if (!d || !d.inputEnabled) return;
             float dt = Time.deltaTime / 60f;   // minutes
             float work = d.vel.magnitude > 4.5f ? 1.6f : 1f;
+            restedT = Mathf.Max(0, restedT - Time.deltaTime);
+            d.oxygenMax = Rested ? 49.5f : 45f;
+            if (Rested) work *= 0.8f;
+            // out of air: drowning (a few seconds, then the dark)
+            if (d.oxygen <= 0.01f && !d.aboard && d.piloting == null && d.onRaft == null)
+            {
+                d.health -= 18f * Time.deltaTime;
+                if (d.health <= 0) { d.Hurt(1, "drowning"); return; }
+            }
             var hands = d.GetComponent<Hands>(); if (hands && hands.useT > 0) work += 0.5f;
             hunger = Mathf.Max(0, hunger - hungerPerMin * work * dt);
             thirst = Mathf.Max(0, thirst - thirstPerMin * work * dt);

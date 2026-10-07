@@ -1,6 +1,7 @@
 // The screenshot harness (like Depth's --shots): TheDeep.exe -shot <name|all> -shotdir <folder>
 // Each shot places the eye, holds the clock, lets a few frames settle, saves <folder>/deep_<name>.png, then quits.
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -10,7 +11,7 @@ namespace Deep
     {
         public static bool HideOcean;
         static readonly string[] All = { "debugdown", "debugair", "reef", "kelp", "up", "above", "night", "drop", "meadow",
-            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral", "life_light", "life_engine", "life_moon", "wreck_galleon", "wreck_dreadnought", "deposit", "craft", "pack", "kitesub", "kitesub_fly", "opening_raft", "opening_board", "opening_storm", "opening_hunt", "crew_sea", "crew_aboard", "crew_raft" };
+            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral", "life_light", "life_engine", "life_moon", "wreck_galleon", "wreck_dreadnought", "deposit", "craft", "pack", "kitesub", "kitesub_fly", "opening_raft", "opening_board", "opening_storm", "opening_hunt", "crew_sea", "crew_aboard", "crew_raft", "decor_cabin", "decor_salon", "decor_ghost", "drop_satchel", "captains_log" };
 
         public void Run(string which, string dir) { StartCoroutine(Go(which, dir)); }
 
@@ -29,11 +30,14 @@ namespace Deep
                 catch (System.Exception ex) { Debug.LogError("DEEP SHOT: " + name + " failed: " + ex); continue; }
                 if (!ok) { Debug.LogWarning("DEEP SHOT: unknown " + name); continue; }
                 boot.diver.toast = "";
-                for (int i = 0; i < 40; i++) yield return null;
+                for (int i = 0; i < 20; i++) yield return null;
+                float ft0 = Time.realtimeSinceStartup;
+                for (int i = 0; i < 20; i++) yield return null;
+                float shotFps = 20f / Mathf.Max(1e-3f, Time.realtimeSinceStartup - ft0);
                 string path = Path.Combine(dir, "deep_" + name + ".png");
                 ScreenCapture.CaptureScreenshot(path);
                 yield return null; yield return null;
-                Debug.Log("DEEP SHOT: " + path);
+                Debug.Log($"DEEP SHOT: {path} ({shotFps:0} fps)");
             }
             yield return null;
             Application.Quit();
@@ -361,6 +365,69 @@ namespace Deep
                         Look(at + hf * new Vector3(4.5f, 1.8f, 3.5f), at + Vector3.up * 0.4f);
                         Crewmate(1, "Ann", new MatePose { mode = 2, pos = raft.Seat(1), yaw = raft.heading, flags = MatePose.Row, station = 255 });
                         Crewmate(3, "Cy", new MatePose { mode = 2, pos = raft.Seat(3), yaw = raft.heading, flags = MatePose.Row, station = 255 });
+                    }
+                    return true;
+                }
+                case "decor_cabin":
+                case "decor_salon":
+                case "decor_ghost":
+                case "drop_satchel":
+                case "captains_log":
+                {
+                    b.clock.hour = 11f; Power(true);
+                    foreach (var id in new List<int>(Decor.I.placed.Keys)) Decor.I.Remove(id);
+                    Decor.I.CancelPlace();
+                    void Put(string item, float gx, float gy, float gz, float yaw) => Decor.I.Add(Decor.I.nextId++, item, Nautilus.G(gx, gy, gz), Quaternion.Euler(0, yaw, 0));
+                    if (name == "decor_cabin")
+                    {
+                        var cb = ship.L.cabins[1]; bool plus = cb.z0 > 0;
+                        float zo = plus ? cb.z1 : cb.z0, zi = plus ? cb.z0 : cb.z1, inward = plus ? -90f : 90f, cx = (cb.x0 + cb.x1) / 2;
+                        var crewRoom = ship.L.Room("crew");
+                        Put("woven_kelp_rug", cx, Nautilus.Floor, (zo + zi) / 2, 90f);
+                        Put("dreadnought_brass_locker", cb.x1 - 0.45f, Nautilus.Floor, zo - Mathf.Sign(zo) * 0.32f, inward);
+                        Put("phosphor_mat_chandelier", cx, crewRoom.ceil, (zo + zi) / 2, 0);
+                        Put("bioluminescent_wall_planter", cx - 0.2f, Nautilus.Floor + 0.6f, zo - Mathf.Sign(zo) * 0.02f, inward);
+                        Put("reef_snapper_jaw_mount", cb.x0 + 0.02f, Nautilus.Floor, (zo + zi) / 2 + Mathf.Sign(zo) * 0.3f, 0f);
+                        Put("dreadnought_steam_gauge", cb.x1 - 0.02f, Nautilus.Floor, (zo + zi) / 2 - Mathf.Sign(zo) * 0.2f, 180f);
+                        Put("grazer_blubber_lounge_chair", cb.x1 - 0.6f, Nautilus.Floor, (zo + zi) / 2 - Mathf.Sign(zo) * 0.1f, 200f);
+                        b.diver.PlaceAboard(cb.door[0], cb.door[1] * 0.4f, Nautilus.Floor, Mathf.Sign(cb.door[1]) > 0 ? 70f : -70f, 14f);
+                    }
+                    else if (name == "decor_salon" || name == "captains_log")
+                    {
+                        float F = Nautilus.Floor;
+                        Put("restored_galleon_harpsichord", 17.0f, F, -1.15f, -90f);
+                        Put("captains_armillary_sphere", 16.2f, F, 1.25f, 0f);
+                        Put("jelly_bioluminescence_tube", 14.6f, F, -1.3f, 0f);
+                        Put("echo_ray_specimen_tank", 15.2f, F, 1.3f, 90f);
+                        Put("abyssal_brew_keg", 13.6f, F, 1.25f, 0f);
+                        Put("ancient_masonry_pedestal", 18.2f, F, 1.35f, 0f);
+                        Put("iron_kelp_bonsai", 18.2f, F + 1.07f, 1.35f, 30f);
+                        Put("captains_log_desk", 19.0f, F, -1.2f, 90f);
+                        Put("lantern_vine_desk_lamp", 18.7f, F + 0.79f, -1.35f, 0f);
+                        b.diver.PlaceAboard(21.0f, 0.2f, F, 180f, 8f);
+                        if (name == "captains_log")
+                        {
+                            foreach (var s in SpeciesBook.All) if (s.biome != "kelp" && Campaign.I.met.Count < 23) Campaign.I.met.Add(s.e.name);
+                            Campaign.I.deepest = 41f; Decor.I.ShowLog();
+                        }
+                    }
+                    else if (name == "decor_ghost")
+                    {
+                        var bedIt = ItemDB.Get("galleon_captains_bed");
+                        b.diver.GetComponent<Hands>().pack.Add(bedIt);
+                        b.diver.PlaceAboard(21.0f, 0.2f, Nautilus.Floor, 180f, 32f);
+                        b.diver.uiOpen = false;
+                        Decor.I.BeginPlace(bedIt);
+                    }
+                    else
+                    {
+                        b.clock.hour = 10.2f; Power(false);
+                        var at = ship.WorldPoint(Nautilus.G(-14, -1, 14));
+                        var items = new Dictionary<string, int> { { "titanium_ore", 5 }, { "survival_knife", 1 } };
+                        foreach (var id in new List<int>(Drops.I.drops.Keys)) Drops.I.Remove(id);
+                        var dr = Drops.I.Add(Drops.I.nextId++, Net.I.myName, false, at, items);
+                        var w = Drops.I.World(dr);
+                        Look(w + new Vector3(3.2f, 1.6f, -3.2f), w + Vector3.up * 0.3f);
                     }
                     return true;
                 }

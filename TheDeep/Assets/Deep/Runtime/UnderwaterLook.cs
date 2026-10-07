@@ -13,6 +13,7 @@ namespace Deep
 {
     public class UnderwaterLook : MonoBehaviour
     {
+        public static float FarScale = 1f;      // Perf.cs: the far plane in the water (1 full)
         public static bool Underwater;
         public static bool Aboard;   // the eye is inside the Nautilus (in her air)
         public static float CamDepth;
@@ -93,7 +94,7 @@ namespace Deep
                 RenderSettings.fogDensity = 1.3f / vis;     // (eased in the playtest: the helm couldn't see where she was going)
                 RenderSettings.ambientLight = WaterColor * 1.6f + new Color(0.02f, 0.03f, 0.04f);
                 cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = WaterColor;
-                cam.farClipPlane = Mathf.Min(400f, vis * 2.8f);
+                cam.farClipPlane = Mathf.Min(400f, vis * 2.8f) * FarScale;
                 vignette.intensity.value = 0.32f;
                 grade.colorFilter.value = Color.Lerp(Color.white, new Color(0.85f, 1f, 1f), 0.6f);
             }

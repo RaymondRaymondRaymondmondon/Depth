@@ -40,9 +40,11 @@ namespace Deep
         public const int MaxCrew = 4, ProtoVersion = 1;
 
         // host -> crew
-        const byte M_WELCOME = 1, M_ROSTER = 2, M_POSES = 3, M_SHIP = 4, M_SEA = 5, M_WORLD = 6, M_STORE = 7, M_FLORA = 8, M_DEPOSIT = 9, M_HURT = 10, M_ALERT = 11, M_TEST = 12;
+        const byte M_WELCOME = 1, M_ROSTER = 2, M_POSES = 3, M_SHIP = 4, M_SEA = 5, M_WORLD = 6, M_STORE = 7, M_FLORA = 8, M_DEPOSIT = 9, M_HURT = 10, M_ALERT = 11, M_TEST = 12,
+                   M_DECOR_ADD = 13, M_DECOR_DEL = 14, M_DROP_ADD = 15, M_DROP_DEL = 16, M_DROP_GIVE = 17;
         // crew -> host
-        const byte M_POSE = 20, M_SHIPCTL = 21, M_CMD = 22, M_STOREDELTA = 23, M_OARS = 24, M_EMIT = 25, M_WOUND = 26, M_REPORT = 27;
+        const byte M_POSE = 20, M_SHIPCTL = 21, M_CMD = 22, M_STOREDELTA = 23, M_OARS = 24, M_EMIT = 25, M_WOUND = 26, M_REPORT = 27,
+                   M_DECOR_PLACE = 28, M_DECOR_TAKE = 29, M_DROP_MAKE = 30, M_DROP_TAKE = 31, M_CREW = 32;
         // commands
         public const byte C_POWER = 1, C_BREAKERS = 2, C_PATCH = 3, C_BREACH = 4, C_STOKE = 5, C_ENGINE = 6, C_HULL = 7, C_KITE = 8, C_PING = 9, C_RIGHTRAFT = 10;
 
@@ -137,7 +139,7 @@ namespace Deep
             var m = Mate.Make(p.seat, p.name); m.clientId = id;
             mates[p.seat] = m;
             Life.I?.AddDiver(m);
-            SendWelcome(id, p.seat);
+            SendWelcome(id, p.seat, p.name);
             SendRoster();
             D?.Toast($"{p.name} joins the crew.");
             Debug.Log($"DEEP NET: {p.name} joined in seat {p.seat}");
@@ -210,7 +212,7 @@ namespace Deep
         }
 
         // ---- the welcome: the seed and the state of things ---------------------------------------------------------
-        void SendWelcome(ulong id, int seat)
+        void SendWelcome(ulong id, int seat, string name)
         {
             var w = new NetW().U8(M_WELCOME).I32(ProtoVersion).I32(Args.Seed).U8(seat).F(Time.time);
             var boot = DeepBoot.I;
@@ -225,6 +227,12 @@ namespace Deep
             var deps = new List<(int i, float left)>();
             if (Deposits.I != null) for (int i = 0; i < Deposits.I.nodes.Count; i++) if (Deposits.I.nodes[i].taken) deps.Add((i, Mathf.Max(0, Deposits.I.nodes[i].back - Time.time)));
             w.I32(deps.Count); foreach (var d in deps) w.I32(d.i).F(d.left);
+            // the decorations aboard, the satchels of the dead, and this diver's own record (rejoining a campaign)
+            w.I32(Decor.I != null ? Decor.I.placed.Count : 0);
+            if (Decor.I != null) foreach (var p in Decor.I.placed.Values) w.I32(p.id).S(p.item).V3(p.local).Q(p.rot);
+            w.I32(Drops.I != null ? Drops.I.drops.Count : 0);
+            if (Drops.I != null) foreach (var dr in Drops.I.drops.Values) { w.I32(dr.id).S(dr.owner).Bool(dr.aboard).V3(dr.pos); WriteCounts(w, dr.items); }
+            w.S(Campaign.I != null && Campaign.I.crew.TryGetValue(name, out var rec) ? JsonUtility.ToJson(rec) : "");
             Send(id, w, true);
         }
 
@@ -260,6 +268,16 @@ namespace Deep
             for (int i = 0; i < nf; i++) { string kind = r.S(); long key = r.L64(); var pos = r.V3(); float left = r.F(); boot.flora?.TakeAt(kind, key, pos, left); }
             int nd = r.I32();
             for (int i = 0; i < nd; i++) { int idx = r.I32(); float left = r.F(); Deposits.I?.TakeIndex(idx, left); }
+            int ndec = r.I32();
+            for (int i = 0; i < ndec; i++) { int id = r.I32(); string item = r.S(); var local = r.V3(); var rot = r.Q(); Decor.I?.Add(id, item, local, rot); }
+            int ndr = r.I32();
+            for (int i = 0; i < ndr; i++) { int id = r.I32(); string owner = r.S(); bool ab = r.Bool(); var pos = r.V3(); var items = ReadCounts(r); Drops.I?.Add(id, owner, ab, pos, items); }
+            string rec = r.S();
+            if (!string.IsNullOrEmpty(rec) && (Opening.I == null || Opening.I.done))
+            {
+                try { Campaign.ApplyDiver(D, JsonUtility.FromJson<CrewSave>(rec)); D.Toast("Back aboard where you left off."); }
+                catch (Exception e) { Debug.LogWarning("DEEP NET: couldn't restore the diver: " + e.Message); }
+            }
             welcome = null;
             WorldReady();
             status = "";
@@ -516,6 +534,46 @@ namespace Deep
                 case M_REPORT:
                     TestReport(seat, r);
                     break;
+                case M_DECOR_PLACE:
+                {
+                    string item = r.S(); var local = r.V3(); var rot = r.Q();
+                    if (Decor.I == null) break;
+                    var p = Decor.I.Add(Decor.I.nextId++, item, local, rot);
+                    DecorAdded(p);
+                    break;
+                }
+                case M_DECOR_TAKE:
+                {
+                    int id = r.I32();
+                    if (Decor.I == null || !Decor.I.placed.ContainsKey(id)) break;
+                    Decor.I.Remove(id); DecorRemoved(id);
+                    break;
+                }
+                case M_DROP_MAKE:
+                {
+                    string owner = r.S(); bool ab = r.Bool(); var pos = r.V3(); var items = ReadCounts(r);
+                    if (Drops.I == null) break;
+                    var dr = Drops.I.Add(Drops.I.nextId++, owner, ab, pos, items);
+                    DropAdded(dr);
+                    break;
+                }
+                case M_DROP_TAKE:
+                {
+                    int id = r.I32();
+                    if (Drops.I == null || !Drops.I.drops.TryGetValue(id, out var dr)) break;
+                    string owner = dr.owner; bool ab = dr.aboard; var pos = dr.pos;
+                    var items = Drops.I.TakeAll(id);
+                    var w = new NetW().U8(M_DROP_GIVE).S(owner).Bool(ab).V3(pos); WriteCounts(w, items);
+                    Send(from, w, true);
+                    break;
+                }
+                case M_CREW:
+                {
+                    string json = r.S();
+                    if (Campaign.I == null || !mate) break;
+                    try { var c = JsonUtility.FromJson<CrewSave>(json); if (c != null) { c.name = mate.mateName; Campaign.I.crew[c.name] = c; } } catch { }
+                    break;
+                }
             }
         }
 
@@ -750,6 +808,16 @@ namespace Deep
                 case M_HURT: { float dmg = r.F(); string by = r.S(); D?.Hurt(dmg, by); break; }
                 case M_ALERT: { string msg = r.S(); if (D && (D.aboard || msg.Contains("raft"))) D.Toast(msg); break; }
                 case M_TEST: TestStep(r); break;
+                case M_DECOR_ADD: { int id = r.I32(); string item = r.S(); var local = r.V3(); var rot = r.Q(); Decor.I?.Add(id, item, local, rot); break; }
+                case M_DECOR_DEL: { int id = r.I32(); Decor.I?.Remove(id); break; }
+                case M_DROP_ADD: { int id = r.I32(); string owner = r.S(); bool ab = r.Bool(); var pos = r.V3(); var items = ReadCounts(r); Drops.I?.Add(id, owner, ab, pos, items); break; }
+                case M_DROP_DEL: { int id = r.I32(); Drops.I?.Remove(id); break; }
+                case M_DROP_GIVE:
+                {
+                    string owner = r.S(); bool ab = r.Bool(); var pos = r.V3(); var items = ReadCounts(r);
+                    if (D && Drops.I != null) Drops.I.Give(items, D.GetComponent<Hands>(), D, owner, ab, pos);
+                    break;
+                }
             }
         }
 
@@ -840,6 +908,25 @@ namespace Deep
             if (!IsGuest || I == null) return;
             I.patchAcc.TryGetValue(id, out float k); I.patchAcc[id] = k + dt;
         }
+
+        // decorations and satchels: a crewmate's PC asks; the host tells everyone
+        public static void DecorPlace(string item, Vector3 local, Quaternion rot) { if (IsGuest && I != null) I.ToHost(new NetW().U8(M_DECOR_PLACE).S(item).V3(local).Q(rot), true); }
+        public static void DecorTake(int id) { if (IsGuest && I != null) I.ToHost(new NetW().U8(M_DECOR_TAKE).I32(id), true); }
+        public static void DecorAdded(Decor.Placed p) { if (IsHost && I != null && p != null) I.ToCrew(new NetW().U8(M_DECOR_ADD).I32(p.id).S(p.item).V3(p.local).Q(p.rot), true); }
+        public static void DecorRemoved(int id) { if (IsHost && I != null) I.ToCrew(new NetW().U8(M_DECOR_DEL).I32(id), true); }
+        public static void DropMake(string owner, bool aboard, Vector3 pos, Dictionary<string, int> items)
+        {
+            if (!IsGuest || I == null) return;
+            var w = new NetW().U8(M_DROP_MAKE).S(owner).Bool(aboard).V3(pos); WriteCounts(w, items); I.ToHost(w, true);
+        }
+        public static void DropTake(int id) { if (IsGuest && I != null) I.ToHost(new NetW().U8(M_DROP_TAKE).I32(id), true); }
+        public static void DropAdded(Drops.Drop d)
+        {
+            if (!IsHost || I == null || d == null) return;
+            var w = new NetW().U8(M_DROP_ADD).I32(d.id).S(d.owner).Bool(d.aboard).V3(d.pos); WriteCounts(w, d.items); I.ToCrew(w, true);
+        }
+        public static void DropRemoved(int id) { if (IsHost && I != null) I.ToCrew(new NetW().U8(M_DROP_DEL).I32(id), true); }
+        public static void SendCrewRecord(CrewSave c) { if (IsGuest && I != null && I.worldUp && c != null) I.ToHost(new NetW().U8(M_CREW).S(JsonUtility.ToJson(c)), true); }
 
         // the crewmates' helmet lamps, for the shaders' lamp list (Nautilus.cs)
         public static IEnumerable<Mate> Crew()

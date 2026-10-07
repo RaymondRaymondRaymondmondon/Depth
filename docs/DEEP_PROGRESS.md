@@ -37,7 +37,7 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
    hull upgrades; the Kite-Sub.
 5. **The opening (done):** the night raft, the storm, boarding the Nautilus and restoring power.
 6. **Multiplayer (done):** host-authoritative Netcode, 1-4 players, Depth's lobby handing off.
-7. **Campaign and polish:** saves, death rules, sound, the Artisan Bench, performance on this PC.
+7. **Campaign and polish (done, sound kept for its own stage):** saves, death rules, the Artisan Bench, performance on this PC.
 
 ## Stage 2 so far (2026-10-07)
 - **The model:** `tools/artgen/deep_nautilus.py` (+ `deep_tiles.py`: fouled riveted iron, walnut, teak, interior
@@ -236,3 +236,33 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
 - Shots: `crew_sea`, `crew_aboard`, `crew_raft`.
 - Simpler than the doc for now: no voice chat in The Deep itself (Depth's arcade voice isn't carried over), no
   rejoining a dive in progress with your old place (you come aboard fresh), and the host's departure ends the dive.
+
+## Stage 7, the campaign (2026-10-07)
+- **Saves** (`Runtime/Campaign.cs`): one file, `deep_campaign.json` beside the game (or `-save <file>`), written by the
+  host (or a solo diver) every two minutes, on F5 and on quitting. It holds the world's seed and everything changed in
+  it: the clock; the Nautilus (where she lies, her orders, power, battery, fuel, the engine repair, crush depth, flood
+  levels, open breaches, her stores); the Kite-Sub and the raft; whether the opening is over; plants and deposits
+  taken and when they grow back; the decorations; the satchels of the dead; the seas' biomass pools; the captain's log;
+  and each diver's record by name (pack, hand, health, air, food, water, warmth, rest, where they were). A crewmate's
+  PC sends the host its diver's record every 15 s (and on quitting) and gets it back in the welcome when it rejoins.
+  Starting: the save's seed builds the world; a campaign past the opening starts aboard. `-newgame` begins again
+  (Depth's reel has "Continue the campaign" / "New campaign"; the old save is replaced at the first autosave).
+  Check: `tools\deep.ps1 savetest` (capture, scramble, restore, compare: 12 checks).
+- **The death rule** (`Craft/Drops.cs`): dying leaves everything you carried in a canvas satchel with an amber lamp
+  where you fell (on the bottom below you, or aboard); you wake in the Dive Room. The HUD points to your newest one;
+  anyone can recover a satchel (E beside it; what doesn't fit stays in it). Running out of air now drowns you.
+- **The Artisan Bench** (`Craft/Decor.cs`, models `tools/artgen/deep_decor.py` -> `Resources/Decor/decor.glb`: all 32
+  of the doc's catalog plus the satchel): made at the forge (the bench stands with it), placed aboard from the pack
+  (Tab, a decoration, "Place it": a green or red ghost; floor, wall and ceiling mounts; R or the wheel turns it; LMB
+  sets it down, RMB cancels), taken down with X. Their effects: the lights glow without her power and light the room
+  (they take the place of the farthest room lamps; 16 lamps is the budget); the brass locker (+20) and the
+  torpedo-tube locker (+40) add to her stores; the bed and the hammock give "Well Rested" (20 minutes: +10% air,
+  slower hunger); the Captain's Log desk opens the log (creatures met within 8 m, days, the deepest dive); the steam
+  gauge's needle shows her depth; the armillary sphere glows with the water's warmth. Shared by the crew (Net.cs).
+- **Performance** (`Runtime/Perf.cs`): under 42 fps for 4 s it steps down (plants' draw distance, animals kept, shadow
+  reach, the far plane in the water), and back up after 15 s over 57; F3 shows it. The shots now log their frame
+  rate: 52-60 fps everywhere on this PC (the decorated cabin about 52).
+- `tools\deep.ps1 nettest` adds a decoration placed on a crewmate's PC and a crewmate's death and recovery
+  (23 checks).
+- Shots: `decor_cabin`, `decor_salon`, `decor_ghost`, `drop_satchel`, `captains_log`.
+- **Sound is not in this stage** (the user: "save the sound for a later full sound stage").

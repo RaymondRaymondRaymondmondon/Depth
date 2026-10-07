@@ -159,6 +159,7 @@ namespace Deep
             breaches.Add(b);
             return b;
         }
+        public Breach RestoreBreach(int room, Vector3 gen, float size) => room >= 0 && room < rooms.Count ? MirrorBreach(nextBreach++, room, gen, size) : null;
         public void DropBreach(Breach b) { breaches.Remove(b); if (b.jet) Destroy(b.jet.gameObject); }
 
         public bool Patch(Breach b, float dt)
