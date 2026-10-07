@@ -10,7 +10,7 @@ namespace Deep
     {
         public static bool HideOcean;
         static readonly string[] All = { "debugdown", "debugair", "reef", "kelp", "up", "above", "night", "drop", "meadow",
-            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve" };
+            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral" };
 
         public void Run(string which, string dir) { StartCoroutine(Go(which, dir)); }
 
@@ -159,6 +159,25 @@ namespace Deep
                     if (lv == null) return false;
                     b.life.WarmUp(lv.pos, 5f);
                     Look(lv.pos + Quaternion.LookRotation(lv.fwd) * new Vector3(28f, 8f, 10f), lv.pos);
+                    return true;
+                }
+                case "life_coral":
+                {
+                    // the densest coral within the Shallows: the reef's life gathers there
+                    b.clock.hour = 10.5f;
+                    var pts = new System.Collections.Generic.List<Vector3>();
+                    Vector3 best = Find(150, 420, 10, 18); int most = -1;
+                    for (int k = 0; k < 300; k++)
+                    {
+                        var q = Find(100 + (k * 37) % 400, 140 + (k * 37) % 400, 6, 22);
+                        b.flora.Near(q, 0, 12, pts, 400, "tablecoral", "braincoral", "spirecoral", "fananemone");
+                        if (pts.Count > most) { most = pts.Count; best = q; }
+                    }
+                    var eye = best + new Vector3(-9f, 3.2f, -2f);
+                    b.life.WarmUp(eye, 40f);
+                    Look(eye, best + Vector3.up * 1f);
+                    Debug.Log($"DEEP CORAL: {most} corals within 12 m of {best}");
+                    LogLife(b);
                     return true;
                 }
                 case "life_blood":

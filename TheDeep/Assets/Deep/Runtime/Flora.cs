@@ -100,6 +100,30 @@ namespace Deep
                     });
         }
 
+        // planted things of the given kinds within a ring round a point (the reef fish gather over the coral, the kelp
+        // species among the stalks)
+        public void Near(Vector3 c, float rMin, float rMax, List<Vector3> into, int max, params string[] names)
+        {
+            into.Clear();
+            int c0x = Mathf.FloorToInt((c.x - rMax) / CellSize), c1x = Mathf.FloorToInt((c.x + rMax) / CellSize);
+            int c0z = Mathf.FloorToInt((c.z - rMax) / CellSize), c1z = Mathf.FloorToInt((c.z + rMax) / CellSize);
+            foreach (var k in kinds)
+            {
+                if (System.Array.IndexOf(names, k.name) < 0) continue;
+                for (int x = c0x; x <= c1x; x++)
+                    for (int z = c0z; z <= c1z; z++)
+                    {
+                        if (!k.cells.TryGetValue(Key(x, z), out var list)) continue;
+                        foreach (var m in list)
+                        {
+                            Vector3 p = m.GetColumn(3);
+                            float d = new Vector2(p.x - c.x, p.z - c.z).magnitude;
+                            if (d >= rMin && d <= rMax) { into.Add(p); if (into.Count >= max) return; }
+                        }
+                    }
+            }
+        }
+
         void LateUpdate()
         {
             var cam = Camera.main; if (!cam) return;

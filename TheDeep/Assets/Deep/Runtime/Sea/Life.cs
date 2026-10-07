@@ -81,7 +81,7 @@ namespace Deep
         (Mesh, Material) Look(SpeciesDef s)
         {
             if (looks.TryGetValue(s, out var lk)) return lk;
-            var mesh = CreatureMeshes.For(s);
+            var mesh = CreatureLibrary.Get(s.e.id) ?? CreatureMeshes.For(s);
             var m = new Material(Shader.Find("Deep/Creature")) { enableInstancing = true, name = s.e.name };
             int mode = CreatureMeshes.Mode(s.kind);
             if (s.bottom && (s.kind == "snail" || (s.kind == "octopus" && !s.e.name.Contains("Octo")))) mode = 5;   // shells and stars lie still
@@ -108,9 +108,37 @@ namespace Deep
         bool Active(SpeciesDef s) => clock.Night ? s.night : s.day;
 
         // a spot for one of these within the ring round the diver, or false
+        readonly List<Vector3> anchors = new List<Vector3>();
+        static readonly string[] Reef = { "tablecoral", "braincoral", "spirecoral", "fananemone" }, Kelp = { "kelp" };
+
+        // not where the diver is looking, close in: a group appearing out of nowhere in plain sight would show
+        bool InView(Vector3 p)
+        {
+            var cam = Camera.main; if (!cam) return false;
+            var d = p - cam.transform.position; float dist = d.magnitude;
+            return dist < 45f && Vector3.Dot(d / Mathf.Max(0.01f, dist), cam.transform.forward) > 0.45f;
+        }
+
         bool SpotFor(SpeciesDef s, Vector3 around, float rMin, float rMax, out Vector3 at)
         {
             var band = Band01(s);
+            // reef and kelp animals gather where the reef and the kelp are
+            string h = s.e.habitat;
+            var flora = DeepBoot.I ? DeepBoot.I.flora : null;
+            if (flora && !s.bottom && (h == "reef" || h == "kelp" || h == "lagoon"))
+            {
+                flora.Near(around, rMin, rMax, anchors, 60, h == "kelp" ? Kelp : Reef);
+                for (int k = 0; k < 6 && anchors.Count > 0; k++)
+                {
+                    var p = anchors[rnd.Next(anchors.Count)];
+                    float water = -Bed(p);
+                    if (water < band.x + 1f || water > band.y + 6f) continue;
+                    p.y = Bed(p) + (h == "kelp" ? 2f + (float)rnd.NextDouble() * 10f : 0.6f + (float)rnd.NextDouble() * 2.5f) + s.size * 0.3f;
+                    p.y = Mathf.Min(p.y, -1.5f);
+                    if (InView(p)) continue;
+                    at = p; return true;
+                }
+            }
             for (int k = 0; k < 10; k++)
             {
                 double a = rnd.NextDouble() * Mathf.PI * 2, r = rMin + rnd.NextDouble() * (rMax - rMin);
@@ -118,12 +146,13 @@ namespace Deep
                 if (p.x < 10 || p.z < 10 || p.x > Seabed.Size - 10 || p.z > Seabed.Size - 10) continue;
                 float floor = Bed(p), water = -floor;
                 if (water < band.x + 1f) continue;
-                if (s.bottom) { if (water > band.y + 5f) continue; p.y = floor + 0.1f; at = p; return true; }
+                if (s.bottom) { if (water > band.y + 5f) continue; p.y = floor + 0.1f; if (InView(p)) continue; at = p; return true; }
                 float top = -Mathf.Max(1.5f, band.x), low = Mathf.Max(floor + 1.2f + s.size * 0.3f, -band.y);
                 if (top < low) continue;
                 // reef and lagoon fish stay near the bottom; open-water swimmers anywhere in their band
                 bool near = s.e.habitat == "reef" || s.e.habitat == "lagoon" || s.e.habitat == "kelp" || s.e.habitat == "crevice";
                 p.y = near ? Mathf.Min(top, low + 1f + (float)rnd.NextDouble() * 6f) : Mathf.Lerp(low, top, (float)rnd.NextDouble());
+                if (InView(p)) continue;
                 at = p; return true;
             }
             at = default; return false;
@@ -186,7 +215,7 @@ namespace Deep
                 near.TryGetValue(s, out int have);
                 if (have >= want || (have > 0 && have + s.groupMin > want * 1.5f)) continue;
                 if (rnd.NextDouble() > Mathf.Clamp01(want - have)) continue;
-                if (!SpotFor(s, eye, s.bottom ? 20f : 30f, Radius - 30f, out var at)) continue;
+                if (!SpotFor(s, eye, 15f, Radius - 30f, out var at)) continue;
                 int n = s.schooling ? rnd.Next(s.groupMin, s.groupMax + 1) : rnd.Next(Mathf.Min(s.groupMin, 4), Mathf.Max(Mathf.Min(s.groupMin, 4), Mathf.Min(s.groupMax, 4)) + 1);
                 int g = nextGroup++;
                 for (int i = 0; i < n && count < maxLive; i++, count++)
