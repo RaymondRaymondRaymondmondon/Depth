@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Deep
 {
     [Serializable]
-    public class FloraEntry { public string id, name, type, description, yields, use, habitat; public int tier; public string[] eatenBy; }
+    public class FloraEntry { public string id, name, type, description, yields, use, habitat, color; public int tier; public float light, pulse; public string[] eatenBy; }
 
     [Serializable]
     public class FaunaEntry
@@ -57,7 +57,7 @@ namespace Deep
         public static void Load()
         {
             if (All.Count > 0) return;
-            foreach (var b in new[] { "shallows", "kelp" })
+            foreach (var b in new[] { "shallows", "kelp", "caverns" })
             {
                 var t = Resources.Load<TextAsset>("Data/species_" + b);
                 if (!t) { Debug.LogWarning("DEEP SEA: no species table for " + b); continue; }

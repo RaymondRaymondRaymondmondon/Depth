@@ -13,6 +13,8 @@ namespace Deep
 {
     public class UnderwaterLook : MonoBehaviour
     {
+        public static float Strobe;              // a strobe's glare, 0..1+ (CaveLife.cs)
+        public static bool InPocket, InCaves;            // the camera is in a cave's air pocket
         public static float FarScale = 1f;      // Perf.cs: the far plane in the water (1 full)
         public static bool Underwater;
         public static bool Aboard;   // the eye is inside the Nautilus (in her air)
@@ -55,8 +57,9 @@ namespace Deep
         {
             if (!cam) return;
             var p = cam.transform.position;
-            float surf = Waves.Height(p.x, p.z, Waves.T);
+            float surf = Sea.SurfaceAt(p);
             Underwater = p.y < surf - 0.02f;
+            InPocket = !Underwater && Caverns.I != null && Caverns.I.PocketAt(p) != null;
             CamDepth = Mathf.Max(0, -p.y);
             float day = clock.Daylight;
             float moon = 0.05f + 0.1f * clock.MoonFullness;
@@ -73,7 +76,9 @@ namespace Deep
             sun.intensity = level;   // (the shaders absorb it at each surface's depth)
 
             // the water: the biome's colour at this depth, blended toward the next band, dimmed by the light left
-            var b = Biomes.At(d); int bi = Biomes.IndexAt(d);
+            // in the caves it's the Caverns' water whatever the depth (the sinkhole's shaft starts in the Kelp)
+            InCaves = Caverns.I != null && Caverns.I.UnderGround(p);
+            var b = InCaves ? Biomes.All[2] : Biomes.At(d); int bi = InCaves ? 2 : Biomes.IndexAt(d);
             Color wc = b.water; float vis = b.visibility;
             if (bi + 1 < Biomes.All.Length)
             {
@@ -88,7 +93,21 @@ namespace Deep
             float dusk = Mathf.Clamp01(1 - Mathf.Abs(day - 0.35f) * 4f);   // a warm horizon at dawn and dusk
             horizon = Color.Lerp(horizon, new Color(0.95f, 0.55f, 0.35f), dusk * 0.6f);
 
-            if (Underwater)
+            // a strobe's glare (the caves' flash-hunters, a Strobe Shroom): white-out, fading fast
+            Strobe = Mathf.Min(Mathf.MoveTowards(Strobe, 0, Time.deltaTime * 4f), 1.1f);
+            grade.postExposure.value = 0.3f + Strobe * 2.2f;
+            if (InPocket)
+            {
+                // an air pocket in the caves: still, dark air, lit by what glows
+                RenderSettings.fogColor = new Color(0.01f, 0.012f, 0.02f);
+                RenderSettings.fogDensity = 0.03f;
+                RenderSettings.ambientLight = new Color(0.02f, 0.025f, 0.035f);
+                cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(0.005f, 0.006f, 0.01f);
+                cam.farClipPlane = 120f;
+                vignette.intensity.value = 0.3f;
+                grade.colorFilter.value = Color.white;
+            }
+            else if (Underwater)
             {
                 RenderSettings.fogColor = WaterColor;
                 RenderSettings.fogDensity = 1.3f / vis;     // (eased in the playtest: the helm couldn't see where she was going)

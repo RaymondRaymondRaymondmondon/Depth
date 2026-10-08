@@ -4,6 +4,7 @@ Shader "Deep/Seabed"
 {
     Properties
     {
+        [HideInInspector] _TerrainHolesTexture ("Holes", 2D) = "white" {}
         [HideInInspector] _Control ("Control", 2D) = "red" {}
         [HideInInspector] _Splat0 ("L0", 2D) = "white" {}
         [HideInInspector] _Splat1 ("L1", 2D) = "white" {}
@@ -34,6 +35,7 @@ Shader "Deep/Seabed"
             TEXTURE2D(_Normal0); TEXTURE2D(_Normal1); TEXTURE2D(_Normal2); TEXTURE2D(_Normal3); SAMPLER(sampler_Normal0);
             float4 _Tiles;
             float4 _TerrainSize;   // set by Seabed.cs: x size, z size
+            TEXTURE2D(_TerrainHolesTexture); SAMPLER(sampler_TerrainHolesTexture);   // the caves' mouths (Caverns.cs cuts them)
             struct A { float4 pos : POSITION; float3 n : NORMAL; float2 uv : TEXCOORD0; };
             struct V { float4 cs : SV_POSITION; float3 ws : TEXCOORD0; float3 n : TEXCOORD1; float2 uv : TEXCOORD2; float fog : TEXCOORD3; };
             V vert(A i)
@@ -45,6 +47,7 @@ Shader "Deep/Seabed"
             float3 Nrm(TEXTURE2D_PARAM(t, s), float2 uv) { return UnpackNormal(SAMPLE_TEXTURE2D(t, s, uv)); }
             float4 frag(V i) : SV_Target
             {
+                clip(SAMPLE_TEXTURE2D(_TerrainHolesTexture, sampler_TerrainHolesTexture, i.uv).r - 0.5);
                 float4 w = SAMPLE_TEXTURE2D(_Control, sampler_Control, i.uv);
                 float3 n = normalize(i.n);
                 float2 p = i.ws.xz;
@@ -79,9 +82,11 @@ Shader "Deep/Seabed"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
             float3 _LightDirection;
-            struct A { float4 pos : POSITION; float3 n : NORMAL; };
-            float4 vert(A i) : SV_POSITION { float3 ws = TransformObjectToWorld(i.pos.xyz); return TransformWorldToHClip(ApplyShadowBias(ws, TransformObjectToWorldNormal(i.n), _LightDirection)); }
-            float4 frag() : SV_Target { return 0; }
+            TEXTURE2D(_TerrainHolesTexture); SAMPLER(sampler_TerrainHolesTexture);
+            struct A { float4 pos : POSITION; float3 n : NORMAL; float2 uv : TEXCOORD0; };
+            struct V { float4 cs : SV_POSITION; float2 uv : TEXCOORD0; };
+            V vert(A i) { V o; float3 ws = TransformObjectToWorld(i.pos.xyz); o.cs = TransformWorldToHClip(ApplyShadowBias(ws, TransformObjectToWorldNormal(i.n), _LightDirection)); o.uv = i.uv; return o; }
+            float4 frag(V i) : SV_Target { clip(SAMPLE_TEXTURE2D(_TerrainHolesTexture, sampler_TerrainHolesTexture, i.uv).r - 0.5); return 0; }
             ENDHLSL
         }
         Pass
@@ -93,8 +98,11 @@ Shader "Deep/Seabed"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            float4 vert(float4 pos : POSITION) : SV_POSITION { return TransformObjectToHClip(pos.xyz); }
-            float4 frag() : SV_Target { return 0; }
+            TEXTURE2D(_TerrainHolesTexture); SAMPLER(sampler_TerrainHolesTexture);
+            struct A { float4 pos : POSITION; float2 uv : TEXCOORD0; };
+            struct V { float4 cs : SV_POSITION; float2 uv : TEXCOORD0; };
+            V vert(A i) { V o; o.cs = TransformObjectToHClip(i.pos.xyz); o.uv = i.uv; return o; }
+            float4 frag(V i) : SV_Target { clip(SAMPLE_TEXTURE2D(_TerrainHolesTexture, sampler_TerrainHolesTexture, i.uv).r - 0.5); return 0; }
             ENDHLSL
         }
     }

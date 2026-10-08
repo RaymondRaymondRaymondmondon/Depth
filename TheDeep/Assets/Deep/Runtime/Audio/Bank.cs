@@ -238,6 +238,21 @@ namespace Deep
                 Env(o, 0.08f, 1.4f, 1.6f); Soft(o, 2.5f);
                 return Smear(o, 3f, 0.5f, 2f);
             }, 3, vol: 1f, near: 20f, far: 900f);
+            // ---- the caves ------------------------------------------------------------------------------------
+            C("amb_caves", Bus.Amb, r => Bed(16f, rr =>
+            {
+                // drips falling into still water, their echoes long; a low stone hum; now and then the rock ticking
+                int n = N(16f);
+                var hum = Brown(n, rr); LowPass(hum, 70);
+                var drips = new float[n];
+                for (int k = 0; k < 22; k++) { var dp = Tone(N(0.25f), t => rr.R(900, 1900) * (1 + 1.2f * (float)System.Math.Exp(-t * 40))); Env(dp, 0.001f, 0.01f, 0.2f); Add(drips, Smear(dp, 2.5f, 0.75f, 1.6f), rr.R(0.1f, 0.45f), (int)(rr.F() * (n - N(2f)))); }
+                var ticks = new float[n]; for (int k = 0; k < 5; k++) Add(ticks, Metal(0.3f, rr, rr.R(500, 900), 0.06f, 0.4f), 0.3f, (int)(rr.F() * (n - N(0.4f))));
+                return Mix(n, (hum, 1f), (drips, 1f), (ticks, 0.8f));
+            }, r), loop: true, vol: 0.55f);
+            C("bats_loop", Bus.Amb, r => Bed(8f, rr => { int n = N(8f); var a = new float[n]; for (int k = 0; k < 160; k++) { var ch = Tone(N(0.05f), t => rr.R(5500, 8500) - t * 30000); Env(ch, 0.002f, 0.01f, 0.03f); Add(a, ch, rr.R(0.1f, 0.5f), (int)(rr.F() * (n - N(0.06f)))); } var flap = Pink(n, rr); BandPass(flap, 600, 1.5f); Shape(flap, t => 0.15f * (0.5f + 0.5f * (float)System.Math.Sin(t * 37))); return Mix(n, (a, 1f), (flap, 1f)); }, r), loop: true, vol: 0.35f);
+            C("cave_in", Bus.Fx, r => { var a = Brown(N(4f), r); LowPass(a, 400); Env(a, 0.05f, 1.2f, 2.5f); var k = new float[N(4f)]; for (int i = 0; i < 14; i++) Add(k, Thud(0.5f, r, r.R(60, 160), 0.1f), r.R(0.3f, 1f), N(0.2f + r.F() * 2.8f)); var o = Mix(a.Length, (a, 1f), (k, 0.9f)); Soft(o, 1.4f); return Smear(o, 3f, 0.5f, 2f); }, 2, vol: 1f, near: 10f, far: 300f);
+            C("strobe", Bus.Fx, r => { var a = Noise(0.35f, r, 2000, 14000); Env(a, 0.001f, 0.03f, 0.3f); var z = Tone(N(0.35f), t => 120 + 4000 * (float)System.Math.Exp(-t * 30), Wave.Square); Env(z, 0.001f, 0.02f, 0.25f); return Smear(Mix(a.Length, (a, 0.7f), (z, 0.4f)), 1.5f, 0.5f, 0.6f); }, 3, vol: 0.7f, near: 4f, far: 120f);
+
             // ---- instruments (one note each, played at other pitches by the score) --------------------------------
             C("ins_organ", Bus.Music, r => { int n = N(5f); var o = new float[n]; float f = Midi(48); float[] h = { 1, 2, 3, 4, 6, 8 }; float[] g = { 1, 0.6f, 0.3f, 0.35f, 0.15f, 0.12f }; for (int k = 0; k < h.Length; k++) Add(o, Tone(n, t => f * h[k] * (1 + 0.002f * (float)Math.Sin(t * 5.5f + k))), g[k] * 0.4f); Env(o, 0.12f, 3.6f, 1.2f); return Smear(o, 2.5f, 0.45f, 1.5f); });
             C("ins_pad", Bus.Music, r => { int n = N(8f); var o = new float[n]; float f = Midi(48); for (int k = 0; k < 4; k++) { float det = 1 + (k - 1.5f) * 0.004f; Add(o, Tone(n, t => f * det, Wave.Saw), 0.25f); } LowPass(o, t => 700 + 500 * (float)Math.Sin(t * 0.6f)); Env(o, 2.2f, 3.3f, 2.4f, 2f); return o; });

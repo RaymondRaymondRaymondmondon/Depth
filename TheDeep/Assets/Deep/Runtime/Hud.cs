@@ -90,7 +90,7 @@ namespace Deep
             }
             float d = diver.Depth;
             GUI.Label(new Rect(24, 18, 400, 30), $"{d:0} m", big);
-            GUI.Label(new Rect(24, 46, 400, 22), UnderwaterLook.Underwater ? Biomes.At(d).name : "The surface", small);
+            GUI.Label(new Rect(24, 46, 400, 22), UnderwaterLook.Underwater ? (UnderwaterLook.InCaves ? Biomes.All[2].name : Biomes.At(d).name) : UnderwaterLook.InPocket ? "An air pocket in the Caverns" : "The surface", small);
             int h = (int)clock.hour, m = (int)((clock.hour - h) * 60);
             GUI.Label(new Rect(24, 66, 400, 22), $"{h:00}:{m:00}  day {clock.day + 1}", small);
             // oxygen: a bar, red when low

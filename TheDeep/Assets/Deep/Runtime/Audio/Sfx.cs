@@ -53,7 +53,7 @@ namespace Deep
         }
 
         // where a point is (for a sound with no medium given)
-        public static Medium At(Vector3 p) => p.y < Waves.Height(p.x, p.z, Waves.T) - 0.2f ? Medium.Water : Medium.Air;
+        public static Medium At(Vector3 p) => p.y < Sea.SurfaceAt(p) - 0.2f ? Medium.Water : Medium.Air;
 
         // ---- one-shots ---------------------------------------------------------------------------------------------
         public static AudioSource Play(string cue, Vector3 pos, float vol = 1f, float pitch = 1f, Medium? medium = null)
@@ -149,8 +149,11 @@ namespace Deep
                 listener = cam.GetComponent<AudioListener>();
                 reverb = cam.GetComponent<AudioReverbFilter>();
                 if (!reverb) reverb = cam.gameObject.AddComponent<AudioReverbFilter>();
+                if (!cam.GetComponent<Limiter>()) cam.gameObject.AddComponent<Limiter>();
             }
-            if (reverb) reverb.reverbPreset = Ear == Medium.Water ? AudioReverbPreset.Underwater : Ear == Medium.Aboard ? AudioReverbPreset.Hallway : AudioReverbPreset.Plain;
+            // the caves ring (the doc: echoes amplify every sound)
+            bool caves = cam && Caverns.I != null && Caverns.I.UnderGround(cam.transform.position);
+            if (reverb) reverb.reverbPreset = Ear == Medium.Aboard ? AudioReverbPreset.Hallway : caves ? (Ear == Medium.Air ? AudioReverbPreset.Cave : AudioReverbPreset.StoneCorridor) : Ear == Medium.Water ? AudioReverbPreset.Underwater : AudioReverbPreset.Plain;
             float dt = Time.deltaTime;
             foreach (var l in loops) l.Step(dt);
             // the medium can change under a playing sound (surfacing, coming aboard)

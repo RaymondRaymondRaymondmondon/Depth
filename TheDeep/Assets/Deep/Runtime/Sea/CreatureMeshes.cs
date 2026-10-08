@@ -16,7 +16,7 @@ namespace Deep
         {
             switch (kind)
             {
-                case "ray": case "turtle": return 1;           // flap
+                case "ray": case "turtle": case "bat": return 1;   // flap
                 case "eel": case "worm": case "leviathan": return 2;   // undulate
                 case "squid": case "jelly": case "octopus": return 3;  // pulse
                 case "crab": return 4;                         // crawl

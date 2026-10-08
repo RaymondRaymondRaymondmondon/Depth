@@ -67,6 +67,25 @@ namespace Deep
             return Mathf.Sqrt(a * a + b * b) / 3f;
         }
 
+        // the doc: "shed scales found near the Tangle-Serpent Leviathan's ambush sites" (collected, not hunted)
+        public void SerpentScales(Seabed bed, int seed)
+        {
+            if (Life.I == null) return;
+            var rnd = new System.Random(seed * 71 + 2);
+            foreach (var c in Life.I.live)
+            {
+                if (!c.persistent || !c.sp.e.name.Contains("Tangle-Serpent")) continue;
+                for (int k = 0; k < 5; k++)
+                {
+                    float a = (float)rnd.NextDouble() * 6.283f, r = 12f + (float)rnd.NextDouble() * 50f;
+                    var p = c.home + new Vector3(Mathf.Cos(a) * r, 0, Mathf.Sin(a) * r);
+                    p.y = bed.SampleY(p.x, p.z) + 0.02f;
+                    Add("Caverns/city:shed_scale", "Tangle-Serpent Scale", "hand", p, (float)rnd.NextDouble() * 360f, 1.2f, 1, "a Tangle-Serpent's shed scale");
+                }
+            }
+        }
+
+        public void AddNode(string model, string item, string by, Vector3 pos, float yaw, float scale, int yield, string where) => Add(model, item, by, pos, yaw, scale, yield, where);
         void Add(string model, string item, string by, Vector3 pos, float yaw, float scale, int yield, string where)
         {
             nodes.Add(new Node { model = model, item = item, by = by, pos = pos, rot = Quaternion.Euler(0, yaw, 0), scale = scale, yield = yield, where = where });
@@ -175,7 +194,8 @@ namespace Deep
             }
             foreach (var kv in by)
             {
-                var mesh = ModelLibrary.Get("Minerals/minerals", kv.Key); if (!mesh) continue;
+                int colon = kv.Key.IndexOf(':');
+                var mesh = colon > 0 ? ModelLibrary.Get(kv.Key.Substring(0, colon), kv.Key.Substring(colon + 1)) : ModelLibrary.Get("Minerals/minerals", kv.Key); if (!mesh) continue;
                 if (!mats.TryGetValue(kv.Key, out var m)) mats[kv.Key] = m = VC();
                 var rp = new RenderParams(m) { shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On, receiveShadows = true };
                 for (int i = 0; i < kv.Value.Count; i += 1023)

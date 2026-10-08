@@ -97,9 +97,19 @@ namespace Deep
             var p = transform.position + vel * dt;
             // the seabed, the surface and the Nautilus
             var bed = DeepBoot.I.seabed;
-            float floor = bed.SampleY(p.x, p.z) + 1.0f;
-            if (p.y < floor) { p.y = floor; if (vel.y < 0) vel.y = 0; if (vel.magnitude > 4f) Bump(d, vel.magnitude); }
-            float surf = Waves.Height(p.x, p.z, Waves.T) - 0.6f;
+            var cv = Caverns.I;
+            if (cv != null && (cv.InCave(p) || cv.UnderGround(p)))
+            {
+                // the caves: kept off the walls by the distance field (the sub is about 1.2 m from its middle to its skin)
+                float s = cv.Sdf(p);
+                if (s > -1.3f) { var g = cv.Grad(p); if (g.sqrMagnitude > 1e-6f) { g.Normalize(); p -= g * (s + 1.3f); float into = Vector3.Dot(vel, g); if (into > 0) { if (into > 4f) Bump(d, into); vel -= g * into; } } }
+            }
+            else
+            {
+                float floor = bed.SampleY(p.x, p.z) + 1.0f;
+                if (p.y < floor) { p.y = floor; if (vel.y < 0) vel.y = 0; if (vel.magnitude > 4f) Bump(d, vel.magnitude); }
+            }
+            float surf = Sea.SurfaceAt(p) - 0.6f;
             if (p.y > surf) { p.y = surf; vel.y = Mathf.Min(vel.y, 0); }
             var lp = ship.Body.InverseTransformPoint(p);
             var axis = new Vector3(0, 0, Mathf.Clamp(lp.z, Nautilus.SternX, Nautilus.BowX));

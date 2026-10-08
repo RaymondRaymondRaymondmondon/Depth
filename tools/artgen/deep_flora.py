@@ -267,12 +267,97 @@ def build(f, biome):
             blade(mb, (0, 0, 0), norm((math.cos(a) * 0.4, 1, math.sin(a) * 0.4)), 0.6, 0.06, hsv(H(seed, 1), 0.5, 0.5), 0.3, 5, a)
     return mb
 
+# ------------------------------------------------------------------------------------------------ the caverns' growth
+NEON = {"blue": (0.25, 0.55, 1.0), "cyan": (0.2, 0.95, 1.0), "magenta": (1.0, 0.25, 0.85), "amber": (1.0, 0.62, 0.18),
+        "green": (0.45, 1.0, 0.35), "white": (0.92, 0.95, 1.0), "red": (1.0, 0.25, 0.2), "violet": (0.65, 0.35, 1.0)}
+PALE = (0.62, 0.6, 0.55)
+
+
+def build_cave(f):
+    """The Bioluminescent Caverns' twenty: everything grows along +y from the rock it clings to (Flora.cs turns +y to
+    the wall's normal, so a ceiling's vines hang down). The glowing parts are bright (Flora.shader's _Glow lights them)."""
+    n = f["name"].lower()
+    seed = f["id"]
+    g = NEON.get(f.get("color", "blue"), NEON["blue"])
+    dim = mix(PALE, g, 0.25)
+    mb = MB()
+    if "lantern vine" in n:          # vines hanging from the ceiling with neon-blue seed bulbs
+        for i in range(5):
+            a = H(seed + str(i), 1) * 6.28
+            b = (math.cos(a) * 0.2, 0, math.sin(a) * 0.2)
+            L = 1.4 + 1.6 * H(seed + str(i), 2)
+            strand(mb, b, add(b, (0.1, L, 0.05)), 0.02, mix(dim, (0.2, 0.3, 0.2), 0.5), 7, 0.08, i)
+            for j in range(4):
+                t = 0.35 + 0.2 * j
+                ellipsoid(mb, add(b, (0.1 * t + 0.03, L * t, 0.05 * t)), (0.05, 0.07, 0.05), col(g, t), 7, 5)
+    elif "phosphor mat" in n or "radiant lichen" in n or "pulse lichen" in n:   # a crust on the rock
+        lumps(mb, (0, 0, 0), 0.7 if "mat" in n else 0.5, 26, g, seed, 0.18)
+    elif "lantern shroom" in n or "beacon" in n or "strobe shroom" in n:      # squat caps on stalks
+        big = "beacon" in n
+        for i in range(6 if not big else 3):
+            a, r = H(seed + str(i), 1) * 6.28, H(seed + str(i), 2) * 0.25
+            h = (0.12 + 0.15 * H(seed + str(i), 3)) * (2.5 if big else 1)
+            b = (math.cos(a) * r, 0, math.sin(a) * r)
+            tube(mb, [b, add(b, (0, h, 0))], [0.03 * (2 if big else 1), 0.025 * (2 if big else 1)], 6, None, 0.0, colfn=lambda t, a_, p: col(PALE, p[1]))
+            cr = (0.09 + 0.06 * H(seed + str(i), 4)) * (2.4 if big else 1)
+            ellipsoid(mb, add(b, (0, h, 0)), (cr, cr * 0.45, cr), col(g, 1.0), 10, 5)
+    elif "acid vine" in n:            # a pale green creeper over the rock
+        for i in range(10):
+            a = H(seed + str(i), 1) * 6.28
+            pts = [(math.cos(a) * 0.08 * j + math.sin(j + i) * 0.05, 0.03 + 0.02 * math.sin(j * 1.7 + i), math.sin(a) * 0.08 * j) for j in range(8)]
+            tube(mb, pts, [0.018] * 8, 4, None, 0.0, colfn=lambda t, a_, p: col(g, 0.1))
+    elif "neon fungi" in n:           # thin shelves stacked up the wall
+        for i in range(6):
+            y = 0.08 + i * 0.12
+            x = math.sin(i * 1.7) * 0.15
+            membrane(mb, [(x - 0.12, y, 0.0), (x, y, 0.0), (x + 0.12, y, 0.0)], [(x - 0.1, y + 0.02, 0.12), (x, y + 0.03, 0.16), (x + 0.1, y + 0.02, 0.12)], 2, col(g, 0.2), 0.0, False)
+            membrane(mb, [(x + 0.12, y - 0.004, 0.0), (x, y - 0.004, 0.0), (x - 0.12, y - 0.004, 0.0)], [(x + 0.1, y + 0.016, 0.12), (x, y + 0.026, 0.16), (x - 0.1, y + 0.016, 0.12)], 2, col(mul(g, 0.6), 0.2), 0.0, False)
+    elif "crystal-moss" in n or "flicker mold" in n:   # fuzzy mould with calcite needles
+        lumps(mb, (0, 0, 0), 0.35, 14, mix(PALE, g, 0.35), seed, 0.5)
+        for i in range(18):
+            a, r = H(seed + str(i), 5) * 6.28, H(seed + str(i), 6) * 0.3
+            b = (math.cos(a) * r, 0.08, math.sin(a) * r)
+            cone(mb, b, add(b, (math.cos(a) * 0.05, 0.12 + 0.1 * H(seed + str(i), 7), math.sin(a) * 0.05)), 0.012, col((0.9, 0.95, 1.0), 0.6), 4)
+    elif "tubule" in n:               # clustered tubes with glowing mouths
+        for i in range(9):
+            a, r = H(seed + str(i), 1) * 6.28, H(seed + str(i), 2) * 0.2
+            h = 0.15 + 0.25 * H(seed + str(i), 3)
+            b = (math.cos(a) * r, 0, math.sin(a) * r)
+            tube(mb, [b, add(b, (0.02, h, 0))], [0.035, 0.03], 7, None, 0.0, colfn=lambda t, a_, p: col(mix(PALE, g, 0.2), p[1]))
+            ellipsoid(mb, add(b, (0.02, h, 0)), (0.032, 0.012, 0.032), col(g, 1.0), 7, 3)
+    elif "spire" in n:                # a 3 m glowing spire from the cavern floor
+        tube(mb, [(0, 0, 0), (0.05, 1.2, 0.02), (-0.04, 2.3, 0.0), (0.0, 3.0, 0.03)], [0.22, 0.16, 0.1, 0.04], 10, None, 0.0,
+             colfn=lambda t, a_, p: col(mix(PALE, g, clamp(p[1] / 3.0) * 0.8), p[1] / 3.0))
+        for i in range(7):
+            y = 0.6 + i * 0.35
+            ellipsoid(mb, (0.0, y, 0.0), (0.28 - 0.03 * i, 0.04, 0.28 - 0.03 * i), col(g, y / 3.0), 10, 3)
+    elif "pouch" in n:                # round sap bladders
+        for i in range(4):
+            a, r = H(seed + str(i), 1) * 6.28, H(seed + str(i), 2) * 0.15
+            rr = 0.08 + 0.08 * H(seed + str(i), 3)
+            ellipsoid(mb, (math.cos(a) * r, rr * 0.9, math.sin(a) * r), (rr, rr, rr), col(g, 0.5), 10, 7)
+    elif "filament" in n:             # hair-thin strands, a curtain in the current
+        for i in range(30):
+            x = (i - 15) * 0.03
+            L = 0.8 + 1.2 * H(seed + str(i), 1)
+            strand(mb, (x, 0, 0), (x + 0.05, L, 0.05), 0.004, g, 6, 0.06, i)
+    elif "cluster" in n:              # grape-like nodules tucked into a crevice
+        for i in range(16):
+            a, r = H(seed + str(i), 1) * 6.28, H(seed + str(i), 2) * 0.15
+            ellipsoid(mb, (math.cos(a) * r, 0.04 + H(seed + str(i), 3) * 0.12, math.sin(a) * r), (0.035, 0.035, 0.035), col(g, 0.5), 7, 5)
+    else:
+        lumps(mb, (0, 0, 0), 0.4, 12, g, seed, 0.4)
+    return mb
+
 
 def main():
     a = K.args()
     out = a[a.index("--out") + 1] if "--out" in a else os.path.join(K.ROOT, "TheDeep", "Assets", "Deep", "Resources", "Flora")
     os.makedirs(out, exist_ok=True)
-    for biome in ("shallows", "kelp"):
+    biomes = ("shallows", "kelp", "caverns")
+    if "--biome" in a:
+        biomes = (a[a.index("--biome") + 1],)
+    for biome in biomes:
         bpy.ops.wm.read_factory_settings(use_empty=True)
         with open(os.path.join(K.DATA, f"species_{biome}.json"), encoding="utf-8") as fh:
             tab = json.load(fh)
@@ -280,7 +365,7 @@ def main():
         for f in tab["flora"]:
             if "iron-kelp" in f["name"].lower():
                 continue
-            mb = build(f, biome)
+            mb = build_cave(f) if biome == "caverns" else build(f, biome)
             if not mb.f:
                 continue
             objs.append(K.to_object(f["id"], mb))

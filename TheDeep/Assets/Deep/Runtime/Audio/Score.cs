@@ -15,7 +15,7 @@ namespace Deep
     public class Score : MonoBehaviour
     {
         public static Score I;
-        public enum Mood { None, Shallows, Dark, Aboard, Storm, Danger }
+        public enum Mood { None, Shallows, Dark, Aboard, Storm, Danger, Caves }
         public Mood mood = Mood.None, playing = Mood.None;
         readonly List<AudioSource> pool = new List<AudioSource>();
         int next;
@@ -56,6 +56,7 @@ namespace Deep
             if (Danger()) return Mood.Danger;
             if (d.onRaft != null || (Opening.Active && !d.aboard && Sfx.Ear == Medium.Air)) return Mood.Storm;
             if (d.aboard) return Mood.Aboard;
+            if (Caverns.I != null && Caverns.I.UnderGround(d.EyeWorld)) return Mood.Caves;
             var clock = DeepBoot.I.clock;
             return d.Depth > 55f || clock.Night ? Mood.Dark : Mood.Shallows;
         }
@@ -149,6 +150,17 @@ namespace Deep
                     Note("ins_organ", Deg(root, Major, ch + 4), at, vol * 0.8f);
                     Note("ins_organ", Deg(root + 12, Major, ch + (bar % 3 == 0 ? 0 : 2)), at, vol * 0.7f);
                     if (bar % 2 == 1) Note("ins_organ", Deg(root + 12, Major, ch + 4), at + len / 2, vol * 0.6f);
+                    break;
+                }
+                case Mood.Caves:
+                {
+                    // the caverns: a whole-tone glimmer (nothing resolves), a low drone, the harp like dripping water
+                    int root = 49; int[] whole = { 0, 2, 4, 6, 8, 10 };
+                    if (bar % 4 == 0) Note("ins_drone", root - 13, at, 0.16f);
+                    if (bar % 2 == 0) Note("ins_pad", root + whole[R(6)], at, 0.09f);
+                    int n = 2 + R(3);
+                    for (int i = 0; i < n; i++) Note(R(2) == 0 ? "ins_celesta" : "ins_harp", root + 12 + whole[R(6)] + (R(3) == 0 ? 12 : 0), at + len * R(8) / 8.0, 0.13f);
+                    if (bar % 6 == 3) Note("ins_cello", root - 12 + whole[R(3)], at, 0.15f);
                     break;
                 }
                 case Mood.Storm:

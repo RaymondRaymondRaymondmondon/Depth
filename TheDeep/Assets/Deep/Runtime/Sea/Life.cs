@@ -170,7 +170,7 @@ namespace Deep
             m.SetFloat("_Mode", mode);
             m.SetFloat("_Freq", Mathf.PI * 2f * Mathf.Clamp(2.2f / Mathf.Sqrt(s.size), 0.2f, 4f));
             m.SetFloat("_Amp", mode == 1 ? 0.25f : mode == 2 ? 0.05f : mode == 3 ? 0.12f : mode == 4 ? 0.06f : mode == 6 ? 0.07f : 0.09f);
-            m.SetFloat("_Glow", s.e.light == "attracted" && s.biome == "kelp" ? 0.15f : 0f);
+            m.SetFloat("_Glow", s.e.light == "attracted" && s.biome == "kelp" ? 0.15f : s.biome == "caverns" && (s.e.light == "glow" || s.e.light == "strobe") ? 0.6f : s.biome == "caverns" ? 0.08f : 0f);
             looks[s] = (mesh, m);
             return (mesh, m);
         }
@@ -202,8 +202,44 @@ namespace Deep
             return dist < 45f && Vector3.Dot(d / Mathf.Max(0.01f, dist), cam.transform.forward) > 0.45f;
         }
 
+        // ---- the caves (Caverns.cs): the caverns' animals live in its water; nothing else comes down there ---------
+        static Caverns Cv => Caverns.I;
+        static bool Caves(Vector3 p) => Cv != null && (Cv.UnderGround(p) || Cv.InCave(p));
+        public static bool Bat(SpeciesDef s) => s.e.habitat == "air";
+
+        bool CaveSpot(SpeciesDef s, Vector3 around, float rMin, float rMax, out Vector3 at)
+        {
+            at = default;
+            var cv = Cv; if (cv == null) return false;
+            if (Bat(s))
+            {
+                // the roosts: the air over a pocket's water, near the eye
+                foreach (var ch in cv.chambers)
+                {
+                    if (!ch.air || (ch.c - around).sqrMagnitude > (rMax + ch.r.x) * (rMax + ch.r.x)) continue;
+                    for (int k = 0; k < 8; k++)
+                    {
+                        var p = new Vector3(ch.c.x + ((float)rnd.NextDouble() - 0.5f) * ch.r.x, Mathf.Lerp(ch.level + 1.5f, ch.c.y + ch.r.y * 0.8f, (float)rnd.NextDouble()), ch.c.z + ((float)rnd.NextDouble() - 0.5f) * ch.r.z);
+                        if (cv.Sdf(p) < -1f && !InView(p)) { at = p; return true; }
+                    }
+                }
+                return false;
+            }
+            if (!cv.FreePoint(around, rMin, Mathf.Min(rMax, 90f), 1f + s.size * 0.6f, rnd, out var q)) return false;
+            if (s.bottom || s.e.habitat == "floor" || s.e.habitat == "crevice") { if (!cv.Surface(q, -1, 30f, out q)) return false; }
+            else if (s.e.habitat == "ceiling") { if (!cv.Surface(q, +1, 30f, out q)) return false; }
+            if (InView(q)) return false;
+            at = q; return true;
+        }
+
         bool SpotFor(SpeciesDef s, Vector3 around, float rMin, float rMax, out Vector3 at)
         {
+            bool caveSpecies = s.biome == "caverns", eyeInCaves = Caves(around);
+            if (caveSpecies || eyeInCaves)
+            {
+                at = default;
+                return caveSpecies && eyeInCaves && CaveSpot(s, around, rMin, rMax, out at);
+            }
             var band = Band01(s);
             // reef and kelp animals gather where the reef and the kelp are
             string h = s.e.habitat;
@@ -249,9 +285,15 @@ namespace Deep
                 if (!s.resident) continue;
                 bool already = false; foreach (var c in live) if (c.persistent && c.sp.biome == s.biome) already = true;
                 if (already) continue;
-                // the territory: somewhere in its band, far enough from the start not to be met at once
+                // the territory: somewhere in its band, far enough from the start not to be met at once (the caverns'
+                // giant keeps to its biggest cathedral)
                 Vector3 best = new Vector3(Seabed.Size / 2, -60, Seabed.Size / 2); float bestScore = float.MaxValue;
-                for (int k = 0; k < 400; k++)
+                if (s.biome == "caverns")
+                {
+                    var ch = Cv != null ? Cv.Biggest(true) : null; if (ch == null) continue;
+                    best = ch.c; bestScore = -1;
+                }
+                for (int k = 0; k < 400 && bestScore >= 0; k++)
                 {
                     var p = new Vector3(60 + (float)rnd.NextDouble() * (Seabed.Size - 120), 0, 60 + (float)rnd.NextDouble() * (Seabed.Size - 120));
                     float water = -Bed(p);
@@ -306,7 +348,9 @@ namespace Deep
                 for (int i = 0; i < n && count < maxLive; i++, count++)
                 {
                     var off = new Vector3((float)rnd.NextDouble() - 0.5f, ((float)rnd.NextDouble() - 0.5f) * 0.4f, (float)rnd.NextDouble() - 0.5f) * (1.5f + n * 0.25f) * Mathf.Max(0.4f, s.size);
-                    var q = at + off; if (s.bottom) q.y = Bed(q) + 0.1f; else q.y = Mathf.Max(q.y, Bed(q) + 0.8f);
+                    var q = at + off;
+                    if (Caves(at)) { if (Cv.Sdf(q) > -0.4f - s.size * 0.3f) q = at; }
+                    else if (s.bottom) q.y = Bed(q) + 0.1f; else q.y = Mathf.Max(q.y, Bed(q) + 0.8f);
                     Make(s, q, n > 1 ? g : 0);
                 }
                 k++;
@@ -504,7 +548,14 @@ namespace Deep
             if (Clicker(s) && smell > 0.6f && rnd.NextDouble() < 0.05) { sound.Emit(c.pos, 50f, Band.High, 0.4f, "a carrion-crab's clicking"); Sfx.Shared("crab_clicks", c.pos, 1f, 1f, Medium.Water); }
             // dormant: wander the home range, in the band for the hour
             Set(c, CState.Dormant, null);
-            if ((c.goal - c.pos).sqrMagnitude < 4f || c.stateT > 12f || prev != CState.Dormant)
+            if (((c.goal - c.pos).sqrMagnitude < 4f || c.stateT > 12f || prev != CState.Dormant) && Caves(c.pos))
+            {
+                float range = s.IsLeviathan ? 45f : 4f + c.size * 8f;
+                if (Bat(s)) { CaveSpot(s, c.home, 0, 40f, out var bg); if (bg != default) c.goal = bg; }
+                else if (Cv.FreePoint(c.home, 0, range, 1f + c.size * 0.5f, rnd, out var g2) && Cv.Clear(c.pos, g2, c.size * 0.4f)) c.goal = g2;
+                c.stateT = 0;
+            }
+            else if ((c.goal - c.pos).sqrMagnitude < 4f || c.stateT > 12f || prev != CState.Dormant)
             {
                 var band = Band01(s);
                 float range = s.IsLeviathan ? 160f : 6f + c.size * 10f;
@@ -568,13 +619,23 @@ namespace Deep
             }
 
             // keep off the seabed (or on it, for the crawlers), under the surface, and clear of the Nautilus
-            float floor = Bed(c.pos);
-            if (s.bottom) { wantV.y = 0; }
+            bool inCaves = Caves(c.pos);
+            float floor = inCaves ? float.MinValue : Bed(c.pos);
+            if (inCaves)
+            {
+                float sd = Cv.Sdf(c.pos), keep = 0.5f + c.size * 0.45f;
+                if (sd > -keep) { var gr = Cv.Grad(c.pos); if (gr.sqrMagnitude > 1e-6f) wantV -= gr.normalized * (sd + keep) * 4f; }
+                float lvl = Cv.PocketSurface(c.pos);
+                if (Bat(s)) { if (c.pos.y < lvl + 1f) wantV.y = Mathf.Max(wantV.y, 2f); }
+                else if (!float.IsPositiveInfinity(lvl) && c.pos.y > lvl - 0.6f) wantV.y = Mathf.Min(wantV.y, -0.6f);
+                if (s.bottom) wantV.y = Mathf.Min(wantV.y, 0f);
+            }
+            else if (s.bottom) { wantV.y = 0; }
             else
             {
                 float clear = floor + 0.8f + c.size * 0.3f;
                 if (c.pos.y < clear + 1f) wantV.y = Mathf.Max(wantV.y, (clear + 1f - c.pos.y) * 1.5f);
-                if (c.pos.y > -1.2f) wantV.y = Mathf.Min(wantV.y, -0.5f);
+                if (c.pos.y > -1.2f) wantV.y = Mathf.Min(wantV.y, -0.5f);   // (the open sea's surface)
             }
             if (ship)
             {
@@ -595,7 +656,14 @@ namespace Deep
                 c.fwd = Vector3.RotateTowards(c.fwd, dir, s.turn * Mathf.Deg2Rad * dt, 1f);
             }
             c.pos += c.vel * dt;
-            if (s.bottom) c.pos.y = Bed(c.pos) + 0.05f + c.size * 0.1f;
+            if (inCaves)
+            {
+                // a crawler clings to the cave floor beneath it; nothing passes into the rock
+                if (s.bottom && Cv.Surface(c.pos + Vector3.up * 0.5f, -1, 4f, out var fl)) c.pos.y = Mathf.Lerp(c.pos.y, fl.y + 0.05f + c.size * 0.1f, 0.3f);
+                float sd = Cv.Sdf(c.pos);
+                if (sd > -0.2f) { var gr = Cv.Grad(c.pos); if (gr.sqrMagnitude > 1e-6f) c.pos -= gr.normalized * (sd + 0.25f); }
+            }
+            else if (s.bottom) c.pos.y = Bed(c.pos) + 0.05f + c.size * 0.1f;
             else c.pos.y = Mathf.Max(c.pos.y, floor + 0.3f + c.size * 0.2f);
             c.pos.x = Mathf.Clamp(c.pos.x, 5, Seabed.Size - 5); c.pos.z = Mathf.Clamp(c.pos.z, 5, Seabed.Size - 5);
 

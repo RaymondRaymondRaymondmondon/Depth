@@ -11,7 +11,7 @@ namespace Deep
     {
         public static bool HideOcean;
         static readonly string[] All = { "debugdown", "debugair", "reef", "kelp", "up", "above", "night", "drop", "meadow",
-            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral", "life_light", "life_engine", "life_moon", "wreck_galleon", "wreck_dreadnought", "deposit", "craft", "pack", "kitesub", "kitesub_fly", "opening_raft", "opening_board", "opening_storm", "opening_hunt", "crew_sea", "crew_aboard", "crew_raft", "decor_cabin", "decor_salon", "decor_ghost", "drop_satchel", "captains_log" };
+            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral", "life_light", "life_engine", "life_moon", "wreck_galleon", "wreck_dreadnought", "deposit", "craft", "pack", "kitesub", "kitesub_fly", "opening_raft", "opening_board", "opening_storm", "opening_hunt", "crew_sea", "crew_aboard", "crew_raft", "decor_cabin", "decor_salon", "decor_ghost", "drop_satchel", "captains_log", "cave_city", "cave_hall", "cave_tunnel", "cave_sinkhole", "cave_mouth", "cave_pocket", "cave_life", "cave_dive" };
 
         public void Run(string which, string dir) { StartCoroutine(Go(which, dir)); }
 
@@ -361,6 +361,84 @@ namespace Deep
                         if (hunter == null) foreach (var c in b.life.live) if (c.alive && c.persistent) { hunter = c; break; }
                         if (hunter != null) { hunter.forced = true; hunter.pos = b.diver.EyeWorld + new Vector3(12, 0, 6); hunter.state = CState.Hunting; hunter.goal = b.diver.EyeWorld; }
                     }
+                    return true;
+                }
+                case "cave_city":
+                case "cave_hall":
+                case "cave_tunnel":
+                case "cave_sinkhole":
+                case "cave_mouth":
+                case "cave_pocket":
+                {
+                    b.clock.hour = 11f; Power(false);
+                    var cv = Caverns.I;
+                    if (name == "cave_city" || name == "cave_hall")
+                    {
+                        var ch = name == "cave_city" ? cv.City : cv.Biggest(true);
+                        var eye = ch.c + new Vector3(-ch.r.x * 0.6f, -ch.r.y * 0.1f, -ch.r.z * 0.3f);
+                        Look(eye, ch.c + new Vector3(ch.r.x * 0.4f, -ch.r.y * 0.3f, ch.r.z * 0.2f));
+                    }
+                    else if (name == "cave_tunnel")
+                    {
+                        var r = new System.Random(3); Vector3 at;
+                        var ch = cv.Biggest(true);
+                        if (!cv.FreePoint(ch.c, ch.r.magnitude * 0.9f, ch.r.magnitude * 1.6f, 2.5f, r, out at)) at = ch.c;
+                        var dir = -cv.Grad(at); Look(at, at + new Vector3(dir.z, 0, -dir.x) * 10f);
+                    }
+                    else if (name == "cave_sinkhole")
+                    {
+                        var m = cv.mouths[0];
+                        Look(m + new Vector3(14f, 10f, 8f), m + Vector3.down * 6f);
+                    }
+                    else if (name == "cave_mouth")
+                    {
+                        var m = cv.mouths[cv.mouths.Count - 1];
+                        Look(m + new Vector3(22f, 4f, 6f), m + new Vector3(-8f, -2f, 0f));
+                    }
+                    else
+                    {
+                        Caverns.Chamber pk = null; foreach (var c in cv.chambers) if (c.air) pk = c;
+                        Look(new Vector3(pk.c.x - pk.r.x * 0.5f, pk.level + 1.2f, pk.c.z - pk.r.z * 0.4f), new Vector3(pk.c.x + pk.r.x * 0.3f, pk.level + 3f, pk.c.z));
+                    }
+                    b.diver.lampOn = true;
+                    if (name != "cave_sinkhole" && name != "cave_mouth") b.life.WarmUp(b.diver.EyeWorld, 15f);
+                    return true;
+                }
+                case "cave_dive":
+                {
+                    // swim down the sinkhole: does the diver get through the Kelp's floor into the caves? (and breathe in a pocket)
+                    b.clock.hour = 11f; Power(false);
+                    var cv = Caverns.I; var m = cv.mouths[0];
+                    b.diver.Place(m + Vector3.up * 6f, 0, 80f);
+                    b.diver.inputEnabled = true; b.diver.SimHold = KeyCode.C;
+                    float startY = b.diver.EyeWorld.y, ground = b.seabed.HeightAt(m.x, m.z);
+                    for (int i = 0; i < 600; i++) { b.diver.SimStep(1f / 60f); Physics.SyncTransforms(); }
+                    b.diver.SimHold = KeyCode.None; b.diver.inputEnabled = false;
+                    var eye = b.diver.EyeWorld;
+                    {
+                        var td = b.seabed.terrain.terrainData; int hr = td.holesResolution;
+                        int hi = Mathf.FloorToInt(eye.x / Seabed.Size * hr), hj = Mathf.FloorToInt(eye.z / Seabed.Size * hr);
+                        var holes = td.GetHoles(hi - 2, hj - 2, 5, 5); int open = 0; foreach (var hv in holes) if (!hv) open++;
+                        bool hit = Physics.Raycast(eye, Vector3.down, out var rh, 20f);
+                        Debug.Log($"DEEP CAVETEST: under the diver: sdf at the ground {cv.Sdf(new Vector3(eye.x, ground - 0.6f, eye.z)):0.0}, {open}/25 hole cells round it, ray down hits {(hit ? rh.collider.name + " at " + rh.point.y.ToString("0.0") : "nothing")}");
+                    }
+                    Debug.Log($"DEEP CAVETEST: {(eye.y < ground - 8f && cv.InCave(eye) ? "PASS" : "FAIL")} swam down the sinkhole from {startY:0.0} to {eye.y:0.0} (the Kelp's floor at {ground:0.0}; in the caves: {cv.InCave(eye)})");
+                    Caverns.Chamber pk = null; foreach (var c in cv.chambers) if (c.air) pk = c;
+                    var air = new Vector3(pk.c.x, pk.level + 1.2f, pk.c.z);
+                    Debug.Log($"DEEP CAVETEST: {(Sea.SurfaceAt(air) < air.y ? "PASS" : "FAIL")} an air pocket's surface at {Sea.SurfaceAt(air):0.0} under an eye at {air.y:0.0}");
+                    Look(eye, eye + Vector3.down * 10f + Vector3.forward * 4f);
+                    return true;
+                }
+                case "cave_life":
+                case "listen_caves":
+                {
+                    b.clock.hour = 11f; Power(false);
+                    var ch = Caverns.I.Biggest(true);
+                    var eye = ch.c + new Vector3(-ch.r.x * 0.35f, 0, 0);
+                    Look(eye, ch.c + new Vector3(ch.r.x * 0.3f, -ch.r.y * 0.25f, ch.r.z * 0.1f));
+                    b.life.WarmUp(eye, 30f);
+                    LogLife(b);
+                    if (name == "listen_caves") { b.diver.inputEnabled = true; Score.I.Kick(); }
                     return true;
                 }
                 case "crew_sea":

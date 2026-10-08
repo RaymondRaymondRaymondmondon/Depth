@@ -16,6 +16,7 @@ namespace Deep
         public Nautilus ship;
         public Life life;
         public Weather weather;
+        public Caverns caverns;
 
         // the derelict Nautilus lies on the seabed a short swim from the start: in 16-30 m of water, on the flattest
         // ground found in a ring round the spawn, her keel settled into the sand with a slight list
@@ -95,6 +96,8 @@ namespace Deep
             seabed.Build(Args.Seed);
             flora = new GameObject("Flora").AddComponent<Flora>();
             flora.Build(seabed, Args.Seed);
+            caverns = Caverns.Build(seabed, Args.Seed);
+            flora.ClearWhere(p => caverns.InCave(p + Vector3.down * 0.6f));   // (nothing grows over the caves' mouths)
             new GameObject("OceanSurface").AddComponent<OceanSurface>();
 
             look = new GameObject("UnderwaterLook").AddComponent<UnderwaterLook>();
@@ -103,6 +106,8 @@ namespace Deep
             diver.ship = ship;
             life = Life.Build(seabed, clock, diver, ship, Args.Seed);
             Deposits.Build(seabed, flora, diver.transform.position, Args.Seed);
+            Deposits.I?.SerpentScales(seabed, Args.Seed);
+            caverns.Plant(flora, Args.Seed); caverns.BuildCity(flora, Args.Seed); caverns.Eggs(Args.Seed);
             Hands.Attach(diver);
             Survival.Attach(diver);
             CraftUI.Attach(diver);

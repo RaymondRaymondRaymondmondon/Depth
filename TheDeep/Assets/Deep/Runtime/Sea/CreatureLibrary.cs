@@ -6,6 +6,6 @@ namespace Deep
 {
     public static class CreatureLibrary
     {
-        public static Mesh Get(string id) => ModelLibrary.Get("Creatures/creatures_shallows", id) ?? ModelLibrary.Get("Creatures/creatures_kelp", id);
+        public static Mesh Get(string id) => ModelLibrary.Get("Creatures/creatures_shallows", id) ?? ModelLibrary.Get("Creatures/creatures_kelp", id) ?? ModelLibrary.Get("Creatures/creatures_caverns", id);
     }
 }

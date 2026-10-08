@@ -1,0 +1,3519 @@
+{
+  "biome": "caverns",
+  "name": "The Bioluminescent Caverns",
+  "depthMin": 150,
+  "depthMax": 300,
+  "absorptionDbPerM": 0.012,
+  "layout": "Limestone tunnel networks and huge cathedral caverns. Echoes amplify every sound, so stealth is vital. Tight squeezes need the Kite-Sub or swimming. Upper chambers hold air pockets with bat roosts. The Abandoned Underwater City lies here.",
+  "look": "Pitch-black tunnels lit only by neon-blue, magenta and amber flora (about 1 to 200 lux) and pulsing creature organs; strobe flashes light the wet walls.",
+  "hazards": "Extreme echo (amplifies Wake), cave-ins, blinding strobes from predators (up to about 50,000 lux), getting lost in narrow tunnels.",
+  "foodWeb": "Chemosynthetic glowing fungi, lichens and bacterial mats feed plankton, blind crustaceans and grazers, while bat guano from the air pockets feeds beetles, prawns and molds. Glass-shrimp, cavefish and other grazers feed echolocating rays and gars, flash-hunters, and strobing cuttlefish and squid. Four apex giants, led by the Flash-Stalker Leviathan, hunt the mesopredators and follow strobe flashes and loud echoes.",
+  "source": "The Deep Design Document.pdf, The ten ecosystems (3. The Bioluminescent Caverns, pages 34-46), Featured species, and The Abandoned Underwater City",
+  "leviathan": "flash_stalker_leviathan",
+  "flora": [
+    {
+      "id": "lantern_vine",
+      "name": "Lantern Vine",
+      "tier": 1,
+      "type": "Hanging vine",
+      "description": "Hangs from ceilings with neon-blue seed bulbs at 40 lux each",
+      "eatenBy": [
+        "Lantern Slug",
+        "Glowfruit Bat"
+      ],
+      "yields": "Lantern Vine Seed",
+      "use": "Cavern Cold-Brew, desk lamps",
+      "habitat": "ceiling",
+      "light": 40,
+      "color": "blue",
+      "pulse": 0
+    },
+    {
+      "id": "phosphor_mat",
+      "name": "Phosphor Mat",
+      "tier": 1,
+      "type": "Fungal wall mat",
+      "description": "Wall mat that pulses cyan and magenta every 3 s at 15 lux",
+      "eatenBy": [
+        "Glowmote Copepod",
+        "Blind Lamp-Isopod",
+        "Mat-Scraper Amphipod"
+      ],
+      "yields": "Phosphor Mat",
+      "use": "Flare chemicals, Phosphor Mat Battery Cells",
+      "habitat": "wall",
+      "light": 15,
+      "color": "cyan",
+      "pulse": 3
+    },
+    {
+      "id": "lantern_shroom",
+      "name": "Lantern Shroom",
+      "tier": 1,
+      "type": "Mushroom",
+      "description": "Squat amber caps on wet ledges, steady at 25 lux",
+      "eatenBy": [
+        "Glowcap Nibbler",
+        "Pale Mat-Crayfish"
+      ],
+      "yields": "Lantern Shroom Cap",
+      "use": "Basic food ration",
+      "habitat": "ledge",
+      "light": 25,
+      "color": "amber",
+      "pulse": 0
+    },
+    {
+      "id": "acid_vine",
+      "name": "Acid Vine",
+      "tier": 2,
+      "type": "Corrosive creeper",
+      "description": "Pale green creeper that dissolves limestone and burns bare skin (8 lux)",
+      "eatenBy": [
+        "Mineral-Tongue Limpet"
+      ],
+      "yields": "Acid Vine Sac",
+      "use": "Etching acid for opening sealed rock and doors",
+      "habitat": "wall",
+      "light": 8,
+      "color": "green",
+      "pulse": 0
+    },
+    {
+      "id": "neon_fungi",
+      "name": "Neon Fungi",
+      "tier": 1,
+      "type": "Bracket fungus",
+      "description": "Thin electric-blue shelves that stack up tunnel walls (20 lux)",
+      "eatenBy": [
+        "Glowcap Nibbler",
+        "Fungus-Rasper Chiton"
+      ],
+      "yields": "Neon Fungi Gill",
+      "use": "Glow paint for waypoints",
+      "habitat": "wall",
+      "light": 20,
+      "color": "blue",
+      "pulse": 0
+    },
+    {
+      "id": "pulse_lichen",
+      "name": "Pulse Lichen",
+      "tier": 1,
+      "type": "Lichen",
+      "description": "Crust on dripstone that throbs about 60 times a minute (6 lux)",
+      "eatenBy": [
+        "Lichen-Lick Snail",
+        "Cave Glow-Midge"
+      ],
+      "yields": "Pulse Lichen Flake",
+      "use": "Stimulant medkits",
+      "habitat": "ceiling",
+      "light": 6,
+      "color": "green",
+      "pulse": 1,
+      "estimated": [
+        "habitat",
+        "color"
+      ]
+    },
+    {
+      "id": "crystal_moss_mold",
+      "name": "Crystal-Moss Mold",
+      "tier": 2,
+      "type": "Mineral mold",
+      "description": "Fuzzy mold that grows clear calcite needles (3 lux)",
+      "eatenBy": [
+        "Moss-Bear Tardigrade"
+      ],
+      "yields": "Crystal-Moss Shard",
+      "use": "Optical lenses, Stasis Rifle",
+      "habitat": "wall",
+      "light": 3,
+      "color": "white",
+      "pulse": 0,
+      "estimated": [
+        "color"
+      ]
+    },
+    {
+      "id": "spore_tubule",
+      "name": "Spore Tubule",
+      "tier": 2,
+      "type": "Tube fungus",
+      "description": "Clustered tubes that puff glowing spore clouds when touched (10 lux)",
+      "eatenBy": [
+        "Lumen Rotifer",
+        "Spore-Drift Larva"
+      ],
+      "yields": "Spore Tubule Powder",
+      "use": "Smoke and decoy bombs",
+      "habitat": "floor",
+      "light": 10,
+      "color": "green",
+      "pulse": 0,
+      "estimated": [
+        "habitat",
+        "color"
+      ]
+    },
+    {
+      "id": "glow_cap_spire",
+      "name": "Glow-Cap Spire",
+      "tier": 3,
+      "type": "Giant mushroom",
+      "description": "3 m spires rising from cavern floors, glowing at 120 lux",
+      "eatenBy": [
+        "Stalactite Urchin",
+        "Ember Sea-Hare"
+      ],
+      "yields": "Spire Heartwood",
+      "use": "Light composite for hulls",
+      "habitat": "floor",
+      "light": 120,
+      "color": "cyan",
+      "pulse": 0,
+      "estimated": [
+        "color"
+      ]
+    },
+    {
+      "id": "shroom_pouch",
+      "name": "Shroom Pouch",
+      "tier": 2,
+      "type": "Sap bladder fungus",
+      "description": "Round pouch of glowing sap that sloshes and shines at 30 lux",
+      "eatenBy": [
+        "Lantern Slug",
+        "Glowfruit Bat"
+      ],
+      "yields": "Bioluminescent Nectar",
+      "use": "Raw sap for Echolocation Extract and sconces",
+      "habitat": "ledge",
+      "light": 30,
+      "color": "amber",
+      "pulse": 0,
+      "estimated": [
+        "habitat",
+        "color"
+      ]
+    },
+    {
+      "id": "lumen_filament",
+      "name": "Lumen Filament",
+      "tier": 1,
+      "type": "Drifting strands",
+      "description": "Hair-thin strands that sway in currents like curtains (5 lux)",
+      "eatenBy": [
+        "Neon Krill-Mite",
+        "Grotto Feather-Duster"
+      ],
+      "yields": "Lumen Filament Thread",
+      "use": "Sutures, fiber-optic cable, battery cells",
+      "habitat": "drifting",
+      "light": 5,
+      "color": "white",
+      "pulse": 0,
+      "estimated": [
+        "color"
+      ]
+    },
+    {
+      "id": "vivid_cluster",
+      "name": "Vivid Cluster",
+      "tier": 1,
+      "type": "Berry fungus",
+      "description": "Grape-like magenta nodules tucked into crevices (20 lux)",
+      "eatenBy": [
+        "Glowfruit Bat",
+        "Ghostfin Cavefish"
+      ],
+      "yields": "Vivid Cluster Berry",
+      "use": "Food, hydration snacks",
+      "habitat": "crevice",
+      "light": 20,
+      "color": "magenta",
+      "pulse": 0
+    },
+    {
+      "id": "strobe_shroom",
+      "name": "Strobe Shroom",
+      "tier": 3,
+      "type": "Defensive mushroom",
+      "description": "Fires an 8,000 lux burst when disturbed, then dims for a minute",
+      "eatenBy": [
+        "Ember Sea-Hare"
+      ],
+      "yields": "Strobe Shroom Gland",
+      "use": "Flashbang flare cores",
+      "habitat": "floor",
+      "light": 8000,
+      "color": "white",
+      "pulse": 0,
+      "estimated": [
+        "habitat",
+        "color"
+      ]
+    },
+    {
+      "id": "beacon_fungi",
+      "name": "Beacon Fungi",
+      "tier": 2,
+      "type": "Columnar fungus",
+      "description": "Steady amber columns at 200 lux; predators patrol nearby",
+      "eatenBy": [
+        "Pale Mat-Crayfish"
+      ],
+      "yields": "Beacon Fungi Stalk",
+      "use": "Deployable marker beacons",
+      "habitat": "floor",
+      "light": 200,
+      "color": "amber",
+      "pulse": 0,
+      "estimated": [
+        "habitat"
+      ]
+    },
+    {
+      "id": "radiant_lichen",
+      "name": "Radiant Lichen",
+      "tier": 2,
+      "type": "Thermal lichen",
+      "description": "Warm orange crust near mineral seeps that gives off heat (12 lux)",
+      "eatenBy": [
+        "Lichen-Lick Snail",
+        "Lumen Sea-Cucumber"
+      ],
+      "yields": "Radiant Lichen Crust",
+      "use": "Heat packs",
+      "habitat": "wall",
+      "light": 12,
+      "color": "amber",
+      "pulse": 0,
+      "estimated": [
+        "habitat"
+      ]
+    },
+    {
+      "id": "flicker_mold",
+      "name": "Flicker Mold",
+      "tier": 1,
+      "type": "Guano mold",
+      "description": "Mold on guano piles that flickers erratically (8 lux)",
+      "eatenBy": [
+        "Cave Glow-Midge",
+        "Cave Cleaner Beetle"
+      ],
+      "yields": "Flicker Mold Culture",
+      "use": "Antibiotics",
+      "habitat": "ledge",
+      "light": 8,
+      "color": "green",
+      "pulse": 0.4,
+      "estimated": [
+        "habitat",
+        "color",
+        "pulse"
+      ]
+    },
+    {
+      "id": "glimmer_tubule",
+      "name": "Glimmer Tubule",
+      "tier": 3,
+      "type": "Resonant tube",
+      "description": "Pipe-organ tubes that hum Mid-band tones in currents (15 lux)",
+      "eatenBy": [
+        "Lumen Sea-Cucumber"
+      ],
+      "yields": "Glimmer Tubule Resonator",
+      "use": "Sound decoys that lure predators",
+      "habitat": "floor",
+      "light": 15,
+      "color": "cyan",
+      "pulse": 0,
+      "estimated": [
+        "habitat",
+        "color"
+      ]
+    },
+    {
+      "id": "vapour_pouch",
+      "name": "Vapour Pouch",
+      "tier": 2,
+      "type": "Gas bladder",
+      "description": "Translucent bladder of buoyant gas, faint blue at 4 lux",
+      "eatenBy": [
+        "Ember Sea-Hare"
+      ],
+      "yields": "Vapour Pouch Gas",
+      "use": "Buoyancy rigs, lift bags",
+      "habitat": "ceiling",
+      "light": 4,
+      "color": "blue",
+      "pulse": 0,
+      "estimated": [
+        "habitat"
+      ]
+    },
+    {
+      "id": "spark_filament",
+      "name": "Spark Filament",
+      "tier": 3,
+      "type": "Electric strands",
+      "description": "Crackling violet strands that shock on contact (35 lux)",
+      "eatenBy": [
+        "Mineral-Tongue Limpet"
+      ],
+      "yields": "Spark Filament Coil",
+      "use": "Luminescent Battery Cells, stun weapons",
+      "habitat": "wall",
+      "light": 35,
+      "color": "violet",
+      "pulse": 0,
+      "estimated": [
+        "habitat"
+      ]
+    },
+    {
+      "id": "ember_cluster",
+      "name": "Ember Cluster",
+      "tier": 2,
+      "type": "Heat nodule",
+      "description": "Amber nodules around warm seeps, glowing at 50 lux",
+      "eatenBy": [
+        "Pale Mat-Crayfish"
+      ],
+      "yields": "Ember Cluster Core",
+      "use": "Cooking heat, fuel additive",
+      "habitat": "floor",
+      "light": 50,
+      "color": "amber",
+      "pulse": 0,
+      "estimated": [
+        "habitat"
+      ]
+    }
+  ],
+  "fauna": [
+    {
+      "id": "glowmote_copepod",
+      "name": "Glowmote Copepod",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.002,
+      "sizeText": "2 mm",
+      "sound": "Silent",
+      "description": "Neon-blue copepod drifting in clouds that lights the water when disturbed.",
+      "diet": [
+        "bacterial mats",
+        "Phosphor Mat"
+      ],
+      "predators": [
+        "Glass-Cave Shrimp",
+        "Chandelier Sponge",
+        "Grotto Feather-Duster",
+        "Halo Comb-Jelly"
+      ],
+      "schooling": true,
+      "groupSize": [
+        1000,
+        100000
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Drifts in clouds; flares to 0.5 lux when disturbed, lighting up whatever moves through it.",
+      "behavior": "Neon-blue specks drifting in clouds; light the water when disturbed (0.5 lux)",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lumen_rotifer",
+      "name": "Lumen Rotifer",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.0005,
+      "sizeText": "0.5 mm",
+      "sound": "Silent",
+      "description": "Microscopic rotifer that spins in dense swarms around spore plumes.",
+      "diet": [
+        "Spore Tubule",
+        "bacterial mats"
+      ],
+      "predators": [
+        "Glass-Cave Shrimp",
+        "Lantern Barnacle",
+        "Drip Tubeworm"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5000,
+        200000
+      ],
+      "habitat": "cavern",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Gathers in dense spinning swarms; no defence beyond numbers.",
+      "behavior": "Gathers in dense spinning swarms around spore plumes",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "spore_drift_larva",
+      "name": "Spore-Drift Larva",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.01,
+      "sizeText": "1 cm",
+      "sound": "Silent",
+      "description": "Amber larva riding the slow currents between chambers.",
+      "diet": [
+        "Spore Tubule",
+        "detritus"
+      ],
+      "predators": [
+        "Cavern Echo-Clam",
+        "Siphon Glow-Mussel",
+        "Halo Comb-Jelly"
+      ],
+      "schooling": true,
+      "groupSize": [
+        100,
+        5000
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Passive drift on slow cave currents between chambers.",
+      "behavior": "Amber larvae ride slow cave currents between chambers",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "sparkdrift_dinoflagellate",
+      "name": "Sparkdrift Dinoflagellate",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.0002,
+      "sizeText": "0.2 mm",
+      "sound": "Silent",
+      "description": "Dinoflagellate bloom that sparkles magenta along anything moving through it.",
+      "diet": [
+        "bacterial mats"
+      ],
+      "predators": [
+        "Chandelier Sponge",
+        "Lantern Barnacle",
+        "Siphon Glow-Mussel"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10000,
+        1000000
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Sparkles magenta in a moving diver's wake, giving the diver away.",
+      "behavior": "Sparkles magenta along wakes; reveals moving divers",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "neon_krill_mite",
+      "name": "Neon Krill-Mite",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.008,
+      "sizeText": "8 mm",
+      "sound": "5 dB, High",
+      "description": "Ticking krill-mite that swarms on filament curtains.",
+      "diet": [
+        "Lumen Filament",
+        "bacterial mats"
+      ],
+      "predators": [
+        "Glass-Cave Shrimp",
+        "Halo Comb-Jelly",
+        "Strobe Box-Jelly"
+      ],
+      "schooling": true,
+      "groupSize": [
+        200,
+        5000
+      ],
+      "habitat": "cavern",
+      "depthMin": 150,
+      "depthMax": 280,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Ticking swarms cling to filament curtains and scatter when brushed.",
+      "behavior": "Ticking swarms that cling to filament curtains",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "blind_lamp_isopod",
+      "name": "Blind Lamp-Isopod",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.04,
+      "sizeText": "4 cm",
+      "sound": "10 dB, High",
+      "description": "Blind isopod that files along walls scraping glowing mats clean.",
+      "diet": [
+        "Phosphor Mat",
+        "bacterial mats"
+      ],
+      "predators": [
+        "Flash-Hunter Darter",
+        "Ghost-Olm",
+        "Strobe Mantis Shrimp"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        40
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Crawls walls in single-file lines; curls up when touched.",
+      "behavior": "Crawls walls in lines and scrapes glowing trails clean",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "mat_scraper_amphipod",
+      "name": "Mat-Scraper Amphipod",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.02,
+      "sizeText": "2 cm",
+      "sound": "8 dB, High",
+      "description": "Jittery amphipod hopping across phosphor mats.",
+      "diet": [
+        "Phosphor Mat",
+        "bacterial mats"
+      ],
+      "predators": [
+        "Flash-Hunter Darter",
+        "Arc-Jaw Cavefish"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        100
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Hops across mats in jittery bursts that are hard to follow.",
+      "behavior": "Hops across mats in jittery bursts",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lichen_lick_snail",
+      "name": "Lichen-Lick Snail",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.05,
+      "sizeText": "5 cm",
+      "sound": "Silent",
+      "description": "Small snail leaving dark tracks through glowing lichen.",
+      "diet": [
+        "Pulse Lichen",
+        "Radiant Lichen"
+      ],
+      "predators": [
+        "Grotto Pincer-Lobster",
+        "Grotto Mimic Octopus"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        8
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Slow grazer; relies on its shell; its dark tracks lead to it.",
+      "behavior": "Leaves dark tracks through glowing lichen",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "glowcap_nibbler",
+      "name": "Glowcap Nibbler",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.12,
+      "sizeText": "12 cm",
+      "sound": "20 dB, Mid",
+      "description": "Schooling fish that crops mushroom caps and scatters from lights.",
+      "diet": [
+        "Lantern Shroom",
+        "Neon Fungi"
+      ],
+      "predators": [
+        "Echo-Ray",
+        "Strobe-Squid",
+        "Lumen Barracuda",
+        "Magenta Lamp-Leech"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        40
+      ],
+      "habitat": "cavern",
+      "depthMin": 150,
+      "depthMax": 280,
+      "activity": "both",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "repelled",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Schools crop shroom caps and scatter at dive lights.",
+      "behavior": "Schooling fish that crops shroom caps and scatters at lights",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "ghostfin_cavefish",
+      "name": "Ghostfin Cavefish",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.15,
+      "sizeText": "15 cm",
+      "sound": "18 dB, Mid",
+      "description": "Blind, translucent cavefish that feels pressure waves.",
+      "diet": [
+        "Vivid Cluster",
+        "bacterial mats"
+      ],
+      "predators": [
+        "Echo-Ray",
+        "Lure-Lantern Angler",
+        "Bat-Fin Echo-Gar"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        20
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Blind; feels pressure waves and darts away from anything that displaces water.",
+      "behavior": "Blind and translucent; senses pressure waves",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "fungus_rasper_chiton",
+      "name": "Fungus-Rasper Chiton",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.06,
+      "sizeText": "6 cm",
+      "sound": "10 dB, High",
+      "description": "Chiton rasping neon fungi off the walls.",
+      "diet": [
+        "Neon Fungi"
+      ],
+      "predators": [
+        "Grotto Mimic Octopus",
+        "Strobe Mantis Shrimp"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        6
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Clamps tight to rock when touched; its rasping is audible.",
+      "behavior": "Clamps tight to rock when touched; its rasping is audible",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lantern_slug",
+      "name": "Lantern Slug",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.1,
+      "sizeText": "10 cm",
+      "sound": "Silent",
+      "description": "Sea slug that takes in the glow of what it eats and pulses blue.",
+      "diet": [
+        "Lantern Vine",
+        "Shroom Pouch"
+      ],
+      "predators": [
+        "Magenta Lamp-Leech",
+        "Strobe Cuttlefish"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "ceiling",
+      "depthMin": 150,
+      "depthMax": 260,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Slow; its blue pulse marks it to predators.",
+      "behavior": "Takes in the glow of what it eats and pulses blue",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "glowfruit_bat",
+      "name": "Glowfruit Bat",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "bat",
+      "sizeM": 0.4,
+      "sizeText": "40 cm span",
+      "sound": "30 dB, High",
+      "description": "Fruit bat roosting in air pockets and feeding on glowing fruit and vines.",
+      "diet": [
+        "Lantern Vine",
+        "Vivid Cluster",
+        "Shroom Pouch"
+      ],
+      "predators": [
+        "Hollow-Cave Seal",
+        "Lumen Tunnel-Eel"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        80
+      ],
+      "habitat": "air",
+      "depthMin": 150,
+      "depthMax": 200,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Roosts in colonies in air pockets; drops guano that feeds the chamber below.",
+      "behavior": "Roosts in air pockets and drops guano into the water",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "stalactite_urchin",
+      "name": "Stalactite Urchin",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "urchin",
+      "sizeM": 0.1,
+      "sizeText": "10 cm",
+      "sound": "8 dB, High",
+      "description": "Urchin that hangs upside down from ceilings and grinds spire bases.",
+      "diet": [
+        "Glow-Cap Spire",
+        "bacterial mats"
+      ],
+      "predators": [
+        "Grotto Pincer-Lobster",
+        "Hollow-Cave Seal"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        30
+      ],
+      "habitat": "ceiling",
+      "depthMin": 160,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Hangs upside down from ceilings; spines deter predators.",
+      "behavior": "Hangs upside down from ceilings and grinds spire bases",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "pale_mat_crayfish",
+      "name": "Pale Mat-Crayfish",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.2,
+      "sizeText": "20 cm",
+      "sound": "15 dB, High",
+      "description": "Blind crayfish that guards its feeding patch with snapping displays.",
+      "diet": [
+        "Lantern Shroom",
+        "Beacon Fungi",
+        "Ember Cluster"
+      ],
+      "predators": [
+        "Ghost-Olm",
+        "Lumen Tunnel-Eel",
+        "Grotto Mimic Octopus"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "floor",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Blind; guards feeding patches with snapping displays.",
+      "behavior": "Blind; guards feeding patches with snapping displays",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "mineral_tongue_limpet",
+      "name": "Mineral-Tongue Limpet",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.04,
+      "sizeText": "4 cm",
+      "sound": "Silent",
+      "description": "Acid-resistant limpet etching grooves into limestone.",
+      "diet": [
+        "Acid Vine",
+        "Spark Filament",
+        "bacterial mats"
+      ],
+      "predators": [
+        "Strobe Mantis Shrimp",
+        "Calcite Spearworm"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        10
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Clamps flat to limestone; resists acid and shocks.",
+      "behavior": "Resists acid; etches grooves into limestone",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "ember_sea_hare",
+      "name": "Ember Sea-Hare",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.35,
+      "sizeText": "35 cm",
+      "sound": "12 dB, Mid",
+      "description": "Sea hare that squirts glowing amber ink when attacked.",
+      "diet": [
+        "Glow-Cap Spire",
+        "Strobe Shroom",
+        "Vapour Pouch"
+      ],
+      "predators": [
+        "Strobe Cuttlefish",
+        "Grotto Lamprey"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "cavern",
+      "depthMin": 160,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Squirts a cloud of glowing amber ink when attacked.",
+      "behavior": "Squirts glowing amber ink when attacked",
+      "yields": "Ember Sea-Hare Ink",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "cave_glow_midge",
+      "name": "Cave Glow-Midge",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.01,
+      "sizeText": "1 cm",
+      "sound": "5 dB, High",
+      "description": "Midge whose larvae glow underwater and whose adults swarm in air pockets.",
+      "diet": [
+        "Pulse Lichen",
+        "Flicker Mold"
+      ],
+      "predators": [
+        "Skimmer Bat",
+        "Flash-Hunter Darter",
+        "Glimmer Stargazer"
+      ],
+      "schooling": true,
+      "groupSize": [
+        50,
+        2000
+      ],
+      "habitat": "air",
+      "depthMin": 150,
+      "depthMax": 200,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Adults swarm in air pockets; glowing larvae drift just under the surface.",
+      "behavior": "Larvae glow underwater; adults swarm in air pockets",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "moss_bear_tardigrade",
+      "name": "Moss-Bear Tardigrade",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.02,
+      "sizeText": "2 cm",
+      "sound": "Silent",
+      "description": "Slow giant tardigrade that survives cave collapses.",
+      "diet": [
+        "Crystal-Moss Mold"
+      ],
+      "predators": [
+        "Arc-Jaw Cavefish"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        10
+      ],
+      "habitat": "crevice",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Slow; survives cave-ins by curling into a dry husk.",
+      "behavior": "Slow giant tardigrade that survives cave collapses",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lumen_sea_cucumber",
+      "name": "Lumen Sea-Cucumber",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.3,
+      "sizeText": "30 cm",
+      "sound": "Silent",
+      "description": "Sea cucumber vacuuming cavern floors and leaving glowing casts.",
+      "diet": [
+        "Radiant Lichen",
+        "Glimmer Tubule",
+        "bacterial mats"
+      ],
+      "predators": [
+        "Grotto Pincer-Lobster"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        6
+      ],
+      "habitat": "floor",
+      "depthMin": 170,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Slow; its glowing casts mark where it has fed.",
+      "behavior": "Slowly vacuums cavern floors and leaves glowing casts",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "glass_cave_shrimp",
+      "name": "Glass-Cave Shrimp",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.03,
+      "sizeText": "3 cm",
+      "sound": "12 dB, High",
+      "description": "Blind glassy shrimp that flashes when startled by dive lights; featured as the caverns' blind filter feeder.",
+      "diet": [
+        "Glowmote Copepod",
+        "Lumen Rotifer",
+        "Neon Krill-Mite"
+      ],
+      "predators": [
+        "Echo-Ray",
+        "Flash-Hunter Darter",
+        "Skimmer Bat",
+        "Lumen Barracuda"
+      ],
+      "schooling": true,
+      "groupSize": [
+        20,
+        200
+      ],
+      "habitat": "crevice",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "strobe",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Completely blind; senses pressure with long antennae. Startled by dive lights, it flashes, sending the whole swarm into crevices and alerting the area's predators.",
+      "behavior": "Blind; flashes when startled by dive lights, alerting predators",
+      "yields": "Glass-Cave Shrimp Shell",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "chandelier_sponge",
+      "name": "Chandelier Sponge",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 1.5,
+      "sizeText": "1.5 m",
+      "sound": "Silent",
+      "description": "Sponge hanging from cavern domes like a glowing chandelier (10 lux).",
+      "diet": [
+        "Glowmote Copepod",
+        "Sparkdrift Dinoflagellate"
+      ],
+      "predators": [
+        "Calcite Decorator Crab",
+        "Cathedral Gulper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "ceiling",
+      "depthMin": 180,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Sessile; hangs from domes and lights the chamber at 10 lux.",
+      "behavior": "Hangs from domes like a glowing chandelier (10 lux)",
+      "yields": "Chandelier Spongin",
+      "estimated": [
+        "kind",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "drip_tubeworm",
+      "name": "Drip Tubeworm",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 0.6,
+      "sizeText": "60 cm",
+      "sound": "Silent",
+      "description": "Tubeworm growing in clusters under drip points.",
+      "diet": [
+        "Lumen Rotifer",
+        "detritus"
+      ],
+      "predators": [
+        "Calcite Spearworm",
+        "Grotto Lamprey"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        40
+      ],
+      "habitat": "floor",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Sessile; plumes retract at any vibration.",
+      "behavior": "Grows in clusters under drip points; plumes retract at vibration",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "grotto_feather_duster",
+      "name": "Grotto Feather-Duster",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 0.25,
+      "sizeText": "25 cm",
+      "sound": "Silent",
+      "description": "Fan worm whose magenta crowns sweep the currents.",
+      "diet": [
+        "Glowmote Copepod",
+        "Lumen Filament"
+      ],
+      "predators": [
+        "Arc-Jaw Cavefish"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        20
+      ],
+      "habitat": "crevice",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Magenta crown snaps shut into its tube at passing shadows.",
+      "behavior": "Magenta crowns sweep currents and snap shut at shadows",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lantern_barnacle",
+      "name": "Lantern Barnacle",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.05,
+      "sizeText": "5 cm",
+      "sound": "6 dB, High",
+      "description": "Barnacle crusting tunnel mouths; its glowing cirri mark the passages.",
+      "diet": [
+        "Lumen Rotifer",
+        "Sparkdrift Dinoflagellate"
+      ],
+      "predators": [
+        "Strobe Mantis Shrimp",
+        "Grotto Pincer-Lobster"
+      ],
+      "schooling": true,
+      "groupSize": [
+        50,
+        1000
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Sessile; crusts tunnel mouths, its glowing cirri marking the way through.",
+      "behavior": "Crusts tunnel mouths; its glowing cirri mark the passages",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "cavern_echo_clam",
+      "name": "Cavern Echo-Clam",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.4,
+      "sizeText": "40 cm",
+      "sound": "25 dB, Mid",
+      "description": "Clam whose shell claps echo loudly through the chambers.",
+      "diet": [
+        "Spore-Drift Larva",
+        "detritus"
+      ],
+      "predators": [
+        "Grotto Mimic Octopus",
+        "Hollow-Cave Seal"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        6
+      ],
+      "habitat": "floor",
+      "depthMin": 160,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Sessile; its shell claps carry through the chambers and draw hunters.",
+      "behavior": "Shell claps echo loudly through chambers",
+      "yields": "Echo-Clam Pearl",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "halo_comb_jelly",
+      "name": "Halo Comb-Jelly",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "jelly",
+      "sizeM": 0.3,
+      "sizeText": "30 cm",
+      "sound": "Silent",
+      "description": "Comb jelly with rippling rainbow cilia drifting through cathedral chambers.",
+      "diet": [
+        "Glowmote Copepod",
+        "Spore-Drift Larva",
+        "Neon Krill-Mite",
+        "Carrion Lamp-Amphipod"
+      ],
+      "predators": [
+        "Strobe Box-Jelly",
+        "Lumen Barracuda"
+      ],
+      "schooling": true,
+      "groupSize": [
+        1,
+        12
+      ],
+      "habitat": "cavern",
+      "depthMin": 180,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Drifts passively; its rippling cilia shimmer in the dark.",
+      "behavior": "Rainbow cilia ripple; drifts through cathedral chambers",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "siphon_glow_mussel",
+      "name": "Siphon Glow-Mussel",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.08,
+      "sizeText": "8 cm",
+      "sound": "Silent",
+      "description": "Mussel in dense beds that glow when divers swim over them.",
+      "diet": [
+        "Sparkdrift Dinoflagellate",
+        "Spore-Drift Larva"
+      ],
+      "predators": [
+        "Grotto Pincer-Lobster",
+        "Calcite Decorator Crab"
+      ],
+      "schooling": true,
+      "groupSize": [
+        30,
+        800
+      ],
+      "habitat": "floor",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Sessile beds light up under a passing diver, giving them away.",
+      "behavior": "Dense beds glow when divers swim over them",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "echo_ray",
+      "name": "Echo-Ray",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "ray",
+      "sizeM": 2.5,
+      "sizeText": "2.5 m span",
+      "sound": "55 dB, Ultrasonic (45 kHz)",
+      "description": "Blind ray mapping the tunnels with continuous 45 kHz clicks; featured as the caverns' echolocating hunter.",
+      "diet": [
+        "Glass-Cave Shrimp",
+        "Ghostfin Cavefish",
+        "Glowcap Nibbler"
+      ],
+      "predators": [
+        "Flash-Stalker Leviathan",
+        "Choir Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "mid",
+        "high",
+        "ultra"
+      ],
+      "light": "none",
+      "aggression": 0.6,
+      "lethalToDiver": true,
+      "tactics": "Hunts in total darkness; narrow tunnels extend its detection range, so crews must use Silent Running or Dead in the Water. Guards its egg clusters.",
+      "behavior": "Continuous 45 kHz clicks map tunnels; hunts in total darkness; guards egg clusters",
+      "yields": "Echo-Ray Vocal Cord; Echo-Ray Brain Tissue; Echo-Ray Egg (from egg clusters)",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "flash_hunter_darter",
+      "name": "Flash-Hunter Darter",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.4,
+      "sizeText": "40 cm",
+      "sound": "20 dB, Mid",
+      "description": "Darting fish that fires a 500 lux eye-flash to freeze prey.",
+      "diet": [
+        "Blind Lamp-Isopod",
+        "Mat-Scraper Amphipod",
+        "Glass-Cave Shrimp",
+        "Cave Glow-Midge",
+        "Guano-Sift Prawn"
+      ],
+      "predators": [
+        "Strobe-Squid",
+        "Lumen Barracuda",
+        "Bat-Fin Echo-Gar"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "strobe",
+      "aggression": 0.2,
+      "lethalToDiver": false,
+      "tactics": "Fires a 500 lux eye-flash to freeze prey, then lunges.",
+      "behavior": "Fires a 500 lux eye-flash to freeze prey, then lunges",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "strobe_squid",
+      "name": "Strobe-Squid",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "squid",
+      "sizeM": 1.2,
+      "sizeText": "1.2 m",
+      "sound": "25 dB, Mid",
+      "description": "Pack-hunting squid whose 3,000 lux strobes blind its prey.",
+      "diet": [
+        "Flash-Hunter Darter",
+        "Glowcap Nibbler"
+      ],
+      "predators": [
+        "Flash-Stalker Leviathan",
+        "Lumen-Veil Kraken"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        8
+      ],
+      "habitat": "cavern",
+      "depthMin": 170,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "strobe",
+      "aggression": 0.55,
+      "lethalToDiver": false,
+      "tactics": "Hunts in packs; 3,000 lux strobes blind its prey, and divers caught in the volley.",
+      "behavior": "Hunts in packs; 3,000 lux strobes blind its prey",
+      "yields": "Strobe-Squid Photophore",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "grotto_lamprey",
+      "name": "Grotto Lamprey",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 0.9,
+      "sizeText": "90 cm",
+      "sound": "15 dB, Mid",
+      "description": "Lamprey that latches onto prey and drains it.",
+      "diet": [
+        "Ember Sea-Hare",
+        "Drip Tubeworm"
+      ],
+      "predators": [
+        "Lumen Tunnel-Eel",
+        "Cathedral Gulper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.45,
+      "lethalToDiver": false,
+      "tactics": "Latches onto prey and drains it; follows blood trails.",
+      "behavior": "Latches onto prey, drains it, and is drawn to blood",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "ghost_olm",
+      "name": "Ghost-Olm",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 1.5,
+      "sizeText": "1.5 m",
+      "sound": "Silent",
+      "description": "Pale, eyeless giant olm that waits motionless for days.",
+      "diet": [
+        "Blind Lamp-Isopod",
+        "Pale Mat-Crayfish"
+      ],
+      "predators": [
+        "Lumen-Veil Kraken",
+        "Cathedral Gulper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "pool",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.3,
+      "lethalToDiver": false,
+      "tactics": "Waits motionless for days, then snaps up anything that brushes it.",
+      "behavior": "Pale and eyeless; waits motionless for days",
+      "yields": "Ghost-Olm Regen Gland",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lure_lantern_angler",
+      "name": "Lure-Lantern Angler",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.6,
+      "sizeText": "60 cm",
+      "sound": "Silent",
+      "description": "Angler dangling a 60 lux lure that mimics Lantern Vine seeds.",
+      "diet": [
+        "Ghostfin Cavefish",
+        "Arc-Jaw Cavefish"
+      ],
+      "predators": [
+        "Lumen-Veil Kraken",
+        "Choir Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "ceiling",
+      "depthMin": 160,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "glow",
+      "aggression": 0.35,
+      "lethalToDiver": false,
+      "tactics": "Dangles a 60 lux lure that mimics Lantern Vine seeds; ambushes careless collectors.",
+      "behavior": "Dangles a 60 lux lure that mimics Lantern Vine seeds",
+      "yields": "Lure-Lantern Bulb",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "strobe_mantis_shrimp",
+      "name": "Strobe Mantis Shrimp",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.3,
+      "sizeText": "30 cm",
+      "sound": "40 dB, High",
+      "description": "Mantis shrimp whose club strike cracks viewports; it flashes before it snaps.",
+      "diet": [
+        "Blind Lamp-Isopod",
+        "Fungus-Rasper Chiton",
+        "Mineral-Tongue Limpet",
+        "Lantern Barnacle",
+        "Calcite Decorator Crab"
+      ],
+      "predators": [
+        "Grotto Mimic Octopus",
+        "Strobe Cuttlefish"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "crevice",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "strobe",
+      "aggression": 0.6,
+      "lethalToDiver": true,
+      "tactics": "Flashes a warning, then strikes with a club that cracks viewports.",
+      "behavior": "Club strike cracks viewports; flashes before it snaps",
+      "yields": "Strobe Mantis Club",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "skimmer_bat",
+      "name": "Skimmer Bat",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "bat",
+      "sizeM": 0.6,
+      "sizeText": "60 cm span",
+      "sound": "25 dB, Ultrasonic (40 kHz)",
+      "description": "Echolocating bat snatching prey from air-pocket surfaces.",
+      "diet": [
+        "Cave Glow-Midge",
+        "Glass-Cave Shrimp",
+        "Cave Cleaner Beetle",
+        "Guano-Sift Prawn"
+      ],
+      "predators": [
+        "Hollow-Cave Seal",
+        "Lumen Tunnel-Eel"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        20
+      ],
+      "habitat": "air",
+      "depthMin": 150,
+      "depthMax": 200,
+      "activity": "both",
+      "hearing": [
+        "high",
+        "ultra"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Echolocates over air-pocket pools and snatches prey from the surface.",
+      "behavior": "Echolocates and snatches prey from air-pocket surfaces",
+      "yields": "Skimmer Bat Membrane",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lumen_tunnel_eel",
+      "name": "Lumen Tunnel-Eel",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 2.0,
+      "sizeText": "2 m",
+      "sound": "18 dB, Mid",
+      "description": "Ambush eel in tight squeezes; its blue lateral line glows at 5 lux.",
+      "diet": [
+        "Pale Mat-Crayfish",
+        "Glowfruit Bat",
+        "Skimmer Bat",
+        "Grotto Lamprey",
+        "Glowslime Hagfish"
+      ],
+      "predators": [
+        "Flash-Stalker Leviathan",
+        "Lumen-Veil Kraken"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "glow",
+      "aggression": 0.5,
+      "lethalToDiver": false,
+      "tactics": "Ambushes from squeezes; its faint blue lateral line is the only warning.",
+      "behavior": "Ambushes from squeezes; its blue lateral line glows at 5 lux",
+      "yields": "Tunnel-Eel Skin",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "grotto_mimic_octopus",
+      "name": "Grotto Mimic Octopus",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "octopus",
+      "sizeM": 1.0,
+      "sizeText": "1 m",
+      "sound": "Silent",
+      "description": "Octopus that copies the glow patterns of nearby flora to hide.",
+      "diet": [
+        "Lichen-Lick Snail",
+        "Fungus-Rasper Chiton",
+        "Pale Mat-Crayfish",
+        "Cavern Echo-Clam",
+        "Strobe Mantis Shrimp",
+        "Calcite Decorator Crab"
+      ],
+      "predators": [
+        "Lumen Barracuda",
+        "Choir Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "crevice",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "glow",
+      "aggression": 0.2,
+      "lethalToDiver": false,
+      "tactics": "Copies the glow patterns of nearby flora to hide; squirts ink when found.",
+      "behavior": "Copies the glow patterns of nearby flora to hide",
+      "yields": "Mimic Ink Sac",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "arc_jaw_cavefish",
+      "name": "Arc-Jaw Cavefish",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.5,
+      "sizeText": "50 cm",
+      "sound": "22 dB, Mid",
+      "description": "Cavefish with a hinged jaw that bites prey out of crevices.",
+      "diet": [
+        "Mat-Scraper Amphipod",
+        "Moss-Bear Tardigrade",
+        "Grotto Feather-Duster",
+        "Magenta Lamp-Leech",
+        "Carrion Lamp-Amphipod"
+      ],
+      "predators": [
+        "Lure-Lantern Angler",
+        "Bat-Fin Echo-Gar"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "crevice",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.2,
+      "lethalToDiver": false,
+      "tactics": "Hinged jaw shoots out to pluck prey from crevices.",
+      "behavior": "Hinged jaw bites prey out of crevices",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "bat_fin_echo_gar",
+      "name": "Bat-Fin Echo-Gar",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 1.8,
+      "sizeText": "1.8 m",
+      "sound": "45 dB, Ultrasonic (30 kHz)",
+      "description": "Echolocating gar that patrols the main tunnels.",
+      "diet": [
+        "Ghostfin Cavefish",
+        "Flash-Hunter Darter",
+        "Arc-Jaw Cavefish",
+        "Strobe Cuttlefish"
+      ],
+      "predators": [
+        "Flash-Stalker Leviathan",
+        "Choir Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "mid",
+        "ultra"
+      ],
+      "light": "none",
+      "aggression": 0.45,
+      "lethalToDiver": false,
+      "tactics": "Patrols the main tunnels on 30 kHz clicks; an active sonar ping draws it.",
+      "behavior": "Echolocating gar that patrols the main tunnels",
+      "yields": "Echo-Gar Melon",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "strobe_box_jelly",
+      "name": "Strobe Box-Jelly",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "jelly",
+      "sizeM": 0.4,
+      "sizeText": "40 cm",
+      "sound": "Silent",
+      "description": "Box jelly whose stinging tentacles strobe 1,000 lux in sequence.",
+      "diet": [
+        "Halo Comb-Jelly",
+        "Neon Krill-Mite"
+      ],
+      "predators": [
+        "Lumen-Veil Kraken",
+        "Cathedral Gulper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        6
+      ],
+      "habitat": "cavern",
+      "depthMin": 170,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "strobe",
+      "aggression": 0.3,
+      "lethalToDiver": true,
+      "tactics": "Drifts with strobing tentacles; the venom of a full sting can kill an unsuited diver.",
+      "behavior": "Stinging tentacles strobe 1,000 lux in sequence",
+      "yields": "Box-Jelly Venom",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "grotto_pincer_lobster",
+      "name": "Grotto Pincer-Lobster",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.7,
+      "sizeText": "70 cm",
+      "sound": "30 dB, High",
+      "description": "Territorial lobster whose clacking claws echo through the tunnels.",
+      "diet": [
+        "Lichen-Lick Snail",
+        "Stalactite Urchin",
+        "Lantern Barnacle",
+        "Siphon Glow-Mussel",
+        "Lumen Sea-Cucumber",
+        "Lantern Brittlestar"
+      ],
+      "predators": [
+        "Hollow-Cave Seal",
+        "Cathedral Gulper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "floor",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.4,
+      "lethalToDiver": false,
+      "tactics": "Territorial; claws clack loudly as a warning, then pinch.",
+      "behavior": "Territorial; claws clack loudly through the echoes",
+      "yields": "Pincer-Lobster Claw",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "magenta_lamp_leech",
+      "name": "Magenta Lamp-Leech",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 0.2,
+      "sizeText": "20 cm",
+      "sound": "Silent",
+      "description": "Leech that follows blood trails and swells magenta when fed.",
+      "diet": [
+        "Lantern Slug",
+        "Glowcap Nibbler"
+      ],
+      "predators": [
+        "Arc-Jaw Cavefish",
+        "Glimmer Stargazer"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        10
+      ],
+      "habitat": "tunnel",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.3,
+      "lethalToDiver": false,
+      "tactics": "Follows blood trails; swells and glows magenta when fed.",
+      "behavior": "Follows blood trails; swells magenta when fed",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lumen_barracuda",
+      "name": "Lumen Barracuda",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 1.6,
+      "sizeText": "1.6 m",
+      "sound": "30 dB, Mid",
+      "description": "Fast barracuda striking at the outline of glowing prey.",
+      "diet": [
+        "Glowcap Nibbler",
+        "Glass-Cave Shrimp",
+        "Halo Comb-Jelly",
+        "Flash-Hunter Darter",
+        "Grotto Mimic Octopus",
+        "Glimmer Stargazer"
+      ],
+      "predators": [
+        "Flash-Stalker Leviathan",
+        "Choir Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "cavern",
+      "depthMin": 160,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "attracted",
+      "aggression": 0.5,
+      "lethalToDiver": false,
+      "tactics": "Fast strikes at the outline of anything glowing, dive lamps included.",
+      "behavior": "Fast strikes at the outline of glowing prey",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "hollow_cave_seal",
+      "name": "Hollow-Cave Seal",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "mammal",
+      "sizeM": 2.0,
+      "sizeText": "2 m",
+      "sound": "50 dB, Mid",
+      "description": "Cave seal that hauls out in air pockets; its barks echo for kilometres.",
+      "diet": [
+        "Glowfruit Bat",
+        "Skimmer Bat",
+        "Stalactite Urchin",
+        "Cavern Echo-Clam",
+        "Grotto Pincer-Lobster",
+        "Limestone Giant Isopod"
+      ],
+      "predators": [
+        "Flash-Stalker Leviathan",
+        "Cathedral Gulper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "cavern",
+      "depthMin": 150,
+      "depthMax": 220,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.3,
+      "lethalToDiver": false,
+      "tactics": "Hauls out in air pockets; hunts bats at the surface; its barks echo for kilometres.",
+      "behavior": "Hauls out in air pockets; its barks echo for kilometers",
+      "yields": "Cave Seal Blubber",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "strobe_cuttlefish",
+      "name": "Strobe Cuttlefish",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "squid",
+      "sizeM": 0.7,
+      "sizeText": "70 cm",
+      "sound": "15 dB, Mid",
+      "description": "Cuttlefish whose hypnotic 5,000 lux skin strobes stun its prey.",
+      "diet": [
+        "Lantern Slug",
+        "Ember Sea-Hare",
+        "Strobe Mantis Shrimp"
+      ],
+      "predators": [
+        "Lumen-Veil Kraken",
+        "Bat-Fin Echo-Gar"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "cavern",
+      "depthMin": 160,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "strobe",
+      "aggression": 0.35,
+      "lethalToDiver": false,
+      "tactics": "Hypnotic 5,000 lux skin strobes stun prey, and dazzle divers who look.",
+      "behavior": "Hypnotic 5,000 lux skin strobes stun its prey",
+      "yields": "Cuttle Strobe Organ",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "glimmer_stargazer",
+      "name": "Glimmer Stargazer",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.45,
+      "sizeText": "45 cm",
+      "sound": "Silent",
+      "description": "Stargazer buried in the floor with only its glowing eyes showing.",
+      "diet": [
+        "Cave Glow-Midge",
+        "Magenta Lamp-Leech",
+        "Cave Cleaner Beetle",
+        "Lantern Brittlestar"
+      ],
+      "predators": [
+        "Lumen Barracuda",
+        "Calcite Spearworm"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "floor",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "glow",
+      "aggression": 0.3,
+      "lethalToDiver": false,
+      "tactics": "Buries itself with only its glowing eyes showing; erupts from the silt.",
+      "behavior": "Buries itself with only its glowing eyes showing",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "calcite_spearworm",
+      "name": "Calcite Spearworm",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 2.5,
+      "sizeText": "2.5 m",
+      "sound": "10 dB, High",
+      "description": "Bobbit-like worm bursting from limestone burrows to drag prey under.",
+      "diet": [
+        "Mineral-Tongue Limpet",
+        "Drip Tubeworm",
+        "Glimmer Stargazer"
+      ],
+      "predators": [
+        "Lumen-Veil Kraken",
+        "Cathedral Gulper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "floor",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.65,
+      "lethalToDiver": true,
+      "tactics": "Bursts from limestone burrows and drags prey under.",
+      "behavior": "Bursts from limestone burrows and drags prey under",
+      "yields": "Spearworm Mandible",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "cave_cleaner_beetle",
+      "name": "Cave Cleaner Beetle",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.06,
+      "sizeText": "6 cm",
+      "sound": "15 dB, High",
+      "description": "Beetle swarming guano heaps in partly flooded upper chambers; featured as the caverns' scavenger.",
+      "diet": [
+        "detritus",
+        "bat guano",
+        "Flicker Mold"
+      ],
+      "predators": [
+        "Skimmer Bat",
+        "Glimmer Stargazer"
+      ],
+      "schooling": true,
+      "groupSize": [
+        20,
+        300
+      ],
+      "habitat": "air",
+      "depthMin": 150,
+      "depthMax": 190,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Swarms guano heaps on air-pocket ledges; its 15 dB scuttle on wet limestone carries far, and the Abandoned City magnifies it.",
+      "behavior": "Swarms guano heaps on air-pocket ledges; cleans up detritus",
+      "yields": "Cave Cleaner Beetle Chitin; Cave Cleaner Beetle Plates",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "glowslime_hagfish",
+      "name": "Glowslime Hagfish",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 0.8,
+      "sizeText": "80 cm",
+      "sound": "Silent",
+      "description": "Hagfish that reaches a carcass within minutes and floods it with glowing slime.",
+      "diet": [
+        "detritus",
+        "carcasses"
+      ],
+      "predators": [
+        "Lumen Tunnel-Eel",
+        "Choir Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        10
+      ],
+      "habitat": "floor",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Floods attackers and carcasses with glowing slime.",
+      "behavior": "Reaches a carcass within minutes and floods it with glowing slime",
+      "yields": "Glowslime",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "limestone_giant_isopod",
+      "name": "Limestone Giant Isopod",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.4,
+      "sizeText": "40 cm",
+      "sound": "12 dB, High",
+      "description": "Giant isopod that rolls into an armoured ball when threatened.",
+      "diet": [
+        "detritus",
+        "carcasses"
+      ],
+      "predators": [
+        "Hollow-Cave Seal",
+        "Cathedral Gulper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        5
+      ],
+      "habitat": "floor",
+      "depthMin": 170,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Rolls into an armoured ball when threatened.",
+      "behavior": "Rolls into an armored ball when threatened",
+      "yields": "Limestone Isopod Carapace",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "carrion_lamp_amphipod",
+      "name": "Carrion Lamp-Amphipod",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.015,
+      "sizeText": "1.5 cm",
+      "sound": "20 dB, High (swarm)",
+      "description": "Amphipod whose glowing swarms strip carcasses to the bone overnight.",
+      "diet": [
+        "detritus",
+        "carcasses"
+      ],
+      "predators": [
+        "Arc-Jaw Cavefish",
+        "Halo Comb-Jelly"
+      ],
+      "schooling": true,
+      "groupSize": [
+        100,
+        5000
+      ],
+      "habitat": "floor",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Glowing swarms strip carcasses to bone overnight.",
+      "behavior": "Glowing swarms strip carcasses to bone overnight",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lantern_brittlestar",
+      "name": "Lantern Brittlestar",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.3,
+      "sizeText": "30 cm",
+      "sound": "Silent",
+      "description": "Brittle star whose arms glow in a chain when disturbed.",
+      "diet": [
+        "detritus",
+        "bat guano"
+      ],
+      "predators": [
+        "Grotto Pincer-Lobster",
+        "Glimmer Stargazer"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        60
+      ],
+      "habitat": "floor",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "glow",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Its arms light up in a running chain when disturbed, then it flees.",
+      "behavior": "Its arms glow in a chain when disturbed",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "guano_sift_prawn",
+      "name": "Guano-Sift Prawn",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.08,
+      "sizeText": "8 cm",
+      "sound": "10 dB, High",
+      "description": "Prawn gathering under bat roosts to sift the falling guano.",
+      "diet": [
+        "bat guano",
+        "detritus"
+      ],
+      "predators": [
+        "Flash-Hunter Darter",
+        "Skimmer Bat"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        100
+      ],
+      "habitat": "pool",
+      "depthMin": 150,
+      "depthMax": 200,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Gathers in crowds under bat roosts and sifts the falling guano.",
+      "behavior": "Gathers under bat roosts and sifts the falling guano",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "calcite_decorator_crab",
+      "name": "Calcite Decorator Crab",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.25,
+      "sizeText": "25 cm",
+      "sound": "15 dB, High",
+      "description": "Crab that hides under glowing fungi and calcite chips.",
+      "diet": [
+        "detritus",
+        "Chandelier Sponge",
+        "Siphon Glow-Mussel"
+      ],
+      "predators": [
+        "Grotto Mimic Octopus",
+        "Strobe Mantis Shrimp"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "floor",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Camouflages itself under glowing fungi and calcite chips.",
+      "behavior": "Hides under glowing fungi and calcite chips",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "shroud_carrion_eel",
+      "name": "Shroud Carrion-Eel",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 1.4,
+      "sizeText": "1.4 m",
+      "sound": "12 dB, Mid",
+      "description": "Eel that trails behind leviathans to take their leftovers.",
+      "diet": [
+        "detritus",
+        "carcasses"
+      ],
+      "predators": [
+        "Flash-Stalker Leviathan",
+        "Lumen-Veil Kraken"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "cavern",
+      "depthMin": 170,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Trails behind leviathans to take their leftovers; its presence warns of one nearby.",
+      "behavior": "Trails behind leviathans to take their leftovers",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "flash_stalker_leviathan",
+      "name": "Flash-Stalker Leviathan",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "leviathan",
+      "sizeM": 30.0,
+      "sizeText": "30 m",
+      "sound": "75 dB, Low",
+      "description": "The caverns' resident leviathan: a 30 m cave predator with a ring of strobe organs around its jaw.",
+      "diet": [
+        "Echo-Ray",
+        "Strobe-Squid",
+        "Lumen Tunnel-Eel",
+        "Bat-Fin Echo-Gar",
+        "Lumen Barracuda",
+        "Hollow-Cave Seal",
+        "Shroud Carrion-Eel"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "cavern",
+      "depthMin": 150,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "strobe",
+      "aggression": 0.9,
+      "lethalToDiver": true,
+      "tactics": "Clicks low and blinds viewports and HUD screens with 50,000 lux jaw strobes before striking; in the Abandoned City it corners prey in the alleys and bounces its strobes off the polished walls. Flashbang flares overload its eyes and force it to retreat.",
+      "behavior": "Jaw strobes fire about 50,000 lux, blinding viewports and HUDs; flashbang flares overload its eyes and force retreat",
+      "yields": "Flash-Stalker Strobe Organ",
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity"
+      ],
+      "residentLeviathan": true
+    },
+    {
+      "id": "choir_leviathan",
+      "name": "Choir Leviathan",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "leviathan",
+      "sizeM": 22.0,
+      "sizeText": "22 m",
+      "sound": "70 dB, Low",
+      "description": "22 m leviathan whose echoing calls stun schools in the cathedral caverns.",
+      "diet": [
+        "Echo-Ray",
+        "Lure-Lantern Angler",
+        "Bat-Fin Echo-Gar",
+        "Lumen Barracuda",
+        "Grotto Mimic Octopus",
+        "Glowslime Hagfish"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "cavern",
+      "depthMin": 180,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.7,
+      "lethalToDiver": true,
+      "tactics": "Sings stunning calls that echo through cathedral caverns, then feeds on the stunned.",
+      "behavior": "Its echoing calls stun schools in cathedral caverns",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "lumen_veil_kraken",
+      "name": "Lumen-Veil Kraken",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "squid",
+      "sizeM": 15.0,
+      "sizeText": "15 m",
+      "sound": "40 dB, Low",
+      "description": "15 m kraken that spreads a glowing veil across tunnel mouths and waits.",
+      "diet": [
+        "Strobe-Squid",
+        "Ghost-Olm",
+        "Lure-Lantern Angler",
+        "Strobe Box-Jelly",
+        "Strobe Cuttlefish",
+        "Lumen Tunnel-Eel",
+        "Calcite Spearworm",
+        "Shroud Carrion-Eel"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "tunnel",
+      "depthMin": 170,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "glow",
+      "aggression": 0.8,
+      "lethalToDiver": true,
+      "tactics": "Spreads a glowing veil of webbed arms across a tunnel mouth and waits for prey to swim into it.",
+      "behavior": "Spreads a glowing veil across tunnel mouths and waits",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "cathedral_gulper",
+      "name": "Cathedral Gulper",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "leviathan",
+      "sizeM": 18.0,
+      "sizeText": "18 m",
+      "sound": "60 dB, Low",
+      "description": "18 m gulper whose huge mouth swallows whole sections of the chamber floor.",
+      "diet": [
+        "Chandelier Sponge",
+        "Grotto Lamprey",
+        "Ghost-Olm",
+        "Strobe Box-Jelly",
+        "Grotto Pincer-Lobster",
+        "Hollow-Cave Seal",
+        "Calcite Spearworm",
+        "Limestone Giant Isopod"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "cavern",
+      "depthMin": 200,
+      "depthMax": 300,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.75,
+      "lethalToDiver": true,
+      "tactics": "Swallows whole sections of the chamber floor, and anything on it.",
+      "behavior": "Huge mouth swallows whole sections of the chamber floor",
+      "yields": null,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    }
+  ],
+  "interactions": [
+    "Echoes amplify every sound in the caverns, so stealth is vital; the Abandoned City's stonework magnifies even a Cave Cleaner Beetle's 15 dB scuttle, and crews must stay Dead in the Water crossing its grand plazas.",
+    "Echo-Rays map the tunnels with continuous 45 kHz clicks and hunt in total darkness; narrow tunnels extend their detection range, so crews use Silent Running or Dead in the Water. They guard their egg clusters.",
+    "An active sonar ping alerts every echolocator in range: Echo-Rays, Skimmer Bats and Bat-Fin Echo-Gars.",
+    "The four apex giants, led by the Flash-Stalker Leviathan, hunt the mesopredators and follow strobe flashes and loud echoes.",
+    "The Flash-Stalker Leviathan blinds viewports and HUD screens with 50,000 lux jaw strobes before striking; flashbang flares overload its eyes and force it to retreat. In the Abandoned City it corners prey in the alleys, bouncing its strobes off the polished walls to blind divers from several angles at once.",
+    "Glass-Cave Shrimp startled by dive lights flash, sending the whole swarm into crevices and alerting the area's predators.",
+    "Sparkdrift Dinoflagellates sparkle magenta along a moving diver's wake, and Siphon Glow-Mussel beds light up when divers swim over them, giving the crew away.",
+    "Glowfruit Bats roost in the air pockets of the upper chambers and drop guano into the water, feeding Cave Cleaner Beetles, Guano-Sift Prawns, Lantern Brittlestars and Flicker Mold; Skimmer Bats and Hollow-Cave Seals hunt them there.",
+    "Lure-Lantern Anglers dangle a 60 lux lure that mimics Lantern Vine seeds; Grotto Mimic Octopuses copy the glow patterns of nearby flora to hide.",
+    "Strobe-Squid packs (3,000 lux), Strobe Cuttlefish (5,000 lux), Flash-Hunter Darters (500 lux) and Strobe Box-Jellies (1,000 lux) stun or freeze prey with light; Lumen Barracuda strike at the outline of anything glowing.",
+    "Grotto Lampreys and Magenta Lamp-Leeches follow blood trails; Glowslime Hagfish reach a carcass within minutes and Carrion Lamp-Amphipod swarms strip it to bone overnight.",
+    "Shroud Carrion-Eels trail behind the leviathans to take their leftovers.",
+    "The Choir Leviathan's echoing calls stun schools in the cathedral caverns; the Lumen-Veil Kraken spreads a glowing veil across tunnel mouths and waits; the Cathedral Gulper swallows whole sections of the chamber floor.",
+    "Cavern Echo-Clam shell claps, Grotto Pincer-Lobster claw clacks and Hollow-Cave Seal barks echo for kilometres through the chambers.",
+    "Beacon Fungi's steady 200 lux columns draw patrolling predators; Strobe Shrooms fire an 8,000 lux burst when disturbed, then dim for a minute.",
+    "Glimmer Tubules hum Mid-band tones in the currents, and their resonators make sound decoys that lure predators; Spore Tubules puff glowing spore clouds when touched.",
+    "Acid Vine burns bare skin and Spark Filament shocks on contact; Mineral-Tongue Limpets graze both.",
+    "Lantern Vines and Phosphor Mats overgrow the Abandoned City's statues, making blindingly bright main streets and pitch-black alleys.",
+    "Moss-Bear Tardigrades survive cave-ins that bury everything else."
+  ]
+}

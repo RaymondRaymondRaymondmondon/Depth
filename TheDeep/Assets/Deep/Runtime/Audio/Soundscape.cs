@@ -16,7 +16,7 @@ namespace Deep
     {
         public static Soundscape I;
         Diver d; Nautilus ship; Hands hands;
-        Sfx.Loop shallows, kelp, deep, aboardBed, underside, waves, wind, rain, engine, battery, whir, pumps, flood, jet, drill, blade, kite;
+        Sfx.Loop shallows, kelp, deep, aboardBed, underside, waves, wind, rain, engine, battery, whir, pumps, flood, jet, drill, blade, kite, caves, bats;
         bool made;
 
         public static Soundscape Attach(Diver d, Nautilus ship)
@@ -31,7 +31,8 @@ namespace Deep
             made = true;
             shallows = Sfx.MakeLoop("amb_shallows"); kelp = Sfx.MakeLoop("amb_kelp"); deep = Sfx.MakeLoop("amb_deep"); aboardBed = Sfx.MakeLoop("amb_aboard");
             underside = Sfx.MakeLoop("underside_loop"); waves = Sfx.MakeLoop("waves_loop"); wind = Sfx.MakeLoop("wind_loop"); rain = Sfx.MakeLoop("rain_loop");
-            foreach (var l in new[] { shallows, kelp, deep, aboardBed, underside, waves, wind, rain }) l.spatial = false;
+            caves = Sfx.MakeLoop("amb_caves"); bats = Sfx.MakeLoop("bats_loop");
+            foreach (var l in new[] { shallows, kelp, deep, aboardBed, underside, waves, wind, rain, caves, bats }) l.spatial = false;
             engine = Sfx.MakeLoop("engine_loop"); battery = Sfx.MakeLoop("battery_loop"); whir = Sfx.MakeLoop("whir_loop"); pumps = Sfx.MakeLoop("pump_loop");
             flood = Sfx.MakeLoop("flood_loop"); jet = Sfx.MakeLoop("jet_loop"); drill = Sfx.MakeLoop("drill_loop"); blade = Sfx.MakeLoop("blade_loop"); kite = Sfx.MakeLoop("kite_loop");
             foreach (var l in new[] { engine, battery, whir, pumps, flood, jet }) l.medium = Medium.Aboard;
@@ -64,6 +65,11 @@ namespace Deep
             shallows.vol = sh * (clock.Night ? 0.75f : 1f); kelp.vol = kp; deep.vol = dp + (inside ? 0.35f : 0f);
             underside.vol = water ? 1f - Mathf.InverseLerp(2f, 14f, depth) : 0f;
             aboardBed.vol = inside ? 1f : 0f;
+            // the caves: their own still, dripping bed; the roosts' bats in the air pockets
+            bool underground = Caverns.I != null && Caverns.I.UnderGround(cam);
+            if (underground) { shallows.vol = kelp.vol = 0; deep.vol *= 0.3f; underside.vol = 0; }
+            caves.vol = underground ? 1f : 0f;
+            bats.vol = underground && UnderwaterLook.InPocket ? 1f : underground && Caverns.I.PocketSurface(cam) < float.PositiveInfinity ? 0.25f : 0f;
             waves.vol = air ? 0.6f + 0.6f * storm : inside && ship.Depth < 6f ? 0.25f : 0f; waves.pitch = 1f - 0.15f * storm;
             wind.vol = air ? 0.15f + 0.85f * storm : 0f;
             rain.vol = air ? storm * storm : 0f;

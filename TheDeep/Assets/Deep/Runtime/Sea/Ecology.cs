@@ -67,7 +67,10 @@ namespace Deep
         // the standard two biomes of the first build (tonnes): the Shallows and the Kelp Labyrinth
         public static Ecology FirstBuild() => new Ecology(
             ("shallows", 2400f, 260f, 30f, 3.0f, 40f),
-            ("kelp", 3600f, 340f, 42f, 4.5f, 60f));
+            ("kelp", 3600f, 340f, 42f, 4.5f, 60f),
+            ("caverns", 1400f, 150f, 22f, 3.2f, 70f));
+        // the biomes fed by chemistry, not the sun (the caverns' fungi, mats and bacteria)
+        public static bool Chemo(string biome) => biome == "caverns";
 
         public Pool Of(string biome) { foreach (var p in pools) if (p.biome == biome) return p; return null; }
 
@@ -83,7 +86,7 @@ namespace Deep
                 float[] eat = new float[4];
                 for (int l = 1; l <= 3; l++) eat[l] = p.a[l] * B[l] * B[l - 1] / (B[l - 1] + s[l - 1]);
                 float dead = 0;
-                float d0 = p.r0 * B[0] * (1f - B[0] / p.K) * e - eat[1];
+                float d0 = p.r0 * B[0] * (1f - B[0] / p.K) * (Chemo(p.biome) ? 1f : e) - eat[1];
                 for (int l = 1; l <= 3; l++)
                 {
                     float above = l < 3 ? eat[l + 1] : 0;

@@ -187,7 +187,7 @@ namespace Deep
         void SwimStep(float dt)
         {
             var p = transform.position;
-            float surf = Waves.Height(p.x, p.z, Waves.T);
+            float surf = Sea.SurfaceAt(p);
             bool atSurface = p.y + EyeHeight > surf - 0.15f;
             Vector3 wish = head.forward * Axis(KeyCode.W, KeyCode.S) + head.right * Axis(KeyCode.D, KeyCode.A)
                          + Vector3.up * ((Down(KeyCode.Space, KeyCode.Space) ? 1 : 0) - (Down(KeyCode.LeftControl, KeyCode.C) ? 1 : 0));
@@ -203,7 +203,7 @@ namespace Deep
                 vel.y += (want - p.y) * 3f * dt;
             }
             cc.Move(vel * dt);
-            bool headUnder = transform.position.y + EyeHeight < Waves.Height(p.x, p.z, Waves.T) - 0.05f;
+            bool headUnder = transform.position.y + EyeHeight < Sea.SurfaceAt(p) - 0.05f;
             oxygen = headUnder ? Mathf.Max(0, oxygen - dt) : Mathf.Min(oxygenMax, oxygen + dt * 12f);
         }
 

@@ -193,6 +193,33 @@ namespace Deep
                     });
         }
 
+        // the caves' kinds (CaveLife.cs): one of the caverns' models, glowing (and pulsing) at its own strength
+        public int CaveKind(string id, float sway, float transl, float dist, float glow, float pulse)
+        {
+            for (int i = 0; i < kinds.Count; i++) if (kinds[i].name == id) return i;
+            var m = ModelLibrary.Get("Flora/flora_caverns", id);
+            if (!m) { Debug.LogWarning("DEEP FLORA: no cave model for " + id); return -1; }
+            var k = AddKind(id, m, null, Color.white, sway, transl, dist, "cave");
+            k.mat.SetFloat("_Glow", glow); k.mat.SetFloat("_Pulse", pulse);
+            return kinds.Count - 1;
+        }
+        public int KindIndex(string id) { for (int i = 0; i < kinds.Count; i++) if (kinds[i].name == id) return i; return -1; }
+        public void Plant(int kind, Vector3 p, Quaternion r, float s)
+        {
+            if (kind < 0 || kind >= kinds.Count) return;
+            var k = kinds[kind];
+            long key = Key(Mathf.FloorToInt(p.x / CellSize), Mathf.FloorToInt(p.z / CellSize));
+            if (!k.cells.TryGetValue(key, out var list)) k.cells[key] = list = new List<Matrix4x4>();
+            list.Add(Matrix4x4.TRS(p, r, Vector3.one * s));
+            Total++;
+        }
+
+        // pull up whatever grows where a test says (the caves' mouths)
+        public void ClearWhere(System.Func<Vector3, bool> test)
+        {
+            foreach (var k in kinds) foreach (var list in k.cells.Values) Total -= list.RemoveAll(m => test(m.GetColumn(3)));
+        }
+
         // planted things of the given kinds within a ring round a point (the reef fish gather over the coral, the kelp
         // species among the stalks)
         public void Near(Vector3 c, float rMin, float rMax, List<Vector3> into, int max, params string[] names)
@@ -351,7 +378,7 @@ namespace Deep
                         var center = new Vector3((cx0 + dx + 0.5f) * CellSize, c.y, (cz0 + dz + 0.5f) * CellSize);
                         float dd = new Vector2(center.x - c.x, center.z - c.z).magnitude;
                         if (dd > dist + CellSize * 0.71f) continue;
-                        var b = new Bounds(new Vector3(center.x, -60, center.z), new Vector3(CellSize + 8, 200, CellSize + 8));
+                        var b = new Bounds(new Vector3(center.x, -160, center.z), new Vector3(CellSize + 8, 340, CellSize + 8));
                         if (!GeometryUtility.TestPlanesAABB(planes, b)) continue;
                         rp.worldBounds = b;
                         var mesh = (k.far != null && dd > dist * 0.45f) ? k.far : k.mesh;

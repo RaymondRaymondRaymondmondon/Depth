@@ -230,6 +230,14 @@ class Look:
         if biome == "kelp":
             sat *= 0.75
         val = 0.55 + 0.3 * H(n, 4)
+        # the caverns: blind, pale animals (cream, pink, ghost-white), the glowing ones with neon organs
+        self.neon = None
+        if biome == "caverns":
+            sat *= 0.28
+            val = 0.68 + 0.22 * H(n, 4)
+            if sp.get("light") in ("glow", "strobe") or any(k in n for k in ("lumen", "glow", "neon", "lantern", "lamp", "strobe", "flash", "magenta", "ember", "spark", "halo")):
+                nh = 0.85 if "magenta" in n else 0.08 if ("ember" in n or "amber" in n) else 0.5 if ("glass" in n or "halo" in n) else 0.6
+                self.neon = colorsys.hsv_to_rgb(nh, 0.85, 1.0)
         open_water = sp.get("habitat") == "open" or any(k in n for k in ("shark", "sardine", "shoal", "jack", "basker", "halfbeak", "lancer", "pike"))
         if open_water:
             sat *= 0.35
@@ -237,8 +245,10 @@ class Look:
         self.top = colorsys.hsv_to_rgb(hue % 1, sat, val * 0.62)
         self.belly = mix(colorsys.hsv_to_rgb(hue % 1, sat * 0.25, 0.9), (0.92, 0.9, 0.84), 0.55)
         self.accent = colorsys.hsv_to_rgb((hue + 0.08 + 0.4 * (H(n, 5) > 0.6)) % 1, clamp(sat + 0.25), clamp(val + 0.25))
+        if self.neon is not None:
+            self.accent = self.neon
         self.fin = mix(self.top, self.accent, 0.45)
-        self.ghost = any(k in n for k in ("wraith", "shroud", "glass", "ghost"))
+        self.ghost = any(k in n for k in ("wraith", "shroud", "glass", "ghost", "halo", "veil"))
         # the pattern, from the name first, then by chance
         p = None
         for kws, pat in ((("stripe", "banded", "krait", "tiger", "zebra"), "bars"), (("jack", "lancer", "pike", "halfbeak", "sardine", "shoal", "glimmer"), "lateral"),
@@ -247,6 +257,8 @@ class Look:
             if any(k in n for k in kws):
                 p = pat
                 break
+        if p is None and self.neon is not None:
+            p = "spots" if H(n, 8) < 0.5 else "lateral"
         if p is None:
             r = H(n, 6)
             p = "bars" if r < 0.2 else "spots" if r < 0.35 else "mottle" if r < 0.5 else "plain"
@@ -842,6 +854,23 @@ def snail(mb, sp, L):
         tube(mb, [(s * 0.05, 0.1, 0.4), (s * 0.06, 0.2, 0.46)], [0.012, 0.005], 4, L.belly + (0.0,))
 
 
+def bat(mb, sp, L):
+    """A cave bat at rest in flight pose: furred body, a blunt head with big ears, two leathery wings spread on their
+    finger bones, the little feet tucked back. +z forward, wingspan about 1 unit."""
+    fur = L.top + (0.0,)
+    ellipsoid(mb, (0, 0, -0.02), (0.09, 0.08, 0.16), fur, 10, 6)
+    ellipsoid(mb, (0, 0.03, 0.15), (0.07, 0.065, 0.07), fur, 10, 6)
+    for s in (-1, 1):
+        cone(mb, (s * 0.04, 0.08, 0.15), (s * 0.07, 0.19, 0.12), 0.03, L.belly + (0.0,), 5)
+        ellipsoid(mb, (s * 0.03, 0.05, 0.21), (0.012, 0.012, 0.012), (0.02, 0.02, 0.02, 0.0), 5, 3)
+        root = [(s * 0.06, 0.02, z) for z in (0.08, 0.0, -0.08, -0.14)]
+        tip = [(s * 0.5, 0.06, 0.06), (s * 0.48, 0.02, -0.06), (s * 0.36, 0.0, -0.16), (s * 0.18, 0.0, -0.2)]
+        membrane(mb, root, tip, 4, (L.fin[0] * 0.7, L.fin[1] * 0.7, L.fin[2] * 0.7, 0.35), lambda t, i: t, True, 0.02)
+        for e in tip[:3]:
+            tube(mb, [(s * 0.06, 0.03, 0.06), e], [0.008, 0.004], 4, (0.15, 0.12, 0.1, 0.0))
+        tube(mb, [(s * 0.03, -0.04, -0.14), (s * 0.04, -0.06, -0.22)], [0.01, 0.006], 4, (0.15, 0.12, 0.1, 0.0))
+
+
 def build(sp, biome):
     L = Look(sp, biome)
     mb = MB()
@@ -892,6 +921,8 @@ def build(sp, biome):
         urchin(mb, sp, L)
     elif kind == "snail":
         snail(mb, sp, L)
+    elif kind == "bat":
+        bat(mb, sp, L)
     else:
         fish(mb, sp, L)
     return mb
@@ -930,7 +961,10 @@ def main():
     out = a[a.index("--out") + 1] if "--out" in a else os.path.join(ROOT, "TheDeep", "Assets", "Deep", "Resources", "Creatures")
     only = a[a.index("--only") + 1].lower() if "--only" in a else None
     os.makedirs(out, exist_ok=True)
-    for biome in ("shallows", "kelp"):
+    biomes = ("shallows", "kelp", "caverns")
+    if "--biome" in a:
+        biomes = (a[a.index("--biome") + 1],)
+    for biome in biomes:
         bpy.ops.wm.read_factory_settings(use_empty=True)
         with open(os.path.join(DATA, f"species_{biome}.json"), encoding="utf-8") as f:
             tab = json.load(f)

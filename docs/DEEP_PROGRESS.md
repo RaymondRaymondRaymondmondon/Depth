@@ -39,7 +39,7 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
 6. **Multiplayer (done):** host-authoritative Netcode, 1-4 players, Depth's lobby handing off.
 7. **Campaign and polish (done):** saves, death rules, the Artisan Bench, performance on this PC.
 8. **Sound (done):** everything synthesised; the soundscape, the music, the crew hearing each other.
-9. **The Bioluminescent Caverns** (phase 3, 150-300 m).
+9. **The Bioluminescent Caverns (done)** (phase 3, 150-300 m).
 
 ## Stage 2 so far (2026-10-07)
 - **The model:** `tools/artgen/deep_nautilus.py` (+ `deep_tiles.py`: fouled riveted iron, walnut, teak, interior
@@ -296,3 +296,47 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
 - **Checks:** `tools\deep.ps1 audiotest` (every sound: not silent, not clipped, no DC, loops seamless: 172 of 172);
   `listen_reef|kelp|engine|breach|storm|danger` shots record six seconds of what the ear hears to
   `TheDeep/shots/deep_listen_*.wav` and log the level and brightness (about -17 to -24 dBFS average).
+
+## Stage 9, the Bioluminescent Caverns (2026-10-08)
+- **Data:** `Resources/Data/species_caverns.json` (transcribed from the doc's pages 34-46 and the featured-species and
+  city pages): 20 flora (with each plant's habitat, lux, colour and pulse) and 60 fauna (5 plankton, 15 grazers, 8
+  filter feeders, 20 mesopredators, 8 scavengers, 4 apex led by the Flash-Stalker Leviathan, the resident), the food web
+  closed, 19 interactions; estimated fields listed per entry. The caverns' pool runs on chemosynthesis (steady energy,
+  no sun: `Ecology.Chemo`).
+- **The caves** (`Runtime/Caverns.cs`): built from the seed at start-up (about 1.1 s) in the rock under the far end of
+  the Kelp and the drop-off (x 930-1470, z 420-1120, 70-310 m down): seven chambers (the Drowned City's cathedral,
+  the Cathedral, the Lantern Hall, the Spire Gallery, the Pale Chamber, and two upper chambers holding air pockets: the
+  Bat Roost and the Whispering Roost), tunnels joining them (a spanning tree and two loops), three squeezes for the
+  Kite-Sub or a swimmer, a sinkhole down through the Kelp's floor, and two mouths on the drop-off. A signed distance
+  field on a 2.5 m grid (kept for the sea life and the Kite-Sub), walls by marching tetrahedra in 82 chunks with
+  MeshColliders (about 160,000 triangles; only chunks within 170 m are drawn), vertex-coloured limestone (strata, wet
+  streaks, silt floors, the city's black stone). The terrain gets holes where the caves break the surface (the seabed
+  shader clips them). Air pockets: a water sheet at each pocket's level; above it you breathe (`Sea.SurfaceAt`), the
+  air is still and dark, the HUD says so.
+- **The glow** (`Runtime/CaveLife.cs`, models `tools/artgen/deep_flora.py --biome caverns`): about 8,000 plants of the
+  twenty kinds on the walls by habitat (vines and pouches hanging from the ceilings, mats, lichens, shelves and
+  filaments on the walls, caps, spires, tubules and clusters on the floors and ledges), glowing at their lux and
+  colour (`Flora.shader` `_Glow`, `_Pulse`); their light gathered into about 1,500 cluster lights, the nearest of which
+  join the lamp list (Nautilus.cs) and really light the walls.
+- **The animals:** `tools/artgen/deep_creatures.py --biome caverns` (55 bodies; blind, pale colouring with neon organs
+  on the glowing ones; a new bat body plan). In the caves they spawn in free water near the diver (crawlers on the
+  floors, ceiling-dwellers on the ceilings, bats in the pockets' air), steer off the walls by the field, wander to
+  points they can reach in a straight line; nothing from the open sea spawns down there. The Flash-Stalker holds the
+  biggest cathedral.
+- **The Abandoned City** (`tools/artgen/deep_city.py` -> `Resources/Caverns/city.glb`): obsidian stonework with
+  faintly glowing carved channels: a plaza with a statue of no known kind, a main street of columns and arches
+  overgrown with Lantern Vines and Phosphor Mats (bright), walls, broken columns, stairs and blocks along dark alleys;
+  its salvage (Smooth Obsidian Stonework, Resonance Stones) as drill nodes; the Echo-Rays' egg clusters on cave floors.
+- **Hazards:** echoes (anything heard in the caves is 8 dB louder to the Wake), cave-ins (a loud noise can bring the
+  ceiling down: falling rock that hurts, dust, rubble; the host decides, the crew see it), blinding strobes (strobing
+  hunters and the Flash-Stalker white out the view as they close in, their flashes light the walls; Strobe Shrooms
+  burst when brushed past), Acid Vines that burn bare skin.
+- **The Kite-Sub** flies the caves (the field keeps it off the walls instead of the seabed). **Sound:** the caves' own
+  bed (drips with long echoes, a stone hum, the rock ticking), bats in the roosts, a cave reverb, cave-ins and strobes;
+  the music's Caves mood (a whole-tone glimmer over a drone). A soft limiter on the listener keeps everything under
+  -3 dBFS.
+- **Phase 3:** the 300 m hull upgrade (High-Tensile Mesh Sealing) and every phase-3 recipe can be gathered
+  (`CraftTests.EveryPhaseThreeRecipeCanBeGathered`). It found an older gap: nothing yielded a Tangle-Serpent Scale;
+  shed scales now lie round the Tangle-Serpent's territory (`Deposits.SerpentScales`).
+- Shots: `cave_city`, `cave_hall`, `cave_tunnel`, `cave_sinkhole`, `cave_mouth`, `cave_pocket`, `cave_life`, `cave_dive`
+  (swims down the sinkhole and checks the diver ends up in the caves, and that a pocket has air), `listen_caves`.

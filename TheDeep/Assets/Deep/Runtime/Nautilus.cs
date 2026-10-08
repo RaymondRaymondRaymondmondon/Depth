@@ -310,8 +310,9 @@ namespace Deep
                     float dd = (w - c).magnitude;
                     if (dd < dl.range + 4f) decorNear.Add((dd, w, dl.col, dl.range));
                 }
+            if (Caverns.I != null) Caverns.I.LightsNear(c, decorNear, 9);
             decorNear.Sort((a, b) => a.d.CompareTo(b.d));
-            if (decorNear.Count > 5) decorNear.RemoveRange(5, decorNear.Count - 5);
+            if (decorNear.Count > 10) decorNear.RemoveRange(10, decorNear.Count - 10);
             int roomCap = 16 - decorNear.Count;
             foreach (var (_, i) in near)
             {

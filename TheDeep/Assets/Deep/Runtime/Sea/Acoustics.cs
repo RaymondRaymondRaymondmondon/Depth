@@ -56,6 +56,7 @@ namespace Deep
         public void Emit(Vector3 pos, float db, Band band, float seconds = 0.5f, string what = null)
         {
             if (Forward != null) { Forward(pos, db, band, seconds, what); return; }
+            if (Caverns.I != null && Caverns.I.UnderGround(pos)) { db += 8f; Caverns.I.Heard(pos, db); }
             sounds.Add(new Sound { pos = pos, db = db, band = band, until = now + seconds, what = what });
             AddWake(pos, db, seconds);
         }
