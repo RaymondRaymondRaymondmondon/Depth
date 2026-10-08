@@ -183,6 +183,7 @@ namespace Deep
         public bool Ping()
         {
             if (!LifeSupport || battery < 0.01f) { alert = "The sonar is dead: she has no power."; return false; }
+            Sfx.Shared("sonar_ping", n.Body.position, 1f, 1f, Medium.Water);
             if (mirror) Net.Cmd(Net.C_PING);
             else
             {

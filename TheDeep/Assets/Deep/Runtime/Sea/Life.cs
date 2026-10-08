@@ -500,8 +500,8 @@ namespace Deep
                 var cl = Nearest(c, 40f, o => Cleaner(o.sp));
                 if (cl != null) { c.station = cl; c.visitT = 0; }
             }
-            if (Boomer(s) && rnd.NextDouble() < 0.003) sound.Emit(c.pos, 72f, Band.Low, 1.2f, "a grouper's boom");
-            if (Clicker(s) && smell > 0.6f && rnd.NextDouble() < 0.05) sound.Emit(c.pos, 50f, Band.High, 0.4f, "a carrion-crab's clicking");
+            if (Boomer(s) && rnd.NextDouble() < 0.003) { sound.Emit(c.pos, 72f, Band.Low, 1.2f, "a grouper's boom"); Sfx.Shared("grouper_boom", c.pos, 1f, Mathf.Clamp(3f / c.size, 0.7f, 1.2f), Medium.Water); }
+            if (Clicker(s) && smell > 0.6f && rnd.NextDouble() < 0.05) { sound.Emit(c.pos, 50f, Band.High, 0.4f, "a carrion-crab's clicking"); Sfx.Shared("crab_clicks", c.pos, 1f, 1f, Medium.Water); }
             // dormant: wander the home range, in the band for the hour
             Set(c, CState.Dormant, null);
             if ((c.goal - c.pos).sqrMagnitude < 4f || c.stateT > 12f || prev != CState.Dormant)
@@ -619,6 +619,7 @@ namespace Deep
             prey.alive = false;
             scent.Emit(prey.pos, 2.5f + prey.size * 2f);
             sound.Emit(prey.pos, 55f + c.size * 3f, Band.Mid, 0.6f, "a kill");
+            if (c.size > 0.6f) Sfx.Shared("kill", prey.pos, Mathf.Clamp01(c.size / 3f) * 0.7f + 0.3f, Mathf.Clamp(1.5f / c.size, 0.7f, 1.4f), Medium.Water);
             c.hunger = Mathf.Max(0, c.hunger - Mathf.Clamp(prey.size / Mathf.Max(0.05f, c.size) * 1.5f, 0.2f, 0.9f));
             c.biteCool = 2f; c.target = null;
             Set(c, CState.Dormant, null);
@@ -632,6 +633,7 @@ namespace Deep
             else Net.HurtMate(who, dmg, c.sp.e.name);
             scent.Emit(who.Eye, 1.8f);
             sound.BloodSpill(who.Eye, 1f);
+            Sfx.Shared("bite", who.Eye, 1f, Mathf.Clamp(2f / c.size, 0.6f, 1.3f), Medium.Water);
             c.biteCool = 1.6f + c.size * 0.2f;
             c.hunger = Mathf.Max(0, c.hunger - 0.25f);
             if (c.state == CState.Territorial) { c.displayT = 0; Set(c, CState.Dormant, null); c.goal = c.nest; }
@@ -641,6 +643,7 @@ namespace Deep
         {
             c.biteCool = 18f;
             sound.Emit(c.pos, 95f, Band.Low, 0.8f, "a hull strike");
+            Sfx.Shared("ram", c.pos, 1f, 1f, Medium.Water);
             if (hullT > 0 || !ship.sys) return;
             hullT = 25f;
             // they go for the stores: the Larder and Hydroponics, else whatever compartment they hit

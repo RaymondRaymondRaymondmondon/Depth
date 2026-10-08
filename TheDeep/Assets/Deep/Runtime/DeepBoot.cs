@@ -110,6 +110,8 @@ namespace Deep
             Drops.Attach(diver, ship);
             Campaign.Attach(save);
             Perf.Attach();
+            Sfx.Attach(); Soundscape.Attach(diver, ship); Score.Attach(diver);
+            if (Args.AudioTest) { int bad = Bank.Test(); Application.Quit(bad == 0 ? 0 : 1); }
             weather = Weather.Make();
             weather.mirror = Net.IsGuest;
             // the opening: the night raft, the storm, boarding her (not in the screenshot harness unless asked; not in a

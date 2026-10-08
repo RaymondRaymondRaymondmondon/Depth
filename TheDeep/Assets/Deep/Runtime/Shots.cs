@@ -21,6 +21,7 @@ namespace Deep
             var boot = DeepBoot.I; boot.diver.inputEnabled = false; boot.clock.frozen = true;
             var list = which == "all" ? All : which.Split(',');
             yield return null;
+            while (!Bank.Ready) yield return null;
             foreach (var name in list)
             {
                 bool ok;
@@ -34,6 +35,17 @@ namespace Deep
                 float ft0 = Time.realtimeSinceStartup;
                 for (int i = 0; i < 20; i++) yield return null;
                 float shotFps = 20f / Mathf.Max(1e-3f, Time.realtimeSinceStartup - ft0);
+                if (name.StartsWith("listen_"))
+                {
+                    // listen: six seconds of what the ear hears, to a WAV
+                    var cam = Camera.main; var rec = cam.GetComponent<Recorder>(); if (!rec) rec = cam.gameObject.AddComponent<Recorder>();
+                    for (int i = 0; i < 60; i++) yield return null;
+                    rec.Begin();
+                    float t0 = Time.realtimeSinceStartup;
+                    while (Time.realtimeSinceStartup - t0 < 6f) yield return null;
+                    string wav = Path.Combine(dir, "deep_" + name + ".wav");
+                    Debug.Log($"DEEP LISTEN: {name}: {rec.End(wav)}; music {Score.I.mood}");
+                }
                 string path = Path.Combine(dir, "deep_" + name + ".png");
                 ScreenCapture.CaptureScreenshot(path);
                 yield return null; yield return null;
@@ -321,6 +333,34 @@ namespace Deep
                     Debug.Log($"DEEP STARVE: shallows hunters starving={pool.Starving(2)} hunger={pool.Hunger(2):0.00}; hull breaches {breaches} -> {ship.sys.breaches.Count}");
                     LogLife(b);
                     Look(eye, ship.WorldPoint(Nautilus.G(2, 0, 0)));
+                    return true;
+                }
+                case "listen_reef":
+                case "listen_kelp":
+                case "listen_engine":
+                case "listen_breach":
+                case "listen_storm":
+                case "listen_danger":
+                {
+                    b.diver.inputEnabled = true;    // (the regulator breathes only for a diver in play)
+                    Score.I.Kick();
+                    if (name == "listen_reef") { b.clock.hour = 11f; Power(false); var p = Find(140, 400, 8, 25); Look(p + Vector3.up * 3f, p + new Vector3(10, 1, 4)); b.life.WarmUp(p, 20f); }
+                    if (name == "listen_kelp") { b.clock.hour = 11f; Power(false); var p = Find(700, 1000, 80, 100); Look(p + Vector3.up * 5f, p + new Vector3(10, 4, 2)); b.life.WarmUp(p, 20f); }
+                    if (name == "listen_engine") { b.clock.hour = 11f; Power(true); ship.telegraph = 4; for (int i = 0; i < 300; i++) ship.Sail(0.05f); b.diver.PlaceAboard(-17f, 0.5f, Nautilus.Floor, 186f, 4f); }
+                    if (name == "listen_breach") { b.clock.hour = 11f; Power(true); ship.telegraph = 2; ship.sys.AddBreach(ship.sys.RoomIndexAt(new Vector3(12f, 0, 0)), 0.05f); b.diver.PlaceAboard(14f, 0.4f, Nautilus.Floor, 90f, 0f); }
+                    if (name == "listen_storm")
+                    {
+                        Opening.Begin(b); Opening.I.t = 520f; b.weather.storm = 0.9f; b.weather.target = 0.9f; b.weather.flash = 1f;
+                        b.diver.yaw = 30f; b.diver.pitch = 5f;
+                    }
+                    if (name == "listen_danger")
+                    {
+                        b.clock.hour = 11f; Power(false);
+                        var p = Find(140, 400, 8, 25); Look(p + Vector3.up * 3f, p + new Vector3(10, 1, 4));
+                        Creature hunter = null; foreach (var c in b.life.live) if (c.alive && c.sp.level >= 2 && c.size > 1.5f && !c.persistent) { hunter = c; break; }
+                        if (hunter == null) foreach (var c in b.life.live) if (c.alive && c.persistent) { hunter = c; break; }
+                        if (hunter != null) { hunter.forced = true; hunter.pos = b.diver.EyeWorld + new Vector3(12, 0, 6); hunter.state = CState.Hunting; hunter.goal = b.diver.EyeWorld; }
+                    }
                     return true;
                 }
                 case "crew_sea":

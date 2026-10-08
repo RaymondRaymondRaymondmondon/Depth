@@ -106,7 +106,7 @@ namespace Deep
                         useT = 0;
                         if (item == null) d.Toast(dep.item + ": unknown item");
                         else if (pack.Add(item, dep.yield) > 0) d.Toast("Your pack is full.");
-                        else { d.Toast($"+{dep.yield} {item.name}"); Deposits.I.Take(dep); }
+                        else { d.Toast($"+{dep.yield} {item.name}"); Deposits.I.Take(dep); Sfx.Shared("gather_ore", dep.pos, 1f, 1f); Sfx.UI("pickup"); }
                     }
                 }
                 else useT = 0;
@@ -131,7 +131,7 @@ namespace Deep
                         int n = plant.kind == "kelp" ? 2 : Mathf.Clamp(Mathf.RoundToInt(plant.scale * 1.2f), 1, 2);
                         var got = new List<string>(); bool full = false;
                         foreach (var y in yields) { if (pack.Add(y, n) > 0) full = true; else got.Add($"+{n} {y.name}"); }
-                        if (got.Count > 0) { d.Toast(string.Join("  ", got)); flora.Take(plant, plant.kind == "kelp" ? 900f : 420f); }
+                        if (got.Count > 0) { d.Toast(string.Join("  ", got)); flora.Take(plant, plant.kind == "kelp" ? 900f : 420f); Sfx.Shared("gather_plant", plant.pos, 1f, Random.Range(0.85f, 1.15f)); Sfx.UI("pickup"); }
                         if (full) d.Toast("Your pack is full.");
                     }
                 }
@@ -148,12 +148,14 @@ namespace Deep
                     cool = tool == "spear" ? 1.4f : 0.55f;
                     swing = 1f;
                     if (tool == "spear") life.sound.Emit(o, 60f, Band.Mid, 0.4f, "a speargun's thwack");
+                    Sfx.Shared(tool == "spear" ? "spear_fire" : "knife_swing", o, 1f, 1f);
+                    Sfx.Shared(tool == "spear" ? "spear_hit" : "knife_hit", prey.pos, 1f, Random.Range(0.9f, 1.1f));
                     bool dead = life.Wound(prey, dmg, o, tool == "blade", tool == "spear" ? "a spear strike" : "a blade strike");
                     if (dead) Loot(prey);
                     else d.Toast($"You wound the {prey.sp.e.name}.");
                 }
             }
-            else if (click && cool <= 0 && tool != "hand") { cool = 0.4f; swing = 1f; if (tool == "spear") { life?.sound.Emit(o, 60f, Band.Mid, 0.4f, "a speargun's thwack"); cool = 1.4f; } }
+            else if (click && cool <= 0 && tool != "hand") { cool = 0.4f; swing = 1f; Sfx.Shared(tool == "spear" ? "spear_fire" : "knife_swing", o, 0.8f, 1f); if (tool == "spear") { life?.sound.Emit(o, 60f, Band.Mid, 0.4f, "a speargun's thwack"); cool = 1.4f; } }
         }
 
         // a kill gives up what the resource table says the animal gives (its meat, a jaw, blubber...)

@@ -11,12 +11,12 @@ namespace Deep
         public static string Role = "solo", Addr = "127.0.0.1", Name = "Diver", Save = "", Shot = "", ShotDir = "shots";
         public static int Port = 47779, Seat = 0, Seed = 7;      // (47778 is Depth's own arcade session, 47777 its LAN beacon)
         public static float Hour = -1;
-        public static bool SkipOpening, NetTest, NewGame, SaveTest;
+        public static bool SkipOpening, NetTest, NewGame, SaveTest, AudioTest;
 
         public static void Parse()
         {
             var a = Environment.GetCommandLineArgs();
-            foreach (var x in a) { if (x.ToLowerInvariant() == "-skipopening") SkipOpening = true; if (x.ToLowerInvariant() == "-nettest") NetTest = true; if (x.ToLowerInvariant() == "-newgame") NewGame = true; if (x.ToLowerInvariant() == "-savetest") SaveTest = true; }
+            foreach (var x in a) { if (x.ToLowerInvariant() == "-skipopening") SkipOpening = true; if (x.ToLowerInvariant() == "-nettest") NetTest = true; if (x.ToLowerInvariant() == "-newgame") NewGame = true; if (x.ToLowerInvariant() == "-savetest") SaveTest = true; if (x.ToLowerInvariant() == "-audiotest") AudioTest = true; }
             for (int i = 0; i < a.Length - 1; i++)
             {
                 string k = a[i].ToLowerInvariant(), v = a[i + 1];

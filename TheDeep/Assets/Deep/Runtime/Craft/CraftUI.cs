@@ -27,11 +27,13 @@ namespace Deep
         public void Open(string m, string st = null)
         {
             mode = m; station = st; sel = null; scroll = Vector2.zero;
+            Sfx.UI("ui_open");
             d.uiOpen = true;
             Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
         }
         public void Close()
         {
+            if (mode != null) Sfx.UI("ui_close");
             mode = null; d.uiOpen = false;
             Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;
         }
@@ -103,7 +105,7 @@ namespace Deep
                         var other = pack ? Store : h.pack;
                         if (other != null && other.Add(it) == 0) inv.Remove(it);
                     }
-                    else if (it.Edible && s.Consume(it)) { inv.Remove(it); d.Toast($"You have the {it.name}."); }
+                    else if (it.Edible && s.Consume(it)) { inv.Remove(it); Sfx.UI(it.category == "drink" ? "drink" : "eat"); d.Toast($"You have the {it.name}."); }
                     else if (it.category == "tool" || it.category == "weapon") { h.held = i; d.Toast($"{it.name} in hand"); }
                     else sel = it;
                 }
@@ -200,7 +202,8 @@ namespace Deep
                 if (busyUntil.TryGetValue(station, out float t) && Time.time < t) { d.Toast($"Still boiling: {t - Time.time:0} s"); return; }
                 busyUntil[station] = Time.time + mins * 60f;
             }
-            if (!h.pack.Make(it, Store)) return;
+            if (!h.pack.Make(it, Store)) { Sfx.UI("ui_error"); return; }
+            Sfx.UI("ui_craft");
             // the Kite-Sub is launched into her moonpool's cradle
             if (it.name.IndexOf("Kite-Sub", System.StringComparison.OrdinalIgnoreCase) >= 0 && it.category == "vehicle" && d.ship)
             {

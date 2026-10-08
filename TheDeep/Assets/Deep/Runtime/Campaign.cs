@@ -233,7 +233,7 @@ namespace Deep
             if (!saving) return;
             autoT += Time.deltaTime;
             if (autoT > AutoEvery) { autoT = 0; Save(); }
-            if (b.diver.inputEnabled && Input.GetKeyDown(KeyCode.F5) && Save()) b.diver.Toast("The campaign is saved.");
+            if (b.diver.inputEnabled && Input.GetKeyDown(KeyCode.F5) && Save()) { Sfx.UI("save"); b.diver.Toast("The campaign is saved."); }
         }
 
         void OnApplicationQuit()

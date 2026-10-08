@@ -37,7 +37,9 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
    hull upgrades; the Kite-Sub.
 5. **The opening (done):** the night raft, the storm, boarding the Nautilus and restoring power.
 6. **Multiplayer (done):** host-authoritative Netcode, 1-4 players, Depth's lobby handing off.
-7. **Campaign and polish (done, sound kept for its own stage):** saves, death rules, the Artisan Bench, performance on this PC.
+7. **Campaign and polish (done):** saves, death rules, the Artisan Bench, performance on this PC.
+8. **Sound (done):** everything synthesised; the soundscape, the music, the crew hearing each other.
+9. **The Bioluminescent Caverns** (phase 3, 150-300 m).
 
 ## Stage 2 so far (2026-10-07)
 - **The model:** `tools/artgen/deep_nautilus.py` (+ `deep_tiles.py`: fouled riveted iron, walnut, teak, interior
@@ -266,3 +268,31 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
   (23 checks).
 - Shots: `decor_cabin`, `decor_salon`, `decor_ghost`, `drop_satchel`, `captains_log`.
 - **Sound is not in this stage** (the user: "save the sound for a later full sound stage").
+
+## Stage 8, sound (2026-10-07)
+- Everything is synthesised in code (`Runtime/Audio/`): no audio files. `Synth.cs` (noise, oscillators, FM, plucked
+  strings, biquads, resonant modes for metal and wood, bubbles, envelopes, a small room, seamless loops), `Bank.cs`
+  (89 cues, 172 variants, about 6 minutes of audio, rendered on worker threads in about 0.65 s at start-up),
+  `Sfx.cs` (40 voices; every sound is muffled by what lies between it and the ear: water carries far and loses only
+  its brightest edge, her hull turns the sea into a thud, the surface muffles hard; reverb for the open sea, her
+  rooms; F10 opens volume sliders for master, effects, ambience, interface and music, kept in PlayerPrefs),
+  `Soundscape.cs` (everything worked out from the state of things, so it's the same on a crewmate's PC), `Score.cs`
+  (the music), `Recorder.cs` (the harness's ears).
+- **What you hear:** the reef's crackle, the kelp's creaks and clicks, the deep's hum, the swell under the surface;
+  waves, wind and rain with the storm and thunder after each flash; her steam engine's beat (faster with speed), the
+  battery's hum, the screw's whir, creaks and groans with way and depth, crush groans and pops past her rating,
+  breaches, the jet and the flood, the pumps, the alarm bell, the telegraph's double ring, the switchboard, power
+  coming up and dying, grounding, a ram; the regulator's breath and bubbles (quicker when working or short of air),
+  strokes, footsteps on teak forward, iron aft and a rug, the ladder, splashes in and out, the low-air beep and the
+  heartbeat, a bite, death and waking; the tools (knife, blade, drill, speargun, gathering); leviathans' calls carrying
+  hundreds of metres, a hunter's growl as it turns on you, a leviathan's roar, schools bolting past, the grouper's
+  boom, the carrion-crabs' clicks, kills; the sonar ping; the hatches, the airlock, the Kite-Sub's props and dock, the
+  oars, the raft's creaks and its flip; the interface (pack, crafting, eating, drinking, placing, saving, toasts).
+- **The music** (generative, on the audio clock; pieces of two or three minutes, then a minute or two of only the sea):
+  the Shallows by day in D lydian (pad, harp and celesta, a piano phrase now and then); the Kelp and the night darker
+  (drone, pad, cello, sparse celesta); aboard, Captain Nemo's organ (a chorale in B flat); the storm (drone and cello
+  swells); danger at once (a sting, then a drone, a two-note cello ostinato and piano clusters, until ten calm seconds).
+- **The crew hear each other:** one-off sounds are shared (the host passes them on); the rest follows the shared state.
+- **Checks:** `tools\deep.ps1 audiotest` (every sound: not silent, not clipped, no DC, loops seamless: 172 of 172);
+  `listen_reef|kelp|engine|breach|storm|danger` shots record six seconds of what the ear hears to
+  `TheDeep/shots/deep_listen_*.wav` and log the level and brightness (about -17 to -24 dBFS average).

@@ -96,6 +96,7 @@ namespace Deep
         {
             if (flipped) return;
             flipped = true; vel = Vector3.zero;
+            Sfx.Shared("raft_flip", transform.position, 1f, 1f, Medium.Air);
             var d = DeepBoot.I ? DeepBoot.I.diver : null;
             if (d != null && d.onRaft == this) { d.LeaveRaft(); d.Toast(why + " You're in the water."); }
         }
@@ -134,6 +135,7 @@ namespace Deep
                 heading += tn * 32f * dt * (r == 0 ? 1.4f : 1f);
             }
             if (before > stroke && Life.I != null) Life.I.sound.Emit(transform.position, 34f, Band.Mid, 0.3f, "oars");
+            if (before > stroke) Sfx.Shared("oars", transform.position, 1f, 1f, Medium.Air);
         }
     }
 }

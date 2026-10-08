@@ -55,7 +55,7 @@ namespace Deep
             return d;
         }
 
-        public void Toast(string s) { toast = s; toastT = 3.5f; }
+        public void Toast(string s) { if (s != toast && !string.IsNullOrEmpty(s)) Sfx.UI("toast"); toast = s; toastT = 3.5f; }
 
         // a bite, a sting, a ram: at zero you black out and come to aboard the Nautilus (the campaign's death rules -
         // what you carried left where you fell - come with stage 7)
@@ -68,6 +68,7 @@ namespace Deep
             if (Opening.Active && Opening.I.Respawn()) return;
             // the campaign's death rule: what you carried stays where you fell
             Drops.I?.LeaveHere(this);
+            Sfx.Play2D("death");
             if (onRaft != null) LeaveRaft();
             if (piloting != null) LeaveKiteSub(true);
             health = 60f; oxygen = oxygenMax;
@@ -532,6 +533,7 @@ namespace Deep
         // aboard at a standing spot (ship local, feet), facing a yaw in the ship's frame
         public void Board(Vector3 standLocal, float yawShip, string msg = null)
         {
+            if (msg != null && ship) Sfx.Shared(msg.Contains("airlock") ? "airlock" : msg.Contains("moonpool") ? "splash_out" : msg.Contains("Dive Room") || msg.Contains("come to") ? "respawn" : "hatch", ship.WorldPoint(standLocal), 1f, 1f, Medium.Aboard);
             aboard = true; climbing = false; manning = null; onLadder = null;
             cc.enabled = false; transform.position = ship.ProxyPoint(standLocal) + Vector3.up * (cc.height / 2 + 0.02f); cc.enabled = true;
             yaw = yawShip; vel = Vector3.zero;
@@ -544,6 +546,7 @@ namespace Deep
         {
             var w = ship.WorldPoint(local);
             var fwd = ship.RotToWorld(Quaternion.Euler(0, yaw, 0)) * Vector3.forward;
+            if (msg != null) Sfx.Shared(msg.Contains("airlock") ? "airlock" : msg.Contains("moonpool") ? "splash_in" : "hatch", w, 1f, 1f, Medium.Aboard);
             aboard = false; climbing = false; manning = null;
             cc.enabled = false; transform.position = w; cc.enabled = true;
             yaw = Mathf.Atan2(fwd.x, fwd.z) * Mathf.Rad2Deg; vel = Vector3.zero;

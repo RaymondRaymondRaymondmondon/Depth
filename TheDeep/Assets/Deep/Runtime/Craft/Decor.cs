@@ -224,6 +224,7 @@ namespace Deep
                 if (Net.IsGuest) Net.DecorPlace(placing.id, ghostLocal, ghostRot);
                 else { var p = Add(nextId++, placing.id, ghostLocal, ghostRot); Net.DecorAdded(p); }
                 diver.Toast($"The {placing.name} is set down.");
+                Sfx.Play("place", ship.WorldPoint(ghostLocal), 1f, 1f, Medium.Aboard);
                 CancelPlace();
             }
         }
@@ -250,6 +251,7 @@ namespace Deep
                 if (Net.IsGuest) Net.DecorTake(p.id);
                 else { Remove(p.id); Net.DecorRemoved(p.id); }
                 d.Toast($"You take down the {name}.");
+                Sfx.Play("place", ship.WorldPoint(p.local), 0.7f, 1.2f, Medium.Aboard);
             }
             return true;
         }

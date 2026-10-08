@@ -56,5 +56,12 @@ switch ($What) {
         if (-not $p.WaitForExit(240000)) { Stop-Process -Id $p.Id -Force; "the save test timed out" }
         Select-String -Path $sl -Pattern "DEEP SAVETEST|Exception" | ForEach-Object { $_.Line }
     }
+    "audiotest" {
+        # every sound in the bank rendered and checked: not silent, not clipped, no DC offset, loops seamless
+        $al = "$env:TEMP\deep_audiotest.log"
+        $p = Start-Process $exe -ArgumentList @("-audiotest", "-skipopening", "-batchmode", "-nographics", "-logFile", "`"$al`"") -PassThru
+        if (-not $p.WaitForExit(240000)) { Stop-Process -Id $p.Id -Force; "the audio test timed out" }
+        Select-String -Path $al -Pattern "DEEP AUDIOTEST|Exception" | ForEach-Object { $_.Line }
+    }
     "run" { Start-Process $exe -ArgumentList $Arg }
 }

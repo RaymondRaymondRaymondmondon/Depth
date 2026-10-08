@@ -41,7 +41,7 @@ namespace Deep
 
         // host -> crew
         const byte M_WELCOME = 1, M_ROSTER = 2, M_POSES = 3, M_SHIP = 4, M_SEA = 5, M_WORLD = 6, M_STORE = 7, M_FLORA = 8, M_DEPOSIT = 9, M_HURT = 10, M_ALERT = 11, M_TEST = 12,
-                   M_DECOR_ADD = 13, M_DECOR_DEL = 14, M_DROP_ADD = 15, M_DROP_DEL = 16, M_DROP_GIVE = 17;
+                   M_DECOR_ADD = 13, M_DECOR_DEL = 14, M_DROP_ADD = 15, M_DROP_DEL = 16, M_DROP_GIVE = 17, M_SOUND = 18;
         // crew -> host
         const byte M_POSE = 20, M_SHIPCTL = 21, M_CMD = 22, M_STOREDELTA = 23, M_OARS = 24, M_EMIT = 25, M_WOUND = 26, M_REPORT = 27,
                    M_DECOR_PLACE = 28, M_DECOR_TAKE = 29, M_DROP_MAKE = 30, M_DROP_TAKE = 31, M_CREW = 32;
@@ -567,6 +567,13 @@ namespace Deep
                     Send(from, w, true);
                     break;
                 }
+                case M_SOUND:
+                {
+                    string cue = r.S(); var pos = r.V3(); float vol = r.F(), pitch = r.F(); int med = r.U8();
+                    Sfx.Play(cue, pos, vol, pitch, (Medium)med);
+                    ToCrew(new NetW().U8(M_SOUND).S(cue).V3(pos).F(vol).F(pitch).U8(med), false, from);
+                    break;
+                }
                 case M_CREW:
                 {
                     string json = r.S();
@@ -808,6 +815,7 @@ namespace Deep
                 case M_HURT: { float dmg = r.F(); string by = r.S(); D?.Hurt(dmg, by); break; }
                 case M_ALERT: { string msg = r.S(); if (D && (D.aboard || msg.Contains("raft"))) D.Toast(msg); break; }
                 case M_TEST: TestStep(r); break;
+                case M_SOUND: { string cue = r.S(); var pos = r.V3(); float vol = r.F(), pitch = r.F(); int med = r.U8(); Sfx.Play(cue, pos, vol, pitch, (Medium)med); break; }
                 case M_DECOR_ADD: { int id = r.I32(); string item = r.S(); var local = r.V3(); var rot = r.Q(); Decor.I?.Add(id, item, local, rot); break; }
                 case M_DECOR_DEL: { int id = r.I32(); Decor.I?.Remove(id); break; }
                 case M_DROP_ADD: { int id = r.I32(); string owner = r.S(); bool ab = r.Bool(); var pos = r.V3(); var items = ReadCounts(r); Drops.I?.Add(id, owner, ab, pos, items); break; }
@@ -927,6 +935,14 @@ namespace Deep
         }
         public static void DropRemoved(int id) { if (IsHost && I != null) I.ToCrew(new NetW().U8(M_DROP_DEL).I32(id), true); }
         public static void SendCrewRecord(CrewSave c) { if (IsGuest && I != null && I.worldUp && c != null) I.ToHost(new NetW().U8(M_CREW).S(JsonUtility.ToJson(c)), true); }
+
+        // a sound for the whole crew (Sfx.Shared): a guest's goes to the host, the host's to everyone
+        public static void Sound(string cue, Vector3 pos, float vol, float pitch, int medium)
+        {
+            if (!Online || I == null || !I.worldUp) return;
+            var w = new NetW().U8(M_SOUND).S(cue).V3(pos).F(vol).F(pitch).U8(medium);
+            if (IsGuest) I.ToHost(w, false); else I.ToCrew(w, false);
+        }
 
         // the crewmates' helmet lamps, for the shaders' lamp list (Nautilus.cs)
         public static IEnumerable<Mate> Crew()
