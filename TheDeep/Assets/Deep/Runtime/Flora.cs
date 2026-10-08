@@ -194,10 +194,10 @@ namespace Deep
         }
 
         // the caves' kinds (CaveLife.cs): one of the caverns' models, glowing (and pulsing) at its own strength
-        public int CaveKind(string id, float sway, float transl, float dist, float glow, float pulse)
+        public int CaveKind(string id, float sway, float transl, float dist, float glow, float pulse, string file = "Flora/flora_caverns")
         {
             for (int i = 0; i < kinds.Count; i++) if (kinds[i].name == id) return i;
-            var m = ModelLibrary.Get("Flora/flora_caverns", id);
+            var m = ModelLibrary.Get(file, id);
             if (!m) { Debug.LogWarning("DEEP FLORA: no cave model for " + id); return -1; }
             var k = AddKind(id, m, null, Color.white, sway, transl, dist, "cave");
             k.mat.SetFloat("_Glow", glow); k.mat.SetFloat("_Pulse", pulse);
@@ -378,7 +378,7 @@ namespace Deep
                         var center = new Vector3((cx0 + dx + 0.5f) * CellSize, c.y, (cz0 + dz + 0.5f) * CellSize);
                         float dd = new Vector2(center.x - c.x, center.z - c.z).magnitude;
                         if (dd > dist + CellSize * 0.71f) continue;
-                        var b = new Bounds(new Vector3(center.x, -160, center.z), new Vector3(CellSize + 8, 340, CellSize + 8));
+                        var b = new Bounds(new Vector3(center.x, -270, center.z), new Vector3(CellSize + 8, 580, CellSize + 8));
                         if (!GeometryUtility.TestPlanesAABB(planes, b)) continue;
                         rp.worldBounds = b;
                         var mesh = (k.far != null && dd > dist * 0.45f) ? k.far : k.mesh;

@@ -299,7 +299,7 @@ namespace Deep
 
         void BuildWalls()
         {
-            wallMat = new Material(Shader.Find("Deep/Lit")) { name = "limestone" };
+            wallMat = new Material(DeepShaders.Get("Deep/Lit")) { name = "limestone" };
             wallMat.SetFloat("_UseVC", 1); wallMat.SetFloat("_VCAlbedo", 1); wallMat.SetFloat("_Roughness", 0.75f); wallMat.SetFloat("_Metallic", 0f); wallMat.SetFloat("_Cull", 2);
             const int C = 20;   // cells per chunk side
             var jobs = new List<(int i0, int j0, int k0)>();
@@ -446,7 +446,7 @@ namespace Deep
                 q.name = "Pocket water " + c.name; q.transform.SetParent(transform, false);
                 q.transform.position = new Vector3(c.c.x, c.level, c.c.z); q.transform.rotation = Quaternion.Euler(90, 0, 0);
                 q.transform.localScale = new Vector3(c.r.x * 2.2f, c.r.z * 2.2f, 1);
-                var m = new Material(Shader.Find("Deep/Glass")); m.SetColor("_Tint", new Color(0.1f, 0.35f, 0.45f)); m.SetFloat("_Clear", 0.4f);
+                var m = new Material(DeepShaders.Get("Deep/Glass")); m.SetColor("_Tint", new Color(0.1f, 0.35f, 0.45f)); m.SetFloat("_Clear", 0.4f);
                 var mr = q.GetComponent<MeshRenderer>(); mr.sharedMaterial = m; mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 c.water = q.transform;
             }

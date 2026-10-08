@@ -78,11 +78,11 @@ namespace Deep
         {
             var d = new GameObject("Decor").AddComponent<Decor>(); I = d;
             d.ship = ship; d.diver = diver;
-            d.lit = new Material(Shader.Find("Deep/Lit")); d.lit.SetFloat("_UseVC", 1); d.lit.SetFloat("_VCAlbedo", 1); d.lit.SetFloat("_Roughness", 0.6f); d.lit.SetFloat("_Metallic", 0.25f); d.lit.SetFloat("_Cull", 0); d.lit.SetFloat("_Interior", 1); d.lit.renderQueue = 1960;
-            d.glow = new Material(d.lit); d.glow.SetFloat("_Emit", 1);
-            d.glass = new Material(Shader.Find("Deep/Glass")); d.glass.SetColor("_Tint", new Color(0.7f, 0.85f, 0.85f)); d.glass.SetFloat("_Clear", 0.85f);
-            d.ghostOk = new Material(Shader.Find("Deep/Glass")); d.ghostOk.SetColor("_Tint", new Color(0.3f, 1f, 0.5f)); d.ghostOk.SetFloat("_Clear", 0.35f);
-            d.ghostBad = new Material(Shader.Find("Deep/Glass")); d.ghostBad.SetColor("_Tint", new Color(1f, 0.3f, 0.25f)); d.ghostBad.SetFloat("_Clear", 0.35f);
+            d.lit = new Material(DeepShaders.Get("Deep/Lit")); d.lit.SetFloat("_UseVC", 1); d.lit.SetFloat("_VCAlbedo", 1); d.lit.SetFloat("_Roughness", 0.6f); d.lit.SetFloat("_Metallic", 0.25f); d.lit.SetFloat("_Cull", 0); d.lit.SetFloat("_Interior", 1); d.lit.renderQueue = 1960;
+            d.glow = new Material(d.lit); d.glow.SetFloat("_Glow", 1.4f);   // (its own light, not her power's)
+            d.glass = new Material(DeepShaders.Get("Deep/Glass")); d.glass.SetColor("_Tint", new Color(0.7f, 0.85f, 0.85f)); d.glass.SetFloat("_Clear", 0.85f);
+            d.ghostOk = new Material(DeepShaders.Get("Deep/Glass")); d.ghostOk.SetColor("_Tint", new Color(0.3f, 1f, 0.5f)); d.ghostOk.SetFloat("_Clear", 0.35f);
+            d.ghostBad = new Material(DeepShaders.Get("Deep/Glass")); d.ghostBad.SetColor("_Tint", new Color(1f, 0.3f, 0.25f)); d.ghostBad.SetFloat("_Clear", 0.35f);
             foreach (var def in defs.Values) def.bounds = Bounds(def.id);
             return d;
         }

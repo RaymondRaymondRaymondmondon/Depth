@@ -350,11 +350,79 @@ def build_cave(f):
     return mb
 
 
+# ------------------------------------------------------------------------------------------------ the vents' growth
+VCOL = {"orange": (1.0, 0.45, 0.1), "red": (1.0, 0.2, 0.08), "amber": (1.0, 0.62, 0.18), "white": (1.0, 0.95, 0.85),
+        "yellow": (0.95, 0.85, 0.2)}
+
+
+def build_vent(f):
+    """The Thermal Vents' twenty: soot-black, rust, sulphur and pale mineral growth on chimneys, basalt and sediment,
+    a few glowing hot (their colour from the table). +y away from the rock."""
+    n = f["name"].lower()
+    seed = f["id"]
+    glow = VCOL.get(f.get("color", "none"))
+    soot, rust, sul, pale = (0.08, 0.07, 0.06), (0.45, 0.2, 0.08), (0.78, 0.68, 0.22), (0.82, 0.8, 0.74)
+    mb = MB()
+    if "tubeworm" in n:                 # white tubes with blood-red plumes (the plume tips glow)
+        for i in range(12):
+            a, r = H(seed + str(i), 1) * 6.28, H(seed + str(i), 2) * 0.35
+            h = 0.6 + 1.2 * H(seed + str(i), 3)
+            b = (math.cos(a) * r, 0, math.sin(a) * r)
+            tube(mb, [b, add(b, (0.03, h, 0))], [0.05, 0.045], 7, None, 0.0, colfn=lambda t, a_, p: col(pale, p[1] / 1.8))
+            ellipsoid(mb, add(b, (0.03, h + 0.08, 0)), (0.09, 0.14, 0.09), col(glow or (0.85, 0.12, 0.1), 1.0), 8, 5)
+    elif "spores" in n:                 # puffs of spore cloud over a crusted base
+        lumps(mb, (0, 0, 0), 0.3, 8, mix(soot, rust, 0.4), seed, 0.4)
+        for i in range(14):
+            a, r = H(seed + str(i), 1) * 6.28, H(seed + str(i), 2) * 0.4
+            ellipsoid(mb, (math.cos(a) * r, 0.2 + 0.4 * H(seed + str(i), 3), math.sin(a) * r), (0.05, 0.05, 0.05), col(glow or mix(sul, pale, 0.5), 0.8), 6, 4)
+    elif "moss" in n or "algae" in n:   # mats and cushions
+        c = soot if "soot" in n else rust if ("pyre" in n or "eruptor" in n) else mix(soot, sul, 0.3)
+        lumps(mb, (0, 0, 0), 0.6, 20, c, seed, 0.3)
+    elif "grass" in n:                  # stiff blades that sway in the vents' draught
+        for i in range(24):
+            a, r = H(seed + str(i), 1) * 6.28, H(seed + str(i), 2) * 0.35
+            d = norm((math.cos(a) * 0.15, 1, math.sin(a) * 0.15))
+            blade(mb, (math.cos(a) * r, 0, math.sin(a) * r), d, 0.5 + 0.4 * H(seed + str(i), 3), 0.02, mix(sul, (0.4, 0.5, 0.2), 0.4) if "sulfur" in n else mix(soot, (0.3, 0.32, 0.25), 0.5), 0.2, 5, a)
+    elif "filament" in n:               # hair-thin strands (the blaze filament burning white-hot)
+        for i in range(26):
+            x = (i - 13) * 0.025
+            L = 0.4 + 0.8 * H(seed + str(i), 1)
+            strand(mb, (x, 0, 0), (x + 0.04, L, 0.03), 0.005, glow or mix(soot, pale, 0.5), 5, 0.04, i)
+    elif "crust" in n:                  # a mineral crust (copper green-gold in the forge's)
+        c = mix(rust, (0.55, 0.42, 0.15), 0.6) if "forge" in n else mix(pale, sul, 0.4)
+        lumps(mb, (0, 0, 0), 0.7, 24, c, seed, 0.18)
+        if "forge" in n:
+            for i in range(10):
+                a, r = H(seed + str(i), 5) * 6.28, H(seed + str(i), 6) * 0.6
+                ellipsoid(mb, (math.cos(a) * r, 0.05, math.sin(a) * r), (0.05, 0.03, 0.05), col((0.85, 0.5, 0.25), 0.3), 6, 3)
+    elif "stalk" in n or "spire" in n:  # tall mineral stalks and spires
+        tall = 1.6 if "spire" in n else 1.1
+        for i in range(3 if "spire" in n else 6):
+            a, r = H(seed + str(i), 1) * 6.28, H(seed + str(i), 2) * 0.3
+            b = (math.cos(a) * r, 0, math.sin(a) * r)
+            h = tall * (0.6 + 0.6 * H(seed + str(i), 3))
+            tube(mb, [b, add(b, (0.02, h * 0.5, 0.03)), add(b, (0, h, 0))], [0.09, 0.06, 0.02], 7, None, 0.0,
+                 colfn=lambda t, a_, p: col(mix(soot, pale if "ash" in n else sul, clamp(p[1] / 1.6)), p[1] / 1.6))
+    elif "cluster" in n:                # knobbly nodules
+        for i in range(16):
+            a, r = H(seed + str(i), 1) * 6.28, H(seed + str(i), 2) * 0.25
+            ellipsoid(mb, (math.cos(a) * r, 0.05 + H(seed + str(i), 3) * 0.2, math.sin(a) * r), (0.06, 0.06, 0.06), col(glow or mix(rust, sul, 0.3), 0.5), 7, 5)
+    elif "bloom" in n:                  # a cinder-orange flower of fleshy petals
+        for i in range(8):
+            a = i / 8 * math.pi * 2
+            d = norm((math.cos(a), 0.6, math.sin(a)))
+            blade(mb, (0, 0.15, 0), d, 0.35, 0.09, glow or (1.0, 0.5, 0.15), 0.4, 4, a)
+        strand(mb, (0, 0, 0), (0, 0.18, 0), 0.03, soot, 3, 0.0)
+    else:
+        lumps(mb, (0, 0, 0), 0.4, 12, mix(soot, rust, 0.5), seed, 0.4)
+    return mb
+
+
 def main():
     a = K.args()
     out = a[a.index("--out") + 1] if "--out" in a else os.path.join(K.ROOT, "TheDeep", "Assets", "Deep", "Resources", "Flora")
     os.makedirs(out, exist_ok=True)
-    biomes = ("shallows", "kelp", "caverns")
+    biomes = ("shallows", "kelp", "caverns", "vents")
     if "--biome" in a:
         biomes = (a[a.index("--biome") + 1],)
     for biome in biomes:
@@ -365,7 +433,7 @@ def main():
         for f in tab["flora"]:
             if "iron-kelp" in f["name"].lower():
                 continue
-            mb = build_cave(f) if biome == "caverns" else build(f, biome)
+            mb = build_cave(f) if biome == "caverns" else build_vent(f) if biome == "vents" else build(f, biome)
             if not mb.f:
                 continue
             objs.append(K.to_object(f["id"], mb))

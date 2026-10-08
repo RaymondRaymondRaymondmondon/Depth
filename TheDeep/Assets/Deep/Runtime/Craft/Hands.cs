@@ -224,7 +224,7 @@ namespace Deep
 
         static Material ToolMat(Color c, float metal, float rough, float emit = 0)
         {
-            var m = new Material(Shader.Find("Deep/Lit"));
+            var m = new Material(DeepShaders.Get("Deep/Lit"));
             m.SetColor("_BaseColor", c); m.SetFloat("_Metallic", metal); m.SetFloat("_Roughness", rough);
             m.SetFloat("_UseVC", 0); m.SetFloat("_Cull", 0); m.SetFloat("_Emit", emit);
             m.renderQueue = 2400;

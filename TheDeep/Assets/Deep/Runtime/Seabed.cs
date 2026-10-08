@@ -14,6 +14,7 @@ namespace Deep
         int seed;
 
         public static float ShallowsEnd = 480f, KelpEnd = 1150f;
+        public static float MaxX => VentField.I != null ? VentField.X1 : Size;   // the world's east edge (the vents' terrain beyond)
 
         public void Build(int seed)
         {
@@ -61,6 +62,7 @@ namespace Deep
         // world y of the seabed at (x, z): negative is below the surface
         public float HeightAt(float x, float z)
         {
+            if (x > Size && VentField.I != null) return VentField.I.HeightAt(x, z);
             // a gentle domain warp so nothing lines up with the axes
             float wx = x + 60 * Fbm(x, z, 0.0021f, 2, 1), wz = z + 60 * Fbm(x, z, 0.0021f, 2, 2);
 
@@ -120,12 +122,13 @@ namespace Deep
         // fast: bilinear in the precomputed grid (the flora and the splat use this)
         public float H(float x, float z)
         {
+            if (x > Size && VentField.I != null) return VentField.I.H(x, z);
             float fx = Mathf.Clamp(x / Size * (Res - 1), 0, Res - 1.001f), fz = Mathf.Clamp(z / Size * (Res - 1), 0, Res - 1.001f);
             int i = (int)fx, j = (int)fz; float u = fx - i, v = fz - j;
             return Mathf.Lerp(Mathf.Lerp(heights[j, i], heights[j, i + 1], u), Mathf.Lerp(heights[j + 1, i], heights[j + 1, i + 1], u), v);
         }
 
-        public float SampleY(float x, float z) => terrain ? terrain.SampleHeight(new Vector3(x, 0, z)) + terrain.transform.position.y : HeightAt(x, z);
+        public float SampleY(float x, float z) => x > Size && VentField.I != null ? VentField.I.SampleY(x, z) : terrain ? terrain.SampleHeight(new Vector3(x, 0, z)) + terrain.transform.position.y : HeightAt(x, z);
 
         public Vector3 SpawnPoint()
         {

@@ -123,7 +123,7 @@ namespace Deep
             var ch = City; if (ch == null) return;
             var rnd = new System.Random(seed * 53 + 3);
             float R() => (float)rnd.NextDouble();
-            var mat = new Material(Shader.Find("Deep/Lit")) { name = "obsidian" };
+            var mat = new Material(DeepShaders.Get("Deep/Lit")) { name = "obsidian" };
             mat.SetFloat("_UseVC", 1); mat.SetFloat("_VCAlbedo", 1); mat.SetFloat("_Roughness", 0.15f); mat.SetFloat("_Metallic", 0.3f); mat.SetFloat("_Cull", 0);
             var root = new GameObject("The Abandoned City").transform; root.SetParent(transform, false);
             int pieces = 0;
@@ -228,7 +228,7 @@ namespace Deep
         public void CaveIn(Vector3 ceil, int seed)
         {
             var r = new System.Random(seed);
-            if (!rockMat) { rockMat = new Material(Shader.Find("Deep/Lit")); rockMat.SetColor("_BaseColor", new Color(0.45f, 0.43f, 0.4f)); rockMat.SetFloat("_UseVC", 0); rockMat.SetFloat("_Roughness", 0.9f); }
+            if (!rockMat) { rockMat = new Material(DeepShaders.Get("Deep/Lit")); rockMat.SetColor("_BaseColor", new Color(0.45f, 0.43f, 0.4f)); rockMat.SetFloat("_UseVC", 0); rockMat.SetFloat("_Roughness", 0.9f); }
             for (int k = 0; k < 7; k++)
             {
                 var g = GameObject.CreatePrimitive(k % 2 == 0 ? PrimitiveType.Cube : PrimitiveType.Sphere); Destroy(g.GetComponent<Collider>());

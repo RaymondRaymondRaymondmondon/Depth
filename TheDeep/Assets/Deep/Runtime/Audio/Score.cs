@@ -15,7 +15,7 @@ namespace Deep
     public class Score : MonoBehaviour
     {
         public static Score I;
-        public enum Mood { None, Shallows, Dark, Aboard, Storm, Danger, Caves }
+        public enum Mood { None, Shallows, Dark, Aboard, Storm, Danger, Caves, Vents }
         public Mood mood = Mood.None, playing = Mood.None;
         readonly List<AudioSource> pool = new List<AudioSource>();
         int next;
@@ -57,6 +57,7 @@ namespace Deep
             if (d.onRaft != null || (Opening.Active && !d.aboard && Sfx.Ear == Medium.Air)) return Mood.Storm;
             if (d.aboard) return Mood.Aboard;
             if (Caverns.I != null && Caverns.I.UnderGround(d.EyeWorld)) return Mood.Caves;
+            if (VentField.I != null && d.EyeWorld.x > VentField.X0 + 40f) return Mood.Vents;
             var clock = DeepBoot.I.clock;
             return d.Depth > 55f || clock.Night ? Mood.Dark : Mood.Shallows;
         }
@@ -150,6 +151,17 @@ namespace Deep
                     Note("ins_organ", Deg(root, Major, ch + 4), at, vol * 0.8f);
                     Note("ins_organ", Deg(root + 12, Major, ch + (bar % 3 == 0 ? 0 : 2)), at, vol * 0.7f);
                     if (bar % 2 == 1) Note("ins_organ", Deg(root + 12, Major, ch + 4), at + len / 2, vol * 0.6f);
+                    break;
+                }
+                case Mood.Vents:
+                {
+                    // the vents: a slow, heavy pulse in the low strings, a drone a tritone apart, piano in the depths
+                    int root = 40;
+                    if (bar % 4 == 0) { Note("ins_drone", root - 12, at, 0.2f); Note("ins_drone", root - 6, at + 0.5, 0.1f); }
+                    Note("ins_cello", root - 12 + (bar % 2 == 0 ? 0 : 1), at, 0.2f);
+                    Note("ins_cello", root - 12 + (bar % 2 == 0 ? 0 : 1), at + len * 0.5, 0.14f);
+                    if (bar % 3 == 2) Note("ins_piano", root - 24 + new[] { 0, 6, 3 }[R(3)], at + len * 0.25, 0.22f);
+                    if (R(3) == 0) Note("ins_celesta", root + 24 + new[] { 0, 1, 6, 7 }[R(4)], at + len * R(4) / 4.0, 0.08f);
                     break;
                 }
                 case Mood.Caves:

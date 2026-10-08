@@ -340,3 +340,43 @@ web, sound (the Wake) and scent as systems, hull upgrades as the depth gate.
   shed scales now lie round the Tangle-Serpent's territory (`Deposits.SerpentScales`).
 - Shots: `cave_city`, `cave_hall`, `cave_tunnel`, `cave_sinkhole`, `cave_mouth`, `cave_pocket`, `cave_life`, `cave_dive`
   (swims down the sinkhole and checks the diver ends up in the caves, and that a pocket has air), `listen_caves`.
+
+## Stage 10, the Thermal Vents (2026-10-08)
+- **The field** (`Runtime/VentField.cs`): a second terrain tile east of the main map (x 1536-2560, z 0-1536). A rift
+  runs down its middle (`RiftZ`), and the edge meets the main map at -300 m. `Seabed.HeightAt/H/SampleY` route there,
+  and `Seabed.MaxX` is the world's east edge. The tile carries basalt recolouring and magma cracks
+  (`Seabed.shader`, `_Basalt`).
+- **Vents:** 77 in all, 10 of them geysers.
+  - Black smokers have particle plumes (`Smoke.shader`).
+  - Geysers erupt on the sea's clock.
+  - `HeatAt` cooks a diver in a plume; the shots measured 71 °C over a smoker and 0 °C 40 m off.
+  - `TurbulenceAt` throws a diver around during an eruption.
+  - The Nautilus over a vent heats (`ShipSystems.Heat`) and splits seams unless she has Thermal Hull Shielding
+    (crush depth 500 m).
+  - Hot water shimmers through the camera (`UnderwaterLook.Heat`).
+- **Life:** `species_vents.json` has 20 flora and 60 fauna, modelled in `flora_vents.glb`, `creatures_vents.glb` and
+  `vents.glb` (chimneys, mounds, basalt columns, geyser cones, glass). The resident giant is the 60 m **Boiler Worm**
+  (`VentField.Worm`): it listens for vibration, warns with a rumble, then bursts up and strikes.
+- **The geothermal engine** (`ShipSystems.geothermal`, `C_GEO`) frees her from fuel. The **Heavy Crawler** can be
+  crafted but **not yet driven** (its vehicle code is a later pass).
+- **Sound:** `amb_vents`, `smoker_loop`, geyser and worm cues, and `Score.Mood.Vents`.
+- **Shots:** `vents_field`, `vents_smoker` and `vents_life` (the heat tests), `vents_geyser` (turbulence), `vents_rift`,
+  `vents_worm` (warning, then eruption), `listen_vents`.
+- **Test:** `EveryPhaseFourRecipeCanBeGathered`.
+
+## Playtest fixes (2026-10-08)
+- **A death from cold crashed the game.** `Shader.Find("Deep/Glow")` crashed natively when the satchel was dropped.
+  Every `Shader.Find` now goes through `DeepShaders.Get` (`Runtime/Shaders.cs`), which loads from `Resources/Shaders`,
+  caches the result and is warmed at boot. The `death_cold` shot checks the death (DEEP DEATHTEST).
+- **Batteries and fuel:**
+  - Her stores start with 4 Spare Battery Banks and 6 Synthetic Fuel Canisters (`Campaign.StockStores`). Old saves are
+    stocked once.
+  - At the switchboard, R fits a cell from the pack or the stores: Luminescent +100%, Phosphor +60%, Spare +40%.
+    The new item, the Spare Battery Bank, is made at the Fabrication Bay.
+  - The engine works from the start.
+  - Drains are about 2.5x gentler, and the opening leaves the battery at 45%.
+- **The ladder:** a soft rung thud every 0.9 m instead of a metal clang.
+- **Waypoints** (`Runtime/Waypoints.cs`):
+  - During the opening: the Nautilus, then her hatch, the switchboard and the helm.
+  - After it: the reef (until you reach it), and her hatch when you're more than 50 m away.
+  - Off-screen marks are pinned to the screen edge and stacked.

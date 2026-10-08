@@ -21,7 +21,10 @@ namespace Deep
         public PowerState state = PowerState.Dead;
         public float battery = 0.35f;     // 0..1
         public float fuel = 0.4f;         // the boiler's bunker, 0..1
-        public bool engineRepaired;
+        public bool engineRepaired = true;   // (the playtest: the engine works from the start; it wants fuel)
+        public bool geothermal;           // the vents' engine: the Engine runs on the sea's heat, no fuel (phase 4)
+        public float heatStress;          // her plates cooking over the vents (0..1; Thermal Hull Shielding stops it)
+        public bool Shielded => n.crushDepth >= 500f;   // (the Thermal Hull Shielding's rating)
         public bool breakersTripped;      // the derelict's main breakers, tripped: nothing gets power till they're reset
         public float resetT;              // a hand at the switchboard resetting them       // the derelict's steam engine must be repaired at the boiler first (the doc: "restore primary power")
         public float NoiseDb;             // what she's putting into the water now (the Wake system reads it, stage 3)
@@ -54,7 +57,7 @@ namespace Deep
         {
             var s = n.gameObject.AddComponent<ShipSystems>();
             s.n = n;
-            s.waterMat = new Material(Shader.Find("Deep/Glass"));
+            s.waterMat = new Material(DeepShaders.Get("Deep/Glass"));
             s.waterMat.SetColor("_Tint", new Color(0.25f, 0.7f, 0.65f)); s.waterMat.SetFloat("_Clear", 0.5f);
             s.jetMat = new Material(Resources.Load<Shader>("Shaders/Snow"));
             foreach (var r in n.L.rooms)
@@ -172,6 +175,24 @@ namespace Deep
             return true;
         }
 
+        // ---- the vents' heat on her hull ---------------------------------------------------------------------------
+        public void Heat(float degrees, float dt)
+        {
+            if (degrees > 12f && !Shielded)
+            {
+                float before = heatStress;
+                heatStress += (degrees - 12f) * 0.0013f * dt;
+                if (before < 0.4f && heatStress >= 0.4f) alert = "The hull plates are hissing in the heat. She isn't shielded for the vents.";
+                if (heatStress >= 1f)
+                {
+                    heatStress = 0.45f;
+                    AddBreach(Random.Range(0, rooms.Count), 0.03f);
+                    alert = "A seam splits in the heat! (Thermal Hull Shielding would stop it.)";
+                }
+            }
+            else heatStress = Mathf.Max(0, heatStress - dt * 0.02f);
+        }
+
         // ---- the sonar ----------------------------------------------------------------------------------------------
         public Texture2D sonarMap;
         public float sonarAge = 999f, sonarHeading;
@@ -264,13 +285,13 @@ namespace Deep
             // power
             if (state == PowerState.Engine)
             {
-                fuel -= dt * (0.0003f + 0.0009f * spd / 5.6f);
+                if (!geothermal) fuel -= dt * (0.00012f + 0.0004f * spd / 5.6f);
                 battery = Mathf.Min(1f, battery + dt * 0.004f);
                 if (fuel <= 0) { fuel = 0; state = battery > 0 ? PowerState.Silent : PowerState.Dead; alert = "The boiler's fire goes out. She runs on her batteries."; }
             }
             else if (state == PowerState.Silent)
             {
-                battery -= dt * (0.0008f + 0.0025f * spd / 1.4f + (pumpsRunning ? 0.001f : 0));
+                battery -= dt * (0.00022f + 0.0007f * spd / 1.4f + (pumpsRunning ? 0.0003f : 0));
                 if (battery <= 0) { battery = 0; state = PowerState.Dead; alert = "The batteries are flat. She goes dark."; }
             }
             n.power = state != PowerState.Dead;

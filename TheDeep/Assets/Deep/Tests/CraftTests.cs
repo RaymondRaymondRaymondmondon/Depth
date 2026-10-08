@@ -115,6 +115,35 @@ namespace Deep.Tests
             Assert.IsEmpty(missing, "not gatherable anywhere: " + string.Join("; ", missing));
         }
 
+        // phase 4 (the Thermal Vents): everything it makes, the 500 m Thermal Hull Shielding first, can be gathered
+        // from the four biomes' plants and animals or found in the world
+        [Test]
+        public void EveryPhaseFourRecipeCanBeGathered()
+        {
+            ItemDB.Load(); SpeciesBook.Load();
+            Assert.IsTrue(SpeciesBook.Tables.Exists(t => t.biome == "vents"), "the vents' species table loads");
+            var world = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
+                { "Titanium Ore", "Salvaged Galleon Wood", "Salvaged Galleon Brass", "Military-Grade Titanium", "Rusted Iron Scrap",
+                  "Smooth Obsidian Stonework", "Resonance Stone", "Echo-Ray Egg", "Tangle-Serpent Scale" };
+            foreach (var t in SpeciesBook.Tables)
+            {
+                if (t.flora != null) foreach (var f in t.flora) foreach (var r in ItemDB.From(f.name)) world.Add(r.name);
+                if (t.fauna != null) foreach (var a in t.fauna) foreach (var r in ItemDB.From(a.name)) world.Add(r.name);
+            }
+            var missing = new System.Collections.Generic.List<string>();
+            var seen = new System.Collections.Generic.HashSet<ItemDef>();
+            void Need(ItemDef d, string forWhat)
+            {
+                if (!seen.Add(d)) return;
+                if (d.recipe.Count > 0) { foreach (var (it, _) in d.recipe) Need(it, d.name); return; }
+                if (!d.resource && d.category != "resource") return;
+                if (!world.Contains(d.name)) missing.Add($"{d.name} (for {forWhat})");
+            }
+            foreach (var d in ItemDB.ById.Values)
+                if (d.phase == 4 && d.recipe.Count > 0 && d.category != "other") Need(d, d.name);
+            Assert.IsEmpty(missing, "not gatherable anywhere: " + string.Join("; ", missing));
+        }
+
         [Test]
         public void TheSeaIsColderDeepAndAtNight()
         {

@@ -1,0 +1,3624 @@
+{
+  "biome": "vents",
+  "name": "The Thermal Vents",
+  "depthMin": 300,
+  "depthMax": 500,
+  "absorptionDbPerM": 0.03,
+  "layout": "Volcanic ridges, black smoker chimneys and basalt plateaus spewing superheated mineral plumes. Boiling water pillars damage hulls with heat and cause turbulence. Rich in copper and thermal energy.",
+  "look": "Hazy, heat-distorted water, red magma glowing through cracks in the basalt, black mineral clouds and armor-plated fauna.",
+  "hazards": "Extreme heat stress on the hull (needs Thermal Hull Shielding), sudden geysers, turbulence that throws subs against volcanic glass, and the Boiler Worm erupting from the rock.",
+  "foodWeb": "Vent bacteria and vent flora feed the plankton, the armored grazers (Basalt Plate Crab, Iron-Foot Snail) and heat-resistant filter feeders (Crimson Plume Tubeworm, Smoker Mussel). Those feed plated mesopredators like the Vent-Shark, Magma-Snapper and Scald Octopus, while scavengers clean up carcasses and bone falls. The Pyroclast Megalodon, Caldera Kraken and Sulfurmaw Leviathan hunt the large mesopredators, and the vibration-tracking Boiler Worm swallows Ashmaw Baskers, whole schools and noisy subs.",
+  "source": "The Deep Design Document.pdf, The ten ecosystems (4. The Thermal Vents, pages 46-57), and Crafting, resources, and upgrades (Thermal Hull Shielding); the Featured species section has no vents entry",
+  "leviathan": "boiler_worm",
+  "flora": [
+    {
+      "id": "heat_siphon_tubeworm_flora",
+      "name": "Heat-Siphon Tubeworm Flora",
+      "tier": 2,
+      "type": "Tube colony",
+      "description": "Hollow mineral tubes that siphon vent heat; their tips glow orange",
+      "eatenBy": [
+        "Bristle-Claw Squat Lobster"
+      ],
+      "yields": "Siphon Coil",
+      "use": "Geothermal engine, Heavy Crawler",
+      "habitat": "chimney",
+      "light": 10,
+      "color": "orange",
+      "pulse": 0,
+      "heat": true,
+      "estimated": [
+        "habitat",
+        "light"
+      ]
+    },
+    {
+      "id": "magma_spores",
+      "name": "Magma Spores",
+      "tier": 1,
+      "type": "Spore cloud",
+      "description": "Red spores that rise in plumes, drifting like live embers",
+      "eatenBy": [
+        "Ember Krill",
+        "Ash Drift Amphipod"
+      ],
+      "yields": "Ember Spore Dust",
+      "use": "Flare ammo and light sticks",
+      "habitat": "plume",
+      "light": 3,
+      "color": "red",
+      "pulse": 0,
+      "heat": false,
+      "estimated": [
+        "light"
+      ]
+    },
+    {
+      "id": "pyre_moss",
+      "name": "Pyre Moss",
+      "tier": 1,
+      "type": "Moss",
+      "description": "Rust-red fuzz on warm basalt that smolders when cut",
+      "eatenBy": [
+        "Iron-Foot Snail",
+        "Ember Blenny"
+      ],
+      "yields": "Pyre Fiber",
+      "use": "Fuel cartridge for the Heated Blade",
+      "habitat": "basalt",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": false
+    },
+    {
+      "id": "soot_algae",
+      "name": "Soot Algae",
+      "tier": 1,
+      "type": "Algae",
+      "description": "Sticky black sulfide film coating chimney flanks",
+      "eatenBy": [
+        "Basalt Plate Crab",
+        "Cinder Isopod",
+        "Soot Tang"
+      ],
+      "yields": "Soot Paste",
+      "use": "Bitter high-calorie ration",
+      "habitat": "chimney",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": true
+    },
+    {
+      "id": "sulfur_vent_grass",
+      "name": "Sulfur Vent-Grass",
+      "tier": 1,
+      "type": "Grass",
+      "description": "Brittle yellow blades fringing cracks; reeks of rotten eggs",
+      "eatenBy": [
+        "Sulfur Limpet"
+      ],
+      "yields": "Sulfur Crystal",
+      "use": "Battery electrolyte",
+      "habitat": "crack",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": false
+    },
+    {
+      "id": "basalt_filament",
+      "name": "Basalt Filament",
+      "tier": 2,
+      "type": "Filament",
+      "description": "Glassy black threads spun from cooled lava strands",
+      "eatenBy": [
+        "Bristle-Claw Squat Lobster"
+      ],
+      "yields": "Basalt Fiber",
+      "use": "Thermal Hull Shielding, tow cable",
+      "habitat": "basalt",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": false,
+      "estimated": [
+        "habitat"
+      ]
+    },
+    {
+      "id": "forge_crust",
+      "name": "Forge Crust",
+      "tier": 2,
+      "type": "Crust",
+      "description": "Copper-green mineral scab over vent mouths; hot to the touch",
+      "eatenBy": [
+        "Basalt Plate Crab",
+        "Slag Chiton",
+        "Basalt Rasp Turtle"
+      ],
+      "yields": "Native Copper Flake",
+      "use": "Wiring, engines, Mid-Tier Drill",
+      "habitat": "chimney",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": true,
+      "estimated": [
+        "habitat"
+      ]
+    },
+    {
+      "id": "smoker_stalk",
+      "name": "Smoker Stalk",
+      "tier": 2,
+      "type": "Stalk",
+      "description": "Hollow chimney-like stem puffing black smoke from its crown",
+      "eatenBy": [
+        "Pompeii Ember-Worm"
+      ],
+      "yields": "Smoke Resin",
+      "use": "Smoke-screen decoy masking light and blood",
+      "habitat": "chimney",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": true,
+      "estimated": [
+        "habitat",
+        "heat"
+      ]
+    },
+    {
+      "id": "ash_spire",
+      "name": "Ash Spire",
+      "tier": 2,
+      "type": "Spire",
+      "description": "Grey layered ash cone that crumbles under sonar pings",
+      "eatenBy": [
+        "Basalt Rasp Turtle"
+      ],
+      "yields": "Ash Ceramic Powder",
+      "use": "Thermal Hull Shielding tiles",
+      "habitat": "sediment",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": false,
+      "estimated": [
+        "habitat"
+      ]
+    },
+    {
+      "id": "thermal_cluster",
+      "name": "Thermal Cluster",
+      "tier": 1,
+      "type": "Cluster",
+      "description": "Bulbous pods clumped on vents, pulsing with stored warmth",
+      "eatenBy": [
+        "Pyre Shrimp"
+      ],
+      "yields": "Warm Pod",
+      "use": "Diver heat pack",
+      "habitat": "chimney",
+      "light": 4,
+      "color": "amber",
+      "pulse": 2,
+      "heat": true,
+      "estimated": [
+        "light",
+        "color",
+        "pulse"
+      ]
+    },
+    {
+      "id": "cinder_bloom",
+      "name": "Cinder Bloom",
+      "tier": 1,
+      "type": "Bloom",
+      "description": "Charcoal petals that open in hot plumes around an ember-orange heart",
+      "eatenBy": [
+        "Cinder Isopod",
+        "Furnace Slug"
+      ],
+      "yields": "Cinder Nectar",
+      "use": "Burn-healing salve",
+      "habitat": "plume",
+      "light": 6,
+      "color": "orange",
+      "pulse": 0,
+      "heat": true,
+      "estimated": [
+        "light"
+      ]
+    },
+    {
+      "id": "grit_spores",
+      "name": "Grit Spores",
+      "tier": 1,
+      "type": "Spore mat",
+      "description": "Sand-gritty spores that puff on contact, clogging filters",
+      "eatenBy": [
+        "Cinder Larva Swarm",
+        "Ashback Sea Cucumber"
+      ],
+      "yields": "Grit Abrasive",
+      "use": "Mid-Tier Drill bits, sharpening",
+      "habitat": "sediment",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": false,
+      "estimated": [
+        "habitat"
+      ]
+    },
+    {
+      "id": "slag_moss",
+      "name": "Slag Moss",
+      "tier": 2,
+      "type": "Moss",
+      "description": "Bristly metallic moss on iron-rich slag heaps",
+      "eatenBy": [
+        "Smolder Urchin",
+        "Slag Chiton"
+      ],
+      "yields": "Iron Slag Nodule",
+      "use": "Iron for tools and fittings",
+      "habitat": "sediment",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": false
+    },
+    {
+      "id": "eruptor_algae",
+      "name": "Eruptor Algae",
+      "tier": 2,
+      "type": "Algae",
+      "description": "Red gas bladders that burst violently when disturbed",
+      "eatenBy": [
+        "Soot Tang"
+      ],
+      "yields": "Eruptor Bladder",
+      "use": "Concussion charge or lift float",
+      "habitat": "crack",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": false,
+      "estimated": [
+        "habitat"
+      ]
+    },
+    {
+      "id": "choke_vent_grass",
+      "name": "Choke Vent-Grass",
+      "tier": 2,
+      "type": "Grass",
+      "description": "Dense dark tangles that strangle the flow and snare fish",
+      "eatenBy": [
+        "Ashback Sea Cucumber"
+      ],
+      "yields": "Choke Fiber",
+      "use": "Nets and creature traps",
+      "habitat": "crack",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": false,
+      "estimated": [
+        "habitat"
+      ]
+    },
+    {
+      "id": "blaze_filament",
+      "name": "Blaze Filament",
+      "tier": 3,
+      "type": "Filament",
+      "description": "White-hot threads inside boiling pillars; cut only with the Mid-Tier Drill",
+      "eatenBy": [
+        "Basalt Rasp Turtle"
+      ],
+      "yields": "Blaze Wire",
+      "use": "Heated Blade Mk II, Mining Laser",
+      "habitat": "chimney",
+      "light": 60,
+      "color": "white",
+      "pulse": 0,
+      "heat": true,
+      "estimated": [
+        "habitat",
+        "light"
+      ]
+    },
+    {
+      "id": "scald_crust",
+      "name": "Scald Crust",
+      "tier": 3,
+      "type": "Crust",
+      "description": "Superheated glassy shell on boiling vents that shears weak drills",
+      "eatenBy": [
+        "Smolder Urchin"
+      ],
+      "yields": "Scald Glass",
+      "use": "Heat-proof port glass",
+      "habitat": "chimney",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": true
+    },
+    {
+      "id": "vapor_stalk",
+      "name": "Vapor Stalk",
+      "tier": 2,
+      "type": "Stalk",
+      "description": "Translucent stem hissing steam bubbles (Mid band)",
+      "eatenBy": [
+        "Vapor Prawn"
+      ],
+      "yields": "Vapor Condensate",
+      "use": "Purified drinking water",
+      "habitat": "crack",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": true,
+      "estimated": [
+        "habitat",
+        "heat"
+      ]
+    },
+    {
+      "id": "ventricle_spire",
+      "name": "Ventricle Spire",
+      "tier": 3,
+      "type": "Spire",
+      "description": "Heart-shaped chambered spire pumping vent fluid rhythmically",
+      "eatenBy": [
+        "Sulfur Limpet"
+      ],
+      "yields": "Ventricle Valve",
+      "use": "Geothermal engine, ballast pump",
+      "habitat": "chimney",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": true,
+      "estimated": [
+        "habitat"
+      ]
+    },
+    {
+      "id": "plume_cluster",
+      "name": "Plume Cluster",
+      "tier": 3,
+      "type": "Cluster",
+      "description": "Feathery cobalt-laced mineral fans that bloom in plumes",
+      "eatenBy": [
+        "Vapor Prawn"
+      ],
+      "yields": "Cobalt Plume Ore",
+      "use": "Mid-tier battery alloy",
+      "habitat": "plume",
+      "light": 0,
+      "color": "none",
+      "pulse": 0,
+      "heat": false
+    }
+  ],
+  "fauna": [
+    {
+      "id": "sulfur_mote_copepod",
+      "name": "Sulfur Mote Copepod",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.002,
+      "sizeText": "2 mm",
+      "sound": "Silent",
+      "description": "Copepod drifting in dense yellow clouds that ride the rising plumes.",
+      "diet": [
+        "vent bacteria"
+      ],
+      "predators": [
+        "Thermocline Jelly-Speck",
+        "Crimson Plume Tubeworm",
+        "Smoker Mussel",
+        "Ember Feather-Star",
+        "Ashmaw Basker"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10000,
+        1000000
+      ],
+      "habitat": "plume",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Rides rising plumes in dense yellow clouds that throw a blinding murk around the chimneys.",
+      "behavior": "Dense yellow clouds ride rising plumes; blind murk around chimneys",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "ember_krill",
+      "name": "Ember Krill",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.03,
+      "sizeText": "3 cm",
+      "sound": "Silent",
+      "description": "Krill glowing faint orange in swarms that drift through the plumes.",
+      "diet": [
+        "vent bacteria",
+        "Magma Spores"
+      ],
+      "predators": [
+        "Chimney Barnacle",
+        "Kiln Anemone",
+        "Ashmaw Basker",
+        "Brimstone Squid",
+        "Flare Siphonophore"
+      ],
+      "schooling": true,
+      "groupSize": [
+        500,
+        20000
+      ],
+      "habitat": "plume",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "repelled",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Swarms glow faint orange and scatter from hull lights brighter than 50 lux.",
+      "behavior": "Faint orange glowing swarms; scatter from hull lights above 50 lux",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "cinder_larva_swarm",
+      "name": "Cinder Larva Swarm",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.005,
+      "sizeText": "5 mm",
+      "sound": "Silent",
+      "description": "Mixed larvae that sink in ash-grey columns after each eruption.",
+      "diet": [
+        "Grit Spores",
+        "detritus"
+      ],
+      "predators": [
+        "Ember Blenny",
+        "Scald Clam",
+        "Chimney Barnacle"
+      ],
+      "schooling": true,
+      "groupSize": [
+        1000,
+        100000
+      ],
+      "habitat": "open",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Passive; sinks in ash-grey columns after each eruption, feeding the beds below.",
+      "behavior": "Mixed larvae sinking in ash-grey columns after each eruption",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "thermocline_jelly_speck",
+      "name": "Thermocline Jelly-Speck",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "jelly",
+      "sizeM": 0.01,
+      "sizeText": "1 cm",
+      "sound": "Silent",
+      "description": "Tiny jellies pooled where the hot and cold layers meet.",
+      "diet": [
+        "Sulfur Mote Copepod"
+      ],
+      "predators": [
+        "Furnace Slug",
+        "Kiln Anemone",
+        "Flare Siphonophore"
+      ],
+      "schooling": true,
+      "groupSize": [
+        100,
+        10000
+      ],
+      "habitat": "open",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Pools along the thermocline where hot and cold layers meet; mildly stinging to a bare-skinned diver.",
+      "behavior": "Tiny jellies pooled where hot and cold layers meet; mildly stinging",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "ash_drift_amphipod",
+      "name": "Ash Drift Amphipod",
+      "role": "Plankton",
+      "level": 1,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.008,
+      "sizeText": "8 mm",
+      "sound": "Silent",
+      "description": "Amphipod drifting in the ash snow that swarms onto fresh blood.",
+      "diet": [
+        "detritus",
+        "Magma Spores"
+      ],
+      "predators": [
+        "Ember Feather-Star",
+        "Ashmaw Basker",
+        "Glowjaw Viperfish",
+        "Ember Rattail"
+      ],
+      "schooling": true,
+      "groupSize": [
+        200,
+        20000
+      ],
+      "habitat": "open",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Drifts in ash snow and swarms onto fresh blood within seconds, marking any wound.",
+      "behavior": "Drifts in ash snow; swarms onto fresh blood within seconds",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "basalt_plate_crab",
+      "name": "Basalt Plate Crab",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.45,
+      "sizeText": "45 cm",
+      "sound": "20 dB, High",
+      "description": "Armored vent crab that grazes the chimney films.",
+      "diet": [
+        "vent bacteria",
+        "Soot Algae",
+        "Forge Crust"
+      ],
+      "predators": [
+        "Vent-Shark",
+        "Scald Octopus"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        6
+      ],
+      "habitat": "crack",
+      "depthMin": 300,
+      "depthMax": 480,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Clicks its claws; wedges into basalt cracks when threatened.",
+      "behavior": "Armored vent crab; clicks claws, wedges into basalt cracks when threatened",
+      "yields": "Basalt Carapace",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "sulfur_limpet",
+      "name": "Sulfur Limpet",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.06,
+      "sizeText": "6 cm",
+      "sound": "Silent",
+      "description": "Limpet clamped to chimney walls that scrapes sulfur films at night.",
+      "diet": [
+        "vent bacteria",
+        "Sulfur Vent-Grass",
+        "Ventricle Spire"
+      ],
+      "predators": [
+        "Copperback Triggerfish",
+        "Ember Stargazer"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        20
+      ],
+      "habitat": "chimney",
+      "depthMin": 320,
+      "depthMax": 500,
+      "activity": "night",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Clamps to chimney walls; slowly scrapes sulfur films at night.",
+      "behavior": "Clamps to chimney walls; slowly scrapes sulfur films at night",
+      "yields": null,
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "iron_foot_snail",
+      "name": "Iron-Foot Snail",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.05,
+      "sizeText": "5 cm",
+      "sound": "Silent",
+      "description": "Snail with a magnetic, iron-sulfide scaled foot that clusters near the hottest vents.",
+      "diet": [
+        "vent bacteria",
+        "Pyre Moss"
+      ],
+      "predators": [
+        "Smelter Spider-Crab"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        60
+      ],
+      "habitat": "chimney",
+      "depthMin": 320,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Clusters near the hottest vents, where little can follow it; its scaled foot is magnetic.",
+      "behavior": "Iron-sulfide scaled foot; magnetic; clusters near the hottest vents",
+      "yields": "Heat-Scale",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "pyre_shrimp",
+      "name": "Pyre Shrimp",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.05,
+      "sizeText": "5 cm",
+      "sound": "15 dB, High",
+      "description": "Shrimp that mobs chimney rims in thousands, sensing magma glow with an eye on its back.",
+      "diet": [
+        "vent bacteria",
+        "Thermal Cluster"
+      ],
+      "predators": [
+        "Magma-Snapper",
+        "Pyre Lionfish",
+        "Basalt Mantis Shrimp",
+        "Furnace Eelpout"
+      ],
+      "schooling": true,
+      "groupSize": [
+        200,
+        5000
+      ],
+      "habitat": "chimney",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "attracted",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Thousands mob chimney rims; a back-eye senses the magma glow.",
+      "behavior": "Thousands mob chimney rims; back-eye senses magma glow",
+      "yields": null,
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "smolder_urchin",
+      "name": "Smolder Urchin",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "urchin",
+      "sizeM": 0.18,
+      "sizeText": "18 cm",
+      "sound": "Silent",
+      "description": "Urchin with red-hot-tipped spines that grazes scald crust and slag.",
+      "diet": [
+        "Scald Crust",
+        "Slag Moss",
+        "Pumice Sponge"
+      ],
+      "predators": [
+        "Slag Grouper",
+        "Copperback Triggerfish"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        30
+      ],
+      "habitat": "basalt",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Rolls downslope when disturbed; its red-hot spine tips burn whatever brushes it.",
+      "behavior": "Red-hot-tipped spines; rolls downslope when disturbed",
+      "yields": null,
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "slag_chiton",
+      "name": "Slag Chiton",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.12,
+      "sizeText": "12 cm",
+      "sound": "Silent",
+      "description": "Eight-plated grazer whose magnetite teeth rasp mineral crusts.",
+      "diet": [
+        "Forge Crust",
+        "Slag Moss"
+      ],
+      "predators": [
+        "Scald Octopus",
+        "Ember Stargazer"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        8
+      ],
+      "habitat": "basalt",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Clings flat to the rock under eight plates; magnetite teeth rasp the mineral crusts.",
+      "behavior": "Eight-plated grazer; magnetite teeth rasp mineral crusts",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "bristle_claw_squat_lobster",
+      "name": "Bristle-Claw Squat Lobster",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.15,
+      "sizeText": "15 cm",
+      "sound": "20 dB, Mid",
+      "description": "Squat lobster that waves hairy claws in the plumes to farm bacteria.",
+      "diet": [
+        "vent bacteria",
+        "Basalt Filament",
+        "Heat-Siphon Tubeworm Flora"
+      ],
+      "predators": [
+        "Fumarole Eel",
+        "Slag Grouper",
+        "Ashwing Ray"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        50
+      ],
+      "habitat": "chimney",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Waves its hairy claws in the plumes to farm bacteria; retreats under ledges from shadows.",
+      "behavior": "Waves hairy claws in plumes to farm bacteria",
+      "yields": null,
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "cinder_isopod",
+      "name": "Cinder Isopod",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.1,
+      "sizeText": "10 cm",
+      "sound": "Silent",
+      "description": "Isopod that rolls into an ash-grey ball and crawls in groups at night.",
+      "diet": [
+        "Cinder Bloom",
+        "Soot Algae"
+      ],
+      "predators": [
+        "Basalt Mantis Shrimp",
+        "Furnace Eelpout"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        40
+      ],
+      "habitat": "sediment",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "night",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Rolls into an ash-grey ball when touched; crawls in groups at night.",
+      "behavior": "Rolls into an ash-grey ball; crawls in groups at night",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "ashback_sea_cucumber",
+      "name": "Ashback Sea Cucumber",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.5,
+      "sizeText": "50 cm",
+      "sound": "Silent",
+      "description": "Sea cucumber that hoovers the ash plains.",
+      "diet": [
+        "Grit Spores",
+        "Choke Vent-Grass"
+      ],
+      "predators": [
+        "Ashwing Ray",
+        "Smelter Spider-Crab"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        10
+      ],
+      "habitat": "sediment",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Hoovers the ash plains; ejects heat-absorbing gel when attacked.",
+      "behavior": "Hoovers ash plains; ejects heat-absorbing gel when attacked",
+      "yields": "Thermal Gel",
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "ember_blenny",
+      "name": "Ember Blenny",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.12,
+      "sizeText": "12 cm",
+      "sound": "25 dB, Mid",
+      "description": "Territorial blenny darting between mossy rocks.",
+      "diet": [
+        "Pyre Moss",
+        "Cinder Larva Swarm"
+      ],
+      "predators": [
+        "Magma-Snapper",
+        "Kiln Barracuda",
+        "Scorch Cuttlefish"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "basalt",
+      "depthMin": 300,
+      "depthMax": 480,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Darts between mossy rocks; chirps territorially at intruders, which can give a diver away.",
+      "behavior": "Darts between mossy rocks; territorial chirps at intruders",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "furnace_slug",
+      "name": "Furnace Slug",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "snail",
+      "sizeM": 0.2,
+      "sizeText": "20 cm",
+      "sound": "Silent",
+      "description": "Bright nudibranch that stores the stolen stings of the anemones it eats.",
+      "diet": [
+        "Cinder Bloom",
+        "Kiln Anemone",
+        "Thermocline Jelly-Speck"
+      ],
+      "predators": [
+        "Scorch Cuttlefish",
+        "Ember Stargazer"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "basalt",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Bright warning colours; stores stolen stings from the anemones it eats and fires them at attackers.",
+      "behavior": "Bright nudibranch; stores stolen stings from the anemones it eats",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "soot_tang",
+      "name": "Soot Tang",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.3,
+      "sizeText": "30 cm",
+      "sound": "30 dB, Mid",
+      "description": "Black schooling grazer that strips soot and eruptor algae.",
+      "diet": [
+        "Soot Algae",
+        "Eruptor Algae"
+      ],
+      "predators": [
+        "Magma-Snapper",
+        "Kiln Barracuda"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        60
+      ],
+      "habitat": "chimney",
+      "depthMin": 300,
+      "depthMax": 480,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Schools flash their scalpel spines together when threatened.",
+      "behavior": "Black schooling grazer; schools flash scalpel spines together",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "vapor_prawn",
+      "name": "Vapor Prawn",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.09,
+      "sizeText": "9 cm",
+      "sound": "15 dB, High",
+      "description": "Translucent prawn that hides in steam bubbles.",
+      "diet": [
+        "Vapor Stalk",
+        "Plume Cluster"
+      ],
+      "predators": [
+        "Brimstone Squid",
+        "Glowjaw Viperfish",
+        "Obsidian Anglerfish",
+        "Geyser Gar"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        200
+      ],
+      "habitat": "plume",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Hides in steam bubbles; snaps its tail to flee.",
+      "behavior": "Translucent; hides in steam bubbles, snaps its tail to flee",
+      "yields": null,
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "pompeii_ember_worm",
+      "name": "Pompeii Ember-Worm",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 0.12,
+      "sizeText": "12 cm",
+      "sound": "Silent",
+      "description": "Fleece-backed tube worm that tolerates 80 C water.",
+      "diet": [
+        "vent bacteria",
+        "Smoker Stalk"
+      ],
+      "predators": [
+        "Fumarole Eel",
+        "Ashcoil Sea Snake"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        200
+      ],
+      "habitat": "chimney",
+      "depthMin": 320,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Lives in tubes on the chimney walls in 80 C water; retreats into its tube on vibration.",
+      "behavior": "Fleece-backed tube worm; tolerates 80 C water; retreats on vibration",
+      "yields": "Pompeii Fleece",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "basalt_rasp_turtle",
+      "name": "Basalt Rasp Turtle",
+      "role": "Grazer",
+      "level": 1,
+      "tier": null,
+      "kind": "turtle",
+      "sizeM": 2.2,
+      "sizeText": "2.2 m",
+      "sound": "40 dB, Low",
+      "description": "Slow armored giant that grinds forge crust, ash spires and blaze filament.",
+      "diet": [
+        "Forge Crust",
+        "Ash Spire",
+        "Blaze Filament"
+      ],
+      "predators": [
+        "Boiler Worm",
+        "Pyroclast Megalodon"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "basalt",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Slow and armored; its grinding beak is audible across the plateaus, which draws the Boiler Worm.",
+      "behavior": "Slow armored giant; grinding beak audible across plateaus",
+      "yields": "Rasp Shell Plate",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "crimson_plume_tubeworm",
+      "name": "Crimson Plume Tubeworm",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 2.0,
+      "sizeText": "2 m",
+      "sound": "Silent",
+      "description": "Giant tubeworm with heat-resistant blood-red plumes.",
+      "diet": [
+        "vent bacteria",
+        "Sulfur Mote Copepod"
+      ],
+      "predators": [
+        "Magma-Snapper",
+        "Copperback Triggerfish"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        300
+      ],
+      "habitat": "chimney",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Snaps into its tube at shadows, so a passing sub sends a whole bed vanishing.",
+      "behavior": "Heat-resistant blood-red plumes; snaps into its tube at shadows",
+      "yields": "Chitin Heat-Tube",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ]
+    },
+    {
+      "id": "smoker_mussel",
+      "name": "Smoker Mussel",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.2,
+      "sizeText": "20 cm",
+      "sound": "Silent",
+      "description": "Mussel in dense beds with copper-tinted shells on chimney bases.",
+      "diet": [
+        "vent bacteria",
+        "Sulfur Mote Copepod"
+      ],
+      "predators": [
+        "Scald Octopus",
+        "Smelter Spider-Crab"
+      ],
+      "schooling": true,
+      "groupSize": [
+        50,
+        2000
+      ],
+      "habitat": "chimney",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Forms dense beds on chimney bases; no defence beyond its shell.",
+      "behavior": "Dense beds on chimney bases; copper-tinted shells",
+      "yields": "Copper Nacre",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "scald_clam",
+      "name": "Scald Clam",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.35,
+      "sizeText": "35 cm",
+      "sound": "20 dB, Low",
+      "description": "Clam buried in hot sediment.",
+      "diet": [
+        "vent bacteria",
+        "Cinder Larva Swarm"
+      ],
+      "predators": [
+        "Scald Octopus",
+        "Ashwing Ray"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        10
+      ],
+      "habitat": "sediment",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Buried in hot sediment; slams shut with a dull thud that carries in the Low band.",
+      "behavior": "Buried in hot sediment; slams shut with a dull thud",
+      "yields": "Scald Pearl",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "chimney_barnacle",
+      "name": "Chimney Barnacle",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.08,
+      "sizeText": "8 cm",
+      "sound": "Silent",
+      "description": "Barnacle encrusting dead smokers.",
+      "diet": [
+        "Cinder Larva Swarm",
+        "Ember Krill"
+      ],
+      "predators": [
+        "Smelter Spider-Crab"
+      ],
+      "schooling": true,
+      "groupSize": [
+        50,
+        2000
+      ],
+      "habitat": "chimney",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Encrusts dead smokers; feathery legs sweep the plume.",
+      "behavior": "Encrusts dead smokers; feathery legs sweep the plume",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "pumice_sponge",
+      "name": "Pumice Sponge",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 1.0,
+      "sizeText": "1 m",
+      "sound": "Silent",
+      "description": "Porous sponge that can float, anchored on cooled lava tubes.",
+      "diet": [
+        "vent bacteria",
+        "detritus"
+      ],
+      "predators": [
+        "Smolder Urchin"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        6
+      ],
+      "habitat": "basalt",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Anchors on cooled lava tubes; torn loose, it floats away.",
+      "behavior": "Porous sponge that can float; anchors on cooled lava tubes",
+      "yields": "Pumice Filter",
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "ember_feather_star",
+      "name": "Ember Feather-Star",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.6,
+      "sizeText": "60 cm",
+      "sound": "Silent",
+      "description": "Orange crinoid that crawls to the plume edges at dusk.",
+      "diet": [
+        "Sulfur Mote Copepod",
+        "Ash Drift Amphipod"
+      ],
+      "predators": [
+        "Pyre Lionfish"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        12
+      ],
+      "habitat": "plume",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "night",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Crawls to the plume edges at dusk to feed, then back into cover.",
+      "behavior": "Orange crinoid; crawls to plume edges at dusk",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "kiln_anemone",
+      "name": "Kiln Anemone",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.4,
+      "sizeText": "40 cm",
+      "sound": "Silent",
+      "description": "Anemone with fire-colored stinging tentacles.",
+      "diet": [
+        "Ember Krill",
+        "Thermocline Jelly-Speck"
+      ],
+      "predators": [
+        "Furnace Slug"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        10
+      ],
+      "habitat": "chimney",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Fire-colored stinging tentacles burn divers on contact.",
+      "behavior": "Fire-colored stinging tentacles; burns divers on contact",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "ashmaw_basker",
+      "name": "Ashmaw Basker",
+      "role": "Filter feeder",
+      "level": 1,
+      "tier": null,
+      "kind": "shark",
+      "sizeM": 7.0,
+      "sizeText": "7 m",
+      "sound": "45 dB, Low",
+      "description": "Gaping slow cruiser that follows the plankton plumes.",
+      "diet": [
+        "Ember Krill",
+        "Ash Drift Amphipod",
+        "Sulfur Mote Copepod"
+      ],
+      "predators": [
+        "Boiler Worm"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "open",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Harmless; follows the plankton plumes with its mouth agape, and is the Boiler Worm's favourite prey (prime bait).",
+      "behavior": "Gaping slow cruiser; follows plankton plumes; prime Boiler Worm bait",
+      "yields": "Basker Oil",
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "vent_shark",
+      "name": "Vent-Shark",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "shark",
+      "sizeM": 3.5,
+      "sizeText": "3.5 m",
+      "sound": "50 dB, Low",
+      "description": "Heavy-plated shark patrolling the vents.",
+      "diet": [
+        "Basalt Plate Crab",
+        "Magma-Snapper",
+        "Kiln Barracuda"
+      ],
+      "predators": [
+        "Caldera Kraken",
+        "Pyroclast Megalodon"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "open",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.7,
+      "lethalToDiver": true,
+      "tactics": "Patrols the vents and rams subs; drawn by blood and Mid-band noise.",
+      "behavior": "Heavy-plated patroller; rams subs; drawn by blood and Mid-band noise",
+      "yields": "Vent-Shark Hide Plate",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "magma_snapper",
+      "name": "Magma-Snapper",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 1.4,
+      "sizeText": "1.4 m",
+      "sound": "45 dB, Mid",
+      "description": "Glowing-jawed plated ambusher.",
+      "diet": [
+        "Pyre Shrimp",
+        "Ember Blenny",
+        "Soot Tang",
+        "Crimson Plume Tubeworm"
+      ],
+      "predators": [
+        "Vent-Shark",
+        "Sulfurmaw Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "crack",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "glow",
+      "aggression": 0.6,
+      "lethalToDiver": true,
+      "tactics": "Ambushes from the cracks; bites hard enough to crack hull glass.",
+      "behavior": "Glowing-jawed ambusher; bites hard enough to crack hull glass",
+      "yields": "Snapper Fire-Scale",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "fumarole_eel",
+      "name": "Fumarole Eel",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 1.8,
+      "sizeText": "1.8 m",
+      "sound": "Silent",
+      "description": "Eel lurking in fumarole cracks.",
+      "diet": [
+        "Bristle-Claw Squat Lobster",
+        "Pompeii Ember-Worm"
+      ],
+      "predators": [
+        "Kiln Barracuda"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "crack",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.45,
+      "lethalToDiver": false,
+      "tactics": "Lurks in fumarole cracks and strikes at heat signatures, including a warm suit or engine.",
+      "behavior": "Lurks in fumarole cracks; strikes at heat signatures",
+      "yields": null,
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "scald_octopus",
+      "name": "Scald Octopus",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "octopus",
+      "sizeM": 1.5,
+      "sizeText": "1.5 m",
+      "sound": "Silent",
+      "description": "Plated octopus that shifts color with water temperature.",
+      "diet": [
+        "Basalt Plate Crab",
+        "Slag Chiton",
+        "Smoker Mussel",
+        "Scald Clam"
+      ],
+      "predators": [
+        "Slag Grouper",
+        "Caldera Kraken"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "chimney",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.3,
+      "lethalToDiver": false,
+      "tactics": "Shifts color with the water temperature to hide; pries shells open and steals loot from divers and crates.",
+      "behavior": "Shifts color with water temperature; pries shells open, steals loot",
+      "yields": "Thermochrome Ink",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "brimstone_squid",
+      "name": "Brimstone Squid",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "squid",
+      "sizeM": 1.2,
+      "sizeText": "1.2 m",
+      "sound": "30 dB, High",
+      "description": "Pack-hunting squid.",
+      "diet": [
+        "Ember Krill",
+        "Vapor Prawn",
+        "Glowjaw Viperfish"
+      ],
+      "predators": [
+        "Caldera Kraken"
+      ],
+      "schooling": true,
+      "groupSize": [
+        3,
+        8
+      ],
+      "habitat": "open",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.5,
+      "lethalToDiver": false,
+      "tactics": "Hunts in packs; squirts sulfur-yellow ink that blinds sonar.",
+      "behavior": "Hunts in packs; squirts sulfur-yellow ink that blinds sonar",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "slag_grouper",
+      "name": "Slag Grouper",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 2.0,
+      "sizeText": "2 m",
+      "sound": "55 dB, Low",
+      "description": "Massive territorial grouper.",
+      "diet": [
+        "Bristle-Claw Squat Lobster",
+        "Smolder Urchin",
+        "Scald Octopus"
+      ],
+      "predators": [
+        "Boiler Worm"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "basalt",
+      "depthMin": 300,
+      "depthMax": 480,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.4,
+      "lethalToDiver": false,
+      "tactics": "Massive and territorial; booming grunts warn divers off before it charges.",
+      "behavior": "Massive and territorial; booming grunts warn off divers",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "pyre_lionfish",
+      "name": "Pyre Lionfish",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.45,
+      "sizeText": "45 cm",
+      "sound": "Silent",
+      "description": "Lionfish with venomous flame-striped fins.",
+      "diet": [
+        "Pyre Shrimp",
+        "Ember Feather-Star"
+      ],
+      "predators": [
+        "Geyser Gar"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "basalt",
+      "depthMin": 300,
+      "depthMax": 480,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.2,
+      "lethalToDiver": false,
+      "tactics": "Herds shrimp against the rocks with its fins spread; venomous spines punish a careless grab.",
+      "behavior": "Venomous flame-striped fins; herds shrimp against rocks",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "basalt_mantis_shrimp",
+      "name": "Basalt Mantis Shrimp",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "shrimp",
+      "sizeM": 0.4,
+      "sizeText": "40 cm",
+      "sound": "60 dB, High",
+      "description": "Mantis shrimp with a club strike that cracks visors.",
+      "diet": [
+        "Pyre Shrimp",
+        "Cinder Isopod"
+      ],
+      "predators": [
+        "Ashcoil Sea Snake"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "crack",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.6,
+      "lethalToDiver": true,
+      "tactics": "Strikes from its crack with a club that cracks visors; the loud snap betrays its position.",
+      "behavior": "Club strike cracks visors; loud snap betrays its position",
+      "yields": "Basalt Mantis Club",
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "furnace_eelpout",
+      "name": "Furnace Eelpout",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 0.7,
+      "sizeText": "70 cm",
+      "sound": "Silent",
+      "description": "Sluggish pink fish coiled among the tubeworms.",
+      "diet": [
+        "Pyre Shrimp",
+        "Cinder Isopod"
+      ],
+      "predators": [
+        "Kiln Barracuda",
+        "Ashcoil Sea Snake"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "chimney",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.15,
+      "lethalToDiver": false,
+      "tactics": "Lies coiled among tubeworms and strikes passing prey.",
+      "behavior": "Sluggish pink fish coiled among tubeworms; strikes passing prey",
+      "yields": null,
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "ashwing_ray",
+      "name": "Ashwing Ray",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "ray",
+      "sizeM": 2.5,
+      "sizeText": "2.5 m wide",
+      "sound": "25 dB, Low",
+      "description": "Ray that buries itself in the ash.",
+      "diet": [
+        "Bristle-Claw Squat Lobster",
+        "Ashback Sea Cucumber",
+        "Scald Clam"
+      ],
+      "predators": [
+        "Pyroclast Megalodon"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "sediment",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.15,
+      "lethalToDiver": false,
+      "tactics": "Lies buried in ash and erupts in grey clouds when stepped near, blinding the area.",
+      "behavior": "Buries in ash; erupts in grey clouds when stepped near",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "kiln_barracuda",
+      "name": "Kiln Barracuda",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 1.6,
+      "sizeText": "1.6 m",
+      "sound": "40 dB, Mid",
+      "description": "Fast lunging barracuda.",
+      "diet": [
+        "Ember Blenny",
+        "Soot Tang",
+        "Fumarole Eel",
+        "Furnace Eelpout"
+      ],
+      "predators": [
+        "Vent-Shark",
+        "Pyroclast Megalodon"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        4
+      ],
+      "habitat": "open",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "attracted",
+      "aggression": 0.55,
+      "lethalToDiver": false,
+      "tactics": "Fast lunger; charges flashing lights and dangling lures, including a diver's lamp.",
+      "behavior": "Fast lunger; charges flashing lights and dangling lures",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "glowjaw_viperfish",
+      "name": "Glowjaw Viperfish",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.35,
+      "sizeText": "35 cm",
+      "sound": "Silent",
+      "description": "Long-fanged viperfish.",
+      "diet": [
+        "Vapor Prawn",
+        "Ash Drift Amphipod"
+      ],
+      "predators": [
+        "Brimstone Squid",
+        "Obsidian Anglerfish"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "plume",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "glow",
+      "aggression": 0.25,
+      "lethalToDiver": false,
+      "tactics": "Mimics ember glow to lure prawns into its fangs.",
+      "behavior": "Long-fanged; mimics ember glow to lure prawns",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "smelter_spider_crab",
+      "name": "Smelter Spider-Crab",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 1.2,
+      "sizeText": "1.2 m",
+      "sound": "30 dB, High",
+      "description": "Stilt-legged spider crab with copper claws.",
+      "diet": [
+        "Iron-Foot Snail",
+        "Ashback Sea Cucumber",
+        "Chimney Barnacle",
+        "Smoker Mussel"
+      ],
+      "predators": [
+        "Copperback Triggerfish"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "basalt",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.5,
+      "lethalToDiver": true,
+      "tactics": "Stalks the chimney beds on stilt legs; its copper claws pinch through suits.",
+      "behavior": "Stilt-legged; copper claws pinch through suits",
+      "yields": "Copper Claw",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "flare_siphonophore",
+      "name": "Flare Siphonophore",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "jelly",
+      "sizeM": 8.0,
+      "sizeText": "8 m chain",
+      "sound": "Silent",
+      "description": "Burning-light colonial chain drifting through the plumes.",
+      "diet": [
+        "Ember Krill",
+        "Thermocline Jelly-Speck"
+      ],
+      "predators": [
+        "Geyser Gar"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "open",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "strobe",
+      "aggression": 0.2,
+      "lethalToDiver": false,
+      "tactics": "Drifts as a long fishing curtain; flashes 30 lux when touched.",
+      "behavior": "Burning-light colonial chain; flashes 30 lux when touched",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "obsidian_anglerfish",
+      "name": "Obsidian Anglerfish",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.9,
+      "sizeText": "90 cm",
+      "sound": "Silent",
+      "description": "Anglerfish with glassy black skin.",
+      "diet": [
+        "Glowjaw Viperfish",
+        "Vapor Prawn",
+        "Sulfur Snailfish"
+      ],
+      "predators": [
+        "Caldera Kraken"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "basalt",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "glow",
+      "aggression": 0.3,
+      "lethalToDiver": false,
+      "tactics": "Sits still against volcanic glass; its lure mimics magma glow at 5 lux.",
+      "behavior": "Glassy black skin; lure mimics magma glow at 5 lux",
+      "yields": "Obsidian Lure Bulb",
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "scorch_cuttlefish",
+      "name": "Scorch Cuttlefish",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "squid",
+      "sizeM": 0.6,
+      "sizeText": "60 cm",
+      "sound": "Silent",
+      "description": "Cuttlefish with hypnotic heat-shimmer skin patterns.",
+      "diet": [
+        "Ember Blenny",
+        "Furnace Slug"
+      ],
+      "predators": [
+        "Geyser Gar",
+        "Ashcoil Sea Snake"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "plume",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.3,
+      "lethalToDiver": false,
+      "tactics": "Hypnotises prey with heat-shimmer skin patterns, then strikes with a tentacle whip.",
+      "behavior": "Hypnotic heat-shimmer skin patterns; strikes with a tentacle whip",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "geyser_gar",
+      "name": "Geyser Gar",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 2.2,
+      "sizeText": "2.2 m",
+      "sound": "35 dB, Mid",
+      "description": "Gar that rides the geyser jets.",
+      "diet": [
+        "Vapor Prawn",
+        "Pyre Lionfish",
+        "Flare Siphonophore",
+        "Scorch Cuttlefish"
+      ],
+      "predators": [
+        "Boiler Worm"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        3
+      ],
+      "habitat": "plume",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.5,
+      "lethalToDiver": false,
+      "tactics": "Rides geyser jets to ambush from above; its needle jaws snap sideways.",
+      "behavior": "Rides geyser jets to ambush; needle jaws snap sideways",
+      "yields": null,
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "copperback_triggerfish",
+      "name": "Copperback Triggerfish",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.75,
+      "sizeText": "75 cm",
+      "sound": "45 dB, High",
+      "description": "Aggressive nest guard with audible grinding teeth.",
+      "diet": [
+        "Sulfur Limpet",
+        "Smolder Urchin",
+        "Smelter Spider-Crab",
+        "Crimson Plume Tubeworm"
+      ],
+      "predators": [
+        "Sulfurmaw Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "basalt",
+      "depthMin": 300,
+      "depthMax": 480,
+      "activity": "both",
+      "hearing": [
+        "mid",
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.6,
+      "lethalToDiver": false,
+      "tactics": "Guards its nest aggressively and bites divers who come close; its grinding teeth are audible.",
+      "behavior": "Aggressive nest guard; grinding teeth audible; bites divers",
+      "yields": "Copper Scale",
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "ember_stargazer",
+      "name": "Ember Stargazer",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.55,
+      "sizeText": "55 cm",
+      "sound": "Silent",
+      "description": "Stargazer buried with its eyes up.",
+      "diet": [
+        "Sulfur Limpet",
+        "Slag Chiton",
+        "Furnace Slug"
+      ],
+      "predators": [
+        "Sulfurmaw Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "sediment",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.35,
+      "lethalToDiver": false,
+      "tactics": "Lies buried with its eyes up; an electric jolt drains suit batteries.",
+      "behavior": "Buried with eyes up; electric jolt drains suit batteries",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "ashcoil_sea_snake",
+      "name": "Ashcoil Sea Snake",
+      "role": "Mesopredator",
+      "level": 2,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 2.0,
+      "sizeText": "2 m",
+      "sound": "20 dB, Mid",
+      "description": "Venomous sea snake that probes the crevices.",
+      "diet": [
+        "Pompeii Ember-Worm",
+        "Basalt Mantis Shrimp",
+        "Furnace Eelpout",
+        "Scorch Cuttlefish"
+      ],
+      "predators": [
+        "Caldera Kraken"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "crack",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.45,
+      "lethalToDiver": true,
+      "tactics": "Probes crevices and investigates blood trails; its venom is potent enough to kill a diver.",
+      "behavior": "Probes crevices; potent venom; investigates blood trails",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "soot_hagfish",
+      "name": "Soot Hagfish",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 0.8,
+      "sizeText": "80 cm",
+      "sound": "Silent",
+      "description": "Hagfish that bores into carcasses.",
+      "diet": [
+        "detritus",
+        "Slagbone Worm"
+      ],
+      "predators": [
+        "Pumice Sleeper Shark",
+        "Ash Gulper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        10
+      ],
+      "habitat": "sediment",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Bores into carcasses; floods attackers with fireproof slime.",
+      "behavior": "Bores into carcasses; floods attackers with fireproof slime",
+      "yields": "Fireproof Slime",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "ember_rattail",
+      "name": "Ember Rattail",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.9,
+      "sizeText": "90 cm",
+      "sound": "15 dB, Low",
+      "description": "Rattail that glides nose-down over the ash.",
+      "diet": [
+        "detritus",
+        "Ash Drift Amphipod",
+        "Smoke Brittle-Star"
+      ],
+      "predators": [
+        "Pumice Sleeper Shark",
+        "Ash Gulper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        6
+      ],
+      "habitat": "open",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.05,
+      "lethalToDiver": false,
+      "tactics": "Glides nose-down; first to arrive at carcasses and blood.",
+      "behavior": "Glides nose-down; first to arrive at carcasses and blood",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "clinker_crab",
+      "name": "Clinker Crab",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "crab",
+      "sizeM": 0.3,
+      "sizeText": "30 cm",
+      "sound": "20 dB, High",
+      "description": "Slag-crusted crab.",
+      "diet": [
+        "detritus",
+        "vent bacteria"
+      ],
+      "predators": [
+        "Pumice Sleeper Shark"
+      ],
+      "schooling": true,
+      "groupSize": [
+        5,
+        40
+      ],
+      "habitat": "sediment",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "high"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Swarms wrecks and picks at loot crates.",
+      "behavior": "Slag-crusted; swarms wrecks and picks at loot crates",
+      "yields": null,
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "slagbone_worm",
+      "name": "Slagbone Worm",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 0.04,
+      "sizeText": "4 cm",
+      "sound": "Silent",
+      "description": "Bone worm whose red rootlets dissolve bones on Ashmaw Basker falls.",
+      "diet": [
+        "detritus"
+      ],
+      "predators": [
+        "Soot Hagfish",
+        "Sulfur Snailfish",
+        "Smoke Brittle-Star"
+      ],
+      "schooling": true,
+      "groupSize": [
+        20,
+        500
+      ],
+      "habitat": "sediment",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Red rootlets dissolve the bones of Ashmaw Basker falls.",
+      "behavior": "Red rootlets dissolve bones on Ashmaw Basker falls",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "pumice_sleeper_shark",
+      "name": "Pumice Sleeper Shark",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "shark",
+      "sizeM": 4.0,
+      "sizeText": "4 m",
+      "sound": "30 dB, Low",
+      "description": "Lethargic glutton of a shark.",
+      "diet": [
+        "detritus",
+        "Soot Hagfish",
+        "Ember Rattail",
+        "Clinker Crab"
+      ],
+      "predators": [
+        "Boiler Worm"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "open",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.4,
+      "lethalToDiver": true,
+      "tactics": "Lethargic glutton; turns aggressive once blood in the water passes a threshold.",
+      "behavior": "Lethargic glutton; turns aggressive when blood passes a threshold",
+      "yields": "Pumice Sleeper Liver Oil",
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "sulfur_snailfish",
+      "name": "Sulfur Snailfish",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "fish",
+      "sizeM": 0.25,
+      "sizeText": "25 cm",
+      "sound": "Silent",
+      "description": "Gelatinous snailfish hovering over vent-cooked remains.",
+      "diet": [
+        "detritus",
+        "Slagbone Worm"
+      ],
+      "predators": [
+        "Obsidian Anglerfish",
+        "Ash Gulper"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        8
+      ],
+      "habitat": "chimney",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Hovers over vent-cooked remains at the chimneys.",
+      "behavior": "Gelatinous; hovers over vent-cooked remains",
+      "yields": null,
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "smoke_brittle_star",
+      "name": "Smoke Brittle-Star",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "other",
+      "sizeM": 0.3,
+      "sizeText": "30 cm",
+      "sound": "Silent",
+      "description": "Brittle star that carpets the ash floors.",
+      "diet": [
+        "detritus",
+        "Slagbone Worm"
+      ],
+      "predators": [
+        "Ember Rattail"
+      ],
+      "schooling": true,
+      "groupSize": [
+        10,
+        200
+      ],
+      "habitat": "sediment",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.0,
+      "lethalToDiver": false,
+      "tactics": "Carpets the ash floors; its arms ripple toward scent.",
+      "behavior": "Carpets ash floors; arms ripple toward scent",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "ash_gulper",
+      "name": "Ash Gulper",
+      "role": "Scavenger",
+      "level": 4,
+      "tier": null,
+      "kind": "eel",
+      "sizeM": 1.8,
+      "sizeText": "1.8 m",
+      "sound": "25 dB, Low",
+      "description": "Balloon-mouthed gulper that swallows carcass chunks whole.",
+      "diet": [
+        "detritus",
+        "Soot Hagfish",
+        "Ember Rattail",
+        "Sulfur Snailfish"
+      ],
+      "predators": [
+        "Sulfurmaw Leviathan"
+      ],
+      "schooling": false,
+      "groupSize": [
+        1,
+        2
+      ],
+      "habitat": "open",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.1,
+      "lethalToDiver": false,
+      "tactics": "Swallows carcass chunks whole with its balloon mouth.",
+      "behavior": "Balloon-mouthed; swallows carcass chunks whole",
+      "yields": null,
+      "heatProof": false,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "boiler_worm",
+      "name": "Boiler Worm",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "worm",
+      "sizeM": 60.0,
+      "sizeText": "60 m",
+      "sound": "140 dB, Low",
+      "description": "The vents' resident giant: a 60 m worm that lives in the basalt and tracks rock vibration.",
+      "diet": [
+        "Ashmaw Basker",
+        "Basalt Rasp Turtle",
+        "Slag Grouper",
+        "Geyser Gar",
+        "Pumice Sleeper Shark"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "basalt",
+      "depthMin": 340,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.95,
+      "lethalToDiver": true,
+      "tactics": "Lies in the rock and tracks vibration through the basalt: grinding beaks, booming grunts, footfalls and engine noise. Without warning it erupts from the basalt beneath its target and swallows whole schools, Ashmaw Baskers and noisy subs in one strike, then sinks back into the rock. Staying quiet and off the plateaus keeps it below; an Ashmaw Basker is prime bait to draw it elsewhere.",
+      "behavior": "Tracks rock vibration; erupts from the basalt and swallows schools and subs",
+      "yields": "Magma Gizzard Stone",
+      "heatProof": true,
+      "burrower": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver"
+      ],
+      "residentLeviathan": true
+    },
+    {
+      "id": "caldera_kraken",
+      "name": "Caldera Kraken",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "squid",
+      "sizeM": 25.0,
+      "sizeText": "25 m",
+      "sound": "95 dB, Low",
+      "description": "25 m kraken that lairs inside the caldera rims.",
+      "diet": [
+        "Vent-Shark",
+        "Scald Octopus",
+        "Brimstone Squid",
+        "Obsidian Anglerfish",
+        "Ashcoil Sea Snake"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "basalt",
+      "depthMin": 360,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.85,
+      "lethalToDiver": true,
+      "tactics": "Lairs inside caldera rims; seizes prey and drags it into the boiling pillars.",
+      "behavior": "Lairs inside caldera rims; drags prey into boiling pillars",
+      "yields": "Caldera Kraken Beak",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "pyroclast_megalodon",
+      "name": "Pyroclast Megalodon",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "shark",
+      "sizeM": 18.0,
+      "sizeText": "18 m",
+      "sound": "110 dB, Low",
+      "description": "Obsidian-toothed plated megalodon.",
+      "diet": [
+        "Vent-Shark",
+        "Ashwing Ray",
+        "Kiln Barracuda",
+        "Basalt Rasp Turtle"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "open",
+      "depthMin": 300,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low"
+      ],
+      "light": "none",
+      "aggression": 0.9,
+      "lethalToDiver": true,
+      "tactics": "Plated hunter that homes in on engine Low-band noise; Silent Running throws it off.",
+      "behavior": "Obsidian-toothed plated hunter; homes in on engine Low-band noise",
+      "yields": "Obsidian Tooth",
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    },
+    {
+      "id": "sulfurmaw_leviathan",
+      "name": "Sulfurmaw Leviathan",
+      "role": "Apex",
+      "level": 3,
+      "tier": null,
+      "kind": "leviathan",
+      "sizeM": 30.0,
+      "sizeText": "30 m",
+      "sound": "125 dB, Low",
+      "description": "30 m leviathan that mimics a smoker chimney.",
+      "diet": [
+        "Magma-Snapper",
+        "Copperback Triggerfish",
+        "Ember Stargazer",
+        "Ash Gulper"
+      ],
+      "predators": [],
+      "schooling": false,
+      "groupSize": [
+        1,
+        1
+      ],
+      "habitat": "chimney",
+      "depthMin": 350,
+      "depthMax": 500,
+      "activity": "both",
+      "hearing": [
+        "low",
+        "mid"
+      ],
+      "light": "none",
+      "aggression": 0.8,
+      "lethalToDiver": true,
+      "tactics": "Sits disguised as a smoker chimney and vacuum-gulps anything that strays close.",
+      "behavior": "Mimics a smoker chimney; vacuum-gulps anything that strays close",
+      "yields": null,
+      "heatProof": true,
+      "estimated": [
+        "kind",
+        "habitat",
+        "depthMin",
+        "depthMax",
+        "hearing",
+        "aggression",
+        "schooling",
+        "groupSize",
+        "activity",
+        "light",
+        "lethalToDiver",
+        "heatProof"
+      ]
+    }
+  ],
+  "interactions": [
+    "Boiling water pillars damage hulls with heat and throw subs against volcanic glass; without Thermal Hull Shielding the heat stress builds fast near the smokers, and geysers erupt without warning.",
+    "The Boiler Worm tracks vibration through the basalt and erupts from the rock to swallow Ashmaw Baskers, whole schools and noisy subs. The Basalt Rasp Turtle's grinding beak and the Slag Grouper's booming grunts draw it across the plateaus; an Ashmaw Basker is prime bait to lure it away.",
+    "The Pyroclast Megalodon homes in on engine Low-band noise; the Vent-Shark is drawn by blood and Mid-band noise and rams subs.",
+    "The Caldera Kraken lairs inside the caldera rims and drags prey into the boiling pillars; the Sulfurmaw Leviathan sits disguised as a smoker chimney and vacuum-gulps anything that strays close.",
+    "Sulfur Mote Copepod clouds ride the rising plumes and throw a blinding murk around the chimneys; Ember Krill swarms scatter from hull lights above 50 lux.",
+    "Each eruption sends Cinder Larva Swarms sinking in ash-grey columns that feed the Ember Blennies, Scald Clams and Chimney Barnacles below.",
+    "Ash Drift Amphipods swarm onto fresh blood within seconds; Ember Rattails are first to arrive at carcasses and blood, and the Pumice Sleeper Shark turns aggressive once the blood passes a threshold.",
+    "Slagbone Worms dissolve the bones of Ashmaw Basker falls, feeding Soot Hagfish, Sulfur Snailfish and Smoke Brittle-Stars; Ash Gulpers swallow carcass chunks whole.",
+    "Crimson Plume Tubeworms snap into their tubes at shadows and Pompeii Ember-Worms retreat on vibration, so a passing sub empties the chimney beds.",
+    "Glowjaw Viperfish mimic ember glow and Obsidian Anglerfish dangle a 5 lux lure that mimics magma glow; Kiln Barracuda charge flashing lights and dangling lures, and Pyre Shrimp sense the magma glow with an eye on their backs.",
+    "Brimstone Squid packs squirt sulfur-yellow ink that blinds sonar; Ashwing Rays erupt in grey clouds when stepped near.",
+    "Divers' hazards: Kiln Anemones burn on contact, Smolder Urchin spines are red-hot, Basalt Mantis Shrimp clubs crack visors, Smelter Spider-Crab claws pinch through suits, Ember Stargazers' jolts drain suit batteries, Ashcoil Sea Snakes carry potent venom and Magma-Snappers bite hard enough to crack hull glass.",
+    "Scald Octopuses shift color with the water temperature, pry shells open and steal loot; Clinker Crabs swarm wrecks and pick at loot crates.",
+    "Copperback Triggerfish guard their nests and bite divers; Slag Grouper grunts and Ember Blenny chirps warn intruders off and give a diver's position away.",
+    "Ash Spires crumble under sonar pings; Eruptor Algae bladders burst violently when disturbed; Grit Spores puff on contact and clog filters; Choke Vent-Grass snares fish; Scald Crust shears weak drills and Blaze Filament can only be cut with the Mid-Tier Drill.",
+    "Smoker Stalks puff black smoke that, as Smoke Resin, makes smoke-screen decoys masking light and blood; Vapor Prawns hide in the steam bubbles of Vapor Stalks.",
+    "Furnace Slugs store the stolen stings of the Kiln Anemones they eat; Ashback Sea Cucumbers eject heat-absorbing gel when attacked; Soot Hagfish flood attackers with fireproof slime.",
+    "Thermal Hull Shielding is made here: Ash Ceramic Powder from Ash Spires, Vent-Shark Hide Plate and Basalt Fiber, with Titanium Hull Plates from the shallower biomes."
+  ]
+}

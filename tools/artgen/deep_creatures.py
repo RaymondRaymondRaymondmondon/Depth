@@ -238,6 +238,13 @@ class Look:
             if sp.get("light") in ("glow", "strobe") or any(k in n for k in ("lumen", "glow", "neon", "lantern", "lamp", "strobe", "flash", "magenta", "ember", "spark", "halo")):
                 nh = 0.85 if "magenta" in n else 0.08 if ("ember" in n or "amber" in n) else 0.5 if ("glass" in n or "halo" in n) else 0.6
                 self.neon = colorsys.hsv_to_rgb(nh, 0.85, 1.0)
+        # the vents: armour-plated animals in soot, basalt grey and rust, the heat-proof ones with ember-orange markings
+        if biome == "vents":
+            hue = 0.03 + 0.06 * H(n, 1)
+            sat = 0.35 + 0.3 * H(n, 2)
+            val = 0.35 + 0.25 * H(n, 4)
+            if sp.get("heatProof"):
+                self.neon = colorsys.hsv_to_rgb(0.06, 0.9, 1.0)
         open_water = sp.get("habitat") == "open" or any(k in n for k in ("shark", "sardine", "shoal", "jack", "basker", "halfbeak", "lancer", "pike"))
         if open_water:
             sat *= 0.35
@@ -961,7 +968,7 @@ def main():
     out = a[a.index("--out") + 1] if "--out" in a else os.path.join(ROOT, "TheDeep", "Assets", "Deep", "Resources", "Creatures")
     only = a[a.index("--only") + 1].lower() if "--only" in a else None
     os.makedirs(out, exist_ok=True)
-    biomes = ("shallows", "kelp", "caverns")
+    biomes = ("shallows", "kelp", "caverns", "vents")
     if "--biome" in a:
         biomes = (a[a.index("--biome") + 1],)
     for biome in biomes:

@@ -13,6 +13,8 @@ namespace Deep
 {
     public class UnderwaterLook : MonoBehaviour
     {
+        public static float Heat;                // how hot the water round the eye is (0..1): the shimmer
+        LensDistortion shimmer;
         public static float Strobe;              // a strobe's glare, 0..1+ (CaveLife.cs)
         public static bool InPocket, InCaves;            // the camera is in a cave's air pocket
         public static float FarScale = 1f;      // Perf.cs: the far plane in the water (1 full)
@@ -45,6 +47,7 @@ namespace Deep
             var bloom = prof.Add<Bloom>(); bloom.intensity.Override(0.6f); bloom.threshold.Override(1.1f); bloom.scatter.Override(0.6f); bloom.highQualityFiltering.Override(false);
             var tm = prof.Add<Tonemapping>(); tm.mode.Override(TonemappingMode.ACES);
             vignette = prof.Add<Vignette>(); vignette.intensity.Override(0.2f); vignette.smoothness.Override(0.5f);
+            shimmer = prof.Add<LensDistortion>(); shimmer.intensity.Override(0f);
             grade = prof.Add<ColorAdjustments>(); grade.postExposure.Override(0.3f); grade.saturation.Override(5f); grade.contrast.Override(8f);
             var vg = new GameObject("PostFx"); vg.transform.SetParent(transform);
             volume = vg.AddComponent<Volume>(); volume.isGlobal = true; volume.sharedProfile = prof;
@@ -95,6 +98,10 @@ namespace Deep
 
             // a strobe's glare (the caves' flash-hunters, a Strobe Shroom): white-out, fading fast
             Strobe = Mathf.Min(Mathf.MoveTowards(Strobe, 0, Time.deltaTime * 4f), 1.1f);
+            // the vents' heat makes the water shimmer
+            float hot = VentField.I != null && Underwater ? Mathf.Clamp01(VentField.I.HeatAt(p) / 30f) : 0f;
+            Heat = Mathf.Lerp(Heat, hot, Time.deltaTime * 2f);
+            shimmer.intensity.value = Mathf.Sin(Time.time * 2.7f) * 0.06f * Heat + Mathf.Sin(Time.time * 6.1f) * 0.02f * Heat;
             grade.postExposure.value = 0.3f + Strobe * 2.2f;
             if (InPocket)
             {

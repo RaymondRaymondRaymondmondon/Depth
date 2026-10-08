@@ -17,6 +17,7 @@ namespace Deep
         public Life life;
         public Weather weather;
         public Caverns caverns;
+        public VentField vents;
 
         // the derelict Nautilus lies on the seabed a short swim from the start: in 16-30 m of water, on the flattest
         // ground found in a ring round the spawn, her keel settled into the sand with a slight list
@@ -62,6 +63,7 @@ namespace Deep
             QualitySettings.vSyncCount = 0;
             Application.runInBackground = true;      // (the crew keep sailing while this window isn't in front)
             Args.Parse();
+            DeepShaders.Warm();
             Net.Begin();
             // a crewmate's PC waits for the host's welcome: the world is built from the host's seed
             if (Net.IsGuest)
@@ -97,6 +99,7 @@ namespace Deep
             flora = new GameObject("Flora").AddComponent<Flora>();
             flora.Build(seabed, Args.Seed);
             caverns = Caverns.Build(seabed, Args.Seed);
+            vents = VentField.Build(seabed, Args.Seed);
             flora.ClearWhere(p => caverns.InCave(p + Vector3.down * 0.6f));   // (nothing grows over the caves' mouths)
             new GameObject("OceanSurface").AddComponent<OceanSurface>();
 
@@ -107,10 +110,12 @@ namespace Deep
             life = Life.Build(seabed, clock, diver, ship, Args.Seed);
             Deposits.Build(seabed, flora, diver.transform.position, Args.Seed);
             Deposits.I?.SerpentScales(seabed, Args.Seed);
+            vents.Settle(life); vents.Plant(flora);
             caverns.Plant(flora, Args.Seed); caverns.BuildCity(flora, Args.Seed); caverns.Eggs(Args.Seed);
             Hands.Attach(diver);
             Survival.Attach(diver);
             CraftUI.Attach(diver);
+            Waypoints.Attach(diver, ship, diver.transform.position);
             Decor.Attach(ship, diver);
             Drops.Attach(diver, ship);
             Campaign.Attach(save);
@@ -124,6 +129,7 @@ namespace Deep
             bool past = save != null && save.openingDone;
             if (!Args.SkipOpening && !past && string.IsNullOrEmpty(Args.Shot) && !Args.SaveTest) Opening.Begin(this);
             if (save != null) Campaign.I.Apply(save);
+            else if (!Net.IsGuest) Campaign.StockStores(ship);
             if (Args.SaveTest) Campaign.I.SelfTest();
             if (Net.IsHost) { Net.I.WorldReady(); if (Args.NetTest) Net.I.StartTest(); }
             look.Bind(diver.cam, clock);

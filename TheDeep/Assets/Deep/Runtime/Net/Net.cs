@@ -46,7 +46,7 @@ namespace Deep
         const byte M_POSE = 20, M_SHIPCTL = 21, M_CMD = 22, M_STOREDELTA = 23, M_OARS = 24, M_EMIT = 25, M_WOUND = 26, M_REPORT = 27,
                    M_DECOR_PLACE = 28, M_DECOR_TAKE = 29, M_DROP_MAKE = 30, M_DROP_TAKE = 31, M_CREW = 32;
         // commands
-        public const byte C_POWER = 1, C_BREAKERS = 2, C_PATCH = 3, C_BREACH = 4, C_STOKE = 5, C_ENGINE = 6, C_HULL = 7, C_KITE = 8, C_PING = 9, C_RIGHTRAFT = 10;
+        public const byte C_POWER = 1, C_BREAKERS = 2, C_PATCH = 3, C_BREACH = 4, C_STOKE = 5, C_ENGINE = 6, C_HULL = 7, C_KITE = 8, C_PING = 9, C_RIGHTRAFT = 10, C_GEO = 11, C_BATTERY = 12;
 
         NetworkManager nm; UnityTransport utp;
         public int mySeat; public string myName = "Diver";
@@ -416,7 +416,7 @@ namespace Deep
             var sy = n.sys;
             var w = new NetW().U8(M_SHIP).F(Time.time).V3(n.Body.position).Q(n.Body.rotation);
             w.F(n.speed).F(n.vSpeed).F(n.heading).U8(n.telegraph).F(n.rudder);
-            w.U8((n.holdHeading ? 1 : 0) | (n.holdDepth ? 2 : 0) | (sy.engineRepaired ? 4 : 0) | (sy.breakersTripped ? 8 : 0) | (sy.pumpsRunning ? 16 : 0));
+            w.U8((n.holdHeading ? 1 : 0) | (n.holdDepth ? 2 : 0) | (sy.engineRepaired ? 4 : 0) | (sy.breakersTripped ? 8 : 0) | (sy.pumpsRunning ? 16 : 0) | (sy.geothermal ? 32 : 0));
             w.F(n.headingOrder).F(n.depthOrder).U8((int)sy.state).F(sy.battery).F(sy.fuel).F(sy.resetT).F(n.crushDepth).F(sy.NoiseDb).F(n.grounded);
             w.U8(sy.rooms.Count); foreach (var r in sy.rooms) w.F(r.level);
             w.U8(Mathf.Min(sy.breaches.Count, 60));
@@ -610,6 +610,8 @@ namespace Deep
                 case C_KITE: KiteSub.Spawn(ship); break;
                 case C_PING: sy.Ping(); break;
                 case C_RIGHTRAFT: Raft.I?.Right(); break;
+                case C_GEO: sy.geothermal = true; sy.engineRepaired = true; break;
+                case C_BATTERY: sy.battery = Mathf.Min(1f, sy.battery + f); break;
             }
         }
 
@@ -859,7 +861,7 @@ namespace Deep
             {
                 n.telegraph = tele; n.rudder = rud; n.holdHeading = (flags & 1) != 0; n.holdDepth = (flags & 2) != 0; n.headingOrder = ho; n.depthOrder = dor;
             }
-            sy.engineRepaired = (flags & 4) != 0; sy.breakersTripped = (flags & 8) != 0; sy.pumpsRunning = (flags & 16) != 0;
+            sy.engineRepaired = (flags & 4) != 0; sy.breakersTripped = (flags & 8) != 0; sy.pumpsRunning = (flags & 16) != 0; sy.geothermal = (flags & 32) != 0;
             sy.state = (PowerState)r.U8(); sy.battery = r.F(); sy.fuel = r.F();
             float reset = r.F(); if (!sy.breakersTripped || reset > sy.resetT) sy.resetT = reset;
             n.crushDepth = r.F(); sy.NoiseDb = r.F(); n.grounded = r.F();

@@ -27,7 +27,7 @@ namespace Deep
 
         static Material Mat(Color c, float metal, float rough)
         {
-            var m = new Material(Shader.Find("Deep/Lit"));
+            var m = new Material(DeepShaders.Get("Deep/Lit"));
             m.SetColor("_BaseColor", c); m.SetFloat("_Metallic", metal); m.SetFloat("_Roughness", rough);
             m.SetFloat("_UseVC", 0); m.SetFloat("_Interior", 1); m.SetFloat("_Cull", 0);
             return m;

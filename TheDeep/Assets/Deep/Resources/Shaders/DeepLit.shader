@@ -18,6 +18,8 @@ Shader "Deep/Lit"
         _UseVC ("Vertex colour is AO", Float) = 1
         _VCAlbedo ("Vertex colour is the colour (Blender-built props)", Float) = 0
         _Tint ("Tint where the vertex alpha says (a crew suit)", Color) = (1,1,1,1)
+        _Glow ("Glow of its own (not her power's)", Float) = 0
+        _GlowVA ("Glow where the vertex alpha says (a vent's throat)", Float) = 0
         _Interior ("Interior", Float) = 0
         _Emit ("Glow with power", Float) = 0
         _Cull ("Cull (0 off, 2 back)", Float) = 2
@@ -42,7 +44,7 @@ Shader "Deep/Lit"
             TEXTURE2D(_BumpMap); SAMPLER(sampler_BumpMap);
             TEXTURE2D(_MRMap); SAMPLER(sampler_MRMap);
             CBUFFER_START(UnityPerMaterial)
-                float4 _BaseMap_ST; float4 _BaseColor; float _Metallic, _Roughness, _NormalScale, _HasBump, _UseVC, _Interior, _Emit, _VCAlbedo; float4 _Tint;
+                float4 _BaseMap_ST; float4 _BaseColor; float _Metallic, _Roughness, _NormalScale, _HasBump, _UseVC, _Interior, _Emit, _VCAlbedo; float4 _Tint; float _Glow, _GlowVA;
             CBUFFER_END
             float _DeepPower;
             struct A { float4 pos : POSITION; float3 n : NORMAL; float2 uv : TEXCOORD0; float4 col : COLOR; UNITY_VERTEX_INPUT_INSTANCE_ID };
@@ -82,6 +84,7 @@ Shader "Deep/Lit"
                 float3 albedo = base.rgb * lerp(1, 0.8, metal);
                 float3 c = _Interior > 0.5 ? DeepLightInside(i.ws, n, albedo, gloss, i.ao) : DeepLight(i.ws, n, albedo, 0, gloss, i.ao);
                 c += base.rgb * _Emit * _DeepPower * 1.3;
+                c += base.rgb * (_Glow + saturate(i.vc.a) * _GlowVA);
                 c = MixFog(c, i.fog);
                 return float4(c, 1);
             }

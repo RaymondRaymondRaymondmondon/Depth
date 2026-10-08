@@ -42,7 +42,7 @@ namespace Deep
             var p = ship.Body.position; p.y = -3.3f;
             ship.Body.position = p;
             ship.ResetAttitude();
-            ship.sys.state = PowerState.Dead; ship.sys.breakersTripped = true; ship.sys.battery = 0.3f;
+            ship.sys.state = PowerState.Dead; ship.sys.breakersTripped = true; ship.sys.battery = 0.45f;
             ship.power = false; ship.powerK = 0;
             ship.depthOrder = 3.3f;
             o.shipStart = ship.Body.position;
@@ -68,7 +68,7 @@ namespace Deep
             var pr = ship.L.Room("pilot");
             q.transform.SetParent(ship.Body, false);
             q.transform.localPosition = Nautilus.G((pr.x0 + pr.x1) / 2f, pr.ceil + 3.2f, 0);   // on the cupola's masthead, clear of the swell
-            beaconMat = new Material(Shader.Find("Deep/Glow"));
+            beaconMat = new Material(DeepShaders.Get("Deep/Glow"));
             beaconMat.SetColor("_Color", new Color(1f, 0.12f, 0.05f)); beaconMat.SetFloat("_Size", 2.5f);
             q.GetComponent<MeshRenderer>().sharedMaterial = beaconMat;
             beacon = q.transform;

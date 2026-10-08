@@ -11,7 +11,7 @@ namespace Deep
     {
         public static bool HideOcean;
         static readonly string[] All = { "debugdown", "debugair", "reef", "kelp", "up", "above", "night", "drop", "meadow",
-            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral", "life_light", "life_engine", "life_moon", "wreck_galleon", "wreck_dreadnought", "deposit", "craft", "pack", "kitesub", "kitesub_fly", "opening_raft", "opening_board", "opening_storm", "opening_hunt", "crew_sea", "crew_aboard", "crew_raft", "decor_cabin", "decor_salon", "decor_ghost", "drop_satchel", "captains_log", "cave_city", "cave_hall", "cave_tunnel", "cave_sinkhole", "cave_mouth", "cave_pocket", "cave_life", "cave_dive" };
+            "nautilus", "nautilus_side", "nautilus_stern", "salon", "bridge", "pilothouse", "engine", "moonpool", "dark", "underway", "helm", "flooding", "sonar", "telegraph", "gauges", "life_reef", "life_school", "life_kelp", "life_night", "leviathan", "crew", "cabin", "ladder_top", "life_blood", "life_starve", "life_coral", "life_light", "life_engine", "life_moon", "wreck_galleon", "wreck_dreadnought", "deposit", "craft", "pack", "kitesub", "kitesub_fly", "opening_raft", "opening_board", "opening_storm", "opening_hunt", "crew_sea", "crew_aboard", "crew_raft", "decor_cabin", "decor_salon", "decor_ghost", "drop_satchel", "captains_log", "cave_city", "cave_hall", "cave_tunnel", "cave_sinkhole", "cave_mouth", "cave_pocket", "cave_life", "cave_dive", "vents_field", "vents_smoker", "vents_geyser", "vents_rift", "vents_worm", "vents_life" };
 
         public void Run(string which, string dir) { StartCoroutine(Go(which, dir)); }
 
@@ -402,6 +402,86 @@ namespace Deep
                     }
                     b.diver.lampOn = true;
                     if (name != "cave_sinkhole" && name != "cave_mouth") b.life.WarmUp(b.diver.EyeWorld, 15f);
+                    return true;
+                }
+                case "vents_field":
+                case "vents_smoker":
+                case "vents_geyser":
+                case "vents_rift":
+                case "vents_worm":
+                case "vents_life":
+                case "listen_vents":
+                {
+                    b.clock.hour = 11f; Power(false);
+                    var vf = VentField.I;
+                    VentField.Vent smoker = null, geyser = null;
+                    foreach (var v in vf.vents) { if (v.geyser) { if (geyser == null) geyser = v; } else if (smoker == null || v.height > smoker.height) smoker = v; }
+                    if (name == "vents_field")
+                    {
+                        // a cluster of chimneys from 45 m off: the field lit by its own glow
+                        var at = smoker.pos;
+                        Look(at + new Vector3(-38f, smoker.height * 0.8f + 6f, -26f), at + Vector3.up * smoker.height * 0.35f);
+                    }
+                    else if (name == "vents_smoker" || name == "vents_life" || name == "listen_vents")
+                    {
+                        var top = smoker.pos + Vector3.up * smoker.height;
+                        Look(smoker.pos + new Vector3(16f, smoker.height * 0.6f + 4f, -12f), top - Vector3.up * smoker.height * 0.4f);
+                        if (name != "vents_smoker") { b.life.WarmUp(b.diver.EyeWorld, 25f); LogLife(b); }
+                        // the heat test: a diver in the plume cooks; the Nautilus over the vents heats unless shielded
+                        float h = vf.HeatAt(top + Vector3.up * 5f), far = vf.HeatAt(top + new Vector3(40f, 0, 40f));
+                        Debug.Log($"DEEP VENTTEST: {(h > 30f && far < 8f ? "PASS" : "FAIL")} heat over the smoker {h:0} C above the sea, 40 m off {far:0}");
+                        int b0 = ship.sys.breaches.Count;
+                        ship.sys.heatStress = 0; ship.crushDepth = 300f; for (int i = 0; i < 40; i++) ship.sys.Heat(60f, 0.5f);
+                        int split = ship.sys.breaches.Count - b0; float unshielded = ship.sys.heatStress;
+                        ship.sys.heatStress = 0; ship.crushDepth = 500f; for (int i = 0; i < 40; i++) ship.sys.Heat(60f, 0.5f);
+                        Debug.Log($"DEEP VENTTEST: {(split > 0 && ship.sys.heatStress == 0 && ship.sys.breaches.Count - b0 == split ? "PASS" : "FAIL")} 20 s over a vent unshielded splits {split} seam(s) (stress {unshielded:0.00}); with Thermal Hull Shielding nothing ({ship.sys.heatStress:0.00})");
+                        foreach (var br in new System.Collections.Generic.List<ShipSystems.Breach>(ship.sys.breaches)) ship.sys.DropBreach(br);
+                        ship.crushDepth = 30f; ship.sys.heatStress = 0; ship.sys.alert = null;
+                        if (name == "listen_vents") { b.diver.inputEnabled = true; Score.I.Kick(); }
+                    }
+                    else if (name == "vents_geyser")
+                    {
+                        // make it erupt now (its clock is the sea's)
+                        geyser.phase = Mathf.Repeat(geyser.period - 3f - Waves.T, geyser.period);
+                        Look(geyser.pos + new Vector3(30f, 14f, -26f), geyser.pos + Vector3.up * 20f);
+                        Debug.Log($"DEEP VENTTEST: {(vf.TurbulenceAt(geyser.pos + Vector3.up * 10f).magnitude > 1f ? "PASS" : "FAIL")} an eruption's turbulence ({vf.TurbulenceAt(geyser.pos + Vector3.up * 10f).magnitude:0.0})");
+                    }
+                    else if (name == "vents_rift")
+                    {
+                        float x = VentField.X0 + 300f, z = vf.RiftZ(x);
+                        var eye = new Vector3(x, vf.HeightAt(x, z) + 9f, z);
+                        Look(eye, new Vector3(x + 60f, vf.HeightAt(x + 60f, vf.RiftZ(x + 60f)) + 2f, vf.RiftZ(x + 60f)));
+                    }
+                    else
+                    {
+                        var w = vf.worm;
+                        if (w == null) { Debug.Log("DEEP VENTTEST: FAIL no Boiler Worm"); return true; }
+                        var eye = w.lair + new Vector3(14f, 6f, -10f);
+                        Look(eye, w.lair + Vector3.up * 10f);
+                        // something loud swims by: the worm should warn, then erupt
+                        b.diver.vel = Vector3.forward * 3f;
+                        w.cool = 0; w.state = 0;
+                        var start = w.c.pos;
+                        Debug.Log($"DEEP VENTTEST: the worm waits at {start} (lair {w.lair})");
+                        int seen = 0;
+                        for (int i = 0; i < 600 && !(w.state == 2 && w.t > 0.9f); i++) { b.diver.vel = Vector3.forward * 3f; vf.WormStep(1f / 60f); seen |= 1 << w.state; }
+                        Debug.Log($"DEEP VENTTEST: {((seen & 6) == 6 ? "PASS" : "FAIL")} the worm warned and erupted (states seen {seen}); it rose {(w.c.pos - start).magnitude:0.0} m out of the rock");
+                        b.diver.vel = Vector3.zero;
+                    }
+                    return true;
+                }
+                case "death_cold":
+                {
+                    // the playtest's crash: a diver dies of the cold in the water with things in the pack
+                    b.clock.hour = 11f; Power(true);
+                    var p = Find(140, 400, 8, 25); Look(p + Vector3.up * 3f, p + new Vector3(10, 1, 4));
+                    var h = b.diver.GetComponent<Hands>(); var ore = ItemDB.Get("Titanium Ore"); h.pack.Add(ore, 3);
+                    b.diver.inputEnabled = true;
+                    var sv = b.diver.GetComponent<Survival>(); sv.bodyC = 20f; b.diver.health = 0.5f;
+                    int drops0 = Drops.I.drops.Count;
+                    for (int i = 0; i < 10 && b.diver.health < 50f; i++) b.diver.Hurt(5f, "the cold");
+                    Debug.Log($"DEEP DEATHTEST: {(Drops.I.drops.Count == drops0 + 1 && b.diver.aboard && b.diver.health >= 50f ? "PASS" : "FAIL")} died of the cold: a satchel left ({Drops.I.drops.Count - drops0}), woke aboard ({b.diver.aboard}), health {b.diver.health:0}");
+                    b.diver.inputEnabled = false; sv.bodyC = 37f;
                     return true;
                 }
                 case "cave_dive":

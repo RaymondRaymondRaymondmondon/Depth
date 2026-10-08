@@ -16,7 +16,7 @@ namespace Deep
     {
         public static Soundscape I;
         Diver d; Nautilus ship; Hands hands;
-        Sfx.Loop shallows, kelp, deep, aboardBed, underside, waves, wind, rain, engine, battery, whir, pumps, flood, jet, drill, blade, kite, caves, bats;
+        Sfx.Loop shallows, kelp, deep, aboardBed, underside, waves, wind, rain, engine, battery, whir, pumps, flood, jet, drill, blade, kite, caves, bats, vents, smoker;
         bool made;
 
         public static Soundscape Attach(Diver d, Nautilus ship)
@@ -31,8 +31,8 @@ namespace Deep
             made = true;
             shallows = Sfx.MakeLoop("amb_shallows"); kelp = Sfx.MakeLoop("amb_kelp"); deep = Sfx.MakeLoop("amb_deep"); aboardBed = Sfx.MakeLoop("amb_aboard");
             underside = Sfx.MakeLoop("underside_loop"); waves = Sfx.MakeLoop("waves_loop"); wind = Sfx.MakeLoop("wind_loop"); rain = Sfx.MakeLoop("rain_loop");
-            caves = Sfx.MakeLoop("amb_caves"); bats = Sfx.MakeLoop("bats_loop");
-            foreach (var l in new[] { shallows, kelp, deep, aboardBed, underside, waves, wind, rain, caves, bats }) l.spatial = false;
+            caves = Sfx.MakeLoop("amb_caves"); bats = Sfx.MakeLoop("bats_loop"); vents = Sfx.MakeLoop("amb_vents"); smoker = Sfx.MakeLoop("smoker_loop");
+            foreach (var l in new[] { shallows, kelp, deep, aboardBed, underside, waves, wind, rain, caves, bats, vents }) l.spatial = false;
             engine = Sfx.MakeLoop("engine_loop"); battery = Sfx.MakeLoop("battery_loop"); whir = Sfx.MakeLoop("whir_loop"); pumps = Sfx.MakeLoop("pump_loop");
             flood = Sfx.MakeLoop("flood_loop"); jet = Sfx.MakeLoop("jet_loop"); drill = Sfx.MakeLoop("drill_loop"); blade = Sfx.MakeLoop("blade_loop"); kite = Sfx.MakeLoop("kite_loop");
             foreach (var l in new[] { engine, battery, whir, pumps, flood, jet }) l.medium = Medium.Aboard;
@@ -69,6 +69,17 @@ namespace Deep
             bool underground = Caverns.I != null && Caverns.I.UnderGround(cam);
             if (underground) { shallows.vol = kelp.vol = 0; deep.vol *= 0.3f; underside.vol = 0; }
             caves.vol = underground ? 1f : 0f;
+            // the vents: the ground's growl over the field, the nearest smoker's roar
+            float field = VentField.I != null ? Mathf.InverseLerp(VentField.X0 - 60f, VentField.X0 + 120f, cam.x) : 0f;
+            vents.vol = (water || inside) ? field * (inside ? 0.4f : 1f) : 0f;
+            if (field > 0) { deep.vol *= 1f - field; }
+            smoker.vol = 0;
+            if (field > 0 && VentField.I != null)
+            {
+                VentField.Vent nv = null; float nd = 70f * 70f;
+                foreach (var v in VentField.I.vents) { if (v.geyser) continue; float dd = (v.pos + Vector3.up * v.height - cam).sqrMagnitude; if (dd < nd) { nd = dd; nv = v; } }
+                if (nv != null) { smoker.pos = nv.pos + Vector3.up * nv.height; smoker.vol = 1f; smoker.medium = Medium.Water; }
+            }
             bats.vol = underground && UnderwaterLook.InPocket ? 1f : underground && Caverns.I.PocketSurface(cam) < float.PositiveInfinity ? 0.25f : 0f;
             waves.vol = air ? 0.6f + 0.6f * storm : inside && ship.Depth < 6f ? 0.25f : 0f; waves.pitch = 1f - 0.15f * storm;
             wind.vol = air ? 0.15f + 0.85f * storm : 0f;
@@ -200,7 +211,7 @@ namespace Deep
             if (d.aboard && d.climbing)
             {
                 ladderDist += Mathf.Abs(d.vel.y) * dt;
-                if (ladderDist > 0.45f) { ladderDist = 0; Sfx.Play("ladder", ship.ToWorld(d.transform.position), 1f, Random.Range(0.9f, 1.1f), Medium.Aboard); }
+                if (ladderDist > 0.9f) { ladderDist = 0; Sfx.Play("ladder", ship.ToWorld(d.transform.position), 0.8f, Random.Range(0.9f, 1.1f), Medium.Aboard); }
             }
         }
 

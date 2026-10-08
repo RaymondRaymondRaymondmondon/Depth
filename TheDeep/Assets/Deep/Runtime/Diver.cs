@@ -370,6 +370,22 @@ namespace Deep
                         else sy.resetT = Mathf.Max(0, sy.resetT - Time.deltaTime);
                         break;
                     case "power":
+                    {
+                        var hands = GetComponent<Hands>();
+                        var cell = SpareCell(hands);
+                        hint = $"E  Take the switchboard    battery {(sy != null ? sy.battery * 100 : 0):0}%" + (cell != null ? $"    R  Fit a {cell.name} (+{CellCharge(cell) * 100:0}%)" : "    (no spare batteries: make a Spare Battery Bank)");
+                        if (e) Man(s);
+                        else if (cell != null && inputEnabled && !uiOpen && Input.GetKeyDown(KeyCode.R) && sy != null)
+                        {
+                            if (!hands.pack.Remove(cell)) ship.store.Remove(cell);
+                            float add = CellCharge(cell);
+                            sy.battery = Mathf.Min(1f, sy.battery + add);
+                            Net.Cmd(Net.C_BATTERY, 0, add);
+                            Sfx.Play("switch", ship.WorldPoint(Nautilus.G(s.pos)) + Vector3.up, 1f, 0.8f, Medium.Aboard);
+                            Toast($"The {cell.name} clicks into the rack. Battery {sy.battery * 100:0}%.");
+                        }
+                        break;
+                    }
                     case "sonar":
                     case "pumps":
                         hint = "E  Take " + StationName(s.kind).ToLowerInvariant();
@@ -380,7 +396,7 @@ namespace Deep
                         var hands = GetComponent<Hands>();
                         var can = ItemDB.Get("Synthetic Fuel Canister");
                         bool stoke = sy != null && sy.engineRepaired && can != null && hands != null && (hands.pack.Has(can) || ship.store.Has(can));
-                        hint = sy == null ? "The boiler" : !sy.engineRepaired ? "E  The boiler: the steam engine needs repairing" : stoke ? $"E  Stoke the boiler with a Synthetic Fuel Canister (fuel {sy.fuel * 100:0}%)" : $"The boiler: fuel {sy.fuel * 100:0}%  (stoke it with Synthetic Fuel Canisters)";
+                        hint = sy == null ? "The boiler" : !sy.engineRepaired ? "E  The boiler: the steam engine needs repairing" : stoke ? $"E  Stoke the boiler with a Synthetic Fuel Canister (fuel {sy.fuel * 100:0}%; {(hands.pack.Has(can) ? "from your pack" : "from her stores")})" : $"The boiler: fuel {sy.fuel * 100:0}%  (stoke it with Synthetic Fuel Canisters: her stores are out, make more at Hydroponics)";
                         if (e && sy != null && !sy.engineRepaired) GetComponent<CraftUI>()?.Open("craft", "boiler");
                         else if (e && stoke) { if (!hands.pack.Remove(can)) ship.store.Remove(can); sy.fuel = Mathf.Min(1f, sy.fuel + 0.35f); Net.Cmd(Net.C_STOKE); Toast("The firebox roars."); }
                         break;
@@ -516,6 +532,19 @@ namespace Deep
             float dv = (Input.GetKey(KeyCode.C) || Input.GetKey(KeyCode.LeftControl) ? 1 : 0) - (Input.GetKey(KeyCode.Space) ? 1 : 0);
             if (dv != 0) n.depthOrder = Mathf.Clamp(n.depthOrder + dv * dt * 3f, 3.3f, 400f);
         }
+
+        // spare batteries: in the pack first, then her stores (the biggest first)
+        static readonly string[] Cells = { "Luminescent Battery Cell", "Phosphor Mat Battery Cell", "Spare Battery Bank" };
+        ItemDef SpareCell(Hands hands)
+        {
+            foreach (var n in Cells)
+            {
+                var it = ItemDB.Get(n); if (it == null) continue;
+                if ((hands != null && hands.pack.Has(it)) || (ship && ship.store.Has(it))) return it;
+            }
+            return null;
+        }
+        static float CellCharge(ItemDef it) => it.name.StartsWith("Luminescent") ? 1f : it.name.StartsWith("Phosphor") ? 0.6f : 0.4f;
 
         public static string StationName(string kind)
         {

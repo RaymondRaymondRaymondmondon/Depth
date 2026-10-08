@@ -21,6 +21,7 @@ namespace Deep
     [Serializable]
     public class BiomeTable
     {
+        public string leviathan;   // the table's resident giant by id (else its biggest leviathan)
         public string biome, name, layout, look, hazards, foodWeb;
         public float depthMin, depthMax, absorptionDbPerM;
         public FloraEntry[] flora; public FaunaEntry[] fauna; public string[] interactions;
@@ -57,7 +58,7 @@ namespace Deep
         public static void Load()
         {
             if (All.Count > 0) return;
-            foreach (var b in new[] { "shallows", "kelp", "caverns" })
+            foreach (var b in new[] { "shallows", "kelp", "caverns", "vents" })
             {
                 var t = Resources.Load<TextAsset>("Data/species_" + b);
                 if (!t) { Debug.LogWarning("DEEP SEA: no species table for " + b); continue; }
@@ -74,7 +75,8 @@ namespace Deep
             foreach (var tab in Tables)
             {
                 SpeciesDef big = null;
-                foreach (var s in All) if (s.biome == tab.biome && s.IsLeviathan && (big == null || s.size > big.size)) big = s;
+                if (!string.IsNullOrEmpty(tab.leviathan)) foreach (var s in All) if (s.biome == tab.biome && s.e.id == tab.leviathan) big = s;
+                if (big == null) foreach (var s in All) if (s.biome == tab.biome && s.IsLeviathan && (big == null || s.size > big.size)) big = s;
                 if (big != null) big.resident = true;
             }
             Debug.Log($"DEEP SEA: {All.Count} species from {Tables.Count} tables");

@@ -113,12 +113,12 @@ namespace Deep
             Material m;
             if (n.StartsWith("glass") || n.StartsWith("lens"))
             {
-                m = new Material(Shader.Find("Deep/Glass")) { name = src.name };
+                m = new Material(DeepShaders.Get("Deep/Glass")) { name = src.name };
                 if (n.StartsWith("lens")) { m.SetColor("_Tint", new Color(1f, 0.9f, 0.6f)); m.SetFloat("_Clear", 0.6f); }
             }
             else
             {
-                m = new Material(Shader.Find("Deep/Lit")) { name = src.name };
+                m = new Material(DeepShaders.Get("Deep/Lit")) { name = src.name };
                 var bc = Tex(src, "basecolor", "_basemap", "_maintex");
                 var nm = Tex(src, "normal", "_bumpmap");
                 var mr = Tex(src, "metallicroughness");
@@ -262,7 +262,7 @@ namespace Deep
             q.transform.localPosition = G((mp.x0 + mp.x1) / 2, mp.y, (mp.z0 + mp.z1) / 2);
             q.transform.localRotation = Quaternion.Euler(90, 0, 0);
             q.transform.localScale = new Vector3(mp.z1 - mp.z0, mp.x1 - mp.x0, 1);
-            var m = new Material(Shader.Find("Deep/Glass"));
+            var m = new Material(DeepShaders.Get("Deep/Glass"));
             m.SetColor("_Tint", new Color(0.2f, 0.75f, 0.7f)); m.SetFloat("_Clear", 0.45f);
             q.GetComponent<MeshRenderer>().sharedMaterial = m;
             q.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -311,6 +311,7 @@ namespace Deep
                     if (dd < dl.range + 4f) decorNear.Add((dd, w, dl.col, dl.range));
                 }
             if (Caverns.I != null) Caverns.I.LightsNear(c, decorNear, 9);
+            if (VentField.I != null) VentField.I.LightsNear(c, decorNear, 8);
             decorNear.Sort((a, b) => a.d.CompareTo(b.d));
             if (decorNear.Count > 10) decorNear.RemoveRange(10, decorNear.Count - 10);
             int roomCap = 16 - decorNear.Count;
@@ -373,6 +374,9 @@ namespace Deep
         bool sailingInit;
         public float Depth => -Body.position.y;
         public string groundedMsg;
+        Vector3 shove;
+        // the water throws her about (a geyser's eruption, the worm's burst): metres to move her this step
+        public void Shove(Vector3 d) { shove += d; }
 
         // level her and let the sailing pick up from where she is now (the opening floats her to the surface)
         public void ResetAttitude()
@@ -431,7 +435,9 @@ namespace Deep
 
             var rot = Quaternion.Euler(0, heading, 0);
             var fwd = rot * Vector3.forward;
-            var pos = Body.position + fwd * speed * dt + Vector3.down * vSpeed * dt;
+            var pos = Body.position + fwd * speed * dt + Vector3.down * vSpeed * dt + shove;
+            if (shove.sqrMagnitude > 0.0004f) { pitchV += Random.Range(-1f, 1f) * shove.magnitude * 25f; rollV += Random.Range(-1f, 1f) * shove.magnitude * 40f; }
+            shove = Vector3.zero;
             // the surface: no higher than her deck awash
             float top = -3.3f;
             if (pos.y > top) { pos.y = top; vSpeed = Mathf.Min(vSpeed, 0); if (depthOrder < -top) depthOrder = -top; }

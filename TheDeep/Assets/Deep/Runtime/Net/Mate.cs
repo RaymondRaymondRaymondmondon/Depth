@@ -74,7 +74,7 @@ namespace Deep
 
         void BuildBody()
         {
-            suit = new Material(Shader.Find("Deep/Lit")) { name = "diver suit " + seat };
+            suit = new Material(DeepShaders.Get("Deep/Lit")) { name = "diver suit " + seat };
             suit.SetFloat("_UseVC", 1); suit.SetFloat("_VCAlbedo", 1); suit.SetFloat("_Roughness", 0.55f); suit.SetFloat("_Metallic", 0.35f); suit.SetFloat("_Cull", 0);
             suit.SetColor("_Tint", SuitColours[Mathf.Clamp(seat, 0, 3)]);
             root = new GameObject("body").transform; root.SetParent(transform, false);

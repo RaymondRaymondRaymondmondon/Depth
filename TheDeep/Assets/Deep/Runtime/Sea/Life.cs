@@ -39,6 +39,7 @@ namespace Deep
         public Creature target; public bool targetDiver, hasNest, alive = true, persistent;
         public int group;
         public bool forced;     // driven from outside (the opening's surface hunt): Think leaves it alone
+        public bool held;       // moved entirely from outside (the Boiler Worm in its rock): Move leaves it alone too
         public string why;      // what set the current state off (for the tests and the HUD)
         public float visitT;    // time spent at a cleaning station
         public Creature station;
@@ -124,8 +125,8 @@ namespace Deep
             I = l;
             l.bed = bed; l.clock = clock; l.diver = diver; l.ship = ship; l.rnd = new System.Random(seed * 7919 + 13);
             l.eco = Ecology.FirstBuild();
-            l.sound = new Acoustics(Seabed.Size);
-            l.scent = new Scent(Seabed.Size);
+            l.sound = new Acoustics(Seabed.MaxX);
+            l.scent = new Scent(Seabed.MaxX);
             l.AddDiver(diver);
             if (ship) l.sound.sources.Add(new ShipNoise { n = ship });
             l.SpawnLeviathans();
@@ -164,7 +165,7 @@ namespace Deep
         {
             if (looks.TryGetValue(s, out var lk)) return lk;
             var mesh = CreatureLibrary.Get(s.e.id) ?? CreatureMeshes.For(s);
-            var m = new Material(Shader.Find("Deep/Creature")) { enableInstancing = true, name = s.e.name };
+            var m = new Material(DeepShaders.Get("Deep/Creature")) { enableInstancing = true, name = s.e.name };
             int mode = CreatureMeshes.Mode(s.kind);
             if (s.bottom && (s.kind == "snail" || (s.kind == "octopus" && !s.e.name.Contains("Octo")))) mode = 5;   // shells and stars lie still
             m.SetFloat("_Mode", mode);
@@ -241,6 +242,20 @@ namespace Deep
                 return caveSpecies && eyeInCaves && CaveSpot(s, around, rMin, rMax, out at);
             }
             var band = Band01(s);
+            // the vents' animals that live on the chimneys, in the plumes and in the cracks gather round the vents
+            string vh = s.e.habitat;
+            if (s.biome == "vents" && VentField.I != null && (vh == "chimney" || vh == "plume" || vh == "crack"))
+            {
+                at = default;
+                if (!VentField.I.NearVent(around, rMin, rMax, rnd, out var vent)) return false;
+                float ang = (float)rnd.NextDouble() * 6.283f, rr = vent.radius + 1.5f + (float)rnd.NextDouble() * 6f;
+                var q = vent.pos + new Vector3(Mathf.Cos(ang) * rr, 0, Mathf.Sin(ang) * rr);
+                float fl = Bed(q);
+                q.y = vh == "plume" ? vent.pos.y + vent.height + 3f + (float)rnd.NextDouble() * 15f : vh == "chimney" ? Mathf.Lerp(fl + 0.5f, vent.pos.y + vent.height, (float)rnd.NextDouble()) : fl + 0.3f;
+                if (s.bottom) q.y = fl + 0.1f;
+                if (InView(q)) return false;
+                at = q; return true;
+            }
             // reef and kelp animals gather where the reef and the kelp are
             string h = s.e.habitat;
             var flora = DeepBoot.I ? DeepBoot.I.flora : null;
@@ -262,7 +277,7 @@ namespace Deep
             {
                 double a = rnd.NextDouble() * Mathf.PI * 2, r = rMin + rnd.NextDouble() * (rMax - rMin);
                 var p = around + new Vector3((float)System.Math.Cos(a) * (float)r, 0, (float)System.Math.Sin(a) * (float)r);
-                if (p.x < 10 || p.z < 10 || p.x > Seabed.Size - 10 || p.z > Seabed.Size - 10) continue;
+                if (p.x < 10 || p.z < 10 || p.x > Seabed.MaxX - 10 || p.z > Seabed.Size - 10) continue;
                 float floor = Bed(p), water = -floor;
                 if (water < band.x + 1f) continue;
                 if (s.bottom) { if (water > band.y + 5f) continue; p.y = floor + 0.1f; if (InView(p)) continue; at = p; return true; }
@@ -288,7 +303,12 @@ namespace Deep
                 // the territory: somewhere in its band, far enough from the start not to be met at once (the caverns'
                 // giant keeps to its biggest cathedral)
                 Vector3 best = new Vector3(Seabed.Size / 2, -60, Seabed.Size / 2); float bestScore = float.MaxValue;
-                if (s.biome == "caverns")
+                if (s.biome == "vents")
+                {
+                    var vf = VentField.I; if (vf == null) continue;
+                    float vx = VentField.X0 + 500f; best = new Vector3(vx, vf.HeightAt(vx, vf.RiftZ(vx)) - 10f, vf.RiftZ(vx)); bestScore = -1;
+                }
+                else if (s.biome == "caverns")
                 {
                     var ch = Cv != null ? Cv.Biggest(true) : null; if (ch == null) continue;
                     best = ch.c; bestScore = -1;
@@ -665,7 +685,7 @@ namespace Deep
             }
             else if (s.bottom) c.pos.y = Bed(c.pos) + 0.05f + c.size * 0.1f;
             else c.pos.y = Mathf.Max(c.pos.y, floor + 0.3f + c.size * 0.2f);
-            c.pos.x = Mathf.Clamp(c.pos.x, 5, Seabed.Size - 5); c.pos.z = Mathf.Clamp(c.pos.z, 5, Seabed.Size - 5);
+            c.pos.x = Mathf.Clamp(c.pos.x, 5, Seabed.MaxX - 5); c.pos.z = Mathf.Clamp(c.pos.z, 5, Seabed.Size - 5);
 
             // contact: the strike lands
             c.biteCool -= dt;
@@ -761,7 +781,7 @@ namespace Deep
                 if (c.sp.level == 1 && c.state == CState.Dormant) c.hunger = Mathf.Max(0, c.hunger - dt / 300f);   // grazing as it goes
                 c.thinkT -= dt;
                 if (c.thinkT <= 0) { c.thinkT = 0.25f; Think(c); }
-                Move(c, dt);
+                if (!c.held) Move(c, dt);
             }
             // let go of what's out of range (back into the pool), and the dead
             live.RemoveAll(c =>
@@ -825,7 +845,8 @@ namespace Deep
                 if (!GeometryUtility.TestPlanesAABB(planes, new Bounds(c.pos, Vector3.one * c.size * 1.4f))) continue;
                 if (!byKind.TryGetValue(c.sp, out var l)) byKind[c.sp] = l = new List<Matrix4x4>();
                 var up = c.sp.bottom ? Vector3.up : Vector3.Lerp(Vector3.up, -Vector3.Cross(c.fwd, Vector3.Cross(Vector3.up, c.fwd)).normalized, 0f);
-                l.Add(Matrix4x4.TRS(c.pos, Quaternion.LookRotation(c.fwd, up), Vector3.one * c.size));
+                var fw = c.fwd; if (Mathf.Abs(Vector3.Dot(fw, up)) > 0.98f) up = Vector3.forward;
+                l.Add(Matrix4x4.TRS(c.pos, Quaternion.LookRotation(fw, up), Vector3.one * c.size));
             }
             foreach (var kv in byKind)
             {

@@ -26,8 +26,8 @@ namespace Deep
         {
             var dr = new GameObject("Drops").AddComponent<Drops>(); I = dr;
             dr.diver = d; dr.ship = ship;
-            dr.lit = new Material(Shader.Find("Deep/Lit")); dr.lit.SetFloat("_UseVC", 1); dr.lit.SetFloat("_VCAlbedo", 1); dr.lit.SetFloat("_Roughness", 0.8f); dr.lit.SetFloat("_Cull", 0);
-            dr.glow = new Material(dr.lit); dr.glow.SetFloat("_Emit", 1);
+            dr.lit = new Material(DeepShaders.Get("Deep/Lit")); dr.lit.SetFloat("_UseVC", 1); dr.lit.SetFloat("_VCAlbedo", 1); dr.lit.SetFloat("_Roughness", 0.8f); dr.lit.SetFloat("_Cull", 0);
+            dr.glow = new Material(dr.lit); dr.glow.SetFloat("_Glow", 1.6f);
             return dr;
         }
 
@@ -60,7 +60,7 @@ namespace Deep
             // the amber lamp: a glow that carries through the water
             var q = GameObject.CreatePrimitive(PrimitiveType.Quad); Destroy(q.GetComponent<Collider>());
             q.transform.SetParent(d.t, false); q.transform.localPosition = new Vector3(0, 0.75f, 0);
-            d.beacon = new Material(Shader.Find("Deep/Glow")); d.beacon.SetColor("_Color", new Color(1f, 0.7f, 0.2f)); d.beacon.SetFloat("_Size", 0.8f); d.beacon.SetFloat("_Intensity", 1.6f);
+            d.beacon = new Material(DeepShaders.Get("Deep/Glow")); d.beacon.SetColor("_Color", new Color(1f, 0.7f, 0.2f)); d.beacon.SetFloat("_Size", 0.8f); d.beacon.SetFloat("_Intensity", 1.6f);
             q.GetComponent<MeshRenderer>().sharedMaterial = d.beacon;
             drops[id] = d;
             nextId = Mathf.Max(nextId, id + 1);

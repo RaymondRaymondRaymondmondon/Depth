@@ -68,9 +68,10 @@ namespace Deep
         public static Ecology FirstBuild() => new Ecology(
             ("shallows", 2400f, 260f, 30f, 3.0f, 40f),
             ("kelp", 3600f, 340f, 42f, 4.5f, 60f),
-            ("caverns", 1400f, 150f, 22f, 3.2f, 70f));
+            ("caverns", 1400f, 150f, 22f, 3.2f, 70f),
+            ("vents", 1800f, 190f, 28f, 3.8f, 90f));
         // the biomes fed by chemistry, not the sun (the caverns' fungi, mats and bacteria)
-        public static bool Chemo(string biome) => biome == "caverns";
+        public static bool Chemo(string biome) => biome == "caverns" || biome == "vents";
 
         public Pool Of(string biome) { foreach (var p in pools) if (p.biome == biome) return p; return null; }
 

@@ -19,7 +19,7 @@ namespace Deep
     [Serializable] public class ShipSave
     {
         public Vector3 pos; public Quaternion rot; public float heading, depthOrder, headingOrder; public int telegraph; public bool holdDepth, holdHeading;
-        public int state; public float battery, fuel, crushDepth; public bool engineRepaired, breakersTripped;
+        public int state; public float battery, fuel, crushDepth; public bool engineRepaired, breakersTripped, geothermal;
         public List<float> rooms = new List<float>(); public List<BreachSave> breaches = new List<BreachSave>();
         public List<SlotSave> store = new List<SlotSave>();
     }
@@ -45,6 +45,8 @@ namespace Deep
         public List<DecorSave> decor = new List<DecorSave>(); public List<DropSave> drops = new List<DropSave>();
         public List<PoolSave> pools = new List<PoolSave>(); public List<CrewSave> crew = new List<CrewSave>();
         public List<string> met = new List<string>(); public float deepest;
+        public bool stocked;      // her starting spares (batteries, fuel) have been put in her stores
+        public bool reachedReef;  // the crew have found the reef where gathering starts (Waypoints)
     }
 
     public class Campaign : MonoBehaviour
@@ -53,6 +55,7 @@ namespace Deep
         public SaveFile loaded;                         // what was read at the start (null: a new campaign)
         public readonly HashSet<string> met = new HashSet<string>();
         public float deepest;
+        public bool reachedReef;
         public readonly Dictionary<string, CrewSave> crew = new Dictionary<string, CrewSave>();   // every diver's last record, by name
         public bool saving = true;                      // (off in the screenshot harness and the tests)
         float autoT, metT, sendT;
@@ -124,7 +127,7 @@ namespace Deep
             var s = f.ship;
             s.pos = ship.Body.position; s.rot = ship.Body.rotation; s.heading = ship.heading; s.depthOrder = ship.depthOrder; s.headingOrder = ship.headingOrder;
             s.telegraph = ship.telegraph; s.holdDepth = ship.holdDepth; s.holdHeading = ship.holdHeading;
-            s.state = (int)sy.state; s.battery = sy.battery; s.fuel = sy.fuel; s.crushDepth = ship.crushDepth; s.engineRepaired = sy.engineRepaired; s.breakersTripped = sy.breakersTripped;
+            s.state = (int)sy.state; s.battery = sy.battery; s.fuel = sy.fuel; s.crushDepth = ship.crushDepth; s.engineRepaired = sy.engineRepaired; s.breakersTripped = sy.breakersTripped; s.geothermal = sy.geothermal;
             foreach (var r in sy.rooms) s.rooms.Add(r.level);
             foreach (var br in sy.breaches) s.breaches.Add(new BreachSave { room = br.room, gen = br.gen, size = br.size, patch = br.patch });
             s.store = Slots(ship.store);
@@ -144,7 +147,7 @@ namespace Deep
             if (Life.I != null) foreach (var p in Life.I.eco.pools) f.pools.Add(new PoolSave { biome = p.biome, B = (float[])p.B.Clone(), memory = p.memory, harvested = p.harvested });
             crew[Net.I ? Net.I.myName : "Diver"] = CaptureDiver(b.diver, Net.I ? Net.I.myName : "Diver");
             foreach (var kv in crew) f.crew.Add(kv.Value);
-            f.met.AddRange(met); f.deepest = deepest;
+            f.met.AddRange(met); f.deepest = deepest; f.stocked = true; f.reachedReef = reachedReef;
             return f;
         }
 
@@ -173,7 +176,7 @@ namespace Deep
             var s = f.ship;
             ship.Restore(s.pos, s.rot, s.heading, s.telegraph, s.depthOrder, s.headingOrder, s.holdDepth, s.holdHeading);
             sy.state = (PowerState)Mathf.Clamp(s.state, 0, 2); sy.battery = s.battery; sy.fuel = s.fuel; ship.crushDepth = Mathf.Max(30f, s.crushDepth);
-            sy.engineRepaired = s.engineRepaired; sy.breakersTripped = s.breakersTripped; ship.power = sy.state != PowerState.Dead; ship.powerK = ship.power ? 1 : 0;
+            sy.engineRepaired = s.engineRepaired; sy.breakersTripped = s.breakersTripped; sy.geothermal = s.geothermal; ship.power = sy.state != PowerState.Dead; ship.powerK = ship.power ? 1 : 0;
             for (int i = 0; i < sy.rooms.Count && i < s.rooms.Count; i++) sy.rooms[i].level = s.rooms[i];
             foreach (var br in new List<ShipSystems.Breach>(sy.breaches)) sy.DropBreach(br);
             foreach (var br in s.breaches) { var nb = sy.RestoreBreach(br.room, br.gen, br.size); if (nb != null) nb.patch = br.patch; }
@@ -194,9 +197,19 @@ namespace Deep
             // her stores after the lockers (they make room for what's in them)
             Fill(ship.store, s.store);
             if (Drops.I != null) foreach (var d in f.drops) { var items = new Dictionary<string, int>(); foreach (var it in d.items) items[it.id] = it.count; Drops.I.Add(d.id, d.owner, d.aboard, d.pos, items); }
+            if (!f.stocked) { StockStores(ship); sy.engineRepaired = true; }
+            reachedReef = f.reachedReef || f.openingDone && f.day > 0;
             if (Life.I != null) foreach (var p in f.pools) foreach (var pool in Life.I.eco.pools) if (pool.biome == p.biome && p.B != null && p.B.Length == pool.B.Length) { Array.Copy(p.B, pool.B, p.B.Length); pool.memory = p.memory; pool.harvested = p.harvested; }
             if (f.openingDone && crew.TryGetValue(Net.I ? Net.I.myName : "Diver", out var me)) ApplyDiver(b.diver, me);
             Debug.Log($"DEEP SAVE: continued the campaign from {f.savedAt} (day {f.day + 1})");
+        }
+
+        // the derelict's stores at the start: spare batteries for the switchboard and fuel for the boiler
+        public static void StockStores(Nautilus ship)
+        {
+            var bat = ItemDB.Get("Spare Battery Bank"); var fuel = ItemDB.Get("Synthetic Fuel Canister");
+            if (bat != null) ship.store.Add(bat, 4);
+            if (fuel != null) ship.store.Add(fuel, 6);
         }
 
         public static void ApplyDiver(Diver d, CrewSave c)

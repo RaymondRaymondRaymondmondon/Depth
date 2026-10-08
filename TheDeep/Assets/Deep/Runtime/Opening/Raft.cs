@@ -28,7 +28,7 @@ namespace Deep
             r.heading = heading;
             go.transform.position = at;
             r.model = new GameObject("model").transform; r.model.SetParent(go.transform, false);
-            var mat = new Material(Shader.Find("Deep/Lit")); mat.SetFloat("_UseVC", 1); mat.SetFloat("_VCAlbedo", 1); mat.SetFloat("_Roughness", 0.6f); mat.SetFloat("_Cull", 0);
+            var mat = new Material(DeepShaders.Get("Deep/Lit")); mat.SetFloat("_UseVC", 1); mat.SetFloat("_VCAlbedo", 1); mat.SetFloat("_Roughness", 0.6f); mat.SetFloat("_Cull", 0);
             var body = ModelLibrary.Get("Vehicles/raft", "raft"); var oar = ModelLibrary.Get("Vehicles/raft", "raft_oar");
             if (body) Part(r.model, "body", body, mat);
             if (oar)

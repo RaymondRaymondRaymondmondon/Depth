@@ -214,6 +214,16 @@ namespace Deep
                 Close();
                 return;
             }
+            // the geothermal engine: the Engine without fuel (the vents' heat)
+            if (it.name.StartsWith("Geothermal engine", System.StringComparison.OrdinalIgnoreCase) && d.ship && d.ship.sys)
+            {
+                h.pack.Remove(it); Store?.Remove(it);
+                d.ship.sys.geothermal = true; d.ship.sys.engineRepaired = true;
+                Net.Cmd(Net.C_GEO);
+                d.Toast("The geothermal engine is fitted: the Engine runs on the sea's heat, without fuel.");
+                Close();
+                return;
+            }
             // the steam engine's repair: she can run on her engine again
             if (it.name == "Steam engine" && d.ship && d.ship.sys)
             {

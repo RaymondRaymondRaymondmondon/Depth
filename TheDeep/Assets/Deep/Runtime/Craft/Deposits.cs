@@ -28,7 +28,7 @@ namespace Deep
 
         static Material VC()
         {
-            var m = new Material(Shader.Find("Deep/Lit")) { enableInstancing = true };
+            var m = new Material(DeepShaders.Get("Deep/Lit")) { enableInstancing = true };
             m.SetFloat("_UseVC", 1); m.SetFloat("_VCAlbedo", 1); m.SetFloat("_Roughness", 0.75f); m.SetFloat("_Metallic", 0.2f); m.SetFloat("_Cull", 0);
             return m;
         }
